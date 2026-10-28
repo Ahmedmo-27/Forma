@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -10,17 +11,17 @@
   --blue-muted: #141026;   /* Subtle tinted surface */
 
   /* Page surfaces */
-  --bg:         #0B0817;   /* Base Background — Deep dark canvas */
-  --card:       #141026;   /* Surface / Card Background */
-  --card-hover: #1A1535;   /* Card hover — slightly lifted */
+  --bg:         #0D0D11;   /* Base Background — deep neutral dark */
+  --card:       #16161C;   /* Surface / Card Background — subtle dark neutral */
+  --card-hover: #1C1C24;   /* Card hover — slightly lifted */
 
   /* Borders */
-  --border:     #2D2554;   /* Subtle Border / Dividers */
-  --border-md:  #4A3E85;   /* Focus / Active Border */
+  --border:     #262530;   /* Subtle Border / Dividers — low contrast */
+  --border-md:  #3A3850;   /* Focus / Active Border */
 
   /* Text */
   --t1: #FFFFFF;           /* Primary Text — crisp white */
-  --t2: #C8C3E0;           /* Body text — lighter muted */
+  --t2: #C2BFD4;           /* Body text */
   --t3: #A6A0C2;           /* Secondary Text — muted labels */
   --t4: #6B6490;           /* Placeholder / faintest text */
 
@@ -44,13 +45,14 @@
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { font-size: 14px; scroll-behavior: smooth; }
+html { font-size: 15px; scroll-behavior: smooth; }
 
 body {
   background: var(--bg);
   color: var(--t1);
   font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
   line-height: 1.5;
+  letter-spacing: -0.01em;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -63,9 +65,10 @@ textarea::placeholder {
 }
 
 /* Scrollbar */
-::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-md); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: rgba(68,41,140,0.5); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: rgba(0,240,255,0.4); }
 
 /* Focus */
 :focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
@@ -75,16 +78,20 @@ textarea::placeholder {
   to { transform: rotate(360deg); }
 }
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(6px); }
+  from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 @keyframes shimmer {
   0%   { background-position: -500px 0; }
   100% { background-position:  500px 0; }
 }
+@keyframes glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(0,240,255,0.3); }
+  50%       { box-shadow: 0 0 18px rgba(0,240,255,0.65); }
+}
 
 /* Utilities */
-.fade-up { animation: fadeUp 0.18s ease both; }
+.fade-up { animation: fadeUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) both; }
 
 .spin {
   display: inline-block;
@@ -99,7 +106,7 @@ textarea::placeholder {
 .spin-lg { width: 22px; height: 22px; border-width: 2.5px; }
 
 .skel {
-  background: linear-gradient(90deg, #1A1535 25%, #231C44 50%, #1A1535 75%);
+  background: linear-gradient(90deg, #1C1C24 25%, #222228 50%, #1C1C24 75%);
   background-size: 500px 100%;
   animation: shimmer 1.3s ease infinite;
   border-radius: 4px;
@@ -119,7 +126,23 @@ textarea::placeholder {
 .page-wrap {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 20px;
+}
+
+.glass {
+  background: rgba(22,22,28,0.8);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+}
+
+.badge-dot {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 5px currentColor;
+  animation: glow 2s ease-in-out infinite;
 }
 
 /* Date picker */
@@ -130,19 +153,19 @@ input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity
 .grid-stats-5 {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  gap: 12px;
+  gap: 16px;
 }
 
 .grid-stats-4 {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 1px;
+  gap: 16px;
 }
 
 .grid-stats-3 {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1px;
+  gap: 16px;
 }
 
 .grid-2 {
