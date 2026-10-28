@@ -98,7 +98,7 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
             onChange={e => set('assignedSales', e.target.value)}
             style={{ 
               width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid var(--border)', 
-              borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: '#fff', cursor: 'pointer' 
+              borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer' 
             }}>
             <option value="">— None —</option>
             {sales.map(s => <option key={s._id} value={s._id}>{s.name} ({s.role})</option>)}
@@ -113,7 +113,7 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
             onChange={e => set('coachId', e.target.value)}
             style={{ 
               width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid var(--border)', 
-              borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: '#fff', cursor: 'pointer' 
+              borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer' 
             }}>
             <option value="">— None —</option>
             {coaches.filter(c => ['Coach', 'Coach Manager'].includes(c.role)).map(c => 

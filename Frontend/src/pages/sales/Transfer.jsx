@@ -218,7 +218,7 @@ export default function Transfer() {
             <select value={repFilter} onChange={(e) => setRepFilter(e.target.value)} style={{
               minWidth: 220, padding: '7px 10px', fontSize: 13,
               border: '1px solid var(--border)', borderRadius: 6,
-              fontFamily: 'inherit', color: 'var(--t1)', background: '#fff',
+              fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)',
               cursor: 'pointer',
             }}>
               <option value="all">All members</option>

@@ -307,7 +307,7 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
             aspectRatio: '4 / 3',
             borderRadius: 8,
             overflow: 'hidden',
-            background: '#0f172a',
+            background: 'var(--bg)',
             position: 'relative',
           }}>
             {captured ? (

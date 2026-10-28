@@ -50,19 +50,19 @@ export default function SalesSubscriptions() {
               <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>From</label>
               <input type="date" value={dateFrom} max={dateTo || TODAY}
                 onChange={e => setDateFrom(e.target.value)}
-                style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: '#fff' }}
+                style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)' }}
               />
             </div>
             <div style={{ flex: 1, minWidth: 150 }}>
               <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>To</label>
               <input type="date" value={dateTo} min={dateFrom} max={TODAY}
                 onChange={e => setDateTo(e.target.value)}
-                style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: '#fff' }}
+                style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)' }}
               />
             </div>
             {!isToday && (
               <button onClick={() => { setDateFrom(TODAY); setDateTo(TODAY); }}
-                style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border-md)', borderRadius: 6, background: '#fff', cursor: 'pointer', color: 'var(--t3)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border-md)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'var(--t3)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                 Back to Today
               </button>
             )}

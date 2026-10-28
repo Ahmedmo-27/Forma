@@ -467,11 +467,11 @@ export default function SalesDashboard() {
           }}
         >
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#fff', borderRadius: 10, border: '1px solid var(--border)',
+            background: 'var(--card)', borderRadius: 10, border: '1px solid var(--border)',
             width: '100%', maxWidth: 500, maxHeight: '80svh', overflowY: 'auto',
-            boxShadow: '0 12px 40px rgba(15,23,42,0.18)',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
               <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>Today's Check-Ins ({myCheckIns.length})</h2>
               <button onClick={() => setShowActivity(false)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>
@@ -520,11 +520,11 @@ export default function SalesDashboard() {
           }}
         >
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#fff', borderRadius: 10, border: '1px solid var(--border)',
+            background: 'var(--card)', borderRadius: 10, border: '1px solid var(--border)',
             width: '100%', maxWidth: 600, maxHeight: '80svh', overflowY: 'auto',
-            boxShadow: '0 12px 40px rgba(15,23,42,0.18)',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
               <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>Today's Contracts ({todaySubscriptions.length})</h2>
               <button onClick={() => setShowTodaySubs(false)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>

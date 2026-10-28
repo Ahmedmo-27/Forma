@@ -101,7 +101,7 @@ export default function CheckIn() {
                   style={{
                     flex: 1, padding: '10px 13px', fontSize: 14,
                     border: '1px solid var(--border)', borderRadius: 8,
-                    outline: 'none', color: 'var(--t1)', background: '#fff',
+                    outline: 'none', color: 'var(--t1)', background: 'var(--card)',
                     fontFamily: 'inherit', transition: 'border-color 0.12s, box-shadow 0.12s',
                   }}
                   onFocus={e => { e.target.style.borderColor = 'var(--blue)'; e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.08)'; }}
@@ -297,9 +297,9 @@ export default function CheckIn() {
           }}
         >
           <div style={{
-            background: '#fffbeb', border: '2px solid #f59e0b',
+            background: 'var(--amber-bg)', border: '2px solid var(--amber-bd)',
             borderRadius: 16, padding: '32px 40px', maxWidth: 500, width: '100%',
-            textAlign: 'center', boxShadow: '0 20px 60px rgba(245,158,11,0.3)',
+            textAlign: 'center', boxShadow: '0 20px 60px rgba(245,158,11,0.2)',
           }}>
             <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: '#92400e', marginBottom: 16 }}>

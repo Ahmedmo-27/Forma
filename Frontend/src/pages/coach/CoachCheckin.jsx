@@ -122,7 +122,7 @@ export default function CoachCheckin() {
                   style={{
                     flex: 1, padding: '10px 13px', fontSize: 14,
                     border: '1px solid var(--border)', borderRadius: 8,
-                    outline: 'none', color: 'var(--t1)', background: '#fff', fontFamily: 'inherit',
+                    outline: 'none', color: 'var(--t1)', background: 'var(--card)', fontFamily: 'inherit',
                     transition: 'border-color 0.12s, box-shadow 0.12s',
                   }}
                   onFocus={e => { e.target.style.borderColor = 'var(--blue)'; e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.08)'; }}

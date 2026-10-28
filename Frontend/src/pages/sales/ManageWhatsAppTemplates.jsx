@@ -213,7 +213,7 @@ function TemplateForm({ form, onChange, errors, packages }) {
 
       <div>
         <div style={stepLabel}>Step 3 — Write the message</div>
-        <div style={{ ...tipBox, marginBottom: 10, background: '#f8fafc', borderColor: 'var(--border)', color: 'var(--t2)' }}>
+        <div style={{ ...tipBox, marginBottom: 10, background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--t2)' }}>
           Tip: click <strong>Add member’s name</strong> where you want their name to appear. When sending, it becomes the real name automatically.
         </div>
 

@@ -91,11 +91,11 @@ function TodayTab({ data, selectedDate, setSelectedDate, loading }) {
             <input
               type="date" value={selectedDate} max={TODAY}
               onChange={e => setSelectedDate(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: '#fff' }}
+              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)' }}
             />
           </div>
           {selectedDate && (
-            <button onClick={() => setSelectedDate('')} style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border-md)', borderRadius: 6, background: '#fff', cursor: 'pointer', color: 'var(--t3)', fontFamily: 'inherit' }}>
+            <button onClick={() => setSelectedDate('')} style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border-md)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'var(--t3)', fontFamily: 'inherit' }}>
               Clear
             </button>
           )}
@@ -383,7 +383,7 @@ function SalesSubscriptionsContent() {
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>From</label>
             <input type="date" value={dateFrom} max={dateTo || TODAY}
               onChange={e => setDateFrom(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: '#fff' }}
+              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)' }}
             />
           </div>
 
@@ -392,7 +392,7 @@ function SalesSubscriptionsContent() {
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>To</label>
             <input type="date" value={dateTo} min={dateFrom} max={TODAY}
               onChange={e => setDateTo(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: '#fff' }}
+              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)' }}
             />
           </div>
 
@@ -404,7 +404,7 @@ function SalesSubscriptionsContent() {
             <select
               value={salesRepId}
               onChange={e => setSalesRepId(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: '#fff', cursor: 'pointer' }}
+              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer' }}
             >
               <option value="">All Sales Reps</option>
               {salesReps.map(r => <option key={r._id} value={r._id}>{r.name} ({r.role})</option>)}
@@ -413,7 +413,7 @@ function SalesSubscriptionsContent() {
 
           {/* Reset */}
           {!isToday && (
-            <button onClick={resetToToday} style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border-md)', borderRadius: 6, background: '#fff', cursor: 'pointer', color: 'var(--t3)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            <button onClick={resetToToday} style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border-md)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'var(--t3)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
               Reset to Today
             </button>
           )}
@@ -563,7 +563,7 @@ function CoachSessionsContent() {
             <select
               value={coachId}
               onChange={e => setCoachId(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: '#fff', cursor: 'pointer' }}
+              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer' }}
             >
               <option value="">All Coaches</option>
               {coaches.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}

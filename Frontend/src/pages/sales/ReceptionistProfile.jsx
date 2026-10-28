@@ -25,7 +25,7 @@ function Toggle({ checked, onChange, disabled }) {
       }}
     >
       <span style={{
-        display: 'block', width: 16, height: 16, borderRadius: '50%', background: '#fff',
+        display: 'block', width: 16, height: 16, borderRadius: '50%', background: 'var(--bg)',
         position: 'absolute', top: 3,
         left: checked ? 21 : 3,
         transition: 'left 0.2s',
