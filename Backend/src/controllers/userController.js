@@ -215,7 +215,9 @@ const getSalesRevenue = async (req, res) => {
         require("../models/Package");
 
         const members = await Member.find({ assignedSales: req.user.id })
-            .populate("subscriptions.package");
+            .select("subscriptions status createdAt")
+            .populate("subscriptions.package", "name price duration")
+            .lean();
 
         const now = new Date();
         const currentYear = now.getFullYear();
@@ -286,11 +288,11 @@ const getSalesManagerRevenue = async (req, res) => {
 
         const [members, reps] = await Promise.all([
             Member.find()
+                .select("subscriptions assignedSales status")
                 .populate("subscriptions.package", "name price")
-                .populate("assignedSales", "name email"),
-            User.find({ role: "Sales" }).select("name email _id monthlyTarget"),
+                .lean(),
+            User.find({ role: "Sales" }).select("name email _id monthlyTarget").lean(),
         ]);
-
         // Build monthly map for the past 12 months
         const monthlyMap = buildMonthlyMap(12, now);
 
@@ -429,8 +431,12 @@ const getSalesTeam = async (req, res) => {
         const [team, members] = await Promise.all([
             User.find({ role: { $in: ["Sales", "Sales Manager"] } })
                 .select("name email role monthlyTarget abilities createdAt")
-                .sort({ name: 1 }),
-            Member.find().populate("subscriptions.package"),
+                .sort({ name: 1 })
+                .lean(),
+            Member.find()
+                .select("assignedSales status subscriptions createdAt")
+                .populate("subscriptions.package", "name price duration")
+                .lean(),
         ]);
 
         const now = new Date();
@@ -460,6 +466,7 @@ const getSalesProfile = async (req, res) => {
         }
 
         const members = await Member.find({ assignedSales: user._id })
+            .select("systemId memberId name phones photo status isMember subscriptions assignedSales source createdAt")
             .populate("subscriptions.package", "name price duration activityType");
 
         res.json({
@@ -638,7 +645,8 @@ const getSubscriptionsByDate = async (req, res) => {
         const members = await Member.find(filter)
             .populate("subscriptions.package", "name price duration activityType")
             .populate("assignedSales", "name role")
-            .populate("createdBy", "name role");
+            .populate("createdBy", "name role")
+            .lean();
 
         // Flatten to one entry per matching subscription
         const entries = [];

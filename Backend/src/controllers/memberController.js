@@ -182,8 +182,14 @@ async function createMemberRecord(personData, maxAttempts = 5) {
 }
 
 // ─── 2. Get All Members ───────────────────────────────────────────────────────
+const MEMBER_LIST_SELECT = "systemId memberId barcode name phones photo status isMember gender source assignedSales createdBy current_couch couch_subscription_status subscriptions freezeDaysUsed invitationsUsed isBlocked createdAt";
+const MEMBER_SEARCH_SELECT = "systemId memberId name phones photo status subscriptions assignedSales";
+
 const getAllMembers = async (req, res) => {
     try {
+        // Detect global-search / "all" call (frontend passes limit=10000)
+        const isGlobalSearch = parseInt(req.query.limit, 10) >= 1000;
+
         const { page, limit, skip } = parsePagination(req.query);
         const filter = buildMemberListFilter({
             status: req.query.status,
@@ -196,9 +202,28 @@ const getAllMembers = async (req, res) => {
         const statsFilter = { ...filter };
         delete statsFilter["subscriptions.createdAt"];
 
+        if (isGlobalSearch) {
+            // Lightweight query for global search — only fields needed for search/display
+            const members = await Member.find(filter)
+                .select(MEMBER_SEARCH_SELECT)
+                .populate("subscriptions.package", "name duration activityType")
+                .populate("assignedSales", "name role")
+                .sort({ systemId: 1 })
+                .skip(skip)
+                .limit(limit)
+                .lean();
+
+            return res.status(200).json({
+                count: members.length,
+                members,
+                pagination: buildPagination(page, limit, members.length),
+            });
+        }
+
         const [total, members, stats] = await Promise.all([
             Member.countDocuments(filter),
             Member.find(filter)
+                .select(MEMBER_LIST_SELECT)
                 .populate("subscriptions.package", "name duration activityType")
                 .populate("createdBy", "name")
                 .populate("assignedSales", "name role")
@@ -276,11 +301,12 @@ const getMemberProfile = async (req, res) => {
 
         const currentPkg = getCurrentPackage(member);
 
-        const checkIns = member.userlog
+        const recentLog = member.userlog.slice(-100);
+        const checkIns = recentLog
             .filter(log => log.type === "check-in")
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        const ptSessions = member.userlog
+        const ptSessions = recentLog
             .filter(log => log.type === "pt-session")
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
@@ -550,6 +576,7 @@ const getMembers = async (req, res) => {
     try {
         if (req.user.role === "Coach") {
             const members = await Member.find({ current_couch: req.user.id })
+                .select(MEMBER_LIST_SELECT)
                 .populate("current_couch", "name email")
                 .populate("subscriptions.package", "name price duration activityType");
 
@@ -575,6 +602,7 @@ const getMembers = async (req, res) => {
         const [total, members] = await Promise.all([
             Member.countDocuments(filter),
             Member.find(filter)
+                .select(MEMBER_LIST_SELECT)
                 .populate("assignedSales", "name email")
                 .populate("current_couch", "name role")
                 .populate("subscriptions.package", "name price duration activityType")
