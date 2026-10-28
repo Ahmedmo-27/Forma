@@ -1,45 +1,45 @@
 @import "tailwindcss";
 
 :root {
-  /* Navy palette */
-  --navy:       #0f172a;
-  --navy-2:     #1e293b;
-  --navy-3:     #334155;
-  --blue:       #2563eb;
-  --blue-dark:  #1d4ed8;
-  --blue-muted: #eff6ff;
+  /* Brand palette */
+  --navy:       #44298C;   /* Brand Primary — Deep LEAP Violet */
+  --navy-2:     #5B38BA;   /* Brand Primary Hover */
+  --navy-3:     #4A3E85;   /* Focus / Active Border */
+  --blue:       #00F0FF;   /* Action Accent — Electric Cyan */
+  --blue-dark:  #00C8D8;   /* Cyan hover */
+  --blue-muted: #141026;   /* Subtle tinted surface */
 
   /* Page surfaces */
-  --bg:         #f8fafc;
-  --card:       #ffffff;
-  --card-hover: #fafbfc;
+  --bg:         #0B0817;   /* Base Background — Deep dark canvas */
+  --card:       #141026;   /* Surface / Card Background */
+  --card-hover: #1A1535;   /* Card hover — slightly lifted */
 
   /* Borders */
-  --border:     #e2e8f0;
-  --border-md:  #cbd5e1;
+  --border:     #2D2554;   /* Subtle Border / Dividers */
+  --border-md:  #4A3E85;   /* Focus / Active Border */
 
   /* Text */
-  --t1: #0f172a;   /* headings */
-  --t2: #334155;   /* body */
-  --t3: #64748b;   /* secondary */
-  --t4: #94a3b8;   /* placeholder */
+  --t1: #FFFFFF;           /* Primary Text — crisp white */
+  --t2: #C8C3E0;           /* Body text — lighter muted */
+  --t3: #A6A0C2;           /* Secondary Text — muted labels */
+  --t4: #6B6490;           /* Placeholder / faintest text */
 
-  /* Semantic */
-  --green:      #16a34a;
-  --green-bg:   #f0fdf4;
-  --green-bd:   #bbf7d0;
-  --red:        #dc2626;
-  --red-bg:     #fef2f2;
-  --red-bd:     #fecaca;
-  --amber:      #d97706;
-  --amber-bg:   #fffbeb;
-  --amber-bd:   #fde68a;
-  --sky:        #0284c7;
-  --sky-bg:     #f0f9ff;
-  --sky-bd:     #bae6fd;
-  --slate:      #475569;
-  --slate-bg:   #f8fafc;
-  --slate-bd:   #e2e8f0;
+  /* Semantic — desaturated to suit dark canvas */
+  --green:      #22c55e;
+  --green-bg:   rgba(34,197,94,0.10);
+  --green-bd:   rgba(34,197,94,0.25);
+  --red:        #ef4444;
+  --red-bg:     rgba(239,68,68,0.10);
+  --red-bd:     rgba(239,68,68,0.25);
+  --amber:      #f59e0b;
+  --amber-bg:   rgba(245,158,11,0.10);
+  --amber-bd:   rgba(245,158,11,0.25);
+  --sky:        #38bdf8;
+  --sky-bg:     rgba(56,189,248,0.10);
+  --sky-bd:     rgba(56,189,248,0.25);
+  --slate:      #A6A0C2;
+  --slate-bg:   #141026;
+  --slate-bd:   #2D2554;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -89,7 +89,7 @@ textarea::placeholder {
 .spin {
   display: inline-block;
   width: 15px; height: 15px;
-  border: 2px solid var(--border-md);
+  border: 2px solid var(--border);
   border-top-color: var(--blue);
   border-radius: 50%;
   animation: spin 0.6s linear infinite;
@@ -99,7 +99,7 @@ textarea::placeholder {
 .spin-lg { width: 22px; height: 22px; border-width: 2.5px; }
 
 .skel {
-  background: linear-gradient(90deg, #f1f5f9 25%, #e8edf2 50%, #f1f5f9 75%);
+  background: linear-gradient(90deg, #1A1535 25%, #231C44 50%, #1A1535 75%);
   background-size: 500px 100%;
   animation: shimmer 1.3s ease infinite;
   border-radius: 4px;
@@ -330,4 +330,34 @@ input[type="date"]::-webkit-calendar-picker-indicator { cursor: pointer; opacity
 }
 .no-spinners {
   -moz-appearance: textfield;
+}
+
+/* -- Dark theme: native form element overrides ------------------------- */
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  color-scheme: dark;
+  background: var(--card);
+  color: var(--t1);
+  border-color: var(--border);
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+select:focus,
+textarea:focus {
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(0, 240, 255, 0.10);
+  outline: none;
+}
+
+/* Native select arrow visibility on dark bg */
+select option {
+  background: var(--card);
+  color: var(--t1);
+}
+
+/* Date picker calendar icon tint */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(0.7) sepia(1) saturate(5) hue-rotate(180deg);
+  cursor: pointer;
 }
