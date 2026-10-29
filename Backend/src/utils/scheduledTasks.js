@@ -2,6 +2,52 @@ const Member = require("../models/Member");
 const logger = require("./logger");
 
 /**
+ * Expire members whose last subscription endDate has passed
+ * and whose status is still "active" or "frozen".
+ * Uses a single updateMany for performance — no looping.
+ */
+async function processExpiryCycles() {
+    const now = new Date();
+    try {
+        // Find all active/frozen members where last subscription endDate <= now
+        // We can't use updateMany directly on nested array last element,
+        // so we aggregate to get IDs then bulk update.
+        const overdueIds = await Member.aggregate([
+            {
+                $match: {
+                    status: { $in: ["active", "frozen"] },
+                    isMember: true,
+                    "subscriptions.0": { $exists: true },
+                },
+            },
+            {
+                $addFields: {
+                    lastSubEnd: { $arrayElemAt: ["$subscriptions.endDate", -1] },
+                },
+            },
+            {
+                $match: { lastSubEnd: { $lt: now } },
+            },
+            { $project: { _id: 1 } },
+        ]);
+
+        if (overdueIds.length === 0) return;
+
+        const ids = overdueIds.map(d => d._id);
+        const result = await Member.updateMany(
+            { _id: { $in: ids } },
+            { $set: { status: "expired" } }
+        );
+
+        if (result.modifiedCount > 0) {
+            logger.info("scheduler", "Expiry cycle processed", { expiredCount: result.modifiedCount });
+        }
+    } catch (error) {
+        logger.error("scheduler", "Expiry cycle error", { error: error.message });
+    }
+}
+
+/**
  * Unfreeze members whose freeze end date has passed.
  * Also handles future-scheduled freezes that should now start.
  */
@@ -89,11 +135,13 @@ async function processFreezeCycles() {
 function startScheduledTasks() {
     // Run immediately on startup
     processFreezeCycles();
+    processExpiryCycles();
 
     // Then every 30 minutes
     setInterval(processFreezeCycles, 30 * 60 * 1000);
+    setInterval(processExpiryCycles, 30 * 60 * 1000);
 
-    logger.info("scheduler", "Scheduled tasks started (freeze cycle every 30 min)");
+    logger.info("scheduler", "Scheduled tasks started (freeze + expiry cycle every 30 min)");
 }
 
-module.exports = { startScheduledTasks, processFreezeCycles };
+module.exports = { startScheduledTasks, processFreezeCycles, processExpiryCycles };

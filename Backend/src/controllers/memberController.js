@@ -187,6 +187,10 @@ const MEMBER_SEARCH_SELECT = "systemId memberId name phones photo status subscri
 
 const getAllMembers = async (req, res) => {
     try {
+        // Fire-and-forget: expire any overdue members before serving the list
+        const { processExpiryCycles } = require("../utils/scheduledTasks");
+        processExpiryCycles().catch(() => {});
+
         // Detect global-search / "all" call (frontend passes limit=10000)
         const isGlobalSearch = parseInt(req.query.limit, 10) >= 1000;
 
@@ -255,22 +259,25 @@ const getMemberProfile = async (req, res) => {
             return res.status(400).json({ message: "Invalid member ID" });
         }
 
-        const member = await Member.findOne(query)
-            .populate("subscriptions.package", "name duration activityType price freezeLimitDays invitationLimit renewalDiscountPercent hasException")
-            .populate("subscriptions.createdBy", "name")
-            .populate("subscriptions.approvedBy", "name email role")
-            .populate("subscriptions.salesManager", "name email role")
-            .populate("createdBy", "name role")
-            .populate("assignedSales", "name role")
-            .populate("notes.createdBy", "name")
-            .populate("couch_notes.createdBy", "name")
-            .populate("current_couch", "name role")
-            .populate("alert.createdBy", "name role")
-            .populate("freeze.createdBy", "name")
-            .populate("freeze.endedBy", "name")
-            .populate("invitations.createdBy", "name")
-            .populate("userlog.createdBy", "name role")
-            .populate("pt_subscriptions.createdBy", "name role");
+        // Single findOne — all populates passed as an array so Mongoose
+        // batches them in parallel instead of sequential round-trips.
+        const member = await Member.findOne(query).populate([
+            { path: "subscriptions.package",    select: "name duration activityType price freezeLimitDays invitationLimit renewalDiscountPercent hasException" },
+            { path: "subscriptions.createdBy",  select: "name" },
+            { path: "subscriptions.approvedBy", select: "name email role" },
+            { path: "subscriptions.salesManager", select: "name email role" },
+            { path: "createdBy",                select: "name role" },
+            { path: "assignedSales",            select: "name role" },
+            { path: "notes.createdBy",          select: "name" },
+            { path: "couch_notes.createdBy",    select: "name" },
+            { path: "current_couch",            select: "name role" },
+            { path: "alert.createdBy",          select: "name role" },
+            { path: "freeze.createdBy",         select: "name" },
+            { path: "freeze.endedBy",           select: "name" },
+            { path: "invitations.createdBy",    select: "name" },
+            { path: "userlog.createdBy",        select: "name role" },
+            { path: "pt_subscriptions.createdBy", select: "name role" },
+        ]);
 
         if (!member) {
             return res.status(404).json({ message: "Member not found" });
@@ -310,12 +317,15 @@ const getMemberProfile = async (req, res) => {
             .filter(log => log.type === "pt-session")
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        // Log this profile view
-        await ProfileView.create({ member: member._id, viewedBy: req.user.id });
-
-        const profileViews = await ProfileView.find({ member: member._id })
-            .populate("viewedBy", "name role")
-            .sort({ createdAt: -1 });
+        // Log this profile view and fetch view history in parallel
+        const [, profileViews] = await Promise.all([
+            ProfileView.create({ member: member._id, viewedBy: req.user.id }),
+            ProfileView.find({ member: member._id })
+                .populate("viewedBy", "name role")
+                .sort({ createdAt: -1 })
+                .limit(50)
+                .lean(),
+        ]);
 
         const memberPayload = redactMemberForViewer(member.toObject(), req.user);
 
@@ -992,8 +1002,25 @@ const getAllNotes = async (req, res) => {
         const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 25 });
         const match = { "notes.0": { $exists: true } };
 
-        if (req.query.createdBy) {
-            match["notes.createdBy"] = new mongoose.Types.ObjectId(req.query.createdBy);
+        // Sales reps are always scoped to their own notes — ignore any createdBy param they pass
+        const createdBy = req.user.role === "Sales"
+            ? req.user.id
+            : req.query.createdBy || null;
+
+        if (createdBy) {
+            match["notes.createdBy"] = new mongoose.Types.ObjectId(createdBy);
+        }
+
+        // Date range filter on note createdAt
+        if (req.query.dateFrom || req.query.dateTo) {
+            const dateFilter = {};
+            if (req.query.dateFrom) dateFilter.$gte = new Date(req.query.dateFrom);
+            if (req.query.dateTo) {
+                const to = new Date(req.query.dateTo);
+                to.setHours(23, 59, 59, 999);
+                dateFilter.$lte = to;
+            }
+            match["notes.createdAt"] = dateFilter;
         }
 
         const search = req.query.search?.trim();
@@ -1010,7 +1037,16 @@ const getAllNotes = async (req, res) => {
         const pipeline = [
             { $match: match },
             { $unwind: "$notes" },
-            ...(req.query.createdBy ? [{ $match: { "notes.createdBy": new mongoose.Types.ObjectId(req.query.createdBy) } }] : []),
+            ...(createdBy ? [{ $match: { "notes.createdBy": new mongoose.Types.ObjectId(createdBy) } }] : []),
+            // Re-apply date filter after unwind (match.notes.createdAt filters docs, this filters individual notes)
+            ...((req.query.dateFrom || req.query.dateTo) ? [{
+                $match: {
+                    "notes.createdAt": {
+                        ...(req.query.dateFrom ? { $gte: new Date(req.query.dateFrom) } : {}),
+                        ...(req.query.dateTo ? (() => { const d = new Date(req.query.dateTo); d.setHours(23,59,59,999); return { $lte: d }; })() : {}),
+                    }
+                }
+            }] : []),
             {
                 $lookup: {
                     from: "users",

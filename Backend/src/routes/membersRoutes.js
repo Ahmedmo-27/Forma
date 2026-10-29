@@ -80,7 +80,7 @@ router.get("/", protect, (req, res, next) => {
 // All members (for global search — all authenticated staff)
 router.get("/all", protect, authorize("Receptionist", "Owner", "Sales", "Sales Manager", "Accountant", "Coach", "Coach Manager"), getAllMembers);
 
-router.get("/all-notes", protect, authorize("Sales Manager", "Owner", "Coach Manager"), getAllNotes);
+router.get("/all-notes", protect, authorize("Sales", "Sales Manager", "Owner", "Coach Manager"), getAllNotes);
 router.get("/today-checkins", protect, authorize("Receptionist", "Owner", "Sales", "Sales Manager"), getTodayCheckIns);
 router.get("/today-coach-transfers", protect, authorize("Coach", "Coach Manager"), getTodayCoachTransfers);
 

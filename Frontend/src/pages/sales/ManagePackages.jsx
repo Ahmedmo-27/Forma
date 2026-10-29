@@ -20,7 +20,7 @@ const ACTIVITY_COLOR = {
   calisthenics: { bg: '#f0f9ff', color: '#0284c7', border: '#bae6fd' },
 };
 function ActivityBadge({ type }) {
-  const c = ACTIVITY_COLOR[type] ?? { bg: '#f8fafc', color: '#64748b', border: '#e2e8f0' };
+  const c = ACTIVITY_COLOR[type] ?? { bg: 'var(--slate-bg)', color: 'var(--slate)', border: 'var(--slate-bd)' };
   return (
     <span style={{
       display: 'inline-block', padding: '2px 8px', borderRadius: 4,

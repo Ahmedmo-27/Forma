@@ -17,8 +17,10 @@ import CheckInsTab    from './tabs/CheckInsTab';
 import OthersTab      from './tabs/OthersTab';
 import FilesTab       from './tabs/FilesTab';
 import AlertsTab      from './tabs/AlertsTab';
+import DashboardTab   from './tabs/DashboardTab';
 
 const TABS = [
+  { id: 'dashboard',   label: 'Dashboard' },
   { id: 'personal',    label: 'Personal Info' },
   { id: 'packages',    label: 'Packages' },
   { id: 'files',       label: 'Files' },
@@ -37,7 +39,7 @@ export default function MemberProfile() {
   const navigate = useNavigate();
   const [data, setData]         = useState(null);
   const [loading, setLoading]   = useState(true);
-  const [activeTab, setTab]     = useState(() => searchParams.get('tab') || 'personal');
+  const [activeTab, setTab]     = useState(() => searchParams.get('tab') || 'dashboard');
   const [checkingIn, setChecking] = useState(false);
   const [alertPopup, setAlertPopup] = useState(null); // array of alert texts or null
   const alertShownRef = useRef(false);
@@ -187,6 +189,7 @@ export default function MemberProfile() {
             <ProfileHeader member={member} stats={stats} user={user} onPhotoUploaded={fetchProfile} />
             <Tabs tabs={TABS} active={activeTab} onChange={setTab} />
             <div className="fade-up">
+              {activeTab === 'dashboard'   && <DashboardTab   member={member} user={user} data={data} onTabChange={setTab} />}
               {activeTab === 'personal'    && <PersonalTab    member={member} user={user} onRefresh={fetchProfile} />}
               {activeTab === 'packages'    && <PackagesTab    member={member} user={user} onRefresh={fetchProfile} />}
               {activeTab === 'files'       && <FilesTab       member={member} user={user} onRefresh={fetchProfile} />}
@@ -279,7 +282,7 @@ export default function MemberProfile() {
           onClick={() => setAlertPopup(null)}
           style={{
             position: 'fixed', inset: 0, zIndex: 9999,
-            background: 'rgba(15,23,42,0.7)', backdropFilter: 'blur(4px)',
+            background: 'rgba(0,0,0,1.0)', backdropFilter: 'blur(4px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: 24, cursor: 'pointer',
           }}
@@ -310,48 +313,84 @@ export default function MemberProfile() {
 
 function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
   const sub = member.subscriptions?.at(-1);
-  const pkg = sub?.package;
+  const pkg = sub?.packageSnapshot ?? sub?.package;
+  const totalCheckIns = stats?.totalCheckIns ?? 0;
 
-  const totalPT = member.PT_sessions ?? 0;
-  const usedPT = member.used_PT_sessions ?? 0;
-  const remainingPT = totalPT - usedPT;
+  const lastCheckIn = (member.userlog ?? [])
+    .filter(l => l.type === 'check-in')
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
 
-  const statItems = [
-    { label: 'Check-ins',     value: stats?.totalCheckIns ?? 0 },
-    { label: 'Subscriptions', value: stats?.totalSubscriptions ?? 0 },
-    { label: 'Freeze used',   value: `${stats?.freezeDaysUsed ?? 0} / ${pkg?.freezeLimitDays ?? 0}d` },
-    { label: 'Invitations',   value: `${stats?.invitationsUsed ?? 0} / ${pkg?.invitationLimit ?? 0}` },
-    { label: 'PT Sessions',   value: `${usedPT} / ${totalPT}` },
-    { label: 'PT Remaining',  value: remainingPT, color: remainingPT > 0 ? 'var(--green)' : 'var(--t4)' },
-  ];
+  const copy = (val) => { navigator.clipboard?.writeText(String(val)); toast.success('Copied!'); };
+
+  // ── reusable chip ──────────────────────────────────────────
+  const Chip = ({ icon, label, copyVal, accent }) => (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      fontSize: 13, color: accent ? accent : 'var(--t2)',
+      background: 'var(--bg)', border: `1px solid ${accent ? accent + '33' : 'var(--border)'}`,
+      borderRadius: 7, padding: '4px 10px', whiteSpace: 'nowrap',
+    }}>
+      <span style={{ fontSize: 12, opacity: 0.8 }}>{icon}</span>
+      {label}
+      {copyVal && (
+        <button
+          onClick={() => copy(copyVal)}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', padding: '0 0 0 3px', display: 'inline-flex', alignItems: 'center', transition: 'color 0.12s' }}
+          onMouseEnter={e => e.currentTarget.style.color = '#44298C'}
+          onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
+          title="Copy"
+        >
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
+      )}
+    </span>
+  );
 
   return (
-    <div className="member-profile-header" style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: '16px 20px', display: 'flex', flexWrap: 'wrap', alignItems: 'flex-start', gap: 16 }}>
-      <ProfilePhotoUpload member={member} user={user} onUploaded={onPhotoUploaded} />
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--t1)', margin: 0 }}>{member.name}</h2>
+    <div style={{
+      background: 'var(--card)',
+      border: '1px solid var(--border)',
+      borderRadius: 12,
+      padding: '18px 22px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: 20,
+      boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+    }}>
+
+      {/* ── Photo ─────────────────────────────────────────── */}
+      <div style={{ flexShrink: 0, alignSelf: 'center' }}>
+        <ProfilePhotoUpload member={member} user={user} onUploaded={onPhotoUploaded} />
+      </div>
+
+      {/* ── Info block ────────────────────────────────────── */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+        {/* Row 1: Name + status badge */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--t1)', margin: 0, letterSpacing: '-0.3px' }}>
+            {member.name}
+          </h2>
           <Badge status={member.isBlocked ? 'blocked' : member.status} />
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: 'var(--t3)', marginBottom: 12 }}>
-          {member.gender     && <span style={{ textTransform: 'capitalize' }}>{member.gender}</span>}
-          {member.assignedSales && <span>Sales: {member.assignedSales.name}</span>}
-          {member.current_couch && <span>Coach: {member.current_couch.name}</span>}
-          <span style={{ fontFamily: 'monospace', color: 'var(--t4)' }}>#{member.systemId}{member.memberId ? ` / M${member.memberId}` : ''}</span>
+
+        {/* Row 2: IDs + gender + phone + last check-in */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+          {member.memberId  && <Chip icon="🪪" label={`Member ID: ${member.memberId}`}    copyVal={String(member.memberId)} />}
+          {member.systemId  && <Chip icon="🔢" label={`Member Code: ${member.systemId}`}  copyVal={String(member.systemId)} />}
+          {member.gender    && <Chip icon="👤" label={member.gender.charAt(0).toUpperCase() + member.gender.slice(1)} />}
+          {member.phones    && <Chip icon="📞" label={member.phones} />}
+          {lastCheckIn      && (
+            <Chip icon="🕐" label={`Last Check-In: ${new Date(lastCheckIn.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`} />
+          )}
         </div>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {statItems.map(s => (
-            <div key={s.label} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 12px', textAlign: 'center', minWidth: 80 }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: s.color ?? 'var(--t1)' }}>{s.value}</div>
-              <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 2 }}>{s.label}</div>
-            </div>
-          ))}
+
+        {/* Row 3: Coach + Sales + Total Visits — separated by a divider dot */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
+          {member.current_couch && <Chip icon="🏋️" label={`Coach: ${member.current_couch.name}`} accent="var(--sky)" />}
+          {member.assignedSales && <Chip icon="💼" label={`Sales: ${member.assignedSales.name}`} accent="var(--amber)" />}
+          <Chip icon="📊" label={`${totalCheckIns} Total Visits`} />
         </div>
-        {member.barcode && (
-          <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, display: 'inline-block' }}>
-            <Barcode value={member.barcode} width={1.5} height={40} fontSize={12} margin={4} displayValue={true} />
-          </div>
-        )}
       </div>
     </div>
   );

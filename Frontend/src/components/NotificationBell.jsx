@@ -101,11 +101,11 @@ export default function NotificationBell({ variant = 'bar' }) {
         aria-label="Notifications"
         style={{
           position: 'relative',
-          background: isDrawer ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.07)',
+          background: isDrawer ? 'rgba(68,41,140,0.07)' : 'rgba(68,41,140,0.07)',
           border: '1px solid rgba(255,255,255,0.12)',
-          borderRadius: 6,
-          width: isDrawer ? '100%' : 34,
-          height: 34,
+          borderRadius: 8,
+          width: isDrawer ? '100%' : 42,
+          height: 42,
           cursor: 'pointer',
           display: 'flex',
           alignItems: 'center',
@@ -114,10 +114,10 @@ export default function NotificationBell({ variant = 'bar' }) {
           padding: isDrawer ? '0 12px' : 0,
           transition: 'background 0.12s',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = isDrawer ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.12)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = isDrawer ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.07)'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(68,41,140,0.10)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(68,41,140,0.07)'; }}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.75)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.80)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
@@ -141,9 +141,9 @@ export default function NotificationBell({ variant = 'bar' }) {
       {open && (
         <div className="fade-up notif-panel dropdown-panel" style={{
           position: 'absolute', top: 'calc(100% + 8px)', right: isDrawer ? 'auto' : 0, left: isDrawer ? 0 : 'auto',
-          background: '#fff', border: '1px solid var(--border)',
+          background: 'var(--card)', border: '1px solid var(--border)',
           borderRadius: 8, width: 320, maxHeight: 400,
-          boxShadow: '0 8px 24px rgba(15,23,42,0.14)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
           zIndex: 100, overflow: 'hidden',
           display: 'flex', flexDirection: 'column',
         }}>
@@ -177,10 +177,13 @@ export default function NotificationBell({ variant = 'bar' }) {
                   onClick={() => handleClick(n)}
                   style={{
                     width: '100%', textAlign: 'left', padding: '10px 14px',
-                    border: 'none', borderBottom: '1px solid var(--bg)',
-                    background: n.read ? '#fff' : 'var(--blue-bg, #eff6ff)',
+                    border: 'none', borderBottom: '1px solid var(--border)',
+                    background: n.read ? 'var(--card)' : 'rgba(68,41,140,0.06)',
                     cursor: 'pointer', fontFamily: 'inherit',
+                    transition: 'background 0.1s',
                   }}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(68,41,140,0.25)'}
+                  onMouseLeave={e => e.currentTarget.style.background = n.read ? 'var(--card)' : 'rgba(68,41,140,0.06)'}
                 >
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{n.title}</div>
                   <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 4 }}>{n.message}</div>

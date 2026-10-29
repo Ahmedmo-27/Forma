@@ -6,11 +6,38 @@ import { Avatar } from './ui';
 import AddMemberModal from './AddMemberModal';
 
 const STATUS_DOT = {
-  active:  '#16a34a',
-  frozen:  '#0284c7',
-  expired: '#dc2626',
-  guest:   '#94a3b8',
+  active:  '#22c55e',
+  frozen:  '#38bdf8',
+  expired: '#ef4444',
+  guest:   '#A6A0C2',
 };
+
+// ── Module-level shared cache ─────────────────────────────────────────────────
+// All GlobalSearch instances (desktop + mobile drawer) share one fetch so the
+// /api/members/all endpoint is only called once per session, not per instance.
+let _sharedCache = null;
+let _sharedFetchPromise = null;
+let _cacheInvalidateTimer = null;
+
+function getSharedCache() { return _sharedCache; }
+function setSharedCache(data) {
+  _sharedCache = data;
+  // Reset the invalidation timer on every fresh fetch
+  clearTimeout(_cacheInvalidateTimer);
+  _cacheInvalidateTimer = setTimeout(() => { _sharedCache = null; _sharedFetchPromise = null; }, 60000);
+}
+async function loadSharedCache(fetchFn) {
+  if (_sharedCache) return _sharedCache;
+  // If a fetch is already in-flight, piggyback on it instead of firing a second request
+  if (_sharedFetchPromise) return _sharedFetchPromise;
+  _sharedFetchPromise = fetchFn().then(res => {
+    const members = res.data.members ?? [];
+    setSharedCache(members);
+    _sharedFetchPromise = null;
+    return members;
+  }).catch(() => { _sharedFetchPromise = null; return []; });
+  return _sharedFetchPromise;
+}
 
 export default function GlobalSearch() {
   const navigate  = useNavigate();
@@ -18,7 +45,6 @@ export default function GlobalSearch() {
   const phoneRef  = useRef(null);
   const idRef     = useRef(null);
   const wrapRef   = useRef(null);
-  const cacheRef  = useRef(null); // cached members list
 
   const [phoneQuery, setPhoneQuery] = useState('');
   const [idQuery, setIdQuery]       = useState('');
@@ -30,31 +56,21 @@ export default function GlobalSearch() {
 
   const canAdd = ['Receptionist', 'Owner', 'Sales', 'Sales Manager'].includes(user?.role);
 
-  // Fetch members once and cache
+  // Fetch members once and cache at module level (shared across all instances)
   const loadCache = useCallback(async () => {
-    if (cacheRef.current) return cacheRef.current;
-    try {
-      const res = await searchAllMembers();
-      cacheRef.current = res.data.members ?? [];
-      return cacheRef.current;
-    } catch {
-      return [];
-    }
+    return loadSharedCache(searchAllMembers);
   }, []);
 
   // Preload cache on mount
   useEffect(() => { loadCache(); }, [loadCache]);
 
   // Invalidate cache every 60s so new members show up
-  useEffect(() => {
-    const interval = setInterval(() => { cacheRef.current = null; }, 60000);
-    return () => clearInterval(interval);
-  }, []);
+  // (handled by the shared cache timer — no per-instance timer needed)
 
   // Filter locally — instant
   const doSearch = useCallback((q, field) => {
     if (!q) { setResults([]); setOpen(false); setCursor(-1); return; }
-    const all = cacheRef.current ?? [];
+    const all = getSharedCache() ?? [];
     let matched;
     if (field === 'id') {
       matched = all.filter(m =>
@@ -76,7 +92,7 @@ export default function GlobalSearch() {
     const q = (activeField === 'phone' ? phoneQuery : idQuery).trim();
     if (!q) { setResults([]); setOpen(false); setCursor(-1); return; }
     // If cache not loaded yet, load then search
-    if (!cacheRef.current) {
+    if (!getSharedCache()) {
       loadCache().then(() => doSearch(q, activeField));
     } else {
       doSearch(q, activeField);
@@ -140,7 +156,7 @@ export default function GlobalSearch() {
     return (
       <>
         {text.slice(0, idx)}
-        <mark style={{ background: 'rgba(37,99,235,0.18)', color: 'var(--navy)', borderRadius: 2, padding: '0 1px' }}>
+        <mark style={{ background: 'rgba(68,41,140,0.12)', color: '#44298C', borderRadius: 2, padding: '0 1px' }}>
           {text.slice(idx, idx + q.length)}
         </mark>
         {text.slice(idx + q.length)}
@@ -151,21 +167,21 @@ export default function GlobalSearch() {
   const displayQuery = activeField === 'phone' ? phoneQuery.trim() : idQuery.trim();
 
   const inputStyle = {
-    width: '100%', paddingLeft: 28, paddingRight: 8,
-    paddingTop: 6, paddingBottom: 6,
-    background: 'rgba(255,255,255,0.08)',
+    width: '100%', paddingLeft: 32, paddingRight: 10,
+    paddingTop: 8, paddingBottom: 8,
+    background: 'rgba(0,0,0,0.20)',
     border: '1px solid rgba(255,255,255,0.14)',
-    borderRadius: 6, fontSize: 13,
+    borderRadius: 8, fontSize: 13,
     color: '#fff',
     outline: 'none', fontFamily: 'inherit',
-    transition: 'background 0.15s, border-color 0.15s',
+    transition: 'background 0.15s, border-color 0.15s, box-shadow 0.15s',
   };
 
   return (
     <div ref={wrapRef} className="global-search-wrap" style={{ position: 'relative', display: 'flex', gap: 6, flex: '0 1 380px' }}>
       {/* Phone Search */}
       <div style={{ position: 'relative', flex: 1 }}>
-        <svg style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}
+        <svg style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.45)', pointerEvents: 'none' }}
           width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
         </svg>
@@ -179,14 +195,14 @@ export default function GlobalSearch() {
           placeholder="Phone…"
           autoComplete="off"
           style={inputStyle}
-          onMouseEnter={e => { e.target.style.background = 'rgba(255,255,255,0.12)'; }}
-          onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.background = 'rgba(255,255,255,0.08)'; }}
+          onMouseEnter={e => { e.target.style.background = 'rgba(0,0,0,0.28)'; e.target.style.borderColor = 'rgba(255,255,255,0.22)'; }}
+          onMouseLeave={e => { if (document.activeElement !== e.target) { e.target.style.background = 'rgba(0,0,0,0.20)'; e.target.style.borderColor = 'rgba(255,255,255,0.14)'; } }}
         />
       </div>
 
       {/* ID Search */}
       <div style={{ position: 'relative', flex: 1 }}>
-        <svg style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.35)', pointerEvents: 'none' }}
+        <svg style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.45)', pointerEvents: 'none' }}
           width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="M4 4h16v16H4z"/><path d="M9 9h1"/><path d="M14 9h1"/><path d="M9 14h6"/>
         </svg>
@@ -200,8 +216,8 @@ export default function GlobalSearch() {
           placeholder="ID…"
           autoComplete="off"
           style={inputStyle}
-          onMouseEnter={e => { e.target.style.background = 'rgba(255,255,255,0.12)'; }}
-          onMouseLeave={e => { if (document.activeElement !== e.target) e.target.style.background = 'rgba(255,255,255,0.08)'; }}
+          onMouseEnter={e => { e.target.style.background = 'rgba(0,0,0,0.28)'; e.target.style.borderColor = 'rgba(255,255,255,0.22)'; }}
+          onMouseLeave={e => { if (document.activeElement !== e.target) { e.target.style.background = 'rgba(0,0,0,0.20)'; e.target.style.borderColor = 'rgba(255,255,255,0.14)'; } }}
         />
       </div>
 
@@ -209,9 +225,9 @@ export default function GlobalSearch() {
       {open && (
         <div className="global-search-dropdown dropdown-panel" style={{
           position: 'absolute', top: 'calc(100% + 6px)', left: 0,
-          width: 360, background: '#fff',
+          width: 360, background: 'var(--card)',
           border: '1px solid var(--border)', borderRadius: 8,
-          boxShadow: '0 8px 32px rgba(15,23,42,0.16)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.10)',
           zIndex: 200, overflow: 'hidden',
         }}>
           {results.length === 0 ? (
@@ -229,12 +245,12 @@ export default function GlobalSearch() {
                   onMouseDown={openAddModal}
                   style={{
                     width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '12px 16px', border: 'none', background: '#fff',
+                    padding: '12px 16px', border: 'none', background: 'var(--card)',
                     cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.1s',
                     textAlign: 'left',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
-                  onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(68,41,140,0.25)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'var(--card)'}
                 >
                   <div style={{
                     width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
@@ -268,7 +284,7 @@ export default function GlobalSearch() {
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       padding: '9px 12px',
-                      background: isActive ? 'var(--bg)' : '#fff',
+                      background: isActive ? 'rgba(68,41,140,0.30)' : 'var(--card)',
                       borderBottom: '1px solid var(--border)',
                       cursor: 'pointer', transition: 'background 0.1s',
                     }}
@@ -277,7 +293,7 @@ export default function GlobalSearch() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
                         <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{m.name}</span>
-                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[m.status] ?? '#94a3b8', flexShrink: 0 }} />
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[m.status] ?? '#A6A0C2', flexShrink: 0 }} />
                       </div>
                       <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--t4)' }}>
                         <span style={{ fontFamily: 'monospace' }}>#{highlight(String(m.systemId), q)}{m.memberId ? ` / M${highlight(String(m.memberId), q)}` : ''}</span>
@@ -296,13 +312,13 @@ export default function GlobalSearch() {
                   style={{
                     width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                     padding: '9px 12px', border: 'none',
-                    background: '#fff', borderTop: '1px solid var(--border)',
+                    background: 'var(--card)', borderTop: '1px solid var(--border)',
                     cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.1s',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
-                  onMouseLeave={e => e.currentTarget.style.background = '#fff'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(68,41,140,0.25)'}
+                  onMouseLeave={e => e.currentTarget.style.background = 'var(--card)'}
                 >
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: 'var(--bg)', border: '1px dashed var(--border-md)', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 }}>+</div>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: 'rgba(68,41,140,0.30)', border: '1px dashed var(--border-md)', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 }}>+</div>
                   <span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600 }}>Add new person…</span>
                 </button>
               )}

@@ -36,6 +36,9 @@ import CheckIn            from './pages/CheckIn';
 import CallCenter         from './pages/sales/CallCenter';
 import Transfer           from './pages/sales/Transfer';
 import ReceptionContacts  from './pages/ReceptionContacts';
+import Reports         from './pages/Reports';
+import GuestMembers    from './pages/reports/GuestMembers';
+import ExpiredMembers  from './pages/reports/ExpiredMembers';
 import NotFound       from './pages/NotFound';
 
 // ── Protected route wrapper ───────────────────────────────────────────────────
@@ -249,6 +252,23 @@ function AppRoutes() {
       <Route path="/owner/teams/:id" element={
         <PrivateRoute roles={['Owner']}>
           <OwnerUserProfile />
+        </PrivateRoute>
+      } />
+
+      {/* Reports */}
+      <Route path="/reports" element={
+        <PrivateRoute roles={['Owner', 'Sales Manager', 'Accountant', 'Sales']}>
+          <Reports />
+        </PrivateRoute>
+      } />
+      <Route path="/reports/guests" element={
+        <PrivateRoute roles={['Owner', 'Sales Manager', 'Accountant', 'Sales']}>
+          <GuestMembers />
+        </PrivateRoute>
+      } />
+      <Route path="/reports/expired" element={
+        <PrivateRoute roles={['Owner', 'Sales Manager', 'Accountant', 'Sales']}>
+          <ExpiredMembers />
         </PrivateRoute>
       } />
 

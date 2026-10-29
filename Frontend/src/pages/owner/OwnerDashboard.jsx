@@ -45,7 +45,7 @@ export default function OwnerDashboard() {
   const [recentContracts, setRecentContracts] = useState([]);
   const [showActivity, setShowActivity] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (attempt = 0) => {
     setLoading(true);
     try {
       const results = await Promise.allSettled([
@@ -59,6 +59,12 @@ export default function OwnerDashboard() {
         getPackageExceptions({ status: 'pending', page: 1, limit: 1 }),
         getContracts({ page: 1, limit: 5 }),
       ]);
+
+      // If everything failed on first attempt, wait and retry once (Atlas cold-start)
+      if (attempt === 0 && results.every(r => r.status === 'rejected')) {
+        await new Promise(res => setTimeout(res, 3000));
+        return load(1);
+      }
 
       const [mRes, stRes, ctRes, rRes, reqRes, ciRes, revRes, pkgRes, contractRes] = results;
 
@@ -123,7 +129,7 @@ export default function OwnerDashboard() {
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>Welcome back</p>
               <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.3px', marginBottom: 8 }}>{firstName}</h2>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, maxWidth: 560 }}>
-                Full overview of Flame Factory — members, sales, coaches, packages and revenue all in one place.
+                Full overview of LEAP — members, sales, coaches, packages and revenue all in one place.
               </p>
             </Card>
 
@@ -278,11 +284,11 @@ export default function OwnerDashboard() {
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
         }}>
           <div onClick={e => e.stopPropagation()} style={{
-            background: '#fff', borderRadius: 10, border: '1px solid var(--border)',
+            background: 'var(--card)', borderRadius: 10, border: '1px solid var(--border)',
             width: '100%', maxWidth: 500, maxHeight: '80svh', overflowY: 'auto',
             boxShadow: '0 12px 40px rgba(15,23,42,0.18)',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: '#fff', zIndex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
               <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>Today's Check-Ins ({checkIns.length})</h2>
               <button onClick={() => setShowActivity(false)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
             </div>

@@ -64,20 +64,20 @@ const BV = {
     hShadow: '0 4px 18px rgba(68,41,140,0.5)',
   },
   blue: {
-    bg: '#00F0FF',
-    color: '#0D0D11',
-    border: '#00F0FF',
-    hbg: '#33F5FF',
-    shadow: '0 2px 12px rgba(0,240,255,0.25)',
-    hShadow: '0 4px 18px rgba(0,240,255,0.4)',
+    bg: 'linear-gradient(135deg,#44298C,#5B38BA)',
+    color: '#fff',
+    border: '#44298C',
+    hbg: 'linear-gradient(135deg,#5B38BA,#6D47CC)',
+    shadow: '0 2px 12px rgba(68,41,140,0.30)',
+    hShadow: '0 4px 18px rgba(68,41,140,0.45)',
   },
   outline: {
     bg: 'transparent',
     color: 'var(--t2)',
     border: 'var(--border-md)',
-    hbg: 'rgba(0,240,255,0.05)',
-    hborder: 'rgba(0,240,255,0.5)',
-    hcolor: '#fff',
+    hbg: 'rgba(68,41,140,0.06)',
+    hborder: 'rgba(68,41,140,0.4)',
+    hcolor: '#44298C',
     shadow: 'none',
     hShadow: 'none',
   },
@@ -85,8 +85,8 @@ const BV = {
     bg: 'transparent',
     color: 'var(--t3)',
     border: 'transparent',
-    hbg: 'rgba(255,255,255,0.05)',
-    hcolor: 'var(--t2)',
+    hbg: 'rgba(68,41,140,0.06)',
+    hcolor: 'var(--t1)',
     shadow: 'none',
     hShadow: 'none',
   },
@@ -135,7 +135,7 @@ export function Btn({ children, variant = 'primary', size = 'md', onClick, disab
       onMouseEnter={e => {
         if (!disabled) {
           e.currentTarget.style.background = v.hbg;
-          if (variant === 'outline') { e.currentTarget.style.borderColor = 'rgba(0,240,255,0.5)'; e.currentTarget.style.color = '#fff'; }
+          if (variant === 'outline') { e.currentTarget.style.borderColor = 'rgba(68,41,140,0.4)'; e.currentTarget.style.color = '#44298C'; }
           if (variant === 'ghost') { e.currentTarget.style.color = v.hcolor ?? v.color; }
           e.currentTarget.style.boxShadow = v.hShadow;
         }
@@ -184,7 +184,7 @@ export function Input({ label, error, hint, ...props }) {
       <input
         {...props}
         style={inputBase(error)}
-        onFocus={e => { e.target.style.borderColor = 'var(--blue)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,240,255,0.08)'; }}
+        onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
         onBlur={e  => { e.target.style.borderColor = error ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }}
       />
     </Field>
@@ -350,8 +350,8 @@ function SearchableSelect({
     setQuery(hasSelection && selected ? selected.label : '');
     setCursor(-1);
     onFocus?.(e);
-    e.target.style.borderColor = 'var(--blue)';
-    e.target.style.boxShadow = '0 0 0 3px rgba(0,240,255,0.08)';
+    e.target.style.borderColor = 'var(--navy)';
+    e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)';
   };
 
   const handleBlur = (e) => {
@@ -398,7 +398,7 @@ function SearchableSelect({
         background: 'var(--card)',
         border: '1px solid var(--border)',
         borderRadius: 10,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.3)',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
         maxHeight: 240,
         overflowY: 'auto',
       }}
@@ -424,11 +424,11 @@ function SearchableSelect({
               width: '100%', textAlign: 'left', border: 'none',
               padding: '8px 12px', fontSize: 13, fontFamily: 'inherit',
               cursor: opt.disabled ? 'not-allowed' : 'pointer',
-              background: active ? 'rgba(68,41,140,0.25)' : isSelected ? 'rgba(0,240,255,0.06)' : 'var(--card)',
-              color: opt.disabled ? 'var(--t4)' : isSelected ? 'var(--blue)' : 'var(--t1)',
+              background: active ? 'rgba(68,41,140,0.08)' : isSelected ? 'rgba(68,41,140,0.06)' : 'var(--card)',
+              color: opt.disabled ? 'var(--t4)' : isSelected ? 'var(--navy)' : 'var(--t1)',
               fontWeight: isSelected ? 600 : 400,
               borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none',
-              borderLeft: isSelected ? '2px solid var(--blue)' : 'none',
+              borderLeft: isSelected ? '2px solid var(--navy)' : 'none',
               opacity: opt.disabled ? 0.5 : 1,
               transition: 'background 0.1s',
             }}
@@ -489,7 +489,7 @@ export function Textarea({ label, error, hint, ...props }) {
       <textarea
         {...props}
         style={{ ...inputBase(error), minHeight: 88, resize: 'vertical' }}
-        onFocus={e => { e.target.style.borderColor = 'var(--blue)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,240,255,0.08)'; }}
+        onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
         onBlur={e  => { e.target.style.borderColor = error ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }}
       />
     </Field>
@@ -511,14 +511,14 @@ export function Switch({ label, hint, checked, onChange, disabled }) {
         onClick={() => !disabled && onChange?.(!checked)}
         style={{
           width: 44, height: 24, borderRadius: 12, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
-          background: checked ? 'var(--blue)' : 'var(--border-md)',
+          background: checked ? 'var(--navy)' : 'var(--border-md)',
           position: 'relative', transition: 'background 0.2s', flexShrink: 0, opacity: disabled ? 0.6 : 1,
         }}
       >
         <span style={{
           position: 'absolute', top: 3, left: checked ? 23 : 3, width: 18, height: 18,
-          borderRadius: '50%', background: checked ? '#0D0D11' : 'var(--t2)', transition: 'left 0.2s',
-          boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+          borderRadius: '50%', background: checked ? '#FFFFFF' : '#9CA3AF', transition: 'left 0.2s',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
         }} />
       </button>
     </div>
@@ -556,7 +556,7 @@ export function Card({ children, style = {}, noPad = false, onClick }) {
         border: '1px solid var(--border)',
         borderRadius: 12,
         padding: noPad ? 0 : '20px 22px',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.3),0 4px 16px rgba(0,0,0,0.15)',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.06)',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'all 0.15s cubic-bezier(0.16,1,0.3,1)',
         ...style,
@@ -595,7 +595,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 200,
-        background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(8px)',
+        background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
       }}
     >
@@ -608,7 +608,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
           border: '1px solid var(--border)',
           width: '100%', maxWidth: MW[size] ?? 540,
           maxHeight: '90svh', overflowY: 'auto',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.6), 0 4px 16px rgba(0,0,0,0.4)',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.05)',
         }}
       >
         <div style={{
@@ -632,7 +632,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
           <div style={{
             padding: '14px 22px', borderTop: '1px solid var(--border)',
             display: 'flex', justifyContent: 'flex-end', gap: 8,
-            background: 'rgba(0,0,0,0.15)',
+            background: 'var(--bg)',
           }}>{footer}</div>
         )}
       </div>
@@ -646,7 +646,7 @@ export function Table({ headers, children, loading, skeletonRows = 5 }) {
     <div style={{ overflowX: 'auto' }}>
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
         <thead>
-          <tr style={{ background: 'rgba(0,0,0,0.2)' }}>
+          <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
             {headers.map(h => (
               <th key={h} style={{
                 padding: '11px 16px', textAlign: 'left', background: 'transparent',
@@ -674,7 +674,7 @@ export function Tabs({ tabs, active, onChange }) {
       {tabs.map(t => (
         <button key={t.id} onClick={() => onChange(t.id)} style={{
           padding: '10px 18px', background: 'none', border: 'none',
-          borderBottom: `2px solid ${active === t.id ? 'var(--blue)' : 'transparent'}`,
+          borderBottom: `2px solid ${active === t.id ? 'var(--navy)' : 'transparent'}`,
           marginBottom: -1,
           color: active === t.id ? 'var(--t1)' : 'var(--t4)',
           fontSize: 13, fontWeight: active === t.id ? 700 : 400,
@@ -696,8 +696,8 @@ export function FilterTabs({ options, active, onChange }) {
       {options.map(o => (
         <button key={o.value} onClick={() => onChange(o.value)} style={{
           padding: '5px 12px', borderRadius: 20,
-          background: active === o.value ? 'rgba(68,41,140,0.35)' : 'transparent',
-          border: `1px solid ${active === o.value ? 'rgba(68,41,140,0.6)' : 'var(--border)'}`,
+          background: active === o.value ? '#44298C' : 'transparent',
+          border: `1px solid ${active === o.value ? '#44298C' : 'var(--border)'}`,
           color: active === o.value ? '#fff' : 'var(--t3)',
           fontSize: 12, fontWeight: 600, cursor: 'pointer',
           fontFamily: 'inherit', transition: 'all 0.12s',
@@ -714,7 +714,7 @@ export function FilterTabs({ options, active, onChange }) {
 const SC = {
   default: { accent: 'var(--border)',    val: 'var(--t1)' },
   brand:   { accent: 'var(--navy)',      val: 'var(--navy)' },
-  blue:    { accent: 'var(--blue)',      val: 'var(--blue)' },
+  blue:    { accent: 'var(--navy)',      val: 'var(--navy)' },
   success: { accent: 'var(--green)',     val: 'var(--green)' },
   warning: { accent: 'var(--amber)',     val: 'var(--amber)' },
   danger:  { accent: 'var(--red)',       val: 'var(--red)' },
@@ -733,7 +733,7 @@ export function StatCard({ label, value, color = 'default', sub, onClick }) {
         padding: '18px 20px',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'all 0.15s cubic-bezier(0.16,1,0.3,1)',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.3),0 4px 16px rgba(0,0,0,0.15)',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.06)',
       }}
       onMouseEnter={e => { if (onClick) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4),0 8px 32px rgba(0,0,0,0.25)'; } }}
       onMouseLeave={e => { if (onClick) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3),0 4px 16px rgba(0,0,0,0.15)'; } }}
@@ -748,9 +748,9 @@ export function StatCard({ label, value, color = 'default', sub, onClick }) {
 // ── Page Header ───────────────────────────────────────────────────────────────
 export function PageHeader({ title, children }) {
   return (
-    <div style={{ background: 'var(--card)', borderBottom: '1px solid var(--border)', padding: '0' }}>
-      <div className="wrap page-header-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, height: 56 }}>
-        <h1 style={{ fontSize: 16, fontWeight: 800, color: 'var(--t1)', letterSpacing: '-0.3px', flexShrink: 0, borderLeft: '3px solid var(--blue)', paddingLeft: 12 }}>{title}</h1>
+    <div style={{ padding: '0 0 4px 0' }}>
+      <div className="wrap page-header-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, height: 52 }}>
+        <h1 style={{ fontSize: 16, fontWeight: 800, color: 'var(--t1)', letterSpacing: '-0.3px', flexShrink: 0 }}>{title}</h1>
         {children && <div className="page-header-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{children}</div>}
       </div>
     </div>
@@ -816,11 +816,11 @@ export function Avatar({ name = '', size = 'md', photo = null, style: ex = {} })
   return (
     <div style={{
       width: sz, height: sz, borderRadius: '50%', flexShrink: 0,
-      background: 'linear-gradient(135deg,#44298C,#5B38BA)', color: '#00F0FF',
+      background: 'linear-gradient(135deg,#44298C,#5B38BA)', color: '#fff',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: fs, fontWeight: 700, letterSpacing: '0.5px',
       overflow: 'hidden', position: 'relative',
-      boxShadow: '0 2px 8px rgba(68,41,140,0.4)',
+      boxShadow: '0 2px 8px rgba(68,41,140,0.20)',
       ...ex,
     }}>
       {src ? (
@@ -870,7 +870,7 @@ export function SearchInput({ value, onChange, placeholder = 'Search…', width 
           fontSize: 13, color: 'var(--t1)', outline: 'none', fontFamily: 'inherit',
           transition: 'border-color 0.12s, box-shadow 0.12s',
         }}
-        onFocus={e => { e.target.style.borderColor = 'var(--blue)'; e.target.style.boxShadow = '0 0 0 3px rgba(0,240,255,0.08)'; }}
+        onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
         onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
       />
     </div>
@@ -882,7 +882,7 @@ export function InfoRow({ label, value }) {
   return (
     <div className="info-row" style={{
       display: 'grid', gridTemplateColumns: '160px 1fr',
-      padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', gap: 16, alignItems: 'start',
+      padding: '10px 0', borderBottom: '1px solid var(--border)', gap: 16, alignItems: 'start',
     }}>
       <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t4)', paddingTop: 1 }}>{label}</span>
       <span style={{ fontSize: 13, color: 'var(--t1)' }}>{value ?? '—'}</span>

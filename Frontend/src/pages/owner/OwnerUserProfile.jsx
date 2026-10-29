@@ -25,7 +25,7 @@ const ROLE_COLOUR = {
   'Coach':          { bg: '#fff7ed', color: '#ea580c', border: '#fed7aa' },
   'Coach Manager':  { bg: '#fdf4ff', color: '#9333ea', border: '#e9d5ff' },
   'Accountant':     { bg: '#f0fdf4', color: '#0f766e', border: '#99f6e4' },
-  'Receptionist':   { bg: '#f8fafc', color: '#475569', border: '#cbd5e1' },
+  'Receptionist': { bg: 'var(--slate-bg)', color: 'var(--slate)', border: 'var(--slate-bd)' },
 };
 
 export default function OwnerUserProfile() {
@@ -200,7 +200,7 @@ export default function OwnerUserProfile() {
                   {roleOpen && (
                     <div className="fade-up" style={{
                       position: 'absolute', top: 'calc(100% + 6px)', right: 0,
-                      background: '#fff', border: '1px solid var(--border)',
+                      background: 'var(--card)', border: '1px solid var(--border)',
                       borderRadius: 7, width: 190, padding: 4,
                       boxShadow: '0 8px 24px rgba(15,23,42,0.14)',
                       zIndex: 100,

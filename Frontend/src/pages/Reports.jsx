@@ -1,0 +1,103 @@
+import { useNavigate } from 'react-router-dom';
+import Layout from '../components/Layout';
+import { PageHeader } from '../components/ui';
+import usePageTitle from '../hooks/usePageTitle';
+
+// ── Single report card ────────────────────────────────────────────────────────
+function ReportCard({ icon, title, sub, to }) {
+  const navigate = useNavigate();
+  return (
+    <div
+      onClick={() => navigate(to)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 14,
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        padding: '16px 18px',
+        cursor: 'pointer',
+        transition: 'all 0.15s cubic-bezier(0.16,1,0.3,1)',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        flex: '1 1 220px', minWidth: 0,
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = '#44298C';
+        e.currentTarget.style.boxShadow = '0 4px 16px rgba(68,41,140,0.12)';
+        e.currentTarget.style.transform = 'translateY(-2px)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'var(--border)';
+        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+        e.currentTarget.style.transform = 'none';
+      }}
+    >
+      {/* Icon box */}
+      <div style={{
+        width: 44, height: 44, borderRadius: 10, flexShrink: 0,
+        background: '#FEF2F2',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 22,
+      }}>
+        {icon}
+      </div>
+
+      {/* Text */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{title}</p>
+        <p style={{ fontSize: 12, color: 'var(--t3)' }}>{sub}</p>
+      </div>
+
+      {/* Chevron */}
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+        <polyline points="9 18 15 12 9 6" />
+      </svg>
+    </div>
+  );
+}
+
+// ── Report section group ──────────────────────────────────────────────────────
+function ReportSection({ title, sub, children }) {
+  return (
+    <div style={{ marginBottom: 32 }}>
+      {/* Section header */}
+      <div style={{ marginBottom: 14 }}>
+        <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--t1)', marginBottom: 3 }}>{title}</h2>
+        <p style={{ fontSize: 13, color: 'var(--t3)' }}>{sub}</p>
+      </div>
+      {/* Cards row */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// ── Reports page ──────────────────────────────────────────────────────────────
+export default function Reports() {
+  usePageTitle('Reports');
+
+  return (
+    <Layout>
+      <PageHeader title="Reports" />
+      <div className="page-wrap" style={{ paddingTop: 24, paddingBottom: 40 }}>
+
+        {/* ── Members ───────────────────────────────────────────── */}
+        <ReportSection title="Members" sub="Member status and activity">
+          <ReportCard
+            icon="👥"
+            title="Guest Members"
+            sub="Guest member list"
+            to="/reports/guests"
+          />
+          <ReportCard
+            icon="📅"
+            title="Expired Members"
+            sub="Expired memberships"
+            to="/reports/expired"
+          />
+        </ReportSection>
+
+      </div>
+    </Layout>
+  );
+}

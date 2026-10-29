@@ -755,11 +755,22 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
     loadPackages();
   }, [open, loadPackages]);
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k, v) => setForm(f => {
+    const updated = { ...f, [k]: v };
+    // Auto-calculate pricePaid whenever price or discountPercent changes
+    if (k === 'price' || k === 'discountPercent') {
+      const price = Number(k === 'price' ? v : updated.price) || 0;
+      const discount = Math.min(100, Math.max(0, Number(k === 'discountPercent' ? v : updated.discountPercent) || 0));
+      updated.pricePaid = String(Math.round(price * (1 - discount / 100)));
+    }
+    return updated;
+  });
 
   const handlePackageChange = (id) => {
     const pkg = packages.find(p => p._id === id);
     if (!pkg) { set('basePackageId', id); return; }
+    const discount = Math.min(100, Math.max(0, Number(form.discountPercent) || 0));
+    const computedPricePaid = String(Math.round(pkg.price * (1 - discount / 100)));
     setForm(f => ({
       ...f,
       basePackageId: id,
@@ -771,7 +782,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
       invitationLimit: String(pkg.invitationLimit ?? 0),
       renewalDiscountPercent: String(pkg.renewalDiscountPercent ?? 0),
       description: pkg.description ?? '',
-      pricePaid: String(pkg.price),
+      pricePaid: computedPricePaid,
     }));
   };
 

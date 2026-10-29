@@ -16,12 +16,17 @@ export default function CoachDashboard() {
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (attempt = 0) => {
     setLoading(true);
     try {
       const res = await getAllMembers();
       setMembers(res.data.members ?? []);
-    } catch {
+    } catch (err) {
+      // Retry once on transient Atlas connection failures
+      if (attempt === 0) {
+        await new Promise(res => setTimeout(res, 3000));
+        return load(1);
+      }
       toast.error('Failed to load data');
     } finally {
       setLoading(false);

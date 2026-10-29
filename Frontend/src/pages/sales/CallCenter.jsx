@@ -20,6 +20,8 @@ export default function CallCenter() {
   const [salesFilter, setSalesFilter] = useState('all');
   const [page, setPage] = useState(1);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo,   setDateTo]   = useState('');
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -40,6 +42,8 @@ export default function CallCenter() {
         limit: PAGE_SIZE,
         search: debouncedSearch || undefined,
         createdBy: salesFilter !== 'all' ? salesFilter : undefined,
+        dateFrom: dateFrom || undefined,
+        dateTo:   dateTo   || undefined,
       });
       setNotes(res.data.notes ?? []);
       setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
@@ -48,11 +52,11 @@ export default function CallCenter() {
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, salesFilter]);
+  }, [page, debouncedSearch, salesFilter, dateFrom, dateTo]);
 
   useEffect(() => { fetchSalesUsers(); }, [fetchSalesUsers]);
   useEffect(() => { fetchNotes(); }, [fetchNotes]);
-  useEffect(() => { setPage(1); }, [debouncedSearch, salesFilter]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, salesFilter, dateFrom, dateTo]);
 
   return (
     <Layout>
@@ -91,6 +95,61 @@ export default function CallCenter() {
         <div className="grid-sidebar">
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+
+            {/* Date range filter */}
+            <div style={{
+              background: 'var(--card)', border: '1px solid var(--border)',
+              borderRadius: 8, overflow: 'hidden',
+            }}>
+              <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Filter by Date
+              </div>
+              <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t4)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>From</label>
+                  <input
+                    type="date"
+                    value={dateFrom}
+                    max={dateTo || undefined}
+                    onChange={e => setDateFrom(e.target.value)}
+                    style={{
+                      width: '100%', padding: '7px 10px', fontSize: 12,
+                      border: '1px solid var(--border)', borderRadius: 6,
+                      background: 'var(--bg)', color: 'var(--t1)',
+                      outline: 'none', fontFamily: 'inherit',
+                    }}
+                  />
+                </div>
+                <div>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t4)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>To</label>
+                  <input
+                    type="date"
+                    value={dateTo}
+                    min={dateFrom || undefined}
+                    onChange={e => setDateTo(e.target.value)}
+                    style={{
+                      width: '100%', padding: '7px 10px', fontSize: 12,
+                      border: '1px solid var(--border)', borderRadius: 6,
+                      background: 'var(--bg)', color: 'var(--t1)',
+                      outline: 'none', fontFamily: 'inherit',
+                    }}
+                  />
+                </div>
+                {(dateFrom || dateTo) && (
+                  <button
+                    onClick={() => { setDateFrom(''); setDateTo(''); }}
+                    style={{
+                      fontSize: 11, fontWeight: 600, color: 'var(--red)',
+                      background: 'none', border: 'none', cursor: 'pointer',
+                      textAlign: 'left', fontFamily: 'inherit', padding: 0,
+                    }}
+                  >
+                    ✕ Clear dates
+                  </button>
+                )}
+              </div>
+            </div>
+
             <div style={{
               background: 'var(--card)',
               border: '1px solid var(--border)',
@@ -158,8 +217,8 @@ export default function CallCenter() {
                     {salesFilter !== 'all' && ` by ${salesUsers.find(u => String(u._id) === salesFilter)?.name ?? ''}`}
                     {debouncedSearch && ` matching "${debouncedSearch}"`}
                   </span>
-                  {(salesFilter !== 'all' || search) && (
-                    <Btn variant="ghost" size="xs" onClick={() => { setSalesFilter('all'); setSearch(''); }}>
+                  {(salesFilter !== 'all' || search || dateFrom || dateTo) && (
+                    <Btn variant="ghost" size="xs" onClick={() => { setSalesFilter('all'); setSearch(''); setDateFrom(''); setDateTo(''); }}>
                       Clear filters
                     </Btn>
                   )}

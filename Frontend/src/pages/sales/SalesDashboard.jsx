@@ -78,7 +78,7 @@ export default function SalesDashboard() {
   const [showTodaySubs, setShowTodaySubs] = useState(false);
   const [showActivity, setShowActivity]   = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (attempt = 0) => {
     setLoading(true);
     try {
       const settled = await Promise.allSettled([
@@ -90,6 +90,15 @@ export default function SalesDashboard() {
       ]);
 
       const [mRes, rRes, cRes, tRes, revRes] = settled;
+      const anyFailed = settled.some(r => r.status === 'rejected');
+
+      // If all failed and we haven't retried yet, wait 3s and try once more
+      // (handles Atlas cold-start / transient connection drops)
+      if (anyFailed && settled.every(r => r.status === 'rejected') && attempt === 0) {
+        await new Promise(res => setTimeout(res, 3000));
+        return load(1);
+      }
+
       let failed = false;
 
       if (mRes.status === 'fulfilled') setMembers(mRes.value.data.members ?? []);

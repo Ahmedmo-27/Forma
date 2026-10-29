@@ -15,7 +15,7 @@ async function syncAndIncrement(key, getMax) {
 async function nextSystemId() {
     return syncAndIncrement("systemId", async () => {
         const last = await Member.findOne({}, { systemId: 1 }).sort({ systemId: -1 });
-        return last?.systemId || 99;
+        return last?.systemId || 99999;  // starts from 100000
     });
 }
 

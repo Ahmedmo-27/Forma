@@ -35,7 +35,7 @@ function Toggle({ checked, onChange, disabled }) {
       <span style={{
         position: 'absolute', top: 3, left: checked ? 21 : 3,
         width: 16, height: 16, borderRadius: '50%',
-        background: '#fff', boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+        background: 'var(--card)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
         transition: 'left 0.18s',
       }} />
     </button>
@@ -176,7 +176,7 @@ export default function CoachProfile() {
                     {['all', 'active', 'transferred', 'expired', 'interested', 'not interested'].map(s => (
                       <button key={s} onClick={() => setFilter(s)} style={{
                         padding: '4px 10px', borderRadius: 4, fontSize: 11, fontWeight: 600,
-                        background: filter === s ? 'var(--navy)' : '#fff',
+                        background: filter === s ? 'var(--navy)' : 'var(--card)',
                         border: `1px solid ${filter === s ? 'var(--navy)' : 'var(--border-md)'}`,
                         color: filter === s ? '#fff' : 'var(--t3)',
                         cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize',

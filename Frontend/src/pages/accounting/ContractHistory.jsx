@@ -65,7 +65,7 @@ export default function ContractHistory() {
                 value={dateFrom}
                 max={dateTo || TODAY}
                 onChange={(e) => { setPage(1); setDateFrom(e.target.value); }}
-                style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: '#fff' }}
+                style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)' }}
               />
             </div>
             <div style={{ flex: 1, minWidth: 150 }}>
@@ -76,13 +76,13 @@ export default function ContractHistory() {
                 min={dateFrom}
                 max={TODAY}
                 onChange={(e) => { setPage(1); setDateTo(e.target.value); }}
-                style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: '#fff' }}
+                style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)' }}
               />
             </div>
             <button
               type="button"
               onClick={() => { setPage(1); setDateFrom(''); setDateTo(''); }}
-              style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border-md)', borderRadius: 6, background: '#fff', cursor: 'pointer', color: 'var(--t3)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+              style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border-md)', borderRadius: 6, background: 'var(--card)', cursor: 'pointer', color: 'var(--t3)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
             >
               All Time
             </button>

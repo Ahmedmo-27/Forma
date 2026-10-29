@@ -21,6 +21,7 @@ export default function Login() {
     if (['Coach', 'Coach Manager'].includes(user.role)) return <Navigate to="/coach/dashboard" replace />;
     return <Navigate to="/members" replace />;
   }
+
   const validate = () => {
     const e = {};
     if (!email.trim())                     e.email    = 'Email is required';
@@ -53,7 +54,7 @@ export default function Login() {
           ? 'Cannot reach the server. Check your connection and API URL.'
           : 'App is misconfigured: API URL is missing (VITE_API_URL).';
       } else if (err.response.status === 404) {
-        msg = 'API endpoint not found. Set VITE_API_URL to your backend URL including /api (e.g. https://flame-factory.onrender.com/api).';
+        msg = 'API endpoint not found. Set VITE_API_URL to your backend URL including /api.';
       } else {
         msg = err.response.data?.message || 'Invalid email or password.';
       }
@@ -65,135 +66,121 @@ export default function Login() {
   };
 
   return (
-    <div style={{ display: 'flex', minHeight: '100svh', fontFamily: "'Inter','Segoe UI',system-ui,sans-serif" }}>
+    <div style={{
+      minHeight: '100svh',
+      background: '#F5F6FA',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px 16px',
+      position: 'relative',
+      overflow: 'hidden',
+      fontFamily: "'Inter','Segoe UI',system-ui,sans-serif",
+    }}>
 
-      {/* ── LEFT PANEL — branding ───────────────────────────────────── */}
-      <div className="login-left" style={{
-        flex: '1 1 50%',
-        background: 'linear-gradient(145deg, #0B0817 0%, #130D2A 45%, #1E1248 100%)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '60px 48px',
-        position: 'relative',
-        overflow: 'hidden',
-      }}>
-
-        {/* Decorative circles */}
+      {/* ── Subtle background glows ───────────────────────────── */}
+      <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
         <div style={{
-          position: 'absolute', width: 600, height: 600,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(68,41,140,0.18) 0%, transparent 70%)',
-          top: -120, right: -120, pointerEvents: 'none',
+          position: 'absolute', width: 600, height: 600, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(68,41,140,0.07) 0%, transparent 65%)',
+          top: -150, left: -150,
         }} />
         <div style={{
-          position: 'absolute', width: 360, height: 360,
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(0,240,255,0.08) 0%, transparent 70%)',
-          bottom: -80, left: -80, pointerEvents: 'none',
+          position: 'absolute', width: 500, height: 500, borderRadius: '50%',
+          background: 'radial-gradient(circle, rgba(68,41,140,0.05) 0%, transparent 65%)',
+          bottom: -120, right: -120,
         }} />
         <div style={{
           position: 'absolute', inset: 0,
-          backgroundImage: 'radial-gradient(rgba(0,240,255,0.04) 1px, transparent 1px)',
-          backgroundSize: '32px 32px',
-          pointerEvents: 'none',
+          backgroundImage: 'radial-gradient(rgba(68,41,140,0.04) 1px, transparent 1px)',
+          backgroundSize: '36px 36px',
         }} />
-
-        {/* Content */}
-        <div style={{ position: 'relative', textAlign: 'center', maxWidth: 380 }}>
-
-          {/* Logo mark */}
-          <div style={{
-            width: 80, height: 80, borderRadius: 20,
-            background: 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 28px',
-            boxShadow: '0 8px 32px rgba(68,41,140,0.55)',
-          }}>
-            <img src="/leap-logo.svg" alt="LEAP" style={{ width: 64, height: 64 }} />
-          </div>
-
-          <h1 style={{
-            fontSize: 36, fontWeight: 800, color: '#ffffff',
-            letterSpacing: '2px', marginBottom: 12, textTransform: 'uppercase',
-          }}>
-            LEAP
-          </h1>
-          <p style={{
-            fontSize: 15, color: 'rgba(255,255,255,0.55)',
-            lineHeight: 1.6, marginBottom: 40,
-          }}>
-            Complete gym & CrossFit management platform — members, packages, sales, and more.
-          </p>
-
-          {/* Feature pills */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
-            {['Member Profiles', 'Sales Tracking', 'Freeze Management', 'Check-In System', 'Invitations'].map((f) => (
-              <span key={f} style={{
-                padding: '7px 16px', borderRadius: 24,
-                background: 'rgba(68,41,140,0.25)',
-                border: '1px solid rgba(0,240,255,0.15)',
-                color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: 500,
-              }}>{f}</span>
-            ))}
-          </div>
-        </div>
-
-        {/* Bottom copyright */}
-        <p style={{
-          position: 'absolute', bottom: 24,
-          fontSize: 11, color: 'rgba(255,255,255,0.25)',
-        }}>
-          © {new Date().getFullYear()} LEAP. All rights reserved.
-        </p>
       </div>
 
-      {/* ── RIGHT PANEL — form ──────────────────────────────────────── */}
-      <div className="login-right" style={{
-        flex: '1 1 50%',
-        background: 'var(--card)',
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '60px 48px',
-        minWidth: 0,
+      {/* ── Card ─────────────────────────────────────────────── */}
+      <div style={{
+        position: 'relative', zIndex: 1,
+        width: '100%', maxWidth: 460,
+        background: '#FFFFFF',
+        border: '1px solid #E5E7EB',
+        borderRadius: 20,
+        boxShadow: '0 4px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04)',
+        padding: '44px 40px',
       }}>
-        <div style={{ width: '100%', maxWidth: 420 }}>
 
-          {/* Header */}
-          <div style={{ marginBottom: 36 }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#00F0FF', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 8 }}>
-              Welcome back
-            </p>
-            <h2 style={{ fontSize: 30, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.5px', marginBottom: 8 }}>
-              Sign in to your account
-            </h2>
-            <p style={{ fontSize: 14, color: 'var(--t3)' }}>
-              Enter your credentials to access the dashboard.
-            </p>
+        {/* Logo + Brand */}
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <div style={{
+            width: 68, height: 68, borderRadius: 16,
+            background: 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            margin: '0 auto 18px',
+            boxShadow: '0 6px 20px rgba(68,41,140,0.30)',
+          }}>
+            <img src="/leap-logo.svg" alt="LEAP" style={{ width: 52, height: 52 }} />
           </div>
+          <h1 style={{
+            fontSize: 26, fontWeight: 800, color: '#111827',
+            letterSpacing: '2.5px', textTransform: 'uppercase', marginBottom: 6,
+          }}>LEAP</h1>
+          <p style={{ fontSize: 13, color: '#6B7280', letterSpacing: '0.2px' }}>
+            Gym & Fitness Management Platform
+          </p>
+        </div>
 
-          {/* Form */}
-          <form onSubmit={handleSubmit} noValidate>
+        {/* Divider */}
+        <div style={{
+          height: 1, background: '#E5E7EB', marginBottom: 32,
+        }} />
 
-            {/* Global error */}
-            {errors.form && (
-              <div style={{
-                padding: '12px 14px', borderRadius: 8, marginBottom: 20,
-                background: 'var(--red-bg)', border: '1px solid var(--red-bd)',
-                color: 'var(--red)', fontSize: 13,
-              }}>
-                {errors.form}
-              </div>
-            )}
+        {/* Form header */}
+        <div style={{ marginBottom: 24 }}>
+          <h2 style={{
+            fontSize: 20, fontWeight: 700, color: '#111827',
+            letterSpacing: '-0.2px', marginBottom: 4,
+          }}>
+            Welcome back
+          </h2>
+          <p style={{ fontSize: 14, color: '#6B7280' }}>
+            Sign in to access your dashboard
+          </p>
+        </div>
 
-            {/* Email */}
-            <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--t2)', marginBottom: 7 }}>
-                Email address
-              </label>
+        {/* Form */}
+        <form onSubmit={handleSubmit} noValidate>
+
+          {/* Global error */}
+          {errors.form && (
+            <div style={{
+              padding: '11px 14px', borderRadius: 8, marginBottom: 18,
+              background: '#FEF2F2', border: '1px solid #FECACA',
+              color: '#DC2626', fontSize: 13,
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              {errors.form}
+            </div>
+          )}
+
+          {/* Email */}
+          <div style={{ marginBottom: 16 }}>
+            <label style={{
+              display: 'block', fontSize: 12, fontWeight: 600,
+              color: '#374151', letterSpacing: '0.3px',
+              textTransform: 'uppercase', marginBottom: 7,
+            }}>
+              Email Address
+            </label>
+            <div style={{ position: 'relative' }}>
+              <svg style={{
+                position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)',
+                color: '#9CA3AF', pointerEvents: 'none',
+              }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+                <polyline points="22,6 12,13 2,6"/>
+              </svg>
               <input
                 type="email"
                 autoComplete="email"
@@ -201,128 +188,167 @@ export default function Login() {
                 onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: '', form: '' })); }}
                 placeholder="you@example.com"
                 style={{
-                  width: '100%', padding: '14px 18px', fontSize: 15,
-                  border: `1.5px solid ${errors.email ? 'var(--red-bd)' : 'var(--border)'}`,
-                  borderRadius: 12, outline: 'none', color: 'var(--t1)',
-                  background: 'var(--bg)',
-                  transition: 'border-color 0.15s, box-shadow 0.15s',
+                  width: '100%', padding: '12px 14px 12px 40px', fontSize: 14,
+                  border: `1.5px solid ${errors.email ? '#FCA5A5' : '#E5E7EB'}`,
+                  borderRadius: 10, outline: 'none', color: '#111827',
+                  background: errors.email ? '#FEF2F2' : '#F9FAFB',
+                  transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
                   boxSizing: 'border-box',
                 }}
-                onFocus={(e) => { e.target.style.borderColor = '#00F0FF'; e.target.style.boxShadow = '0 0 0 3px rgba(0,240,255,0.10)'; }}
-                onBlur={(e)  => { e.target.style.borderColor = errors.email ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#44298C';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)';
+                  e.target.style.background = '#FAFAFF';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = errors.email ? '#FCA5A5' : '#E5E7EB';
+                  e.target.style.boxShadow = 'none';
+                  e.target.style.background = errors.email ? '#FEF2F2' : '#F9FAFB';
+                }}
               />
-              {errors.email && <p style={{ margin: '5px 0 0', fontSize: 12, color: 'var(--red)' }}>{errors.email}</p>}
             </div>
+            {errors.email && <p style={{ margin: '5px 0 0', fontSize: 12, color: '#DC2626' }}>{errors.email}</p>}
+          </div>
 
-            {/* Password */}
-            <div style={{ marginBottom: 28 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--t2)', marginBottom: 7 }}>
-                Password
-              </label>
-              <div style={{ position: 'relative' }}>
-                <input
-                  type={showPwd ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  value={password}
-                  onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: '', form: '' })); }}
-                  placeholder="Enter your password"
-                  style={{
-                    width: '100%', padding: '14px 46px 14px 18px', fontSize: 15,
-                    border: `1.5px solid ${errors.password ? 'var(--red-bd)' : 'var(--border)'}`,
-                    borderRadius: 12, outline: 'none', color: 'var(--t1)',
-                    background: 'var(--bg)',
-                    transition: 'border-color 0.15s, box-shadow 0.15s',
-                    boxSizing: 'border-box',
-                  }}
-                  onFocus={(e) => { e.target.style.borderColor = '#00F0FF'; e.target.style.boxShadow = '0 0 0 3px rgba(0,240,255,0.10)'; }}
-                  onBlur={(e)  => { e.target.style.borderColor = errors.password ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPwd((s) => !s)}
-                  style={{
-                    position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: 'var(--t4)', padding: 2, display: 'flex', alignItems: 'center',
-                  }}
-                  aria-label={showPwd ? 'Hide password' : 'Show password'}
-                >
-                  {showPwd ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                      <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                      <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
-                      <line x1="1" y1="1" x2="23" y2="23" />
-                    </svg>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                      <circle cx="12" cy="12" r="3" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              {errors.password && <p style={{ margin: '5px 0 0', fontSize: 12, color: 'var(--red)' }}>{errors.password}</p>}
+          {/* Password */}
+          <div style={{ marginBottom: 28 }}>
+            <label style={{
+              display: 'block', fontSize: 12, fontWeight: 600,
+              color: '#374151', letterSpacing: '0.3px',
+              textTransform: 'uppercase', marginBottom: 7,
+            }}>
+              Password
+            </label>
+            <div style={{ position: 'relative' }}>
+              <svg style={{
+                position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)',
+                color: '#9CA3AF', pointerEvents: 'none',
+              }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+              </svg>
+              <input
+                type={showPwd ? 'text' : 'password'}
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: '', form: '' })); }}
+                placeholder="Enter your password"
+                style={{
+                  width: '100%', padding: '12px 44px 12px 40px', fontSize: 14,
+                  border: `1.5px solid ${errors.password ? '#FCA5A5' : '#E5E7EB'}`,
+                  borderRadius: 10, outline: 'none', color: '#111827',
+                  background: errors.password ? '#FEF2F2' : '#F9FAFB',
+                  transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
+                  boxSizing: 'border-box',
+                }}
+                onFocus={(e) => {
+                  e.target.style.borderColor = '#44298C';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)';
+                  e.target.style.background = '#FAFAFF';
+                }}
+                onBlur={(e) => {
+                  e.target.style.borderColor = errors.password ? '#FCA5A5' : '#E5E7EB';
+                  e.target.style.boxShadow = 'none';
+                  e.target.style.background = errors.password ? '#FEF2F2' : '#F9FAFB';
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPwd((s) => !s)}
+                style={{
+                  position: 'absolute', right: 13, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', cursor: 'pointer',
+                  color: '#9CA3AF', padding: 2,
+                  display: 'flex', alignItems: 'center', transition: 'color 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = '#44298C'}
+                onMouseLeave={e => e.currentTarget.style.color = '#9CA3AF'}
+                aria-label={showPwd ? 'Hide password' : 'Show password'}
+              >
+                {showPwd ? (
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
+                    <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
+                    <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
+                    <line x1="1" y1="1" x2="23" y2="23" />
+                  </svg>
+                ) : (
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                )}
+              </button>
             </div>
+            {errors.password && <p style={{ margin: '5px 0 0', fontSize: 12, color: '#DC2626' }}>{errors.password}</p>}
+          </div>
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%', padding: '15px', fontSize: 16, fontWeight: 700,
-                background: loading
-                  ? 'rgba(68,41,140,0.50)'
-                  : 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)',
-                color: '#ffffff', border: 'none', borderRadius: 12,
-                cursor: loading ? 'not-allowed' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                boxShadow: loading ? 'none' : '0 6px 24px rgba(68,41,140,0.6)',
-                transition: 'opacity 0.15s, box-shadow 0.15s',
-                letterSpacing: '0.2px',
-              }}
-              onMouseEnter={(e) => { if (!loading) e.currentTarget.style.opacity = '0.92'; }}
-              onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
-            >
-              {loading
-                ? <><Spinner size="sm" /> Signing in…</>
-                : 'Sign In →'
+          {/* Submit */}
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: '100%', padding: '14px', fontSize: 15, fontWeight: 700,
+              background: loading
+                ? 'rgba(68,41,140,0.45)'
+                : 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)',
+              color: '#ffffff', border: 'none',
+              borderRadius: 10,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              boxShadow: loading ? 'none' : '0 4px 16px rgba(68,41,140,0.35)',
+              transition: 'all 0.18s cubic-bezier(0.16,1,0.3,1)',
+              letterSpacing: '0.2px',
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #5B38BA 0%, #6D47CC 100%)';
+                e.currentTarget.style.boxShadow = '0 6px 24px rgba(68,41,140,0.45)';
+                e.currentTarget.style.transform = 'translateY(-1px)';
               }
-            </button>
-          </form>
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.currentTarget.style.background = 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(68,41,140,0.35)';
+                e.currentTarget.style.transform = 'translateY(0)';
+              }
+            }}
+          >
+            {loading
+              ? <><Spinner size="sm" /> Signing in…</>
+              : <>
+                  Sign In
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
+                  </svg>
+                </>
+            }
+          </button>
+        </form>
 
-          {/* Divider */}
-          <div style={{
-            display: 'flex', alignItems: 'center', gap: 12, margin: '28px 0',
-          }}>
-            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-            <span style={{ fontSize: 12, color: 'var(--t4)', fontWeight: 500, letterSpacing: '2px' }}>SECURE LOGIN</span>
-            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-          </div>
-
-          {/* Trust badges */}
-          <div style={{ display: 'flex', justifyContent: 'center', gap: 20 }}>
-            {[
-              { icon: '🔒', label: 'Encrypted' },
-              { icon: '🛡️', label: 'Protected' },
-              { icon: '⚡', label: 'Fast & Secure' },
-            ].map((b) => (
-              <div key={b.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontSize: 22 }}>{b.icon}</span>
-                <span style={{ fontSize: 12, color: 'var(--t4)', fontWeight: 500 }}>{b.label}</span>
-              </div>
-            ))}
-          </div>
+        {/* Footer */}
+        <div style={{
+          marginTop: 28, paddingTop: 20,
+          borderTop: '1px solid #F3F4F6',
+          display: 'flex', justifyContent: 'center', gap: 24,
+        }}>
+          {[
+            { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>, label: 'Encrypted' },
+            { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>, label: 'Protected' },
+            { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>, label: '24/7 Access' },
+          ].map((b) => (
+            <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#9CA3AF', fontSize: 12 }}>
+              {b.icon}
+              {b.label}
+            </div>
+          ))}
         </div>
-      </div>
 
-      {/* ── Mobile: hide left panel below md ────────────────────────── */}
-      <style>{`
-        @media (max-width: 768px) {
-          .login-left { display: none !important; }
-          .login-right { flex: 1 1 100% !important; padding: 40px 24px !important; }
-        }
-      `}</style>
+        <p style={{ textAlign: 'center', marginTop: 16, fontSize: 11, color: '#D1D5DB' }}>
+          © {new Date().getFullYear()} LEAP. All rights reserved.
+        </p>
+      </div>
     </div>
   );
 }

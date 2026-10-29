@@ -42,7 +42,7 @@ function QuickLink({ to, label, sub, accent }) {
         borderLeft: `3px solid ${accent}`, padding: '14px 16px', textAlign: 'left',
         cursor: 'pointer', transition: 'border-color 0.12s, box-shadow 0.12s', fontFamily: 'inherit',
       }}
-      onMouseEnter={(e) => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.boxShadow = '0 2px 10px rgba(15,23,42,0.08)'; }}
+      onMouseEnter={(e) => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.boxShadow = '0 2px 10px rgba(0,0,0,0.2)'; }}
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
     >
       <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>{label}</p>
@@ -65,11 +65,11 @@ export default function AccountantDashboard() {
   const [todayRevenue, setTodayRevenue] = useState(0);
   const [monthRevenue, setMonthRevenue] = useState(0);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (attempt = 0) => {
     setLoading(true);
     try {
       const monthKey = TODAY.slice(0, 7);
-      const [pendingRes, todayContractsRes, monthContractsRes, recentRes, revenueRes] = await Promise.all([
+      const results = await Promise.allSettled([
         getPackageExceptions({ status: 'pending', page: 1, limit: 5 }),
         getContracts({ dateFrom: TODAY, dateTo: TODAY, page: 1, limit: 1 }),
         getContracts({ dateFrom: monthStart(), dateTo: TODAY, page: 1, limit: 1 }),
@@ -77,16 +77,31 @@ export default function AccountantDashboard() {
         getSalesManagerRevenue(),
       ]);
 
-      setPending(pendingRes.data.requests ?? []);
-      setPendingTotal(pendingRes.data.pagination?.total ?? 0);
-      setTodayContracts(todayContractsRes.data.count ?? 0);
-      setMonthContracts(monthContractsRes.data.count ?? 0);
-      setRecentContracts(recentRes.data.contracts ?? []);
-      setTodayRevenue(revenueRes.data.todayRevenue ?? 0);
+      // Retry once on total failure (Atlas cold-start)
+      if (attempt === 0 && results.every(r => r.status === 'rejected')) {
+        await new Promise(res => setTimeout(res, 3000));
+        return load(1);
+      }
 
-      const breakdown = revenueRes.data.monthlyBreakdown ?? [];
-      const currentMonth = breakdown.find((m) => m.month === monthKey);
-      setMonthRevenue(currentMonth?.revenue ?? 0);
+      const [pendingRes, todayContractsRes, monthContractsRes, recentRes, revenueRes] = results;
+
+      if (pendingRes.status === 'fulfilled') {
+        setPending(pendingRes.value.data.requests ?? []);
+        setPendingTotal(pendingRes.value.data.pagination?.total ?? 0);
+      }
+      if (todayContractsRes.status === 'fulfilled') setTodayContracts(todayContractsRes.value.data.count ?? 0);
+      if (monthContractsRes.status === 'fulfilled') setMonthContracts(monthContractsRes.value.data.count ?? 0);
+      if (recentRes.status === 'fulfilled') setRecentContracts(recentRes.value.data.contracts ?? []);
+      if (revenueRes.status === 'fulfilled') {
+        setTodayRevenue(revenueRes.value.data.todayRevenue ?? 0);
+        const breakdown = revenueRes.value.data.monthlyBreakdown ?? [];
+        const currentMonth = breakdown.find((m) => m.month === monthKey);
+        setMonthRevenue(currentMonth?.revenue ?? 0);
+      }
+
+      if (results.some(r => r.status === 'rejected')) {
+        toast.error('Failed to load some dashboard data.');
+      }
     } catch {
       toast.error('Failed to load dashboard.');
     } finally {

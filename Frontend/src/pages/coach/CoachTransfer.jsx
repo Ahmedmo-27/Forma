@@ -137,7 +137,7 @@ export default function CoachTransfer() {
             style={{
               minWidth: 200, padding: '7px 10px', fontSize: 13,
               border: '1px solid var(--border)', borderRadius: 6,
-              fontFamily: 'inherit', color: 'var(--t1)', background: '#fff', cursor: 'pointer',
+              fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer',
             }}>
             <option value="">— Select coach —</option>
             {coaches.map(c => <option key={c._id} value={c._id}>{c.name} ({c.role})</option>)}
@@ -159,7 +159,7 @@ export default function CoachTransfer() {
           <select value={filter} onChange={e => setFilter(e.target.value)} style={{
             minWidth: 200, padding: '7px 10px', fontSize: 13,
             border: '1px solid var(--border)', borderRadius: 6,
-            fontFamily: 'inherit', color: 'var(--t1)', background: '#fff', cursor: 'pointer',
+            fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer',
           }}>
             <option value="all">All members ({members.length})</option>
             <option value="unassigned-coach">No coach assigned</option>

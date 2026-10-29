@@ -79,7 +79,7 @@ export default function InvitationsTab({ member, user, onRefresh }) {
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 5 }}>ID Photo / File <span style={{ fontWeight: 400, color: 'var(--t4)' }}>(optional, max 5MB)</span></label>
                 <input type="file" accept="image/*,.pdf" onChange={e => setFile(e.target.files[0] ?? null)}
-                  style={{ width: '100%', padding: '7px 10px', background: '#fff', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, color: 'var(--t2)', fontFamily: 'inherit' }} />
+                  style={{ width: '100%', padding: '7px 10px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, color: 'var(--t2)', fontFamily: 'inherit' }} />
                 {file && <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 3 }}>Selected: {file.name} ({(file.size/1024).toFixed(0)} KB)</p>}
               </div>
               <Btn size="sm" onClick={handleSubmit} disabled={loading}>{loading ? <Spinner size="sm" /> : 'Record Invitation'}</Btn>
