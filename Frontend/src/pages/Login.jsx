@@ -70,7 +70,7 @@ export default function Login() {
       {/* ── LEFT PANEL — branding ───────────────────────────────────── */}
       <div className="login-left" style={{
         flex: '1 1 50%',
-        background: 'linear-gradient(145deg, #0a1628 0%, #0d1f3c 40%, #102a52 100%)',
+        background: 'linear-gradient(145deg, #0B0817 0%, #130D2A 45%, #1E1248 100%)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -82,20 +82,20 @@ export default function Login() {
 
         {/* Decorative circles */}
         <div style={{
-          position: 'absolute', width: 500, height: 500,
+          position: 'absolute', width: 600, height: 600,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(255,255,255,0.04) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(68,41,140,0.18) 0%, transparent 70%)',
           top: -120, right: -120, pointerEvents: 'none',
         }} />
         <div style={{
           position: 'absolute', width: 360, height: 360,
           borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(0,240,255,0.08) 0%, transparent 70%)',
           bottom: -80, left: -80, pointerEvents: 'none',
         }} />
         <div style={{
           position: 'absolute', inset: 0,
-          backgroundImage: 'radial-gradient(rgba(255,255,255,0.03) 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(rgba(0,240,255,0.04) 1px, transparent 1px)',
           backgroundSize: '32px 32px',
           pointerEvents: 'none',
         }} />
@@ -106,19 +106,19 @@ export default function Login() {
           {/* Logo mark */}
           <div style={{
             width: 80, height: 80, borderRadius: 20,
-            background: 'linear-gradient(135deg, #1e40af 0%, #2563eb 100%)',
+            background: 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             margin: '0 auto 28px',
-            boxShadow: '0 8px 32px rgba(37,99,235,0.4)',
+            boxShadow: '0 8px 32px rgba(68,41,140,0.55)',
           }}>
-            <span style={{ fontSize: 38, lineHeight: 1 }}>🔥</span>
+            <img src="/leap-logo.svg" alt="LEAP" style={{ width: 64, height: 64 }} />
           </div>
 
           <h1 style={{
             fontSize: 36, fontWeight: 800, color: '#ffffff',
-            letterSpacing: '-0.5px', marginBottom: 12,
+            letterSpacing: '2px', marginBottom: 12, textTransform: 'uppercase',
           }}>
-            Flame Factory
+            LEAP
           </h1>
           <p style={{
             fontSize: 15, color: 'rgba(255,255,255,0.55)',
@@ -131,10 +131,10 @@ export default function Login() {
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, justifyContent: 'center' }}>
             {['Member Profiles', 'Sales Tracking', 'Freeze Management', 'Check-In System', 'Invitations'].map((f) => (
               <span key={f} style={{
-                padding: '6px 14px', borderRadius: 20,
-                background: 'rgba(255,255,255,0.07)',
-                border: '1px solid rgba(255,255,255,0.12)',
-                color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 500,
+                padding: '7px 16px', borderRadius: 24,
+                background: 'rgba(68,41,140,0.25)',
+                border: '1px solid rgba(0,240,255,0.15)',
+                color: 'rgba(255,255,255,0.75)', fontSize: 13, fontWeight: 500,
               }}>{f}</span>
             ))}
           </div>
@@ -145,14 +145,14 @@ export default function Login() {
           position: 'absolute', bottom: 24,
           fontSize: 11, color: 'rgba(255,255,255,0.25)',
         }}>
-          © {new Date().getFullYear()} Flame Factory. All rights reserved.
+          © {new Date().getFullYear()} LEAP. All rights reserved.
         </p>
       </div>
 
       {/* ── RIGHT PANEL — form ──────────────────────────────────────── */}
       <div className="login-right" style={{
         flex: '1 1 50%',
-        background: '#ffffff',
+        background: 'var(--card)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
@@ -164,13 +164,13 @@ export default function Login() {
 
           {/* Header */}
           <div style={{ marginBottom: 36 }}>
-            <p style={{ fontSize: 13, fontWeight: 600, color: '#2563eb', letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: 8 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: '#00F0FF', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 8 }}>
               Welcome back
             </p>
-            <h2 style={{ fontSize: 30, fontWeight: 800, color: '#0a1628', letterSpacing: '-0.5px', marginBottom: 8 }}>
+            <h2 style={{ fontSize: 30, fontWeight: 800, color: '#ffffff', letterSpacing: '-0.5px', marginBottom: 8 }}>
               Sign in to your account
             </h2>
-            <p style={{ fontSize: 14, color: '#64748b' }}>
+            <p style={{ fontSize: 14, color: 'var(--t3)' }}>
               Enter your credentials to access the dashboard.
             </p>
           </div>
@@ -182,8 +182,8 @@ export default function Login() {
             {errors.form && (
               <div style={{
                 padding: '12px 14px', borderRadius: 8, marginBottom: 20,
-                background: '#fef2f2', border: '1px solid #fecaca',
-                color: '#dc2626', fontSize: 13,
+                background: 'var(--red-bg)', border: '1px solid var(--red-bd)',
+                color: 'var(--red)', fontSize: 13,
               }}>
                 {errors.form}
               </div>
@@ -191,7 +191,7 @@ export default function Login() {
 
             {/* Email */}
             <div style={{ marginBottom: 20 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#0a1628', marginBottom: 7 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--t2)', marginBottom: 7 }}>
                 Email address
               </label>
               <input
@@ -201,22 +201,22 @@ export default function Login() {
                 onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: '', form: '' })); }}
                 placeholder="you@example.com"
                 style={{
-                  width: '100%', padding: '13px 16px', fontSize: 14,
-                  border: `1.5px solid ${errors.email ? '#ef4444' : '#e2e8f0'}`,
-                  borderRadius: 10, outline: 'none', color: '#0a1628',
-                  background: errors.email ? '#fff8f8' : '#f8fafc',
+                  width: '100%', padding: '14px 18px', fontSize: 15,
+                  border: `1.5px solid ${errors.email ? 'var(--red-bd)' : 'var(--border)'}`,
+                  borderRadius: 12, outline: 'none', color: 'var(--t1)',
+                  background: 'var(--bg)',
                   transition: 'border-color 0.15s, box-shadow 0.15s',
                   boxSizing: 'border-box',
                 }}
-                onFocus={(e) => { e.target.style.borderColor = '#2563eb'; e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.12)'; }}
-                onBlur={(e)  => { e.target.style.borderColor = errors.email ? '#ef4444' : '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
+                onFocus={(e) => { e.target.style.borderColor = '#00F0FF'; e.target.style.boxShadow = '0 0 0 3px rgba(0,240,255,0.10)'; }}
+                onBlur={(e)  => { e.target.style.borderColor = errors.email ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }}
               />
-              {errors.email && <p style={{ margin: '5px 0 0', fontSize: 12, color: '#dc2626' }}>{errors.email}</p>}
+              {errors.email && <p style={{ margin: '5px 0 0', fontSize: 12, color: 'var(--red)' }}>{errors.email}</p>}
             </div>
 
             {/* Password */}
             <div style={{ marginBottom: 28 }}>
-              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#0a1628', marginBottom: 7 }}>
+              <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--t2)', marginBottom: 7 }}>
                 Password
               </label>
               <div style={{ position: 'relative' }}>
@@ -227,15 +227,15 @@ export default function Login() {
                   onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: '', form: '' })); }}
                   placeholder="Enter your password"
                   style={{
-                    width: '100%', padding: '13px 46px 13px 16px', fontSize: 14,
-                    border: `1.5px solid ${errors.password ? '#ef4444' : '#e2e8f0'}`,
-                    borderRadius: 10, outline: 'none', color: '#0a1628',
-                    background: errors.password ? '#fff8f8' : '#f8fafc',
+                    width: '100%', padding: '14px 46px 14px 18px', fontSize: 15,
+                    border: `1.5px solid ${errors.password ? 'var(--red-bd)' : 'var(--border)'}`,
+                    borderRadius: 12, outline: 'none', color: 'var(--t1)',
+                    background: 'var(--bg)',
                     transition: 'border-color 0.15s, box-shadow 0.15s',
                     boxSizing: 'border-box',
                   }}
-                  onFocus={(e) => { e.target.style.borderColor = '#2563eb'; e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.12)'; }}
-                  onBlur={(e)  => { e.target.style.borderColor = errors.password ? '#ef4444' : '#e2e8f0'; e.target.style.boxShadow = 'none'; }}
+                  onFocus={(e) => { e.target.style.borderColor = '#00F0FF'; e.target.style.boxShadow = '0 0 0 3px rgba(0,240,255,0.10)'; }}
+                  onBlur={(e)  => { e.target.style.borderColor = errors.password ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }}
                 />
                 <button
                   type="button"
@@ -243,7 +243,7 @@ export default function Login() {
                   style={{
                     position: 'absolute', right: 14, top: '50%', transform: 'translateY(-50%)',
                     background: 'none', border: 'none', cursor: 'pointer',
-                    color: '#94a3b8', padding: 2, display: 'flex', alignItems: 'center',
+                    color: 'var(--t4)', padding: 2, display: 'flex', alignItems: 'center',
                   }}
                   aria-label={showPwd ? 'Hide password' : 'Show password'}
                 >
@@ -262,7 +262,7 @@ export default function Login() {
                   )}
                 </button>
               </div>
-              {errors.password && <p style={{ margin: '5px 0 0', fontSize: 12, color: '#dc2626' }}>{errors.password}</p>}
+              {errors.password && <p style={{ margin: '5px 0 0', fontSize: 12, color: 'var(--red)' }}>{errors.password}</p>}
             </div>
 
             {/* Submit */}
@@ -270,14 +270,14 @@ export default function Login() {
               type="submit"
               disabled={loading}
               style={{
-                width: '100%', padding: '14px', fontSize: 15, fontWeight: 700,
+                width: '100%', padding: '15px', fontSize: 16, fontWeight: 700,
                 background: loading
-                  ? '#93c5fd'
-                  : 'linear-gradient(135deg, #1e40af 0%, #2563eb 100%)',
-                color: '#ffffff', border: 'none', borderRadius: 10,
+                  ? 'rgba(68,41,140,0.50)'
+                  : 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)',
+                color: '#ffffff', border: 'none', borderRadius: 12,
                 cursor: loading ? 'not-allowed' : 'pointer',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                boxShadow: loading ? 'none' : '0 4px 16px rgba(37,99,235,0.35)',
+                boxShadow: loading ? 'none' : '0 6px 24px rgba(68,41,140,0.6)',
                 transition: 'opacity 0.15s, box-shadow 0.15s',
                 letterSpacing: '0.2px',
               }}
@@ -295,9 +295,9 @@ export default function Login() {
           <div style={{
             display: 'flex', alignItems: 'center', gap: 12, margin: '28px 0',
           }}>
-            <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
-            <span style={{ fontSize: 12, color: '#94a3b8', fontWeight: 500 }}>SECURE LOGIN</span>
-            <div style={{ flex: 1, height: 1, background: '#e2e8f0' }} />
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+            <span style={{ fontSize: 12, color: 'var(--t4)', fontWeight: 500, letterSpacing: '2px' }}>SECURE LOGIN</span>
+            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
           </div>
 
           {/* Trust badges */}
@@ -308,8 +308,8 @@ export default function Login() {
               { icon: '⚡', label: 'Fast & Secure' },
             ].map((b) => (
               <div key={b.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
-                <span style={{ fontSize: 18 }}>{b.icon}</span>
-                <span style={{ fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>{b.label}</span>
+                <span style={{ fontSize: 22 }}>{b.icon}</span>
+                <span style={{ fontSize: 12, color: 'var(--t4)', fontWeight: 500 }}>{b.label}</span>
               </div>
             ))}
           </div>
