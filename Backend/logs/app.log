@@ -15821,3 +15821,29 @@
 {"ts":"2026-10-29T22:19:18.416Z","level":"info","category":"http","message":"Request completed","env":"development","requestId":"0a5a6091","method":"GET","path":"/api/notifications/unread-count","status":304,"durationMs":521,"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","userId":"6a41277cfbd6496e1d99b3d3","userRole":"Sales"}
 {"ts":"2026-10-29T22:20:17.928Z","level":"info","category":"http","message":"Request completed","env":"development","requestId":"15034a95","method":"GET","path":"/api/notifications/unread-count","status":304,"durationMs":684,"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","userId":"6a41277cfbd6496e1d99b3d3","userRole":"Sales"}
 {"ts":"2026-10-29T22:20:18.753Z","level":"info","category":"http","message":"Request completed","env":"development","requestId":"f0fa6c35","method":"GET","path":"/api/notifications/unread-count","status":304,"durationMs":822,"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36","userId":"6a41277cfbd6496e1d99b3d3","userRole":"Sales"}
+{"ts":"2026-10-30T02:36:52.205Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T02:36:52.225Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T08:10:52.857Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T08:10:54.099Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T08:40:47.336Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T08:40:47.342Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T09:10:47.135Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T09:10:47.178Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T09:40:47.236Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T09:40:47.248Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T12:09:53.541Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T12:09:55.673Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T12:10:05.041Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T12:10:05.050Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T12:39:50.083Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T12:39:50.861Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T13:31:33.633Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T13:31:34.693Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T14:01:30.132Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T14:01:30.134Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T14:31:30.637Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T14:31:30.748Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T15:01:29.952Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T15:01:30.802Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T15:31:30.084Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-10-30T15:31:31.949Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
