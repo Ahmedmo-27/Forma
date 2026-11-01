@@ -207,7 +207,6 @@ const getAllMembers = async (req, res) => {
         delete statsFilter["subscriptions.createdAt"];
 
         if (isGlobalSearch) {
-            // Lightweight query for global search — only fields needed for search/display
             const members = await Member.find(filter)
                 .select(MEMBER_SEARCH_SELECT)
                 .populate("subscriptions.package", "name duration activityType")
@@ -217,10 +216,12 @@ const getAllMembers = async (req, res) => {
                 .limit(limit)
                 .lean();
 
+            const redacted = members.map(m => redactMemberForViewer(m, req.user));
+
             return res.status(200).json({
-                count: members.length,
-                members,
-                pagination: buildPagination(page, limit, members.length),
+                count: redacted.length,
+                members: redacted,
+                pagination: buildPagination(page, limit, redacted.length),
             });
         }
 
@@ -239,9 +240,11 @@ const getAllMembers = async (req, res) => {
             getMemberStatusStats(Member, statsFilter),
         ]);
 
+        const redactedMembers = members.map(m => redactMemberForViewer(m, req.user));
+
         res.status(200).json({
             count: total,
-            members,
+            members: redactedMembers,
             pagination: buildPagination(page, limit, total),
             stats,
         });

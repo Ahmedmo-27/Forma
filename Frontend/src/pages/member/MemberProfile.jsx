@@ -346,6 +346,46 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
     </span>
   );
 
+  // ── Phone chip with show/hide (role-based) ────────────────
+  const PhoneChip = ({ phone }) => {
+    const [visible, setVisible] = useState(false);
+    if (!phone || phone === 'hidden') return null;
+    return (
+      <span style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        fontSize: 13, color: 'var(--t2)',
+        background: 'var(--bg)', border: '1px solid var(--border)',
+        borderRadius: 7, padding: '4px 10px', whiteSpace: 'nowrap',
+      }}>
+        <span style={{ fontSize: 12, opacity: 0.8 }}>📞</span>
+        {visible ? (
+          <>
+            <span style={{ fontFamily: 'monospace' }}>{phone}</span>
+            <button onClick={() => copy(phone)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', padding: '0 0 0 2px', display: 'inline-flex', alignItems: 'center', transition: 'color 0.12s' }}
+              onMouseEnter={e => e.currentTarget.style.color = '#44298C'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
+              title="Copy"
+            >
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            </button>
+            <button onClick={() => setVisible(false)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', fontSize: 11, fontFamily: 'inherit', padding: 0, transition: 'color 0.12s' }}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--t3)'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
+            >Hide</button>
+          </>
+        ) : (
+          <button onClick={() => setVisible(true)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--navy)', fontWeight: 600, fontSize: 12, fontFamily: 'inherit', padding: 0 }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          >Show Number</button>
+        )}
+      </span>
+    );
+  };
+
   return (
     <div style={{
       background: 'var(--card)',
@@ -379,7 +419,7 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
           {member.memberId  && <Chip icon="🪪" label={`Member ID: ${member.memberId}`}    copyVal={String(member.memberId)} />}
           {member.systemId  && <Chip icon="🔢" label={`Member Code: ${member.systemId}`}  copyVal={String(member.systemId)} />}
           {member.gender    && <Chip icon="👤" label={member.gender.charAt(0).toUpperCase() + member.gender.slice(1)} />}
-          {member.phones    && <Chip icon="📞" label={member.phones} />}
+          {member.phones && <PhoneChip phone={member.phones} />}
           {lastCheckIn      && (
             <Chip icon="🕐" label={`Last Check-In: ${new Date(lastCheckIn.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`} />
           )}
