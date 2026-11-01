@@ -20,6 +20,7 @@ export default function Members() {
   const [filter, setFilter]     = useState('all');
   const [search, setSearch]     = useState('');
   const [page, setPage]         = useState(1);
+  const [sortNewest, setSortNewest] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
   const [stats, setStats]       = useState({ total: 0, active: 0, frozen: 0, expired: 0, guest: 0 });
   const [showAdd, setShowAdd]   = useState(false);
@@ -34,16 +35,17 @@ export default function Members() {
         limit: PAGE_SIZE,
         status: filter,
         search: debouncedSearch || undefined,
+        ...(sortNewest && { sortBy: 'createdAt', sortDir: -1 }),
       });
       setMembers(res.data.members ?? []);
       setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
       if (res.data.stats) setStats(res.data.stats);
     } catch { toast.error('Failed to load members.'); }
     finally { setLoading(false); }
-  }, [page, filter, debouncedSearch]);
+  }, [page, filter, debouncedSearch, sortNewest]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
-  useEffect(() => { setPage(1); }, [filter, debouncedSearch]);
+  useEffect(() => { setPage(1); }, [filter, debouncedSearch, sortNewest]);
 
   const paginated = members;
 
@@ -74,6 +76,22 @@ export default function Members() {
             { value: 'guest',   label: `Guests (${stats.guest})` },
             { value: 'blocked', label: `Blocked (${stats.blocked ?? 0})` },
           ]} />
+          <button
+            onClick={() => setSortNewest(s => !s)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+              border: `1px solid ${sortNewest ? '#44298C' : 'var(--border)'}`,
+              background: sortNewest ? 'rgba(68,41,140,0.08)' : 'transparent',
+              color: sortNewest ? '#44298C' : 'var(--t3)',
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+            }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+              <path d="M3 8l4-4 4 4M7 4v16M21 16l-4 4-4-4M17 20V4"/>
+            </svg>
+            {sortNewest ? 'Newest First' : 'Sort: Default'}
+          </button>
         </div>
 
         {/* Table card */}
