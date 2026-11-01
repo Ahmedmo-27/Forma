@@ -73,6 +73,9 @@ export default function ImportedMembers() {
       const res = await getAllMembers(params);
       let data = res.data.members ?? [];
 
+      // Always sort newest-first client-side as a guaranteed fallback
+      data.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
       // Client-side date filter on createdAt
       if (dateFrom || dateTo) {
         const from = dateFrom ? new Date(dateFrom) : null;
