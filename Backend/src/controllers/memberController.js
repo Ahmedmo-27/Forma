@@ -197,9 +197,15 @@ const getAllMembers = async (req, res) => {
         const { page, limit, skip } = parsePagination(req.query);
 
         // Optional sort — default oldest-first (systemId), pass sortBy=createdAt&sortDir=-1 for newest-first
-        const sortField = req.query.sortBy || "systemId";
-        const sortDir   = parseInt(req.query.sortDir, 10) === -1 ? -1 : 1;
-        const sortObj   = { [sortField]: sortDir };
+        // When filtering by source (e.g. imported members), default to newest-first
+        const sortField = req.query.sortBy || (req.query.source ? "createdAt" : "systemId");
+        const sortDir   = req.query.sortDir !== undefined
+            ? (parseInt(req.query.sortDir, 10) === -1 ? -1 : 1)
+            : (req.query.source ? -1 : 1);
+        // Add _id as tiebreaker so pagination is stable when createdAt values are equal
+        const sortObj   = sortField === "createdAt"
+            ? { createdAt: sortDir, _id: sortDir }
+            : { [sortField]: sortDir };
 
         const filter = buildMemberListFilter({
             status:         req.query.status,
