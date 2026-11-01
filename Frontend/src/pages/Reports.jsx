@@ -55,6 +55,8 @@ export default function Reports() {
   usePageTitle('Reports');
   const { user } = useAuth();
   const isDataManager = ['Sales Manager', 'Owner'].includes(user?.role);
+  const isSales       = user?.role === 'Sales';
+  const isManager     = ['Sales Manager', 'Owner'].includes(user?.role);
 
   return (
     <Layout>
@@ -63,39 +65,25 @@ export default function Reports() {
 
         {/* ── Members ─────────────────────────────────────────── */}
         <ReportSection title="Members" sub="Member status and activity">
-          <ReportCard
-            icon="👥"
-            title="Guest Members"
-            sub="Guest member list"
-            to="/reports/guests"
-            iconBg="#FEF2F2"
-          />
-          <ReportCard
-            icon="📅"
-            title="Expired Members"
-            sub="Expired memberships"
-            to="/reports/expired"
-            iconBg="#FEF2F2"
-          />
+          <ReportCard icon="👥" title="Guest Members"    sub="Guest member list"     to="/reports/guests"  iconBg="#FEF2F2" />
+          <ReportCard icon="📅" title="Expired Members"  sub="Expired memberships"   to="/reports/expired" iconBg="#FEF2F2" />
+        </ReportSection>
+
+        {/* ── Operations ──────────────────────────────────────── */}
+        <ReportSection title="Operations" sub="Requests and transfers">
+          {(isSales || isManager) && (
+            <ReportCard icon="📋" title="Requests"  sub="Package assignment requests" to="/sales/requests"  iconBg="#F0F9FF" />
+          )}
+          {isManager && (
+            <ReportCard icon="🔄" title="Transfer"  sub="Transfer members between reps" to="/sales/transfer" iconBg="#F0F9FF" />
+          )}
         </ReportSection>
 
         {/* ── Data — Sales Manager & Owner only ───────────────── */}
         {isDataManager && (
           <ReportSection title="Data" sub="Import and manage bulk data">
-            <ReportCard
-              icon="📥"
-              title="Import Members"
-              sub="Upload Excel sheet of names & numbers"
-              to="/sales/import"
-              iconBg="rgba(68,41,140,0.08)"
-            />
-            <ReportCard
-              icon="📋"
-              title="Imported Members"
-              sub="View all members added via Excel import"
-              to="/reports/imported"
-              iconBg="rgba(68,41,140,0.08)"
-            />
+            <ReportCard icon="📥" title="Import Members"   sub="Upload Excel sheet of names & numbers"  to="/sales/import"     iconBg="rgba(68,41,140,0.08)" />
+            <ReportCard icon="📋" title="Imported Members" sub="View all members added via Excel import" to="/reports/imported" iconBg="rgba(68,41,140,0.08)" />
           </ReportSection>
         )}
 
