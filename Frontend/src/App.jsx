@@ -35,6 +35,7 @@ import OwnerUserProfile   from './pages/owner/OwnerUserProfile';
 import CheckIn            from './pages/CheckIn';
 import CallCenter         from './pages/sales/CallCenter';
 import Transfer           from './pages/sales/Transfer';
+import ImportMembers      from './pages/sales/ImportMembers';
 import ReceptionContacts  from './pages/ReceptionContacts';
 import Reports         from './pages/Reports';
 import GuestMembers    from './pages/reports/GuestMembers';
@@ -163,6 +164,11 @@ function AppRoutes() {
       <Route path="/sales/transfer" element={
         <PrivateRoute roles={['Sales Manager', 'Owner']}>
           <Transfer />
+        </PrivateRoute>
+      } />
+      <Route path="/sales/import" element={
+        <PrivateRoute roles={['Sales Manager', 'Owner']}>
+          <ImportMembers />
         </PrivateRoute>
       } />
 

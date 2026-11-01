@@ -2,9 +2,10 @@ import { useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { PageHeader } from '../components/ui';
 import usePageTitle from '../hooks/usePageTitle';
+import { useAuth } from '../context/AuthContext';
 
 // ── Single report card ────────────────────────────────────────────────────────
-function ReportCard({ icon, title, sub, to }) {
+function ReportCard({ icon, title, sub, to, iconBg = '#FEF2F2' }) {
   const navigate = useNavigate();
   return (
     <div
@@ -31,23 +32,13 @@ function ReportCard({ icon, title, sub, to }) {
         e.currentTarget.style.transform = 'none';
       }}
     >
-      {/* Icon box */}
-      <div style={{
-        width: 44, height: 44, borderRadius: 10, flexShrink: 0,
-        background: '#FEF2F2',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 22,
-      }}>
+      <div style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
         {icon}
       </div>
-
-      {/* Text */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{title}</p>
         <p style={{ fontSize: 12, color: 'var(--t3)' }}>{sub}</p>
       </div>
-
-      {/* Chevron */}
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
         <polyline points="9 18 15 12 9 6" />
       </svg>
@@ -75,6 +66,8 @@ function ReportSection({ title, sub, children }) {
 // ── Reports page ──────────────────────────────────────────────────────────────
 export default function Reports() {
   usePageTitle('Reports');
+  const { user } = useAuth();
+  const canImport = ['Sales Manager', 'Owner'].includes(user?.role);
 
   return (
     <Layout>
@@ -88,14 +81,29 @@ export default function Reports() {
             title="Guest Members"
             sub="Guest member list"
             to="/reports/guests"
+            iconBg="#FEF2F2"
           />
           <ReportCard
             icon="📅"
             title="Expired Members"
             sub="Expired memberships"
             to="/reports/expired"
+            iconBg="#FEF2F2"
           />
         </ReportSection>
+
+        {/* ── Data ─────────────────────────────────────────────── */}
+        {canImport && (
+          <ReportSection title="Data" sub="Import and manage bulk data">
+            <ReportCard
+              icon="📥"
+              title="Import Members"
+              sub="Upload Excel sheet of names & numbers"
+              to="/sales/import"
+              iconBg="rgba(68,41,140,0.08)"
+            />
+          </ReportSection>
+        )}
 
       </div>
     </Layout>

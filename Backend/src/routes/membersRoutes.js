@@ -44,7 +44,8 @@ const {
     unblockMember,
     addPT_sessions,
     refund,
-    refundPT_Sessions
+    refundPT_Sessions,
+    bulkImportMembers,
 } = require("../controllers/memberController");
 
 // ── Role groups ───────────────────────────────────────────────────────────────
@@ -58,6 +59,22 @@ const inviteAccess = [protect, authorize("Receptionist", "Owner", "Sales", "Sale
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 router.post("/", ...writeAccess, validate(createMemberSchema), createMember);
+router.post("/bulk-import", protect, authorizeRoles("Sales Manager", "Owner"), (req, res, next) => {
+    const multer = require("multer");
+    const upload = multer({
+        storage: multer.memoryStorage(),
+        limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+        fileFilter: (req, file, cb) => {
+            const ok = /\.(xlsx|xls|csv)$/i.test(file.originalname);
+            cb(ok ? null : new Error("Only .xlsx, .xls or .csv files allowed"), ok);
+        },
+    }).single("file");
+    upload(req, res, (err) => {
+        if (err) return res.status(400).json({ message: err.message });
+        next();
+    });
+}, bulkImportMembers);
+
 router.post("/bulk-transfer-sales", protect, authorizeRoles("Sales Manager", "Owner"), bulkTransferSalesReps);
 router.post("/bulk-transfer-coach", protect, authorizeRoles("Coach Manager", "Owner"), bulkTransferCoach);
 

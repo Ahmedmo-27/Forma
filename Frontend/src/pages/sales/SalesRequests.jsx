@@ -96,37 +96,41 @@ export default function SalesRequests() {
 
         {/* ── Sales rep filter (manager only) ──────────────────── */}
         {isManager && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-              Filter by rep:
-            </span>
-            {/* All button */}
-            <button
-              onClick={() => setRepFilter('all')}
-              style={{
-                padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600,
-                background: repFilter === 'all' ? 'var(--navy)' : '#fff',
-                border: `1px solid ${repFilter === 'all' ? 'var(--navy)' : 'var(--border-md)'}`,
-                color: repFilter === 'all' ? '#fff' : 'var(--t2)',
-                cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-              }}
-            >
-              All
-            </button>
-            {salesReps.map(rep => {
-              const active = repFilter === rep._id;
-              return (
-                <button key={rep._id} onClick={() => setRepFilter(rep._id)} style={{
-                  padding: '5px 14px', borderRadius: 5, fontSize: 12, fontWeight: 600,
-                  background: active ? 'var(--navy)' : '#fff',
-                  border: `1px solid ${active ? 'var(--navy)' : 'var(--border-md)'}`,
-                  color: active ? '#fff' : 'var(--t2)',
-                  cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-                }}>
-                  {rep.name}
-                </button>
-              );
-            })}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.4px', flexShrink: 0 }}>
+              Filter by Rep:
+            </label>
+            <div style={{ position: 'relative', minWidth: 200 }}>
+              <select
+                value={repFilter}
+                onChange={e => setRepFilter(e.target.value)}
+                style={{
+                  width: '100%', padding: '8px 32px 8px 12px', fontSize: 13,
+                  border: '1px solid var(--border)', borderRadius: 8,
+                  background: 'var(--card)', color: 'var(--t1)',
+                  outline: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                  appearance: 'none', WebkitAppearance: 'none',
+                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center',
+                  transition: 'border-color 0.15s, box-shadow 0.15s',
+                }}
+                onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+                onBlur={e => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+              >
+                <option value="all">All Reps</option>
+                {salesReps.map(rep => (
+                  <option key={rep._id} value={rep._id}>{rep.name}</option>
+                ))}
+              </select>
+            </div>
+            {repFilter !== 'all' && (
+              <button
+                onClick={() => setRepFilter('all')}
+                style={{ fontSize: 12, fontWeight: 600, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
+              >
+                ✕ Clear
+              </button>
+            )}
           </div>
         )}
 

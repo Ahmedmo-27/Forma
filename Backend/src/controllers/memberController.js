@@ -2014,6 +2014,86 @@ const refundPT_Sessions = async (req, res) => {
     }
 };
 
+// ─── Bulk Import Members from Excel ──────────────────────────────────────────
+const bulkImportMembers = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: "No file uploaded" });
+        }
+
+        const XLSX = require("xlsx");
+        const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
+        const sheetName = workbook.SheetNames[0];
+        const sheet = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+        if (!rows.length) {
+            return res.status(400).json({ message: "Excel file is empty" });
+        }
+
+        const results = { created: [], skipped: [], errors: [] };
+
+        for (const row of rows) {
+            // Normalize column names (case-insensitive, trim whitespace)
+            const normalized = {};
+            for (const [k, v] of Object.entries(row)) {
+                normalized[k.toLowerCase().trim()] = String(v ?? "").trim();
+            }
+
+            const name  = normalized["name"]  || normalized["اسم"] || normalized["الاسم"] || "";
+            const phone = normalized["phone"] || normalized["number"] || normalized["رقم"] || normalized["phones"] || normalized["mobile"] || "";
+
+            if (!name) {
+                results.errors.push({ row: normalized, reason: "Missing name" });
+                continue;
+            }
+            if (!phone) {
+                results.errors.push({ row: normalized, reason: "Missing phone number" });
+                continue;
+            }
+
+            // Check duplicate by phone
+            const existing = await Member.findOne({ phones: phone });
+            if (existing) {
+                results.skipped.push({ name, phone, reason: "Phone already exists", systemId: existing.systemId });
+                continue;
+            }
+
+            try {
+                const systemId = await nextSystemId();
+                const member = await Member.create({
+                    systemId,
+                    name,
+                    phones: phone,
+                    photo: null,
+                    status: "guest",
+                    isMember: false,
+                    source: "data entry",
+                    createdBy: req.user.id,
+                });
+                results.created.push({ name, phone, systemId: member.systemId });
+            } catch (err) {
+                results.errors.push({ row: { name, phone }, reason: err.message });
+            }
+        }
+
+        res.status(200).json({
+            message: `Import complete: ${results.created.length} created, ${results.skipped.length} skipped, ${results.errors.length} errors`,
+            summary: {
+                total: rows.length,
+                created: results.created.length,
+                skipped: results.skipped.length,
+                errors: results.errors.length,
+            },
+            created: results.created,
+            skipped: results.skipped,
+            errors: results.errors,
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 module.exports = {
     createMember,
     getAllMembers,
@@ -2038,6 +2118,7 @@ module.exports = {
     blockMember,
     unblockMember,
     sessionCheckIn_for_couch,
+    bulkImportMembers,
     assignCoach,
     addCouch_notes,
     switchCoach,

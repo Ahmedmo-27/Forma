@@ -48,6 +48,7 @@ export const markAllNotificationsRead = () => api.patch('/notifications/read-all
 export const getAllMembers     = (params) => api.get('/members', { params });
 export const searchAllMembers  = ()       => api.get('/members/all', { params: { limit: 10000 } });
 export const getAllNotes       = (params) => api.get('/members/all-notes', { params });
+export const bulkImportMembers = (formData) => api.post('/members/bulk-import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const getMemberProfile  = (id)       => api.get(`/members/${id}`);
 export const createMember      = (data)     => api.post('/members', data);
 export const assignSales       = (id, salesId) =>
