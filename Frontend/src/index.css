@@ -53,7 +53,7 @@
 /* ── Reset ─────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-html { font-size: 14px; scroll-behavior: smooth; }
+html { font-size: 16px; scroll-behavior: smooth; }
 
 body {
   background: var(--bg);
@@ -117,9 +117,14 @@ textarea::placeholder { color: var(--t4); opacity: 1; }
 
 /* ── Page wrappers ─────────────────────────────────────────── */
 .wrap, .page-wrap {
-  max-width: 1320px;
+  max-width: 1600px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 32px;
+}
+.page-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
 }
 .page-wrap {
   display: flex;
