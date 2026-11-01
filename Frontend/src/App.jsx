@@ -40,6 +40,7 @@ import ReceptionContacts  from './pages/ReceptionContacts';
 import Reports         from './pages/Reports';
 import GuestMembers    from './pages/reports/GuestMembers';
 import ExpiredMembers  from './pages/reports/ExpiredMembers';
+import ImportedMembers from './pages/reports/ImportedMembers';
 import NotFound       from './pages/NotFound';
 
 // ── Protected route wrapper ───────────────────────────────────────────────────
@@ -275,6 +276,11 @@ function AppRoutes() {
       <Route path="/reports/expired" element={
         <PrivateRoute roles={['Owner', 'Sales Manager', 'Accountant', 'Sales']}>
           <ExpiredMembers />
+        </PrivateRoute>
+      } />
+      <Route path="/reports/imported" element={
+        <PrivateRoute roles={['Owner', 'Sales Manager']}>
+          <ImportedMembers />
         </PrivateRoute>
       } />
 

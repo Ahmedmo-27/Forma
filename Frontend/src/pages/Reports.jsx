@@ -12,25 +12,14 @@ function ReportCard({ icon, title, sub, to, iconBg = '#FEF2F2' }) {
       onClick={() => navigate(to)}
       style={{
         display: 'flex', alignItems: 'center', gap: 14,
-        background: 'var(--card)',
-        border: '1px solid var(--border)',
-        borderRadius: 12,
-        padding: '16px 18px',
-        cursor: 'pointer',
+        background: 'var(--card)', border: '1px solid var(--border)',
+        borderRadius: 12, padding: '16px 18px', cursor: 'pointer',
         transition: 'all 0.15s cubic-bezier(0.16,1,0.3,1)',
         boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
         flex: '1 1 220px', minWidth: 0,
       }}
-      onMouseEnter={e => {
-        e.currentTarget.style.borderColor = '#44298C';
-        e.currentTarget.style.boxShadow = '0 4px 16px rgba(68,41,140,0.12)';
-        e.currentTarget.style.transform = 'translateY(-2px)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.borderColor = 'var(--border)';
-        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
-        e.currentTarget.style.transform = 'none';
-      }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = '#44298C'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(68,41,140,0.12)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; e.currentTarget.style.transform = 'none'; }}
     >
       <div style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
         {icon}
@@ -46,16 +35,14 @@ function ReportCard({ icon, title, sub, to, iconBg = '#FEF2F2' }) {
   );
 }
 
-// ── Report section group ──────────────────────────────────────────────────────
+// ── Report section ────────────────────────────────────────────────────────────
 function ReportSection({ title, sub, children }) {
   return (
     <div style={{ marginBottom: 32 }}>
-      {/* Section header */}
       <div style={{ marginBottom: 14 }}>
         <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--t1)', marginBottom: 3 }}>{title}</h2>
         <p style={{ fontSize: 13, color: 'var(--t3)' }}>{sub}</p>
       </div>
-      {/* Cards row */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
         {children}
       </div>
@@ -67,14 +54,14 @@ function ReportSection({ title, sub, children }) {
 export default function Reports() {
   usePageTitle('Reports');
   const { user } = useAuth();
-  const canImport = ['Sales Manager', 'Owner'].includes(user?.role);
+  const isDataManager = ['Sales Manager', 'Owner'].includes(user?.role);
 
   return (
     <Layout>
       <PageHeader title="Reports" />
       <div className="page-wrap" style={{ paddingTop: 24, paddingBottom: 40 }}>
 
-        {/* ── Members ───────────────────────────────────────────── */}
+        {/* ── Members ─────────────────────────────────────────── */}
         <ReportSection title="Members" sub="Member status and activity">
           <ReportCard
             icon="👥"
@@ -92,14 +79,21 @@ export default function Reports() {
           />
         </ReportSection>
 
-        {/* ── Data ─────────────────────────────────────────────── */}
-        {canImport && (
+        {/* ── Data — Sales Manager & Owner only ───────────────── */}
+        {isDataManager && (
           <ReportSection title="Data" sub="Import and manage bulk data">
             <ReportCard
               icon="📥"
               title="Import Members"
               sub="Upload Excel sheet of names & numbers"
               to="/sales/import"
+              iconBg="rgba(68,41,140,0.08)"
+            />
+            <ReportCard
+              icon="📋"
+              title="Imported Members"
+              sub="View all members added via Excel import"
+              to="/reports/imported"
               iconBg="rgba(68,41,140,0.08)"
             />
           </ReportSection>
