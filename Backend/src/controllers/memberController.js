@@ -195,13 +195,24 @@ const getAllMembers = async (req, res) => {
         const isGlobalSearch = parseInt(req.query.limit, 10) >= 1000;
 
         const { page, limit, skip } = parsePagination(req.query);
+
+        // Optional sort — default oldest-first (systemId), pass sortBy=createdAt&sortDir=-1 for newest-first
+        const sortField = req.query.sortBy || "systemId";
+        const sortDir   = parseInt(req.query.sortDir, 10) === -1 ? -1 : 1;
+        const sortObj   = { [sortField]: sortDir };
+
         const filter = buildMemberListFilter({
-            status: req.query.status,
-            search: req.query.search,
-            assignedSales: req.query.assignedSales,
-            unassigned: req.query.unassigned,
+            status:         req.query.status,
+            search:         req.query.search,
+            assignedSales:  req.query.assignedSales,
+            unassigned:     req.query.unassigned,
             subscribedToday: req.query.subscribedToday,
         });
+
+        // Source filter (e.g. source=data entry for imported members)
+        if (req.query.source) {
+            filter.source = req.query.source;
+        }
 
         const statsFilter = { ...filter };
         delete statsFilter["subscriptions.createdAt"];
@@ -211,7 +222,7 @@ const getAllMembers = async (req, res) => {
                 .select(MEMBER_SEARCH_SELECT)
                 .populate("subscriptions.package", "name duration activityType")
                 .populate("assignedSales", "name role")
-                .sort({ systemId: 1 })
+                .sort(sortObj)
                 .skip(skip)
                 .limit(limit)
                 .lean();
@@ -233,7 +244,7 @@ const getAllMembers = async (req, res) => {
                 .populate("createdBy", "name")
                 .populate("assignedSales", "name role")
                 .populate("current_couch", "name role")
-                .sort({ systemId: 1 })
+                .sort(sortObj)
                 .skip(skip)
                 .limit(limit)
                 .lean(),

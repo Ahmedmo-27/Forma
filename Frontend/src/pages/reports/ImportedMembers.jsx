@@ -61,6 +61,8 @@ export default function ImportedMembers() {
     try {
       const params = {
         source: 'data entry',
+        sortBy: 'createdAt',
+        sortDir: -1,
         page,
         limit: PAGE_SIZE,
       };
