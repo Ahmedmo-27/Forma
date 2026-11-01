@@ -210,3 +210,5 @@
 {"ts":"2026-10-31T09:15:34.604Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
 {"ts":"2026-10-31T09:45:34.286Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"bad auth : authentication failed"}
 {"ts":"2026-10-31T09:45:34.291Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"bad auth : authentication failed"}
+{"ts":"2026-11-01T15:58:16.030Z","level":"error","category":"scheduler","message":"Freeze cycle error","env":"development","error":"getaddrinfo ENOTFOUND ac-vphspke-shard-00-02.o19mzyx.mongodb.net"}
+{"ts":"2026-11-01T15:58:16.072Z","level":"error","category":"scheduler","message":"Expiry cycle error","env":"development","error":"getaddrinfo ENOTFOUND ac-vphspke-shard-00-02.o19mzyx.mongodb.net"}

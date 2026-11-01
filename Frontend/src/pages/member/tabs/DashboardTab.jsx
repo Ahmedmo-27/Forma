@@ -164,7 +164,292 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* ── Row 1: Stat boxes ─────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+      <div className="dash-stats">
+        <StatBox
+          icon="🏅"
+          label="Membership Status"
+          value={member.status ? member.status.charAt(0).toUpperCase() + member.status.slice(1) : '—'}
+          sub={activeSub?.startDate ? `Since ${fmtDate(activeSub.startDate)}` : undefined}
+          accent={statusColor}
+          onClick={() => go('packages')}
+        />
+        <StatBox
+          icon="📅"
+          label="Package Expiry"
+          value={activeSub?.endDate ? fmtDate(activeSub.endDate) : '—'}
+          sub={
+            expiryDays === null ? undefined
+            : expiryDays < 0 ? `Expired ${Math.abs(expiryDays)} day${Math.abs(expiryDays) !== 1 ? 's' : ''} ago`
+            : expiringSoon ? `⚠ ${expiryDays} day${expiryDays !== 1 ? 's' : ''} left`
+            : `${expiryDays} day${expiryDays !== 1 ? 's' : ''} remaining`
+          }
+          accent={expiringSoon || isExpired ? '#ef4444' : '#44298C'}
+          onClick={() => go('packages')}
+        />
+        <StatBox
+          icon="✅"
+          label="Total Check-Ins"
+          value={checkIns.length}
+          sub={`${thisMonthCheckIns} this month`}
+          accent="#22c55e"
+          onClick={() => go('checkins')}
+        />
+        <StatBox
+          icon="💪"
+          label="PT Sessions"
+          value={hasPT ? remainPT : 0}
+          sub={hasPT ? `${usedPT} used · ${totalPT} total` : 'No active PT sessions'}
+          accent="#f59e0b"
+          onClick={() => go('packages')}
+        />
+      </div>
+
+      {/* ── Row 2: Package + Quick Actions + Call Center ──────── */}
+      <div className="dash-row2">
+
+        {/* My Package */}
+        <SectionCard title="My Package" icon="📦">
+          {pkg ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Badge status={member.status} />
+                <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>{pkg.name}</span>
+              </div>
+              <div className="dash-info-grid">
+                <InfoPair label="Activity" value={pkg.activityType} />
+                <InfoPair label="Duration" value={pkg.duration} />
+                <InfoPair label="Price Paid" value={activeSub?.pricePaid ? `EGP ${activeSub.pricePaid}` : '—'} />
+                <InfoPair label="Discount" value={activeSub?.discountPercent ? `${activeSub.discountPercent}%` : 'None'} />
+                <InfoPair label="Freeze Limit" value={`${freezeLimit} days`} />
+                <InfoPair label="Freeze Used" value={`${freezeUsed} days`} />
+                <InfoPair label="Invitations" value={`${invitationsUsed} / ${invitationLimit}`} />
+                <InfoPair label="Freeze Left" value={`${freezeRemain} days`} valueColor={freezeRemain > 0 ? 'var(--sky)' : 'var(--t4)'} />
+              </div>
+              {activeFreeze && (
+                <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', fontSize: 12, color: 'var(--sky)' }}>
+                  🧊 Currently frozen until {fmtDate(activeFreeze.endDate)}
+                </div>
+              )}
+              <button onClick={() => go('packages')} style={{ marginTop: 4, padding: '9px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border-md)', color: 'var(--t2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#44298C'; e.currentTarget.style.color = '#44298C'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-md)'; e.currentTarget.style.color = 'var(--t2)'; }}>
+                View Package Details →
+              </button>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '16px 0' }}>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--t3)', marginBottom: 4 }}>No active package</p>
+              <p style={{ fontSize: 12, color: 'var(--t4)', marginBottom: 16 }}>No active package</p>
+              <button onClick={() => go('packages')} style={{ width: '100%', padding: '9px', borderRadius: 8, background: 'transparent', border: '1px solid var(--border-md)', color: 'var(--t2)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#44298C'; e.currentTarget.style.color = '#44298C'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-md)'; e.currentTarget.style.color = 'var(--t2)'; }}>
+                View Package Details →
+              </button>
+            </div>
+          )}
+        </SectionCard>
+
+        {/* Quick Actions + PT block */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <SectionCard title="Quick Actions" icon="⚡">
+            <div className="dash-quick-actions">
+              <QuickActionBtn icon="🎟️" label="Add Invitation" sub={`Balance: ${invitationsRemain}`} onClick={() => go('invitations')} accent="#22c55e" />
+              <QuickActionBtn icon="✅" label="Check-Ins" sub={`${checkIns.length} total`} onClick={() => go('checkins')} accent="#22c55e" />
+              <QuickActionBtn icon="📊" label="Packages" onClick={() => go('packages')} accent="#44298C" />
+              <QuickActionBtn icon="🧊" label="Freeze" sub={freezeRemain > 0 ? `${freezeRemain}d left` : 'No days left'} onClick={() => go('freeze')} accent="#38bdf8" />
+              <QuickActionBtn icon="💬" label="Call Center" sub={`${notes.length} notes`} onClick={() => go('callcenter')} accent="#f59e0b" />
+              <QuickActionBtn icon="📁" label="Files" onClick={() => go('files')} accent="#A6A0C2" />
+            </div>
+          </SectionCard>
+
+          {/* PT Sessions */}
+          <div style={{ background: 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)', border: '1px solid rgba(91,56,186,0.4)', borderRadius: 12, padding: '16px 18px', boxShadow: '0 4px 20px rgba(68,41,140,0.3)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
+              <span style={{ fontSize: 16 }}>💪</span>
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>PT Sessions</span>
+              {hasPT && !ptExpired && (
+                <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, background: 'rgba(255,255,255,0.15)', color: '#fff', padding: '2px 8px', borderRadius: 20 }}>ACTIVE</span>
+              )}
+            </div>
+            <div className="dash-pt-grid">
+              {[{ label: 'Total PT', value: totalPT }, { label: 'Free', value: latestPT?.pricePaid === 0 ? totalPT : 0 }, { label: 'Taken', value: usedPT }, { label: 'Remaining', value: remainPT }].map(item => (
+                <div key={item.label} style={{ textAlign: 'center' }}>
+                  <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{item.label}</p>
+                  <p style={{ fontSize: 22, fontWeight: 800, color: '#fff' }}>{item.value}</p>
+                </div>
+              ))}
+            </div>
+            {hasPT && latestPT?.endDate && (
+              <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: 11, color: 'rgba(255,255,255,0.55)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
+                <span>Expires: {fmtDate(latestPT.endDate)}</span>
+                <span>Coach: {member.current_couch?.name ?? '—'}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Call Center */}
+        <SectionCard title={isCoach ? `Coach Notes (${notes.length})` : `Call Center (${notes.length})`} icon="📞"
+          action={<button onClick={() => go('callcenter')} style={{ fontSize: 11, fontWeight: 600, color: '#44298C', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>View all →</button>}
+        >
+          {lastNote ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, gap: 8 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Last Note</span>
+                  <span style={{ fontSize: 10, color: 'var(--t4)' }}>{fmtDateTime(lastNote.createdAt)}</span>
+                </div>
+                <p style={{ fontSize: 13, color: 'var(--t1)', lineHeight: 1.5 }}>{lastNote.text}</p>
+                {lastNote.createdBy?.name && <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 6 }}>— {lastNote.createdBy.name}</p>}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Total Notes</p>
+                  <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--t1)' }}>{notes.length}</p>
+                </div>
+                <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Last Active</p>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--t1)' }}>{`${daysAgo(lastNote.createdAt)}d ago`}</p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {notes.slice(0, 3).map((n, i) => (
+                  <div key={n._id ?? i} style={{ padding: '8px 10px', borderRadius: 6, background: 'var(--bg)', border: '1px solid var(--border)', fontSize: 12, color: 'var(--t2)', lineHeight: 1.4 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 2 }}>
+                      <span style={{ fontWeight: 600, color: 'var(--t3)', fontSize: 10 }}>{n.createdBy?.name ?? '—'}</span>
+                      <span style={{ color: 'var(--t4)', fontSize: 10 }}>{fmtDate(n.createdAt)}</span>
+                    </div>
+                    <p style={{ color: 'var(--t2)' }}>{n.text.length > 80 ? n.text.slice(0, 80) + '…' : n.text}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <p style={{ fontSize: 14, color: 'var(--t4)' }}>No notes yet</p>
+            </div>
+          )}
+        </SectionCard>
+      </div>
+
+      {/* ── Row 3: Last Check-In + Alerts + Member Info ────────── */}
+      <div className="dash-row3">
+        <SectionCard title="Last Check-In" icon="🕐">
+          {lastCheckIn ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)' }}>
+                <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)', marginBottom: 2 }}>{fmtDateTime(lastCheckIn.createdAt)}</p>
+                {lastCheckIn.createdBy?.name && <p style={{ fontSize: 11, color: 'var(--t4)' }}>By {lastCheckIn.createdBy.name}</p>}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Total</p>
+                  <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--t1)' }}>{checkIns.length}</p>
+                </div>
+                <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border)' }}>
+                  <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>This Month</p>
+                  <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--t1)' }}>{thisMonthCheckIns}</p>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '20px 0' }}><p style={{ fontSize: 14, color: 'var(--t4)' }}>No check-ins yet</p></div>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Alerts" icon="🚨"
+          action={<button onClick={() => go('alerts')} style={{ fontSize: 11, fontWeight: 600, color: '#44298C', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Manage →</button>}
+        >
+          {(member.alert ?? []).filter(a => a.active).length > 0 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {(member.alert ?? []).filter(a => a.active).slice(0, 3).map((a, i) => (
+                <div key={a._id ?? i} style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', fontSize: 12, color: 'var(--amber)' }}>⚠ {a.text}</div>
+              ))}
+              {(member.alert ?? []).filter(a => a.active).length > 3 && (
+                <p style={{ fontSize: 11, color: 'var(--t4)', textAlign: 'center' }}>+{(member.alert ?? []).filter(a => a.active).length - 3} more alerts</p>
+              )}
+            </div>
+          ) : (
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <p style={{ fontSize: 22, opacity: 0.2, marginBottom: 6 }}>🚨</p>
+              <p style={{ fontSize: 13, color: 'var(--t4)' }}>No active alerts</p>
+            </div>
+          )}
+        </SectionCard>
+
+        <SectionCard title="Member Info" icon="👤">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div className="dash-info-grid">
+              <InfoPair label="Member ID" value={member.memberId ? `M${member.memberId}` : '—'} />
+              <InfoPair label="System ID" value={member.systemId ? `#${member.systemId}` : '—'} />
+              <InfoPair label="Status" value={<Badge status={member.status} />} />
+              <InfoPair label="Gender" value={member.gender ? member.gender.charAt(0).toUpperCase() + member.gender.slice(1) : '—'} />
+              <InfoPair label="Assigned Sales" value={member.assignedSales?.name ?? '—'} />
+              <InfoPair label="Coach" value={member.current_couch?.name ?? '—'} />
+              <InfoPair label="Total Subs" value={subs.length} />
+              <InfoPair label="Joined" value={member.createdAt ? fmtDate(member.createdAt) : '—'} />
+            </div>
+            {member.isBlocked && (
+              <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 12, color: 'var(--red)' }}>
+                🚫 Member is blocked{member.blockedReason ? `: ${member.blockedReason}` : ''}
+              </div>
+            )}
+          </div>
+        </SectionCard>
+      </div>
+
+      {/* ── Responsive styles ───────────────────────────────────── */}
+      <style>{`
+        .dash-stats {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+        }
+        .dash-row2 {
+          display: grid;
+          grid-template-columns: 1fr 1.2fr 1fr;
+          gap: 12px;
+        }
+        .dash-row3 {
+          display: grid;
+          grid-template-columns: 1fr 1fr 1fr;
+          gap: 12px;
+        }
+        .dash-info-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        }
+        .dash-quick-actions {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+        .dash-pt-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 12px;
+        }
+        /* Tablet */
+        @media (max-width: 1024px) {
+          .dash-stats  { grid-template-columns: repeat(2, 1fr); }
+          .dash-row2   { grid-template-columns: 1fr 1fr; }
+          .dash-row3   { grid-template-columns: 1fr 1fr; }
+          .dash-pt-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        /* Mobile */
+        @media (max-width: 640px) {
+          .dash-stats  { grid-template-columns: 1fr 1fr; }
+          .dash-row2   { grid-template-columns: 1fr; }
+          .dash-row3   { grid-template-columns: 1fr; }
+          .dash-info-grid { grid-template-columns: 1fr 1fr; }
+          .dash-pt-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        /* Small phone */
+        @media (max-width: 380px) {
+          .dash-stats { grid-template-columns: 1fr; }
+        }
+      `}</style>
 
         {/* Membership Status */}
         <StatBox
