@@ -25,6 +25,7 @@ const {
     updateStaffMobile,
     getReceptionistTeam,
     getTeamsPage,
+    updateMyProfile,
 } = require("../controllers/userController");
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 const loginLimiter = require("../middleware/loginLimiter");
@@ -42,6 +43,7 @@ router.get("/profile", protect, (req, res) => {
 });
 
 router.get("/me", protect, getMyProfile);
+router.patch("/me", protect, updateMyProfile);
 router.get("/sales-revenue", protect, authorizeRoles("Sales"), getSalesRevenue);
 router.get("/sales-manager/revenue", protect, authorizeRoles("Sales Manager", "Owner", "Accountant"), getSalesManagerRevenue);
 router.get("/sales-manager/subscriptions", protect, authorizeRoles("Sales Manager", "Owner", "Accountant"), getSubscriptionsByDate);

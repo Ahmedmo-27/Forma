@@ -1049,6 +1049,48 @@ const getTeamsPage = async (req, res) => {
 const changeAuthorities=async (req,res)=>{
 
 };
+// ─── Update own profile (name + password) ────────────────────────────────────
+const updateMyProfile = async (req, res) => {
+    try {
+        const user = await User.findById(req.user.id);
+        if (!user) return res.status(404).json({ message: "User not found" });
+
+        const { name, currentPassword, newPassword } = req.body;
+
+        // Update name
+        if (name && name.trim()) {
+            user.name = name.trim();
+        }
+
+        // Update password — require current password first
+        if (newPassword) {
+            if (!currentPassword) {
+                return res.status(400).json({ message: "Current password is required to set a new password" });
+            }
+            const { match } = await verifyPassword(currentPassword, user.password, { requestId: req.requestId });
+            if (!match) {
+                return res.status(400).json({ message: "Current password is incorrect" });
+            }
+            if (newPassword.length < 6) {
+                return res.status(400).json({ message: "New password must be at least 6 characters" });
+            }
+            user.password = await hashPassword(newPassword);
+        }
+
+        await user.save();
+
+        logger.auth("info", "Profile updated", {
+            userId: user._id.toString(),
+            nameChanged: Boolean(name),
+            passwordChanged: Boolean(newPassword),
+        });
+
+        res.json({ message: "Profile updated successfully", user: formatUserResponse(user) });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 module.exports = {
     registerUser,
     loginUser,
@@ -1074,4 +1116,5 @@ module.exports = {
     getCoachTeam,
     getCoachProfile,
     getTeamsPage,
+    updateMyProfile,
 };

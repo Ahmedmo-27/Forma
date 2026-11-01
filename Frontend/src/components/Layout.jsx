@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import GlobalSearch from './GlobalSearch';
 import NotificationBell from './NotificationBell';
+import { updateMyProfile } from '../api/endpoints';
 
 const NAV = {
   Receptionist:  [{ to: '/checkin', label: 'Check In' }, { to: '/members', label: 'Members' }, { to: '/contacts', label: 'Contacts' }],
@@ -85,8 +88,12 @@ function DrawerItem({ item, onNavigate }) {
 export default function Layout({ children }) {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
-  const [mob, setMob]   = useState(false);
-  const [drop, setDrop] = useState(false);
+  const [mob, setMob]         = useState(false);
+  const [drop, setDrop]       = useState(false);
+  const [editProfile, setEditProfile] = useState(false);
+  const [profileForm, setProfileForm] = useState({ name: '', currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [profileErrors, setProfileErrors] = useState({});
+  const [profileSaving, setProfileSaving] = useState(false);
   const dropRef         = useRef(null);
   const items           = NAV[user?.role] ?? NAV.Receptionist;
   const showNotif       = ['Sales', 'Sales Manager', 'Accountant'].includes(user?.role);
@@ -180,6 +187,19 @@ export default function Layout({ children }) {
                     <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{user?.name}</p>
                     <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>{user?.role}</p>
                   </div>
+                  <button onClick={() => { setDrop(false); setProfileForm({ name: user?.name || '', currentPassword: '', newPassword: '', confirmPassword: '' }); setProfileErrors({}); setEditProfile(true); }} style={{
+                    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 12px', borderRadius: 6, border: 'none',
+                    background: 'transparent', cursor: 'pointer',
+                    fontSize: 13, fontWeight: 600, color: 'var(--t2)', fontFamily: 'inherit',
+                    transition: 'background 0.12s',
+                  }}
+                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+                    Edit Profile
+                  </button>
                   <button onClick={logout} style={{
                     width: '100%', display: 'flex', alignItems: 'center', gap: 8,
                     padding: '8px 12px', borderRadius: 6, border: 'none',
@@ -275,6 +295,120 @@ export default function Layout({ children }) {
 
       {/* ── PAGE CONTENT ───────────────────────────────────────── */}
       <main style={{ flex: 1, paddingTop: 8, paddingBottom: 40 }}>{children}</main>
+
+      {/* ── Edit Profile Modal ───────────────────────────────── */}
+      {editProfile && (
+        <div onClick={() => !profileSaving && setEditProfile(false)} style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+        }}>
+          <div onClick={e => e.stopPropagation()} className="fade-up" style={{
+            background: 'var(--card)', border: '1px solid var(--border)',
+            borderRadius: 14, width: '100%', maxWidth: 440,
+            boxShadow: '0 8px 40px rgba(0,0,0,0.15)', overflow: 'hidden',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', margin: 0 }}>Edit Profile</h2>
+              <button onClick={() => setEditProfile(false)} disabled={profileSaving} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 28, height: 28, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'var(--red-bg)'; e.currentTarget.style.color = 'var(--red)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--t3)'; }}
+              >✕</button>
+            </div>
+
+            <div style={{ padding: '20px' }}>
+              <form onSubmit={async e => {
+                e.preventDefault();
+                const errs = {};
+                if (!profileForm.name.trim()) errs.name = 'Name is required';
+                if (profileForm.newPassword) {
+                  if (!profileForm.currentPassword) errs.currentPassword = 'Required to change password';
+                  if (profileForm.newPassword.length < 6) errs.newPassword = 'At least 6 characters';
+                  if (profileForm.newPassword !== profileForm.confirmPassword) errs.confirmPassword = 'Passwords do not match';
+                }
+                setProfileErrors(errs);
+                if (Object.keys(errs).length) return;
+                setProfileSaving(true);
+                try {
+                  const payload = { name: profileForm.name.trim() };
+                  if (profileForm.newPassword) {
+                    payload.currentPassword = profileForm.currentPassword;
+                    payload.newPassword = profileForm.newPassword;
+                  }
+                  await updateMyProfile(payload);
+                  toast.success('Profile updated! Please sign in again to see your new name.');
+                  setEditProfile(false);
+                } catch (err) {
+                  const msg = err.response?.data?.message || 'Failed to update profile';
+                  if (msg.toLowerCase().includes('password')) setProfileErrors({ currentPassword: msg });
+                  else toast.error(msg);
+                } finally {
+                  setProfileSaving(false);
+                }
+              }} noValidate>
+
+                {/* Name */}
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Display Name</label>
+                  <input value={profileForm.name} onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))} placeholder="Your name"
+                    style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: `1px solid ${profileErrors.name ? 'var(--red-bd)' : 'var(--border)'}`, borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                    onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+                    onBlur={e => { e.target.style.borderColor = profileErrors.name ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
+                  {profileErrors.name && <p style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>{profileErrors.name}</p>}
+                </div>
+
+                <div style={{ height: 1, background: 'var(--border)', margin: '18px 0 14px' }} />
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 14 }}>
+                  Change Password <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+                </p>
+
+                {/* Current Password */}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>Current Password</label>
+                  <input type="password" value={profileForm.currentPassword} onChange={e => setProfileForm(f => ({ ...f, currentPassword: e.target.value }))} placeholder="Enter current password"
+                    style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: `1px solid ${profileErrors.currentPassword ? 'var(--red-bd)' : 'var(--border)'}`, borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                    onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+                    onBlur={e => { e.target.style.borderColor = profileErrors.currentPassword ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
+                  {profileErrors.currentPassword && <p style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>{profileErrors.currentPassword}</p>}
+                </div>
+
+                {/* New Password */}
+                <div style={{ marginBottom: 12 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>New Password</label>
+                  <input type="password" value={profileForm.newPassword} onChange={e => setProfileForm(f => ({ ...f, newPassword: e.target.value }))} placeholder="Min 6 characters"
+                    style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: `1px solid ${profileErrors.newPassword ? 'var(--red-bd)' : 'var(--border)'}`, borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                    onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+                    onBlur={e => { e.target.style.borderColor = profileErrors.newPassword ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
+                  {profileErrors.newPassword && <p style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>{profileErrors.newPassword}</p>}
+                </div>
+
+                {/* Confirm Password */}
+                <div style={{ marginBottom: 24 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>Confirm New Password</label>
+                  <input type="password" value={profileForm.confirmPassword} onChange={e => setProfileForm(f => ({ ...f, confirmPassword: e.target.value }))} placeholder="Repeat new password"
+                    style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: `1px solid ${profileErrors.confirmPassword ? 'var(--red-bd)' : 'var(--border)'}`, borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                    onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+                    onBlur={e => { e.target.style.borderColor = profileErrors.confirmPassword ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
+                  {profileErrors.confirmPassword && <p style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>{profileErrors.confirmPassword}</p>}
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <button type="button" onClick={() => setEditProfile(false)} disabled={profileSaving}
+                    style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--t2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Cancel
+                  </button>
+                  <button type="submit" disabled={profileSaving}
+                    style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#44298C,#5B38BA)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: profileSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: profileSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {profileSaving
+                      ? <><span style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite' }} />Saving…</>
+                      : 'Save Changes'}
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         #tab-nav-bar::-webkit-scrollbar { display: none; }
