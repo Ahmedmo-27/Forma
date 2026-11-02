@@ -11,6 +11,7 @@ import {
 import {
   getSalesProfile, getSalesUsers, updateSalesRepTarget,
   bulkTransferSalesReps, updateSalesRepAbilities, updatePhonePrivacy,
+  resetUserPassword,
 } from '../../api/endpoints';
 
 // ── Abilities config ──────────────────────────────────────────────────────────
@@ -75,6 +76,12 @@ export default function SalesPersonProfile() {
 
   // Phone Privacy
   const [savingPhonePrivacy, setSavingPhonePrivacy] = useState(false);
+
+  // Reset Password
+  const [showResetPwd,  setShowResetPwd]  = useState(false);
+  const [newPwd,        setNewPwd]        = useState('');
+  const [confirmPwd,    setConfirmPwd]    = useState('');
+  const [resettingPwd,  setResettingPwd]  = useState(false);
 
   usePageTitle(data?.user?.name ?? 'Sales Profile');
 
@@ -210,7 +217,13 @@ export default function SalesPersonProfile() {
           <span style={{ color: 'var(--border-md)' }}>/</span>
           <span>{loading ? 'Loading…' : (user?.name ?? 'Profile')}</span>
         </div>
-      } />
+      }>
+        {!loading && data?.user && (
+          <Btn variant="outline" size="sm" onClick={() => { setNewPwd(''); setConfirmPwd(''); setShowResetPwd(true); }}>
+            🔑 Reset Password
+          </Btn>
+        )}
+      </PageHeader>
 
       <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
         {loading ? <ProfileSkeleton /> : (
@@ -490,6 +503,49 @@ export default function SalesPersonProfile() {
           <label htmlFor="select-all" style={{ fontSize: 12, color: 'var(--t3)', cursor: 'pointer' }}>
             Select all visible ({filtered.length})
           </label>
+        </div>
+      </Modal>
+      {/* ── Reset Password modal ─────────────────────────────────────── */}
+      <Modal
+        open={showResetPwd}
+        onClose={() => !resettingPwd && setShowResetPwd(false)}
+        title={`Reset Password — ${data?.user?.name ?? ''}`}
+        size="sm"
+        footer={<>
+          <Btn variant="ghost" size="sm" onClick={() => setShowResetPwd(false)} disabled={resettingPwd}>Cancel</Btn>
+          <Btn size="sm" disabled={resettingPwd} onClick={async () => {
+            if (!newPwd || newPwd.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+            if (newPwd !== confirmPwd) { toast.error('Passwords do not match'); return; }
+            setResettingPwd(true);
+            try {
+              const res = await resetUserPassword(id, newPwd);
+              toast.success(res.data.message);
+              setShowResetPwd(false);
+            } catch (e) { toast.error(e.response?.data?.message ?? 'Failed to reset password'); }
+            finally { setResettingPwd(false); }
+          }}>
+            {resettingPwd ? <Spinner size="sm" /> : '🔑 Reset Password'}
+          </Btn>
+        </>}
+      >
+        <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16, lineHeight: 1.6 }}>
+          Set a new password for <strong>{data?.user?.name}</strong>. They will need to use this new password on their next login.
+        </p>
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>New Password</label>
+          <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Min 6 characters"
+            style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+            onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+          />
+        </div>
+        <div>
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Confirm Password</label>
+          <input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder="Repeat new password"
+            style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
+            onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+            onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+          />
         </div>
       </Modal>
     </Layout>

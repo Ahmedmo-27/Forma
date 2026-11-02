@@ -9,6 +9,7 @@ export const getReceptionists = () => api.get('/users/receptionists');
 export const getSalesTeam    = () => api.get('/users/team');
 export const getSalesProfile = (id) => api.get(`/users/team/${id}`);
 export const updateMyProfile = (data) => api.patch('/users/me', data);
+export const resetUserPassword = (id, newPassword) => api.patch(`/users/${id}/reset-password`, { newPassword });
 export const getSalesManagerRevenue = (params = {}) =>
   api.get('/users/sales-manager/revenue', { params });
 export const getSubscriptionsByDate = (params = {}) =>

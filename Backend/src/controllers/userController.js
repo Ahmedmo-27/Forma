@@ -1049,7 +1049,40 @@ const getTeamsPage = async (req, res) => {
 const changeAuthorities=async (req,res)=>{
 
 };
-// ─── Update own profile (name + password) ────────────────────────────────────
+// ─── Reset another user's password (Sales Manager / Owner only) ──────────────
+const resetUserPassword = async (req, res) => {
+    try {
+        const { newPassword } = req.body;
+
+        if (!newPassword || newPassword.length < 6) {
+            return res.status(400).json({ message: "New password must be at least 6 characters" });
+        }
+
+        const target = await User.findById(req.params.id);
+        if (!target) return res.status(404).json({ message: "User not found" });
+
+        // Sales Manager can reset anyone except Owner
+        if (req.user.role === "Sales Manager" && target.role === "Owner") {
+            return res.status(403).json({ message: "Sales Manager cannot reset an Owner's password" });
+        }
+
+        target.password = await hashPassword(newPassword);
+        await target.save();
+
+        logger.auth("info", "Password reset by manager", {
+            actorId: req.user.id,
+            actorRole: req.user.role,
+            targetId: target._id.toString(),
+            targetRole: target.role,
+        });
+
+        res.json({ message: `Password reset successfully for ${target.name}` });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+
 const updateMyProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
@@ -1117,4 +1150,5 @@ module.exports = {
     getCoachProfile,
     getTeamsPage,
     updateMyProfile,
+    resetUserPassword,
 };
