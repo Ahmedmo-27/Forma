@@ -81,30 +81,36 @@ export default function Reports() {
             <ReportCard icon="📦" title="Packages"    sub="Manage membership packages"       to="/sales/packages"           iconBg="#F0F9FF" />
           )}
           {isManager && (
-            <ReportCard icon="👥" title="Team"        sub="Sales team overview & stats"      to="/sales/team"              iconBg="#F0F9FF" />
+            <ReportCard icon="💬" title="WA Messages" sub="WhatsApp message templates"       to="/sales/whatsapp-templates" iconBg="#F0FDF4" />
           )}
-          {isManager && (
-            <ReportCard icon="🧑‍💼" title="Staff"   sub="Manage staff accounts"            to="/sales/staff"             iconBg="#F0F9FF" />
+          {user?.role === 'Coach Manager' && (
+            <ReportCard icon="💬" title="WA Messages" sub="WhatsApp message templates"       to="/coach/whatsapp-templates" iconBg="#F0FDF4" />
           )}
           {user?.role === 'Accountant' && (
-            <ReportCard icon="👥" title="Team"        sub="Sales team overview"              to="/sales/team"              iconBg="#F0F9FF" />
-          )}
-          {user?.role === 'Coach Manager' && (
-            <ReportCard icon="👥" title="Coach Team"  sub="Coach team overview & stats"      to="/coach/team"              iconBg="#F0F9FF" />
-          )}
-          {user?.role === 'Coach Manager' && (
-            <ReportCard icon="🧑‍💼" title="Staff"   sub="Manage coach staff accounts"      to="/coach/staff"             iconBg="#F0F9FF" />
-          )}
-          {isManager && (
-            <ReportCard icon="💬" title="WA Messages" sub="WhatsApp message templates"      to="/sales/whatsapp-templates" iconBg="#F0FDF4" />
-          )}
-          {user?.role === 'Coach Manager' && (
-            <ReportCard icon="💬" title="WA Messages" sub="WhatsApp message templates"      to="/coach/whatsapp-templates" iconBg="#F0FDF4" />
-          )}
-          {user?.role === 'Accountant' && (
-            <ReportCard icon="💬" title="WA Messages" sub="WhatsApp message templates"      to="/sales/whatsapp-templates" iconBg="#F0FDF4" />
+            <ReportCard icon="💬" title="WA Messages" sub="WhatsApp message templates"       to="/sales/whatsapp-templates" iconBg="#F0FDF4" />
           )}
         </ReportSection>
+
+        {/* ── Management — Team & Staff ────────────────────────── */}
+        {(isManager || user?.role === 'Accountant' || user?.role === 'Coach Manager') && (
+          <ReportSection title="Management" sub="Team members and staff accounts">
+            {isManager && (
+              <ReportCard icon="👥" title="Team"        sub="Sales team overview & stats"      to="/sales/team"   iconBg="#FFF7ED" />
+            )}
+            {isManager && (
+              <ReportCard icon="🧑‍💼" title="Staff"   sub="Manage staff accounts"            to="/sales/staff"  iconBg="#FFF7ED" />
+            )}
+            {user?.role === 'Accountant' && (
+              <ReportCard icon="👥" title="Team"        sub="Sales team overview"              to="/sales/team"   iconBg="#FFF7ED" />
+            )}
+            {user?.role === 'Coach Manager' && (
+              <ReportCard icon="👥" title="Coach Team"  sub="Coach team overview & stats"      to="/coach/team"   iconBg="#FFF7ED" />
+            )}
+            {user?.role === 'Coach Manager' && (
+              <ReportCard icon="🧑‍💼" title="Staff"   sub="Manage coach staff accounts"      to="/coach/staff"  iconBg="#FFF7ED" />
+            )}
+          </ReportSection>
+        )}
 
         {/* ── Data — Sales Manager & Owner only ───────────────── */}
         {isDataManager && (
