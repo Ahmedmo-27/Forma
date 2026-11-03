@@ -8,10 +8,10 @@ import { updateMyProfile } from '../api/endpoints';
 
 const NAV = {
   Receptionist:  [{ to: '/checkin', label: 'Check In' }, { to: '/members', label: 'Members' }, { to: '/contacts', label: 'Contacts' }],
-  Sales:         [{ to: '/sales/dashboard', label: 'Dashboard' }, { to: '/sales/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/management', label: 'Management' }, { to: '/sales/my-callcenter', label: 'Call Center' }, { to: '/contacts', label: 'Contacts' }],
+  Sales:         [{ to: '/sales/dashboard', label: 'Dashboard' }, { to: '/sales/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/sales/my-callcenter', label: 'Call Center' }, { to: '/contacts', label: 'Contacts' }],
   'Sales Manager': [{ to: '/sales/dashboard', label: 'Dashboard' }, { to: '/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/management', label: 'Management' }, { to: '/sales/callcenter', label: 'Call Center' }, { to: '/contacts', label: 'Contacts' }],
   Owner:         [{ to: '/owner/dashboard', label: 'Dashboard' }, { to: '/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/management', label: 'Management' }, { to: '/sales/callcenter', label: 'Call Center' }, { to: '/contacts', label: 'Contacts' }],
-  Accountant:    [{ to: '/accounting/dashboard', label: 'Dashboard' }, { to: '/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/management', label: 'Management' }, { to: '/contacts', label: 'Contacts' }],
+  Accountant:    [{ to: '/accounting/dashboard', label: 'Dashboard' }, { to: '/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/contacts', label: 'Contacts' }],
   Coach:           [{ to: '/coach/dashboard', label: 'Dashboard' }, { to: '/coach/members', label: 'Members' }, { to: '/coach/checkin', label: 'Check In' }, { to: '/coach/my-transfers', label: 'Transfers' }, { to: '/contacts', label: 'Contacts' }],
   'Coach Manager': [{ to: '/coach/dashboard', label: 'Dashboard' }, { to: '/coach/members', label: 'Members' }, { to: '/coach/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/management', label: 'Management' }, { to: '/contacts', label: 'Contacts' }],
 };

@@ -186,7 +186,7 @@ function AppRoutes() {
         </PrivateRoute>
       } />
       <Route path="/accounting/contract-history" element={
-        <PrivateRoute roles={['Accountant', 'Owner']}>
+        <PrivateRoute roles={['Accountant', 'Owner', 'Sales Manager']}>
           <ContractHistory />
         </PrivateRoute>
       } />
@@ -265,7 +265,7 @@ function AppRoutes() {
 
       {/* Management */}
       <Route path="/management" element={
-        <PrivateRoute roles={['Owner', 'Sales Manager', 'Accountant', 'Sales', 'Coach Manager']}>
+        <PrivateRoute roles={['Owner', 'Sales Manager', 'Coach Manager']}>
           <Management />
         </PrivateRoute>
       } />

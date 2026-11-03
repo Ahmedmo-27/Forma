@@ -6,6 +6,6 @@ const { getContracts } = require("../controllers/contractController");
 
 router.use(protect);
 
-router.get("/contracts", authorize("Accountant", "Owner"), getContracts);
+router.get("/contracts", authorize("Accountant", "Owner", "Sales Manager"), getContracts);
 
 module.exports = router;
