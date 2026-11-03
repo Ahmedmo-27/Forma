@@ -67,6 +67,13 @@ export default function Reports() {
           <ReportCard icon="📅" title="Expired Members" sub="Expired memberships"          to="/reports/expired" iconBg="#FEF2F2" />
         </ReportSection>
 
+        {/* ── Revenue & Performance ───────────────────────────── */}
+        {(['Sales Manager', 'Owner', 'Accountant'].includes(user?.role)) && (
+          <ReportSection title="Revenue & Performance" sub="Targets and financial reports">
+            <ReportCard icon="🎯" title="Targets"       sub="Revenue targets & performance" to="/sales/targets"   iconBg="#F0FFF4" />
+          </ReportSection>
+        )}
+
         {/* ── Data — Sales Manager & Owner only ───────────────── */}
         {isDataManager && (
           <ReportSection title="Data" sub="Import and manage bulk data">

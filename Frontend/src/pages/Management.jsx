@@ -4,7 +4,6 @@ import { PageHeader } from '../components/ui';
 import usePageTitle from '../hooks/usePageTitle';
 import { useAuth } from '../context/AuthContext';
 
-// ── Card ──────────────────────────────────────────────────────────────────────
 function MgmtCard({ icon, title, sub, to, iconBg = '#F0F9FF' }) {
   const navigate = useNavigate();
   return (
@@ -35,7 +34,6 @@ function MgmtCard({ icon, title, sub, to, iconBg = '#F0F9FF' }) {
   );
 }
 
-// ── Section ───────────────────────────────────────────────────────────────────
 function Section({ title, sub, children }) {
   return (
     <div style={{ marginBottom: 32 }}>
@@ -50,15 +48,14 @@ function Section({ title, sub, children }) {
   );
 }
 
-// ── Management page ───────────────────────────────────────────────────────────
 export default function Management() {
   usePageTitle('Management');
   const { user } = useAuth();
 
-  const isSales       = user?.role === 'Sales';
-  const isManager     = ['Sales Manager', 'Owner'].includes(user?.role);
-  const isAccountant  = user?.role === 'Accountant';
-  const isCoachMgr    = user?.role === 'Coach Manager';
+  const isSales      = user?.role === 'Sales';
+  const isManager    = ['Sales Manager', 'Owner'].includes(user?.role);
+  const isAccountant = user?.role === 'Accountant';
+  const isCoachMgr   = user?.role === 'Coach Manager';
 
   return (
     <Layout>
@@ -68,19 +65,16 @@ export default function Management() {
         {/* ── Operations ──────────────────────────────────────── */}
         <Section title="Operations" sub="Requests, transfers and configuration">
           {(isSales || isManager) && (
-            <MgmtCard icon="📋" title="Requests"     sub="Package assignment requests"       to="/sales/requests"           iconBg="#F0F9FF" />
+            <MgmtCard icon="📋" title="Requests"    sub="Package assignment requests"      to="/sales/requests"           iconBg="#F0F9FF" />
           )}
           {isManager && (
-            <MgmtCard icon="🔄" title="Transfer"     sub="Transfer members between reps"     to="/sales/transfer"           iconBg="#F0F9FF" />
+            <MgmtCard icon="🔄" title="Transfer"    sub="Transfer members between reps"    to="/sales/transfer"           iconBg="#F0F9FF" />
           )}
           {isManager && (
-            <MgmtCard icon="📦" title="Packages"     sub="Manage membership packages"        to="/sales/packages"           iconBg="#F0F9FF" />
-          )}
-          {(isManager || isAccountant) && (
-            <MgmtCard icon="🎯" title="Targets"      sub="Revenue targets & performance"     to="/sales/targets"            iconBg="#F0F9FF" />
+            <MgmtCard icon="📦" title="Packages"    sub="Manage membership packages"       to="/sales/packages"           iconBg="#F0F9FF" />
           )}
           {(isManager || isAccountant || isCoachMgr) && (
-            <MgmtCard icon="💬" title="WA Messages"  sub="WhatsApp message templates"
+            <MgmtCard icon="💬" title="WA Messages" sub="WhatsApp message templates"
               to={isCoachMgr ? '/coach/whatsapp-templates' : '/sales/whatsapp-templates'}
               iconBg="#F0FDF4" />
           )}
@@ -90,39 +84,37 @@ export default function Management() {
         {(isManager || isAccountant || isCoachMgr) && (
           <Section title="Team & Staff" sub="Team members and staff accounts">
             {isManager && (
-              <MgmtCard icon="👥" title="Sales Team"   sub="Sales team overview & stats"       to="/sales/team"   iconBg="#FFF7ED" />
+              <MgmtCard icon="👥" title="Sales Team"  sub="Sales team overview & stats"      to="/sales/team"   iconBg="#FFF7ED" />
             )}
             {isManager && (
-              <MgmtCard icon="🧑‍💼" title="Staff"    sub="Manage staff accounts"             to="/sales/staff"  iconBg="#FFF7ED" />
+              <MgmtCard icon="🧑‍💼" title="Staff"   sub="Manage staff accounts"            to="/sales/staff"  iconBg="#FFF7ED" />
             )}
             {(isManager || isAccountant) && (
-              <MgmtCard icon="📊" title="Revenue"      sub="Sales revenue & contracts"         to="/accounting/contract-history" iconBg="#FFF7ED" />
+              <MgmtCard icon="📜" title="Contracts"   sub="All member contracts"             to="/accounting/contract-history" iconBg="#FFF7ED" />
             )}
             {isCoachMgr && (
-              <MgmtCard icon="👥" title="Coach Team"   sub="Coach team overview & stats"       to="/coach/team"   iconBg="#FFF7ED" />
+              <MgmtCard icon="👥" title="Coach Team"  sub="Coach team overview & stats"      to="/coach/team"   iconBg="#FFF7ED" />
             )}
             {isCoachMgr && (
-              <MgmtCard icon="🧑‍💼" title="Staff"    sub="Manage coach staff accounts"       to="/coach/staff"  iconBg="#FFF7ED" />
+              <MgmtCard icon="🧑‍💼" title="Staff"   sub="Manage coach staff accounts"      to="/coach/staff"  iconBg="#FFF7ED" />
             )}
             {isCoachMgr && (
-              <MgmtCard icon="🔄" title="Transfers"    sub="Coach member transfers log"        to="/coach/my-transfers" iconBg="#FFF7ED" />
+              <MgmtCard icon="🔄" title="Transfers"   sub="Coach member transfers log"       to="/coach/my-transfers" iconBg="#FFF7ED" />
             )}
           </Section>
         )}
 
-        {/* ── Owner extras ─────────────────────────────────────── */}
+        {/* ── Admin (Owner only) ───────────────────────────────── */}
         {user?.role === 'Owner' && (
           <Section title="Admin" sub="Owner-only management tools">
-            <MgmtCard icon="🏢" title="Teams Overview"  sub="All teams at a glance"            to="/owner/teams"  iconBg="#F5F3FF" />
-            <MgmtCard icon="📜" title="Contracts"        sub="All contract history"             to="/accounting/contract-history" iconBg="#F5F3FF" />
+            <MgmtCard icon="🏢" title="Teams Overview" sub="All teams at a glance"           to="/owner/teams"  iconBg="#F5F3FF" />
           </Section>
         )}
 
-        {/* ── Accountant extras ────────────────────────────────── */}
+        {/* ── Accounting ───────────────────────────────────────── */}
         {isAccountant && (
           <Section title="Accounting" sub="Financial management tools">
-            <MgmtCard icon="📨" title="Package Requests" sub="Pending package approvals"       to="/accounting/package-requests" iconBg="#F0FDF4" />
-            <MgmtCard icon="📜" title="Contract History" sub="All member contracts"            to="/accounting/contract-history" iconBg="#F0FDF4" />
+            <MgmtCard icon="📨" title="Package Requests" sub="Pending package approvals"    to="/accounting/package-requests" iconBg="#F0FDF4" />
           </Section>
         )}
 
