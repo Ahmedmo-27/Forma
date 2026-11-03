@@ -272,17 +272,17 @@ function AppRoutes() {
 
       {/* Reports */}
       <Route path="/reports" element={
-        <PrivateRoute roles={['Owner', 'Sales Manager', 'Accountant', 'Sales']}>
+        <PrivateRoute roles={['Owner', 'Sales Manager', 'Sales']}>
           <Reports />
         </PrivateRoute>
       } />
       <Route path="/reports/guests" element={
-        <PrivateRoute roles={['Owner', 'Sales Manager', 'Accountant', 'Sales']}>
+        <PrivateRoute roles={['Owner', 'Sales Manager', 'Sales']}>
           <GuestMembers />
         </PrivateRoute>
       } />
       <Route path="/reports/expired" element={
-        <PrivateRoute roles={['Owner', 'Sales Manager', 'Accountant', 'Sales']}>
+        <PrivateRoute roles={['Owner', 'Sales Manager', 'Sales']}>
           <ExpiredMembers />
         </PrivateRoute>
       } />
