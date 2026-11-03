@@ -38,6 +38,7 @@ import Transfer           from './pages/sales/Transfer';
 import ImportMembers      from './pages/sales/ImportMembers';
 import ReceptionContacts  from './pages/ReceptionContacts';
 import Reports         from './pages/Reports';
+import Management      from './pages/Management';
 import GuestMembers    from './pages/reports/GuestMembers';
 import ExpiredMembers  from './pages/reports/ExpiredMembers';
 import ImportedMembers from './pages/reports/ImportedMembers';
@@ -259,6 +260,13 @@ function AppRoutes() {
       <Route path="/owner/teams/:id" element={
         <PrivateRoute roles={['Owner']}>
           <OwnerUserProfile />
+        </PrivateRoute>
+      } />
+
+      {/* Management */}
+      <Route path="/management" element={
+        <PrivateRoute roles={['Owner', 'Sales Manager', 'Accountant', 'Sales', 'Coach Manager']}>
+          <Management />
         </PrivateRoute>
       } />
 

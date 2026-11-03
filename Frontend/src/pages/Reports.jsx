@@ -4,7 +4,7 @@ import { PageHeader } from '../components/ui';
 import usePageTitle from '../hooks/usePageTitle';
 import { useAuth } from '../context/AuthContext';
 
-// ── Single report card ────────────────────────────────────────────────────────
+// ── Card ──────────────────────────────────────────────────────────────────────
 function ReportCard({ icon, title, sub, to, iconBg = '#FEF2F2' }) {
   const navigate = useNavigate();
   return (
@@ -35,7 +35,7 @@ function ReportCard({ icon, title, sub, to, iconBg = '#FEF2F2' }) {
   );
 }
 
-// ── Report section ────────────────────────────────────────────────────────────
+// ── Section ───────────────────────────────────────────────────────────────────
 function ReportSection({ title, sub, children }) {
   return (
     <div style={{ marginBottom: 32 }}>
@@ -55,8 +55,6 @@ export default function Reports() {
   usePageTitle('Reports');
   const { user } = useAuth();
   const isDataManager = ['Sales Manager', 'Owner'].includes(user?.role);
-  const isSales       = user?.role === 'Sales';
-  const isManager     = ['Sales Manager', 'Owner'].includes(user?.role);
 
   return (
     <Layout>
@@ -65,52 +63,9 @@ export default function Reports() {
 
         {/* ── Members ─────────────────────────────────────────── */}
         <ReportSection title="Members" sub="Member status and activity">
-          <ReportCard icon="👥" title="Guest Members"    sub="Guest member list"     to="/reports/guests"  iconBg="#FEF2F2" />
-          <ReportCard icon="📅" title="Expired Members"  sub="Expired memberships"   to="/reports/expired" iconBg="#FEF2F2" />
+          <ReportCard icon="👥" title="Guest Members"   sub="Guest member list"            to="/reports/guests"  iconBg="#FEF2F2" />
+          <ReportCard icon="📅" title="Expired Members" sub="Expired memberships"          to="/reports/expired" iconBg="#FEF2F2" />
         </ReportSection>
-
-        {/* ── Operations ──────────────────────────────────────── */}
-        <ReportSection title="Operations" sub="Requests, transfers and configuration">
-          {(isSales || isManager) && (
-            <ReportCard icon="📋" title="Requests"    sub="Package assignment requests"      to="/sales/requests"           iconBg="#F0F9FF" />
-          )}
-          {isManager && (
-            <ReportCard icon="🔄" title="Transfer"    sub="Transfer members between reps"    to="/sales/transfer"           iconBg="#F0F9FF" />
-          )}
-          {isManager && (
-            <ReportCard icon="📦" title="Packages"    sub="Manage membership packages"       to="/sales/packages"           iconBg="#F0F9FF" />
-          )}
-          {isManager && (
-            <ReportCard icon="💬" title="WA Messages" sub="WhatsApp message templates"       to="/sales/whatsapp-templates" iconBg="#F0FDF4" />
-          )}
-          {user?.role === 'Coach Manager' && (
-            <ReportCard icon="💬" title="WA Messages" sub="WhatsApp message templates"       to="/coach/whatsapp-templates" iconBg="#F0FDF4" />
-          )}
-          {user?.role === 'Accountant' && (
-            <ReportCard icon="💬" title="WA Messages" sub="WhatsApp message templates"       to="/sales/whatsapp-templates" iconBg="#F0FDF4" />
-          )}
-        </ReportSection>
-
-        {/* ── Management — Team & Staff ────────────────────────── */}
-        {(isManager || user?.role === 'Accountant' || user?.role === 'Coach Manager') && (
-          <ReportSection title="Management" sub="Team members and staff accounts">
-            {isManager && (
-              <ReportCard icon="👥" title="Team"        sub="Sales team overview & stats"      to="/sales/team"   iconBg="#FFF7ED" />
-            )}
-            {isManager && (
-              <ReportCard icon="🧑‍💼" title="Staff"   sub="Manage staff accounts"            to="/sales/staff"  iconBg="#FFF7ED" />
-            )}
-            {user?.role === 'Accountant' && (
-              <ReportCard icon="👥" title="Team"        sub="Sales team overview"              to="/sales/team"   iconBg="#FFF7ED" />
-            )}
-            {user?.role === 'Coach Manager' && (
-              <ReportCard icon="👥" title="Coach Team"  sub="Coach team overview & stats"      to="/coach/team"   iconBg="#FFF7ED" />
-            )}
-            {user?.role === 'Coach Manager' && (
-              <ReportCard icon="🧑‍💼" title="Staff"   sub="Manage coach staff accounts"      to="/coach/staff"  iconBg="#FFF7ED" />
-            )}
-          </ReportSection>
-        )}
 
         {/* ── Data — Sales Manager & Owner only ───────────────── */}
         {isDataManager && (
