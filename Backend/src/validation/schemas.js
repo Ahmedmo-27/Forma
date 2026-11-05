@@ -186,6 +186,76 @@ const logWhatsAppTemplateSendSchema = z.object({
     templateId: objectId.optional().nullable(),
 });
 
+const planKeySchema = z.enum(["basic", "gold", "platinum"]);
+
+const createPlanSchema = z.object({
+    key: planKeySchema,
+    name: z.string().trim().min(1).max(100),
+    priceMonthly: z.coerce.number().min(0),
+    priceYearly: z.coerce.number().min(0),
+    currency: z.string().trim().min(1).max(10).default("USD"),
+    features: z.array(z.string()).default([]),
+    allowedRoles: z.array(z.string()).default([]),
+    limits: z.object({
+        maxMembers: z.coerce.number().min(1).default(500),
+        maxStaff: z.coerce.number().min(1).default(10),
+        maxBranches: z.coerce.number().min(1).default(1),
+    }).default({}),
+    isActive: z.boolean().optional(),
+});
+
+const updatePlanSchema = createPlanSchema.partial();
+
+const tenantSlugSchema = z.string().trim().min(2).max(50).toLowerCase().regex(/^[a-z0-9-]+$/, "Slug must only contain lowercase alphanumeric characters and dashes");
+
+const tenantSettingsSchema = z.object({
+    branding: z.object({
+        logoKey: z.string().nullable().optional(),
+        displayName: z.string().nullable().optional(),
+        palette: z.object({
+            primary: z.string().optional(),
+            secondary: z.string().optional(),
+            accent: z.string().optional(),
+            background: z.string().optional(),
+            text: z.string().optional(),
+        }).optional(),
+    }).optional(),
+    locale: z.object({
+        currency: z.string().trim().max(10).optional(),
+        timezone: z.string().trim().max(100).optional(),
+        language: z.string().trim().max(10).optional(),
+    }).optional(),
+    enabledActivities: z.array(z.string().trim().min(1)).optional(),
+    whatsapp: z.object({
+        phoneNumberId: z.string().trim().nullable().optional(),
+        businessAccountId: z.string().trim().nullable().optional(),
+        accessToken: z.string().trim().nullable().optional(),
+    }).optional(),
+    featureConfig: z.record(z.string(), z.any()).optional(),
+});
+
+const createTenantSchema = z.object({
+    name: z.string().trim().min(1).max(120),
+    slug: tenantSlugSchema,
+    planId: objectId,
+    status: z.enum(["trial", "active", "past_due", "suspended", "cancelled"]).optional(),
+    featureOverrides: z.object({
+        add: z.array(z.string()).optional(),
+        remove: z.array(z.string()).optional(),
+    }).optional(),
+    limitOverrides: z.object({
+        maxMembers: z.coerce.number().nullable().optional(),
+        maxStaff: z.coerce.number().nullable().optional(),
+        maxBranches: z.coerce.number().nullable().optional(),
+    }).optional(),
+    trialEndsAt: z.preprocess(emptyToNull, z.string().datetime().nullable().optional()),
+    currentPeriodEnd: z.preprocess(emptyToNull, z.string().datetime().nullable().optional()),
+    billingProviderCustomerId: z.preprocess(emptyToNull, z.string().nullable().optional()),
+    settings: tenantSettingsSchema.optional(),
+});
+
+const updateTenantSchema = createTenantSchema.partial();
+
 module.exports = {
     loginSchema,
     createMemberSchema,
@@ -204,4 +274,9 @@ module.exports = {
     createWhatsAppTemplateSchema,
     updateWhatsAppTemplateSchema,
     logWhatsAppTemplateSendSchema,
+    createPlanSchema,
+    updatePlanSchema,
+    createTenantSchema,
+    updateTenantSchema,
+    tenantSettingsSchema,
 };
