@@ -1,0 +1,122 @@
+import { TrendingUp, TrendingDown, Info } from "lucide-react";
+import { Popover } from "../ui/Popover";
+import { cn } from "../lib/utils/cn";
+
+export function KpiCard({
+  title,
+  value,
+  delta, // e.g. "+12.4%"
+  deltaType = "neutral", // "positive" | "negative" | "neutral"
+  subtext,
+  howCalculated,
+  sparklineData = [], // array of numbers e.g. [10, 15, 12, 18, 22, 28, 25]
+  icon: Icon,
+  className = "",
+}) {
+  // Generate lightweight SVG path for sparkline
+  const renderSparkline = () => {
+    if (!sparklineData || sparklineData.length < 2) return null;
+    const min = Math.min(...sparklineData);
+    const max = Math.max(...sparklineData);
+    const range = max - min || 1;
+    const width = 80;
+    const height = 24;
+
+    const points = sparklineData.map((val, idx) => {
+      const x = (idx / (sparklineData.length - 1)) * width;
+      const y = height - ((val - min) / range) * (height - 4) - 2;
+      return `${x},${y}`;
+    });
+
+    const isPositive = deltaType === "positive";
+
+    return (
+      <svg width={width} height={height} className="overflow-visible shrink-0">
+        <polyline
+          fill="none"
+          stroke={isPositive ? "var(--platform-success)" : "var(--platform-accent)"}
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          points={points.join(" ")}
+        />
+      </svg>
+    );
+  };
+
+  return (
+    <div
+      className={cn(
+        "p-4 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs text-left space-y-2 select-none",
+        className
+      )}
+    >
+      {/* Title & Info Popover */}
+      <div className="flex items-center justify-between text-xs text-[var(--platform-text-secondary)]">
+        <div className="flex items-center gap-1.5 font-medium">
+          {Icon && <Icon className="w-3.5 h-3.5 text-[var(--platform-text-muted)]" />}
+          <span>{title}</span>
+        </div>
+
+        {howCalculated && (
+          <Popover
+            align="end"
+            trigger={
+              <button
+                type="button"
+                className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] cursor-pointer"
+                title="How this metric is computed"
+              >
+                <Info className="w-3.5 h-3.5" />
+              </button>
+            }
+            content={
+              <div className="w-56 space-y-1">
+                <div className="font-semibold text-xs text-[var(--platform-text-primary)]">
+                  Calculation Definition
+                </div>
+                <div className="text-[11px] text-[var(--platform-text-muted)] leading-relaxed">
+                  {howCalculated}
+                </div>
+              </div>
+            }
+          />
+        )}
+      </div>
+
+      {/* Numerical Metric Value */}
+      <div className="flex items-baseline justify-between gap-2">
+        <div className="text-2xl font-bold tracking-tight text-[var(--platform-text-primary)] platform-mono">
+          {value}
+        </div>
+        {renderSparkline()}
+      </div>
+
+      {/* Delta & Subtext */}
+      {(delta || subtext) && (
+        <div className="flex items-center gap-2 pt-1 border-t border-[var(--platform-border-subtle)] text-[11px]">
+          {delta && (
+            <span
+              className={cn(
+                "inline-flex items-center gap-0.5 font-semibold platform-mono",
+                deltaType === "positive" && "text-[var(--platform-success)]",
+                deltaType === "negative" && "text-[var(--platform-danger)]",
+                deltaType === "neutral" && "text-[var(--platform-text-muted)]"
+              )}
+            >
+              {deltaType === "positive" ? (
+                <TrendingUp className="w-3 h-3" />
+              ) : deltaType === "negative" ? (
+                <TrendingDown className="w-3 h-3" />
+              ) : null}
+              {delta}
+            </span>
+          )}
+          {subtext && (
+            <span className="text-[var(--platform-text-muted)] truncate">{subtext}</span>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

@@ -1,3 +1,4 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
@@ -47,23 +48,8 @@ import ExpiredMembers  from './pages/reports/ExpiredMembers';
 import ImportedMembers from './pages/reports/ImportedMembers';
 import NotFound       from './pages/NotFound';
 
-// ── Platform Console Imports (Zero Tenant Context) ───────────────────────────
-import { PlatformAuthProvider } from './platform/context/PlatformAuthContext';
-import PlatformLayout from './platform/components/PlatformLayout';
-import PlatformLogin from './platform/pages/PlatformLogin';
-import PlatformDashboard from './platform/pages/PlatformDashboard';
-import PlatformTenants from './platform/pages/PlatformTenants';
-import PlatformTenantDetail from './platform/pages/PlatformTenantDetail';
-import PlatformPlansFeatures from './platform/pages/PlatformPlansFeatures';
-import PlatformPricingCoupons from './platform/pages/PlatformPricingCoupons';
-import PlatformPaymentsInvoices from './platform/pages/PlatformPaymentsInvoices';
-import PlatformLedger from './platform/pages/PlatformLedger';
-import PlatformUsage from './platform/pages/PlatformUsage';
-import PlatformSupport from './platform/pages/PlatformSupport';
-import PlatformAnnouncements from './platform/pages/PlatformAnnouncements';
-import PlatformAuditLog from './platform/pages/PlatformAuditLog';
-import PlatformUsers from './platform/pages/PlatformUsers';
-import PlatformSystemHealth from './platform/pages/PlatformSystemHealth';
+// ── Platform Console Subsystem (Rebuilt from Scratch, Zero Tenant Context) ────
+const PlatformApp = lazy(() => import('./platform/routes/PlatformRoutes'));
 
 // ── Protected route wrapper ───────────────────────────────────────────────────
 function PrivateRoute({ children, roles, feature }) {
@@ -333,34 +319,24 @@ export default function App() {
     <ErrorBoundary>
       <BrowserRouter>
         <Routes>
-          {/* ── Platform Console Subsystem (Zero Tenant Context) ─────────────── */}
+          {/* ── Platform Console Subsystem (Rebuilt from Scratch, Zero Tenant Context) ──── */}
           <Route
             path="/platform/*"
             element={
-              <PlatformAuthProvider>
-                <Routes>
-                  <Route path="login" element={<PlatformLogin />} />
-                  <Route element={<PlatformLayout />}>
-                    <Route index element={<Navigate to="/platform/dashboard" replace />} />
-                    <Route path="dashboard" element={<PlatformDashboard />} />
-                    <Route path="tenants" element={<PlatformTenants />} />
-                    <Route path="tenants/:id" element={<PlatformTenantDetail />} />
-                    <Route path="plans-features" element={<PlatformPlansFeatures />} />
-                    <Route path="pricing-coupons" element={<PlatformPricingCoupons />} />
-                    <Route path="payments-invoices" element={<PlatformPaymentsInvoices />} />
-                    <Route path="ledger" element={<PlatformLedger />} />
-                    <Route path="usage" element={<PlatformUsage />} />
-                    <Route path="support" element={<PlatformSupport />} />
-                    <Route path="announcements" element={<PlatformAnnouncements />} />
-                    <Route path="audit" element={<PlatformAuditLog />} />
-                    <Route path="users" element={<PlatformUsers />} />
-                    <Route path="health" element={<PlatformSystemHealth />} />
-                    <Route path="*" element={<Navigate to="/platform/dashboard" replace />} />
-                  </Route>
-                </Routes>
-              </PlatformAuthProvider>
+              <Suspense
+                fallback={
+                  <div className="min-h-screen flex items-center justify-center bg-[#090D16] text-xs font-mono text-slate-400">
+                    Loading Platform Console...
+                  </div>
+                }
+              >
+                <PlatformApp />
+              </Suspense>
             }
           />
+
+          {/* ── Backward-compatible redirect from /platform-next/* to /platform/* ──── */}
+          <Route path="/platform-next/*" element={<Navigate to="/platform" replace />} />
 
           {/* ── Tenant SaaS Subsystem (With AuthProvider and TenantProvider) ─── */}
           <Route

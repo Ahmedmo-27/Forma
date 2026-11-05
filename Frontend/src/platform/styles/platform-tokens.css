@@ -1,0 +1,138 @@
+/* ═══════════════════════════════════════════════════════════════════
+   PLATFORM V2 DESIGN TOKENS (Independent of Tenant Gym Styling)
+   Strictly neutral-first, hairline precision, tabular-numeric.
+   ═══════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Canvas & Surfaces */
+  --platform-canvas: #f8fafc;           /* slate-50 */
+  --platform-surface: #ffffff;
+  --platform-surface-raised: #ffffff;
+  --platform-surface-subtle: #f1f5f9;    /* slate-100 */
+
+  /* Hairline Borders */
+  --platform-border: #e2e8f0;           /* slate-200 */
+  --platform-border-subtle: #f1f5f9;    /* slate-100 */
+  --platform-border-strong: #cbd5e1;    /* slate-300 */
+
+  /* Text Ramps */
+  --platform-text-primary: #0f172a;     /* slate-900 */
+  --platform-text-secondary: #475569;   /* slate-600 */
+  --platform-text-muted: #64748b;       /* slate-500 */
+
+  /* Restrained Brand Accent: Precision Cobalt */
+  --platform-accent: #2563eb;           /* blue-600 */
+  --platform-accent-hover: #1d4ed8;     /* blue-700 */
+  --platform-accent-subtle: #eff6ff;    /* blue-50 */
+  --platform-accent-fg: #ffffff;
+
+  /* Semantic Status Colors */
+  --platform-success: #059669;          /* emerald-600 */
+  --platform-success-subtle: #ecfdf5;   /* emerald-50 */
+  --platform-warning: #d97706;          /* amber-600 */
+  --platform-warning-subtle: #fffbeb;   /* amber-50 */
+  --platform-danger: #dc2626;           /* rose-600 */
+  --platform-danger-subtle: #fef2f2;    /* rose-50 */
+  --platform-info: #0284c7;             /* sky-600 */
+  --platform-info-subtle: #f0f9ff;      /* sky-50 */
+
+  /* Radii */
+  --platform-radius-sm: 4px;
+  --platform-radius-md: 6px;
+  --platform-radius-lg: 8px;
+  --platform-radius-xl: 12px;
+
+  /* Elevation Shadows (Soft & restrained) */
+  --platform-shadow-popover: 0 4px 16px -2px rgba(15, 23, 42, 0.08), 0 0 0 1px var(--platform-border);
+  --platform-shadow-dialog: 0 16px 40px -8px rgba(15, 23, 42, 0.16), 0 0 0 1px var(--platform-border);
+
+  /* Density Default: Comfortable */
+  --platform-cell-py: 12px;
+  --platform-cell-px: 16px;
+  --platform-input-h: 36px;
+  --platform-card-p: 24px;
+  --platform-table-font-size: 13px;
+  --platform-section-gap: 28px;
+  --platform-grid-gap: 20px;
+  --platform-item-gap: 16px;
+}
+
+/* ── Dark Theme Overrides ─────────────────────────────────────── */
+[data-platform-theme="dark"],
+.dark .platform-root,
+.platform-root[data-platform-theme="dark"] {
+  --platform-canvas: #09090b;           /* zinc-950 */
+  --platform-surface: #121215;          /* zinc-900+ */
+  --platform-surface-raised: #18181b;   /* zinc-900 */
+  --platform-surface-subtle: #1f1f23;
+
+  --platform-border: #27272a;           /* zinc-800 */
+  --platform-border-subtle: #1a1a1e;
+  --platform-border-strong: #3f3f46;    /* zinc-700 */
+
+  --platform-text-primary: #f8fafc;     /* slate-50 */
+  --platform-text-secondary: #94a3b8;   /* slate-400 */
+  --platform-text-muted: #71717a;       /* zinc-500 */
+
+  --platform-accent: #3b82f6;           /* blue-500 */
+  --platform-accent-hover: #60a5fa;     /* blue-400 */
+  --platform-accent-subtle: rgba(59, 130, 246, 0.12);
+  --platform-accent-fg: #ffffff;
+
+  --platform-success: #10b981;          /* emerald-500 */
+  --platform-success-subtle: rgba(16, 185, 129, 0.12);
+  --platform-warning: #f59e0b;          /* amber-500 */
+  --platform-warning-subtle: rgba(245, 158, 11, 0.12);
+  --platform-danger: #f43f5e;           /* rose-500 */
+  --platform-danger-subtle: rgba(244, 63, 94, 0.12);
+  --platform-info: #38bdf8;             /* sky-400 */
+  --platform-info-subtle: rgba(56, 189, 248, 0.12);
+
+  --platform-shadow-popover: 0 8px 24px -4px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--platform-border);
+  --platform-shadow-dialog: 0 24px 60px -12px rgba(0, 0, 0, 0.75), 0 0 0 1px var(--platform-border);
+}
+
+/* ── Density Modes ────────────────────────────────────────────── */
+[data-platform-density="compact"],
+.platform-root[data-platform-density="compact"] {
+  --platform-cell-py: 8px;
+  --platform-cell-px: 12px;
+  --platform-input-h: 32px;
+  --platform-card-p: 16px;
+  --platform-table-font-size: 12px;
+  --platform-section-gap: 16px;
+  --platform-grid-gap: 12px;
+  --platform-item-gap: 10px;
+}
+
+/* ── Base Platform Container ──────────────────────────────────── */
+.platform-root {
+  background-color: var(--platform-canvas);
+  color: var(--platform-text-primary);
+  font-family: "Geist", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  letter-spacing: -0.011em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.platform-mono {
+  font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Custom scrollbars inside platform console */
+.platform-root ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.platform-root ::-webkit-scrollbar-track {
+  background: transparent;
+}
+.platform-root ::-webkit-scrollbar-thumb {
+  background: var(--platform-border-strong);
+  border-radius: 999px;
+}
+.platform-root ::-webkit-scrollbar-thumb:hover {
+  background: var(--platform-text-muted);
+}
