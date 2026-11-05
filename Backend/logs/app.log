@@ -16263,3 +16263,7 @@
 {"ts":"2026-11-05T02:56:15.207Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"system","reason":"unspecified"}
 {"ts":"2026-11-05T02:56:15.209Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"system","reason":"unspecified"}
 {"ts":"2026-11-05T02:56:15.568Z","level":"warn","category":"platform","message":"Platform permission denied","env":"test","userId":"u-1","email":"support@leap.com","role":"support","requiredPermission":"billing.refunds","path":"/api/platform/billing/refunds","method":"POST"}
+{"ts":"2026-11-05T14:28:36.756Z","level":"info","category":"server","message":"Server started","env":"development","port":"5000","nodeEnv":"development","hasJwtSecret":true,"hasMongoUri":true,"bcryptRounds":12,"logLevel":"info"}
+{"ts":"2026-11-05T14:28:36.757Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"scheduled_freeze_cycle"}
+{"ts":"2026-11-05T14:28:36.759Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"scheduled_expiry_cycle"}
+{"ts":"2026-11-05T14:28:36.760Z","level":"info","category":"scheduler","message":"Scheduled tasks started (freeze + expiry cycle every 30 min)","env":"development"}

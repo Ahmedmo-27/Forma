@@ -68,9 +68,13 @@ app.use(cors({
         "x-tenant-slug",
         "X-Gym-Code",
         "x-gym-code",
+        "Accept",
+        "Origin",
+        "X-Requested-With",
     ],
     exposedHeaders: ["X-Request-Id"],
     credentials: false,
+    maxAge: 86400,
 }));
 
 app.use(express.json({ limit: "100kb" }));
