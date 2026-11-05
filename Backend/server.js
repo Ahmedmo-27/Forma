@@ -9,7 +9,7 @@ dotenv.config();
 connectDB();
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     logger.info("server", "Server started", {
         port: PORT,
         nodeEnv: process.env.NODE_ENV || "development",
@@ -22,3 +22,27 @@ app.listen(PORT, () => {
     // Start background tasks (freeze auto-unfreeze, etc.)
     startScheduledTasks();
 });
+
+// Process-level safety: gracefully log and handle unhandled rejections and exceptions
+process.on("unhandledRejection", (reason) => {
+    logger.error("process", "Unhandled Promise Rejection", {
+        reason: reason instanceof Error ? reason.message : String(reason),
+        stack: reason instanceof Error ? reason.stack : undefined,
+    });
+});
+
+process.on("uncaughtException", (error) => {
+    logger.error("process", "Uncaught Exception - terminating process safely", {
+        error: error.message,
+        stack: error.stack,
+    });
+    if (server && server.close) {
+        server.close(() => {
+            process.exit(1);
+        });
+    } else {
+        process.exit(1);
+    }
+});
+
+module.exports = server;

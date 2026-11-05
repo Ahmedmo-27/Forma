@@ -25,14 +25,36 @@ const { resolveSubscriptionPackage } = require("../utils/packageSnapshot");
 const FINANCE_ROLES = ["Sales Manager", "Owner", "Accountant"];
 const GENERIC_LOGIN_FAILURE = "Invalid email or password";
 
-function respondAfterLoginFailure(res, fail) {
+function respondAfterLoginFailure(res, fail, req) {
     if (fail.lockedUntil) {
+        const retryAfter = Math.max(1, Math.ceil((fail.lockedUntil - Date.now()) / 1000));
+        const message = "Account temporarily locked due to failed login attempts";
         return res.status(429).json({
-            message: "Account temporarily locked due to failed login attempts",
+            error: {
+                code: "AUTH_ACCOUNT_LOCKED",
+                message,
+                status: 429,
+                requestId: req?.requestId,
+                retryAfter,
+                details: { lockedUntil: new Date(fail.lockedUntil).toISOString() },
+            },
+            code: "AUTH_ACCOUNT_LOCKED",
+            message,
             lockedUntil: new Date(fail.lockedUntil).toISOString(),
+            retryAfter,
         });
     }
-    return res.status(400).json({ message: GENERIC_LOGIN_FAILURE });
+    const message = GENERIC_LOGIN_FAILURE;
+    return res.status(400).json({
+        error: {
+            code: "AUTH_INVALID_CREDENTIALS",
+            message,
+            status: 400,
+            requestId: req?.requestId,
+        },
+        code: "AUTH_INVALID_CREDENTIALS",
+        message,
+    });
 }
 
 const registerUser = async (req, res) => {
@@ -113,9 +135,21 @@ const loginUser = async (req, res) => {
         const lock = getLockState(email);
         if (lock.locked) {
             logger.auth("warn", "Login blocked: account locked", { requestId });
+            const retryAfter = Math.max(1, Math.ceil((lock.lockedUntil - Date.now()) / 1000));
+            const message = "Account temporarily locked due to failed login attempts";
             return res.status(429).json({
-                message: "Account temporarily locked due to failed login attempts",
+                error: {
+                    code: "AUTH_ACCOUNT_LOCKED",
+                    message,
+                    status: 429,
+                    requestId: req.requestId,
+                    retryAfter,
+                    details: { lockedUntil: new Date(lock.lockedUntil).toISOString() },
+                },
+                code: "AUTH_ACCOUNT_LOCKED",
+                message,
                 lockedUntil: new Date(lock.lockedUntil).toISOString(),
+                retryAfter,
             });
         }
 
@@ -131,7 +165,7 @@ const loginUser = async (req, res) => {
                 failureCount: fail.count,
                 locked: Boolean(fail.lockedUntil),
             });
-            return respondAfterLoginFailure(res, fail);
+            return respondAfterLoginFailure(res, fail, req);
         }
 
         let user = null;
@@ -185,7 +219,7 @@ const loginUser = async (req, res) => {
                 failureCount: fail.count,
                 locked: Boolean(fail.lockedUntil),
             });
-            return respondAfterLoginFailure(res, fail);
+            return respondAfterLoginFailure(res, fail, req);
         }
 
         clearLoginFailures(email);

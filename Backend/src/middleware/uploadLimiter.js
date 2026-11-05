@@ -6,7 +6,22 @@ const uploadLimiter = rateLimit({
     max: 10,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { message: "Too many uploads, try again later" },
+    handler: (req, res, _next, options) => {
+        const retryAfter = Math.ceil(options.windowMs / 1000);
+        const message = "Too many uploads, try again later";
+        res.status(429).json({
+            error: {
+                code: "RATE_LIMITED",
+                message,
+                status: 429,
+                requestId: req.requestId,
+                retryAfter,
+            },
+            code: "RATE_LIMITED",
+            message,
+            retryAfter,
+        });
+    },
 });
 
 module.exports = uploadLimiter;

@@ -27,9 +27,16 @@ function requireFeature(featureKey) {
                 });
 
                 if (!tenant) {
+                    const message = "Gym subscription not found.";
                     return res.status(404).json({
+                        error: {
+                            code: "TENANT_NOT_FOUND",
+                            message,
+                            status: 404,
+                            requestId: req.requestId,
+                        },
                         code: "TENANT_NOT_FOUND",
-                        message: "Gym subscription not found.",
+                        message,
                     });
                 }
 
@@ -39,10 +46,18 @@ function requireFeature(featureKey) {
 
             const effectiveFeatures = getEffectiveFeatures(req.tenant, req.plan);
             if (!effectiveFeatures.includes(featureKey)) {
+                const message = `The '${featureKey}' feature is not enabled for your gym's current subscription plan. Please upgrade to access this feature.`;
                 return res.status(403).json({
+                    error: {
+                        code: "FEATURE_NOT_IN_PLAN",
+                        message,
+                        status: 403,
+                        requestId: req.requestId,
+                        details: { feature: featureKey },
+                    },
                     code: "FEATURE_NOT_IN_PLAN",
                     feature: featureKey,
-                    message: `The '${featureKey}' feature is not enabled for your gym's current subscription plan. Please upgrade to access this feature.`,
+                    message,
                 });
             }
 
