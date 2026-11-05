@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const PlatformSetting = require("../models/PlatformSetting");
+const cacheService = require("../services/cacheService");
 const logger = require("../utils/logger");
 
 /**
@@ -38,6 +39,7 @@ async function getSystemHealth(_req, res) {
                 heapUsedMb: Math.round(memory.heapUsed / (1024 * 1024)),
                 heapTotalMb: Math.round(memory.heapTotal / (1024 * 1024)),
             },
+            cache: cacheService.getStats(),
             maintenance,
             settings: {
                 dunningSchedule: dunningSetting?.value || { gracePeriodDays: 3, reminderDays: [3, 1] },

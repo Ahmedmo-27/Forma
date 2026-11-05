@@ -41,11 +41,19 @@ export function AuthProvider({ children }) {
         localStorage.setItem('ff_user', JSON.stringify(u));
         setUser(u);
       })
-      .catch(() => {
-        // Token is invalid/expired — clear everything
-        localStorage.removeItem('ff_token');
-        localStorage.removeItem('ff_user');
-        setUser(null);
+      .catch((err) => {
+        // Only wipe credentials on actual 401 unauthenticated response
+        if (err.response?.status === 401) {
+          localStorage.removeItem('ff_token');
+          localStorage.removeItem('ff_user');
+          setUser(null);
+        } else {
+          // If network is offline or 5xx, preserve cached user from localStorage
+          try {
+            const cached = localStorage.getItem('ff_user');
+            if (cached) setUser(JSON.parse(cached));
+          } catch (_) {}
+        }
       })
       .finally(() => setChecked(true));
   }, []);

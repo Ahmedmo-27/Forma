@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { Modal, Input, Select, Btn, Spinner } from './ui';
 import { createMember, getSalesUsers, getCoachTeam } from '../api/endpoints';
+import { mapFieldErrors, focusFirstInvalidField } from '../lib/formErrors';
 
 export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesRep = null, initialPhone = '' }) {
   const init = { name: '', phones: initialPhone, gender: '', birthdate: '', source: '', assignedSales: '', coachId: '' };
@@ -56,7 +57,12 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
       setErrors({}); 
       onSuccess(res.data?.member?.systemId);
     } catch (e) { 
-      toast.error(e.response?.data?.message || 'Failed to add member.'); 
+      if (e.normalized?.code === "VALIDATION_FAILED" && e.normalized.fieldErrors) {
+        setErrors(mapFieldErrors(e.normalized.fieldErrors));
+        focusFirstInvalidField(e.normalized.fieldErrors);
+      } else if (e.normalized?.status !== 403 && e.normalized?.status !== 429) {
+        toast.error(e.normalized?.message || e.response?.data?.message || 'Failed to add member.');
+      }
     } finally { 
       setLoading(false); 
     }

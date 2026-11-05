@@ -2,7 +2,25 @@
 
 All notable changes to the Leap Gym Multi-Tenant SaaS platform are documented in this file.
 
-## [Unreleased] - 2026-11-05
+## [Unreleased] - 2026-11-06
+
+### Added
+- **Unified Error Handling & Informative Modal System (Phases 0-5)**:
+  - Defined universal error response envelope `{ error: { code, message, status, requestId, details, fieldErrors, retryAfter, docsKey } }` with transitional backward-compatibility fields.
+  - Implemented `AppError` class hierarchy (`ValidationError`, `AuthError`, `ForbiddenError`, `FeatureNotInPlanError`, `PlanLimitError`, `SubscriptionError`, `NotFoundError`, `ConflictError`, `RateLimitError`, `PaymentError`, `UploadError`, `MaintenanceError`, `UpstreamError`, `InternalError`).
+  - Added single source of truth `ERROR_CODES` covering Auth, Tenant/Subscription, Billing, Front Desk Check-in, Data/Conflict, Files/Imports, Platform Operations, and System/Network.
+  - Built central Express error middleware in `errorHandler.js` converting Zod, Mongo duplicate key (11000), CastError, JWT, Multer, and unknown exceptions without leaking server internals, stack traces, or credentials.
+  - Added request ID tracking with `req_...` format and sanitized logging in `requestLogger.js` and `sanitizeLog.js` (redacting passwords, tokens, secrets, PII, and cards).
+  - Added process-level safety in `server.js` (`unhandledRejection`, `uncaughtException`), 404 handler (`ROUTE_NOT_FOUND`), and JSON parse error handler (`INVALID_JSON`).
+  - Built frontend error normalization engine `normalizeError(err)` producing consistent `AppErrorView` across network offline, timeouts, aborts, and HTML responses.
+  - Built central i18n-ready message catalog `ERROR_MESSAGES` with placeholder interpolation and clear user-facing next actions.
+  - Added `<GlobalErrorContainer>` and dedicated accessible modal dialogs (`ErrorModal`, `UpgradeRequiredModal`, `SessionExpiredModal`, `RateLimitedModal`, `ConflictModal`, `ImportErrorsModal`, `PaymentFailedModal`, `OfflineBanner`, `GlobalStatusBanner`).
+  - Added granular React error boundaries (`ErrorBoundary` and `WidgetErrorBoundary`) with Vite dynamic chunk-loading failure recovery.
+  - Integrated Axios interceptors across Tenant and Platform apps with 4-second deduplication, `skipGlobalError: true`, and elimination of double-toast bugs.
+  - Added comprehensive test suites (`errorHandler.test.js`, `sanitizeLog.test.js`, `errorHandlingContract.test.js`) verifying 172 backend tests pass.
+  - Created complete architectural documentation in `docs/ERROR_HANDLING.md`.
+
+## [1.1.0] - 2026-11-05
 
 ### Added
 - **Lifetime Billing Cycle Option**:

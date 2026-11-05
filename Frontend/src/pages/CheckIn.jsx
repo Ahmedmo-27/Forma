@@ -48,7 +48,10 @@ export default function CheckIn() {
       setMember(r.data.member);
       const alerts = (r.data.member?.alert || []).filter(a => a?.active);
       if (alerts.length) { setAlertPopup(alerts.map(a => a.text)); setTimeout(() => setAlertPopup(null), 5000); }
-    } catch (err) { toast.error(err.response?.data?.message ?? 'Member not found.'); }
+    } catch (err) {
+      const msg = err.normalized?.message || err.response?.data?.message || 'Member not found.';
+      toast.error(msg);
+    }
     finally { setSearching(false); }
   };
 
@@ -63,8 +66,8 @@ export default function CheckIn() {
       setMember(u.data.member);
       loadHistory();
     } catch (err) {
-      const msg = err.response?.data?.message ?? 'Check-in failed.';
-      setResult({ ok: false, msg }); toast.error(msg);
+      const msg = err.normalized?.message || err.response?.data?.message || 'Check-in failed.';
+      setResult({ ok: false, msg });
     } finally { setChecking(false); }
   };
 

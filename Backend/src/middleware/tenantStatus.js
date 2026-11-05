@@ -22,9 +22,16 @@ async function enforceSubscriptionStatus(req, res, next) {
                 return await Tenant.findById(tenantId).populate("planId");
             });
             if (!tenant) {
+                const message = "Gym subscription not found.";
                 return res.status(404).json({
+                    error: {
+                        code: "TENANT_NOT_FOUND",
+                        message,
+                        status: 404,
+                        requestId: req.requestId,
+                    },
                     code: "TENANT_NOT_FOUND",
-                    message: "Gym subscription not found.",
+                    message,
                 });
             }
             req.tenant = tenant;
@@ -35,9 +42,17 @@ async function enforceSubscriptionStatus(req, res, next) {
         const now = new Date();
 
         if (tenant.status === "suspended" || tenant.status === "cancelled") {
+            const message = `This gym is currently ${tenant.status}. Access is restricted.`;
             return res.status(403).json({
+                error: {
+                    code: "TENANT_SUSPENDED",
+                    message,
+                    status: 403,
+                    requestId: req.requestId,
+                    details: { tenantStatus: tenant.status },
+                },
                 code: "TENANT_SUSPENDED",
-                message: `This gym is currently ${tenant.status}. Access is restricted.`,
+                message,
             });
         }
 
@@ -47,18 +62,33 @@ async function enforceSubscriptionStatus(req, res, next) {
         }
 
         if (tenant.status === "trial" && tenant.trialEndsAt && new Date(tenant.trialEndsAt) < now) {
+            const message = "Your trial period has ended. Please choose a subscription plan to continue.";
             return res.status(403).json({
+                error: {
+                    code: "TRIAL_EXPIRED",
+                    message,
+                    status: 403,
+                    requestId: req.requestId,
+                    details: { trialEndsAt: tenant.trialEndsAt },
+                },
                 code: "TRIAL_EXPIRED",
-                message: "Your trial period has ended. Please choose a subscription plan to continue.",
+                message,
             });
         }
 
         if (tenant.status === "past_due") {
             const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes(req.method.toUpperCase());
             if (isMutation) {
+                const message = "Your subscription payment is past due. Read-only mode is active until payment is settled.";
                 return res.status(403).json({
+                    error: {
+                        code: "SUBSCRIPTION_PAST_DUE",
+                        message,
+                        status: 403,
+                        requestId: req.requestId,
+                    },
                     code: "SUBSCRIPTION_PAST_DUE",
-                    message: "Your subscription payment is past due. Read-only mode is active until payment is settled.",
+                    message,
                 });
             }
         }
@@ -87,12 +117,24 @@ async function enforceMemberLimit(req, res, next) {
         if (limits.maxMembers != null) {
             const currentCount = await Member.countDocuments();
             if (currentCount >= limits.maxMembers) {
+                const message = `You have reached your plan limit of ${limits.maxMembers} members. Upgrade your plan to add more.`;
                 return res.status(403).json({
+                    error: {
+                        code: "PLAN_LIMIT_REACHED",
+                        message,
+                        status: 403,
+                        requestId: req.requestId,
+                        details: {
+                            limit: "maxMembers",
+                            current: currentCount,
+                            max: limits.maxMembers,
+                        },
+                    },
                     code: "PLAN_LIMIT_REACHED",
                     limit: "maxMembers",
                     current: currentCount,
                     max: limits.maxMembers,
-                    message: `You have reached your plan limit of ${limits.maxMembers} members. Upgrade your plan to add more.`,
+                    message,
                 });
             }
         }
@@ -120,11 +162,22 @@ async function enforceStaffLimit(req, res, next) {
         const requestedRole = req.body?.role;
         const allowedRoles = req.plan?.allowedRoles || [];
         if (requestedRole && allowedRoles.length > 0 && !allowedRoles.includes(requestedRole)) {
+            const message = `The '${requestedRole}' role is not permitted under your current ${req.plan?.name || "subscription"} plan.`;
             return res.status(403).json({
+                error: {
+                    code: "ROLE_NOT_IN_PLAN",
+                    message,
+                    status: 403,
+                    requestId: req.requestId,
+                    details: {
+                        role: requestedRole,
+                        allowedRoles,
+                    },
+                },
                 code: "ROLE_NOT_IN_PLAN",
                 role: requestedRole,
                 allowedRoles,
-                message: `The '${requestedRole}' role is not permitted under your current ${req.plan?.name || "subscription"} plan.`,
+                message,
             });
         }
 
@@ -133,12 +186,24 @@ async function enforceStaffLimit(req, res, next) {
         if (limits.maxStaff != null) {
             const currentCount = await User.countDocuments();
             if (currentCount >= limits.maxStaff) {
+                const message = `You have reached your plan limit of ${limits.maxStaff} staff members. Upgrade your plan to invite more staff.`;
                 return res.status(403).json({
+                    error: {
+                        code: "PLAN_LIMIT_REACHED",
+                        message,
+                        status: 403,
+                        requestId: req.requestId,
+                        details: {
+                            limit: "maxStaff",
+                            current: currentCount,
+                            max: limits.maxStaff,
+                        },
+                    },
                     code: "PLAN_LIMIT_REACHED",
                     limit: "maxStaff",
                     current: currentCount,
                     max: limits.maxStaff,
-                    message: `You have reached your plan limit of ${limits.maxStaff} staff members. Upgrade your plan to invite more staff.`,
+                    message,
                 });
             }
         }

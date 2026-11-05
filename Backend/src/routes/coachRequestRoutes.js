@@ -8,18 +8,20 @@ const {
 const { protect } = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 const { requireFeature } = require("../middleware/featureGating");
+const { cacheResponse } = require("../middleware/apiCache");
+const { autoInvalidate } = require("../utils/cacheInvalidator");
 
 // All routes require authentication
 router.use(protect);
 router.use(requireFeature("pt_tracking"));
 
-// Sales sees own requests; Sales Manager/Owner sees all
-router.get("/",           authorize("Coach", "Coach Manager", "Owner"), getRequests);
+// Coach sees own requests; Coach Manager/Owner sees all
+router.get("/",           authorize("Coach", "Coach Manager", "Owner"), cacheResponse({ ttlSeconds: 45, tags: ["coach-requests"] }), getRequests);
 
-// Sales creates a reassignment request
-router.post("/",          authorize("Coach"),                           createRequest);
+// Coach creates a reassignment request
+router.post("/",          authorize("Coach"), autoInvalidate(["coach-requests", "members"]), createRequest);
 
-// Sales Manager / Owner approves or rejects
-router.put("/:id/status", authorize("Coach Manager", "Owner"),          updateRequestStatus);
+// Coach Manager / Owner approves or rejects
+router.put("/:id/status", authorize("Coach Manager", "Owner"), autoInvalidate(["coach-requests", "members"]), updateRequestStatus);
 
 module.exports = router;

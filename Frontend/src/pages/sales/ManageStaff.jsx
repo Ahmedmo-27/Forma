@@ -41,7 +41,9 @@ export default function ManageStaff() {
       setForm(INIT);
       setErrors({});
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create account.');
+      if (err.normalized?.status !== 403 && err.normalized?.status !== 429) {
+        toast.error(err.normalized?.message || err.response?.data?.message || 'Failed to create account.');
+      }
     } finally {
       setLoading(false);
     }

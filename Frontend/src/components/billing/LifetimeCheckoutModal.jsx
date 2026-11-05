@@ -64,7 +64,9 @@ export default function LifetimeCheckoutModal({ isOpen, onClose, defaultPlanKey 
       toast.success(confirmRes.data?.message || 'Lifetime license activated successfully!');
       if (onSuccess) onSuccess();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Checkout failed');
+      if (err.normalized?.status !== 402 && err.normalized?.status !== 403 && err.normalized?.status !== 409 && err.normalized?.status !== 429 && err.normalized?.status !== 500) {
+        toast.error(err.normalized?.message || err.response?.data?.message || 'Checkout failed');
+      }
     } finally {
       setSubmitting(false);
     }

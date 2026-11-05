@@ -96,7 +96,9 @@ export default function TenantSettings() {
       toast.success('Gym settings saved successfully!');
       await refreshTenant();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update gym settings');
+      if (err.normalized?.status !== 403 && err.normalized?.status !== 429) {
+        toast.error(err.normalized?.message || err.response?.data?.message || 'Failed to update gym settings');
+      }
     } finally {
       setSaving(false);
     }
@@ -114,7 +116,9 @@ export default function TenantSettings() {
       toast.success('Logo uploaded successfully!');
       await refreshTenant();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to upload logo');
+      if (err.normalized?.status !== 403 && err.normalized?.status !== 429) {
+        toast.error(err.normalized?.message || err.response?.data?.message || 'Failed to upload logo');
+      }
     } finally {
       setUploadingLogo(false);
     }

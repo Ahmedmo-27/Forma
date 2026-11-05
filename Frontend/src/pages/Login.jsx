@@ -54,11 +54,12 @@ export default function Login() {
           ? 'Cannot reach the server. Check your connection and API URL.'
           : 'App is misconfigured: Backend origin is missing (BACKEND_ORIGIN).';
       } else if (err.response.status === 404) {
-        msg = err.response.data?.message || 'API endpoint not found. Please check your API URL.';
+        msg = err.response.data?.error?.message || err.response.data?.message || 'API endpoint not found. Please check your API URL.';
+      } else if (err.response.status === 429) {
+        msg = err.response.data?.error?.message || err.response.data?.message || 'Account temporarily locked due to failed login attempts. Please wait.';
       } else {
-        msg = err.response.data?.message || 'Invalid email or password.';
+        msg = err.response.data?.error?.message || err.response.data?.message || 'Invalid email or password.';
       }
-      toast.error(msg);
       setErrors({ form: msg });
     } finally {
       setLoading(false);

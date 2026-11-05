@@ -110,8 +110,10 @@ export default function WhatsAppTemplateSendModal({ open, onClose, phone, member
           setMessage(buildMessage(pick, pkgs, nextIds, percent, 'en', memberName));
         }
       })
-      .catch(() => {
-        if (!cancelled) toast.error('Could not load message templates');
+      .catch((err) => {
+        if (!cancelled && err?.normalized?.status !== 403) {
+          toast.error(err?.normalized?.message || 'Could not load message templates');
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

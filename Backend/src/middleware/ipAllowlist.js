@@ -22,8 +22,15 @@ function platformIpAllowlist(req, res, next) {
     });
 
     if (!isAllowed) {
+        const message = "Access forbidden: IP address not authorized for platform administration";
         return res.status(403).json({
-            message: "Access forbidden: IP address not authorized for platform administration",
+            error: {
+                code: "AUTH_IP_NOT_ALLOWED",
+                message,
+                status: 403,
+                requestId: req.requestId,
+            },
+            message,
         });
     }
 

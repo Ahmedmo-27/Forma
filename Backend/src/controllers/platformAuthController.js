@@ -71,18 +71,51 @@ async function login(req, res) {
         const user = await PlatformUser.findOne({ email: normalized });
 
         if (!user) {
-            return res.status(401).json({ message: "Invalid credentials" });
+            const message = "Invalid credentials";
+            return res.status(401).json({
+                error: {
+                    code: "AUTH_INVALID_CREDENTIALS",
+                    message,
+                    status: 401,
+                    requestId: req.requestId,
+                },
+                message,
+                code: "AUTH_INVALID_CREDENTIALS",
+            });
         }
 
         if (user.status !== "active") {
-            return res.status(401).json({ message: "Account is disabled. Contact super admin." });
+            const message = "Account is disabled. Contact super admin.";
+            return res.status(401).json({
+                error: {
+                    code: "AUTH_INVALID_CREDENTIALS",
+                    message,
+                    status: 401,
+                    requestId: req.requestId,
+                },
+                message,
+                code: "AUTH_INVALID_CREDENTIALS",
+            });
         }
 
         // Lockout verification
         if (user.lockedUntil && user.lockedUntil > new Date()) {
-            const minutesLeft = Math.ceil((user.lockedUntil - new Date()) / (60 * 1000));
-            return res.status(403).json({
-                message: `Account is temporarily locked due to multiple failed login attempts. Try again in ${minutesLeft} minutes.`,
+            const retryAfter = Math.max(1, Math.ceil((user.lockedUntil - new Date()) / 1000));
+            const minutesLeft = Math.ceil(retryAfter / 60);
+            const message = `Account is temporarily locked due to multiple failed login attempts. Try again in ${minutesLeft} minutes.`;
+            return res.status(429).json({
+                error: {
+                    code: "AUTH_ACCOUNT_LOCKED",
+                    message,
+                    status: 429,
+                    requestId: req.requestId,
+                    retryAfter,
+                    details: { lockedUntil: user.lockedUntil.toISOString() },
+                },
+                code: "AUTH_ACCOUNT_LOCKED",
+                message,
+                retryAfter,
+                lockedUntil: user.lockedUntil.toISOString(),
             });
         }
 
@@ -94,7 +127,17 @@ async function login(req, res) {
                 logger.warn("platform", "Platform account locked out", { email: user.email, attempts: user.failedLoginCount });
             }
             await user.save();
-            return res.status(401).json({ message: "Invalid credentials" });
+            const message = "Invalid credentials";
+            return res.status(401).json({
+                error: {
+                    code: "AUTH_INVALID_CREDENTIALS",
+                    message,
+                    status: 401,
+                    requestId: req.requestId,
+                },
+                message,
+                code: "AUTH_INVALID_CREDENTIALS",
+            });
         }
 
         // Reset lockout upon correct password

@@ -22,6 +22,7 @@ const { protect } = require("./middleware/authMiddleware");
 const authorize = require("./middleware/roleMiddleware");
 const { writeAudit } = require("./utils/audit");
 const { detectMimeFromFile, MIME_TO_EXT } = require("./utils/fileMagic");
+const { AppError } = require("./utils/errors");
 const coachRequestRoutes = require("./routes/coachRequestRoutes");
 const tenantRoutes = require("./routes/tenantRoutes");
 const platformRoutes = require("./routes/platformRoutes");
@@ -87,7 +88,22 @@ const globalLimiter = rateLimit({
     max: 600,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { message: "Too many requests, try again later" },
+    handler: (req, res, _next, options) => {
+        const retryAfter = Math.ceil(options.windowMs / 1000);
+        const message = "Too many requests, try again later";
+        res.status(429).json({
+            error: {
+                code: "RATE_LIMITED",
+                message,
+                status: 429,
+                requestId: req.requestId,
+                retryAfter,
+            },
+            code: "RATE_LIMITED",
+            message,
+            retryAfter,
+        });
+    },
 });
 app.use("/api", globalLimiter);
 
@@ -114,7 +130,22 @@ const uploadReadLimiter = rateLimit({
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
-    message: { message: "Too many file requests, try again later" },
+    handler: (req, res, _next, options) => {
+        const retryAfter = Math.ceil(options.windowMs / 1000);
+        const message = "Too many file requests, try again later";
+        res.status(429).json({
+            error: {
+                code: "RATE_LIMITED",
+                message,
+                status: 429,
+                requestId: req.requestId,
+                retryAfter,
+            },
+            code: "RATE_LIMITED",
+            message,
+            retryAfter,
+        });
+    },
 });
 
 const storageService = require("./services/storageService");
@@ -227,6 +258,11 @@ app.get(
         res.sendFile(filePath);
     }
 );
+
+// 404 handler returning standard error envelope
+app.use((req, res, next) => {
+    next(new AppError("ROUTE_NOT_FOUND", `Route ${req.method} ${req.originalUrl} not found`, 404));
+});
 
 app.use(errorHandler);
 

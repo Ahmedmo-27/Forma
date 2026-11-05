@@ -1,5 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
+@source "./";
+@source "./platform";
+@import "./platform/styles/platform-tokens.css";
 
 /* ═══════════════════════════════════════════════════════════════
    LEAP GYM — Design Tokens
@@ -50,32 +53,31 @@
   --blue-dark:  #5B38BA;
 }
 
-/* ── Reset ─────────────────────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+/* ── Base Styles (Tailwind preflight handles *, *::before, *::after reset in @layer base) ── */
+@layer base {
+  html { font-size: 16px; scroll-behavior: smooth; }
 
-html { font-size: 16px; scroll-behavior: smooth; }
+  body {
+    background: var(--bg);
+    color: var(--t1);
+    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
 
-body {
-  background: var(--bg);
-  color: var(--t1);
-  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
-  line-height: 1.5;
-  -webkit-font-smoothing: antialiased;
+  input, select, textarea, button { font-family: inherit; }
+
+  input::placeholder,
+  textarea::placeholder { color: var(--t4); opacity: 1; }
+
+  :focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 }
-
-input, select, textarea, button { font-family: inherit; }
-
-input::placeholder,
-textarea::placeholder { color: var(--t4); opacity: 1; }
 
 /* ── Scrollbar ─────────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 5px; height: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #9CA3AF; }
-
-/* ── Focus ─────────────────────────────────────────────────── */
-:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
 
 /* ── Keyframes ─────────────────────────────────────────────── */
 @keyframes spin {
@@ -156,24 +158,26 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .tab-bar-scroll::-webkit-scrollbar { display: none; }
 
 /* ── Native form overrides ─────────────────────────────────── */
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
-select,
-textarea {
-  color-scheme: light;
-  background: var(--card);
-  color: var(--t1);
-  border-color: var(--border);
-}
+@layer base {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  select,
+  textarea {
+    color-scheme: light;
+    background: var(--card);
+    color: var(--t1);
+    border-color: var(--border);
+  }
 
-input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
-select:focus,
-textarea:focus {
-  border-color: var(--navy);
-  box-shadow: 0 0 0 3px rgba(68,41,140,0.10);
-  outline: none;
-}
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+  select:focus,
+  textarea:focus {
+    border-color: var(--navy);
+    box-shadow: 0 0 0 3px rgba(68,41,140,0.10);
+    outline: none;
+  }
 
-select option { background: var(--card); color: var(--t1); }
+  select option { background: var(--card); color: var(--t1); }
+}
 
 /* ── Responsive ────────────────────────────────────────────── */
 @media (max-width: 1024px) {
