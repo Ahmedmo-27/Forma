@@ -240,6 +240,10 @@ function getEffectiveLimits(tenant, plan) {
     };
 }
 
-module.exports = mongoose.models.Tenant || mongoose.model("Tenant", tenantSchema);
+try {
+    module.exports = mongoose.model("Tenant");
+} catch (_) {
+    module.exports = mongoose.model("Tenant", tenantSchema);
+}
 module.exports.getEffectiveFeatures = getEffectiveFeatures;
 module.exports.getEffectiveLimits = getEffectiveLimits;
