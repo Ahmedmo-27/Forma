@@ -28,9 +28,30 @@ const INDEX_OPERATIONS = [
     {
         collection: "members",
         newIndexes: [
-            { keys: { tenantId: 1, systemId: 1 }, options: { unique: true, sparse: true, name: "tenantId_1_systemId_1" } },
-            { keys: { tenantId: 1, memberId: 1 }, options: { unique: true, sparse: true, name: "tenantId_1_memberId_1" } },
-            { keys: { tenantId: 1, barcode: 1 }, options: { unique: true, sparse: true, name: "tenantId_1_barcode_1" } },
+            {
+                keys: { tenantId: 1, systemId: 1 },
+                options: {
+                    unique: true,
+                    partialFilterExpression: { systemId: { $type: "number" } },
+                    name: "tenantId_1_systemId_1",
+                },
+            },
+            {
+                keys: { tenantId: 1, memberId: 1 },
+                options: {
+                    unique: true,
+                    partialFilterExpression: { memberId: { $type: "number" } },
+                    name: "tenantId_1_memberId_1",
+                },
+            },
+            {
+                keys: { tenantId: 1, barcode: 1 },
+                options: {
+                    unique: true,
+                    partialFilterExpression: { barcode: { $type: "string" } },
+                    name: "tenantId_1_barcode_1",
+                },
+            },
             { keys: { tenantId: 1, status: 1, systemId: 1 }, options: { name: "tenantId_1_status_1_systemId_1" } },
             { keys: { tenantId: 1, assignedSales: 1, status: 1 }, options: { name: "tenantId_1_assignedSales_1_status_1" } },
             { keys: { tenantId: 1, assignedSales: 1, systemId: 1 }, options: { name: "tenantId_1_assignedSales_1_systemId_1" } },
@@ -99,18 +120,36 @@ async function migrateIndexes(options = { isDryRun: false }) {
         console.log(`\nProcessing collection: ${item.collection}`);
         const coll = db.collection(item.collection);
 
+        if (item.collection === "counters" && !isDryRun) {
+            const legacyDeleted = await coll.deleteMany({
+                $or: [{ tenantId: { $exists: false } }, { tenantId: null }],
+            });
+            if (legacyDeleted.deletedCount > 0) {
+                console.log(`  [CLEANUP] Removed ${legacyDeleted.deletedCount} legacy unscoped counter documents.`);
+            }
+        }
+
         const existingIndexes = await coll.indexes().catch(() => []);
         const existingNames = new Set(existingIndexes.map((idx) => idx.name));
 
         // Step 1: Create new compound indexes
         for (const idx of item.newIndexes) {
-            if (existingNames.has(idx.options.name)) {
-                console.log(`  [EXISTS] Index ${idx.options.name} already in place.`);
+            const hasSameKeys = existingIndexes.some((e) => JSON.stringify(e.key) === JSON.stringify(idx.keys));
+            if (hasSameKeys || existingNames.has(idx.options?.name)) {
+                console.log(`  [EXISTS] Index with keys ${JSON.stringify(idx.keys)} already in place.`);
             } else {
-                console.log(`  [CREATE] Creating index ${idx.options.name} with keys:`, idx.keys);
+                console.log(`  [CREATE] Creating index with keys:`, idx.keys);
                 if (!isDryRun) {
-                    await coll.createIndex(idx.keys, idx.options);
-                    console.log(`  [CREATED] Index ${idx.options.name} successfully created.`);
+                    try {
+                        await coll.createIndex(idx.keys, idx.options || {});
+                        console.log(`  [CREATED] Index successfully created.`);
+                    } catch (err) {
+                        if (err.code === 85) {
+                            console.log(`  [EXISTS] Index options conflict (already created): ${err.message}`);
+                        } else {
+                            throw err;
+                        }
+                    }
                 }
             }
         }

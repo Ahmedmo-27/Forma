@@ -386,9 +386,18 @@ blockedAt: {
 memberSchema.plugin(tenantPlugin);
 
 // ── Compound Indexes for Multi-Tenant Performance & Isolation ────────────────
-memberSchema.index({ tenantId: 1, systemId: 1 }, { unique: true, sparse: true });
-memberSchema.index({ tenantId: 1, memberId: 1 }, { unique: true, sparse: true });
-memberSchema.index({ tenantId: 1, barcode: 1 }, { unique: true, sparse: true });
+memberSchema.index(
+    { tenantId: 1, systemId: 1 },
+    { unique: true, partialFilterExpression: { systemId: { $type: "number" } } }
+);
+memberSchema.index(
+    { tenantId: 1, memberId: 1 },
+    { unique: true, partialFilterExpression: { memberId: { $type: "number" } } }
+);
+memberSchema.index(
+    { tenantId: 1, barcode: 1 },
+    { unique: true, partialFilterExpression: { barcode: { $type: "string" } } }
+);
 
 memberSchema.index({ tenantId: 1, status: 1, systemId: 1 });
 memberSchema.index({ tenantId: 1, assignedSales: 1, status: 1 });

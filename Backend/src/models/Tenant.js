@@ -113,7 +113,7 @@ const tenantSchema = new mongoose.Schema(
 );
 
 // Pre-save hook: auto-encrypt WhatsApp access token if updated and plaintext
-tenantSchema.pre("save", function (next) {
+tenantSchema.pre("save", function () {
     if (this.settings?.whatsapp?.accessToken) {
         const token = this.settings.whatsapp.accessToken;
         // Check if token is already in iv:tag:cipher format (hex with 2 colons)
@@ -123,7 +123,6 @@ tenantSchema.pre("save", function (next) {
             this.settings.whatsapp.accessToken = encryptSecret(token);
         }
     }
-    next();
 });
 
 // Decrypt WhatsApp credentials for internal messaging operations

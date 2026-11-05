@@ -24,10 +24,14 @@ async function migrateUploads(options = {}) {
     console.log(`\n=== Running Uploads Migration ${isDryRun ? "[DRY RUN]" : "[LIVE]"} ===\n`);
 
     const Tenant = require("../models/Tenant");
-    const tenant = await Tenant.findOne({ slug: targetSlug }) || await Tenant.findOne();
+    let tenant = await Tenant.findOne({ slug: targetSlug }) || await Tenant.findOne();
 
     if (!tenant) {
-        throw new Error(`Migration error: No tenant found with slug '${targetSlug}'. Create default tenant first.`);
+        if (isDryRun) {
+            tenant = { _id: "default-leap-id", name: "Leap Gym (dry-run)" };
+        } else {
+            throw new Error(`Migration error: No tenant found with slug '${targetSlug}'. Create default tenant first.`);
+        }
     }
 
     const tenantId = tenant._id.toString();
@@ -35,6 +39,11 @@ async function migrateUploads(options = {}) {
 
     if (!fs.existsSync(destDir) && !isDryRun) {
         await fsPromises.mkdir(destDir, { recursive: true });
+    }
+
+    if (!fs.existsSync(BASE_UPLOADS)) {
+        console.log("  Uploads directory does not exist yet. Nothing to relocate.");
+        return { tenantId, movedCount: 0, skippedCount: 0 };
     }
 
     const entries = await fsPromises.readdir(BASE_UPLOADS, { withFileTypes: true });
