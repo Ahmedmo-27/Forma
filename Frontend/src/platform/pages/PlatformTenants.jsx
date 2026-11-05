@@ -138,7 +138,7 @@ export default function PlatformTenants() {
                 <div>
                     <Link
                         to={`/platform/tenants/${t.id}`}
-                        className="font-bold text-slate-100 hover:text-indigo-400 hover:underline"
+                        className="font-bold text-slate-100 hover:text-indigo-300 transition-colors"
                     >
                         {t.name}
                     </Link>
@@ -151,8 +151,8 @@ export default function PlatformTenants() {
             header: "Plan & Cycle",
             render: (t) => (
                 <div>
-                    <span className="font-semibold text-slate-200 uppercase">{t.plan?.name || "Basic"}</span>
-                    <div className="text-[11px] text-indigo-400 uppercase font-mono">{t.cycle}</div>
+                    <span className="font-semibold text-slate-100 uppercase text-xs">{t.plan?.name || "Basic"}</span>
+                    <div className="text-[10px] text-indigo-300/80 uppercase font-mono tracking-wider">{t.cycle}</div>
                 </div>
             ),
         },
@@ -169,7 +169,7 @@ export default function PlatformTenants() {
                 };
                 const s = styles[t.status] || styles.cancelled;
                 return (
-                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${s.bg}`}>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-widest border shadow-sm ${s.bg}`}>
                         <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
                         {t.status.replace("_", " ")}
                     </span>
@@ -188,7 +188,7 @@ export default function PlatformTenants() {
                                 <span>Members</span>
                                 <span className="font-mono text-slate-200">{t.usage?.members || 0}/{t.usage?.maxMembers || 500}</span>
                             </div>
-                            <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden mt-0.5">
+                            <div className="h-1.5 w-full bg-slate-800/80 rounded-full overflow-hidden mt-0.5">
                                 <div className={`h-full rounded-full ${memPct >= 80 ? "bg-amber-500" : "bg-indigo-500"}`} style={{ width: `${memPct}%` }} />
                             </div>
                         </div>
@@ -219,7 +219,7 @@ export default function PlatformTenants() {
                 <div className="flex items-center gap-2">
                     <Link
                         to={`/platform/tenants/${t.id}`}
-                        className="rounded border border-slate-700 bg-slate-800 px-2 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-700"
+                        className="rounded-md border border-slate-700/60 bg-slate-800/60 px-2.5 py-1 text-[11px] font-semibold text-slate-200 hover:bg-slate-700/80 hover:border-slate-600 transition-colors"
                     >
                         Details
                     </Link>
@@ -228,7 +228,7 @@ export default function PlatformTenants() {
                         <button
                             type="button"
                             onClick={() => setLifecycleModal({ isOpen: true, tenant: t, action: "extend_trial" })}
-                            className="rounded border border-indigo-500/30 bg-indigo-950/40 px-2 py-1 text-[11px] font-semibold text-indigo-300 hover:bg-indigo-900/50"
+                            className="rounded-md border border-indigo-500/30 bg-indigo-950/40 px-2.5 py-1 text-[11px] font-semibold text-indigo-300 hover:bg-indigo-900/50 hover:border-indigo-400/50 transition-colors"
                         >
                             +7d Trial
                         </button>
@@ -238,7 +238,7 @@ export default function PlatformTenants() {
                         <button
                             type="button"
                             onClick={() => setLifecycleModal({ isOpen: true, tenant: t, action: "suspend" })}
-                            className="rounded border border-rose-800/40 bg-rose-950/30 px-2 py-1 text-[11px] font-semibold text-rose-300 hover:bg-rose-900/40"
+                            className="rounded-md border border-rose-800/40 bg-rose-950/30 px-2.5 py-1 text-[11px] font-semibold text-rose-300 hover:bg-rose-900/40 hover:border-rose-700/50 transition-colors"
                         >
                             Suspend
                         </button>
@@ -248,7 +248,7 @@ export default function PlatformTenants() {
                         <button
                             type="button"
                             onClick={() => setLifecycleModal({ isOpen: true, tenant: t, action: "reactivate" })}
-                            className="rounded border border-emerald-800/40 bg-emerald-950/30 px-2 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-900/40"
+                            className="rounded-md border border-emerald-800/40 bg-emerald-950/30 px-2.5 py-1 text-[11px] font-semibold text-emerald-300 hover:bg-emerald-900/40 hover:border-emerald-700/50 transition-colors"
                         >
                             Reactivate
                         </button>
@@ -257,7 +257,7 @@ export default function PlatformTenants() {
                     <button
                         type="button"
                         onClick={() => setPurgeModal({ isOpen: true, tenant: t })}
-                        className="rounded border border-rose-900/50 bg-slate-950 px-2 py-1 text-[11px] font-semibold text-rose-400 hover:bg-rose-950"
+                        className="rounded-md border border-rose-900/50 bg-slate-950 px-2.5 py-1 text-[11px] font-semibold text-rose-400 hover:bg-rose-950/80 hover:border-rose-700/40 transition-colors"
                         title="Hard Purge (super_admin only)"
                     >
                         Purge
@@ -270,9 +270,9 @@ export default function PlatformTenants() {
     return (
         <div className="space-y-6">
             {/* Header */}
-            <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-4 pb-2 border-b border-slate-800/50 mb-2">
                 <div>
-                    <h1 className="text-xl font-bold tracking-tight text-slate-100">Subscribers & Gyms</h1>
+                    <h1 className="text-xl font-black tracking-tight text-slate-100">Subscribers & Gyms</h1>
                     <p className="text-xs text-slate-400">
                         Directory of all gym tenants, lifecycle states, and resource caps
                     </p>
@@ -280,7 +280,7 @@ export default function PlatformTenants() {
                 <button
                     type="button"
                     onClick={() => setIsOnboardOpen(true)}
-                    className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-500 hover:shadow-indigo-600/40 transition active:scale-[0.98]"
+                    className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-500 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 hover:from-indigo-500 hover:to-indigo-400 hover:shadow-indigo-600/50 transition-all duration-150 active:scale-[0.98]"
                 >
                     <PlusIcon className="h-4 w-4" />
                     <span>Onboard New Gym</span>
@@ -292,7 +292,7 @@ export default function PlatformTenants() {
                 <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 focus:outline-none"
+                    className="rounded-lg border border-slate-700/70 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
                 >
                     <option value="">All Statuses</option>
                     <option value="active">Active</option>
@@ -305,7 +305,7 @@ export default function PlatformTenants() {
                 <select
                     value={cycleFilter}
                     onChange={(e) => setCycleFilter(e.target.value)}
-                    className="rounded-lg border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs text-slate-200 focus:outline-none"
+                    className="rounded-lg border border-slate-700/70 bg-slate-800/60 px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-indigo-500/50 transition-colors cursor-pointer"
                 >
                     <option value="">All Cycles</option>
                     <option value="monthly">Monthly</option>
@@ -331,7 +331,7 @@ export default function PlatformTenants() {
             {/* Modal: Onboard New Gym */}
             {isOnboardOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
-                    <div className="w-full max-w-lg rounded-2xl border border-slate-800 bg-slate-900 p-6 shadow-2xl text-slate-100 max-h-[90vh] overflow-y-auto">
+                    <div className="w-full max-w-lg rounded-2xl border border-slate-700/60 bg-slate-900/95 backdrop-blur-xl p-6 shadow-2xl shadow-black/60 text-slate-100 max-h-[90vh] overflow-y-auto">
                         <h3 className="text-lg font-bold text-slate-100">Onboard New Subscriber Gym</h3>
                         <p className="mt-1 text-xs text-slate-400">
                             Creates tenant, initializes safe owner account, and generates secure password-set link.
@@ -347,7 +347,7 @@ export default function PlatformTenants() {
                                         value={onboardForm.name}
                                         onChange={(e) => setOnboardForm({ ...onboardForm, name: e.target.value })}
                                         placeholder="e.g. Cairo Crossfit"
-                                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-slate-100 focus:outline-none"
+                                        className="mt-1 w-full rounded-lg border border-slate-700/70 bg-slate-950/80 p-2 text-slate-100 focus:border-indigo-500/60 focus:outline-none transition-colors"
                                     />
                                 </div>
                                 <div>
@@ -358,7 +358,7 @@ export default function PlatformTenants() {
                                         value={onboardForm.slug}
                                         onChange={(e) => setOnboardForm({ ...onboardForm, slug: e.target.value })}
                                         placeholder="e.g. cairo-crossfit"
-                                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-slate-100 font-mono focus:outline-none"
+                                        className="mt-1 w-full rounded-lg border border-slate-700/70 bg-slate-950/80 p-2 text-slate-100 font-mono focus:border-indigo-500/60 focus:outline-none transition-colors"
                                     />
                                 </div>
                             </div>
@@ -372,7 +372,7 @@ export default function PlatformTenants() {
                                         value={onboardForm.ownerName}
                                         onChange={(e) => setOnboardForm({ ...onboardForm, ownerName: e.target.value })}
                                         placeholder="e.g. Captain Ahmed"
-                                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-slate-100 focus:outline-none"
+                                        className="mt-1 w-full rounded-lg border border-slate-700/70 bg-slate-950/80 p-2 text-slate-100 focus:border-indigo-500/60 focus:outline-none transition-colors"
                                     />
                                 </div>
                                 <div>
@@ -383,7 +383,7 @@ export default function PlatformTenants() {
                                         value={onboardForm.ownerEmail}
                                         onChange={(e) => setOnboardForm({ ...onboardForm, ownerEmail: e.target.value })}
                                         placeholder="owner@gym.com"
-                                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-slate-100 focus:outline-none"
+                                        className="mt-1 w-full rounded-lg border border-slate-700/70 bg-slate-950/80 p-2 text-slate-100 focus:border-indigo-500/60 focus:outline-none transition-colors"
                                     />
                                 </div>
                             </div>
@@ -394,7 +394,7 @@ export default function PlatformTenants() {
                                     <select
                                         value={onboardForm.planKey}
                                         onChange={(e) => setOnboardForm({ ...onboardForm, planKey: e.target.value })}
-                                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-slate-200 focus:outline-none"
+                                        className="mt-1 w-full rounded-lg border border-slate-700/70 bg-slate-950/80 p-2 text-slate-200 focus:border-indigo-500/60 focus:outline-none transition-colors"
                                     >
                                         <option value="basic">Basic Plan</option>
                                         <option value="gold">Gold Plan</option>
@@ -406,7 +406,7 @@ export default function PlatformTenants() {
                                     <select
                                         value={onboardForm.cycle}
                                         onChange={(e) => setOnboardForm({ ...onboardForm, cycle: e.target.value })}
-                                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-slate-200 focus:outline-none"
+                                        className="mt-1 w-full rounded-lg border border-slate-700/70 bg-slate-950/80 p-2 text-slate-200 focus:border-indigo-500/60 focus:outline-none transition-colors"
                                     >
                                         <option value="monthly">Monthly</option>
                                         <option value="yearly">Yearly</option>
@@ -435,7 +435,7 @@ export default function PlatformTenants() {
                                         type="number"
                                         value={onboardForm.amountPaid}
                                         onChange={(e) => setOnboardForm({ ...onboardForm, amountPaid: e.target.value })}
-                                        className="mt-1 w-full rounded-lg border border-slate-700 bg-slate-950 p-2 text-slate-100 focus:outline-none"
+                                        className="mt-1 w-full rounded-lg border border-slate-700/70 bg-slate-950/80 p-2 text-slate-100 focus:border-indigo-500/60 focus:outline-none transition-colors"
                                     />
                                 </div>
                             )}
@@ -444,14 +444,14 @@ export default function PlatformTenants() {
                                 <button
                                     type="button"
                                     onClick={() => setIsOnboardOpen(false)}
-                                    className="rounded-lg px-4 py-2 font-medium text-slate-400 hover:bg-slate-800"
+                                    className="rounded-lg px-4 py-2 font-medium text-slate-400 hover:bg-slate-800/80 hover:text-slate-200 transition-colors"
                                 >
                                     Cancel
                                 </button>
                                 <button
                                     type="submit"
                                     disabled={actionLoading}
-                                    className="rounded-lg bg-indigo-600 px-5 py-2 font-bold text-white shadow hover:bg-indigo-500 disabled:opacity-50"
+                                    className="rounded-lg bg-gradient-to-r from-indigo-600 to-indigo-500 px-5 py-2 font-bold text-white shadow hover:from-indigo-500 hover:to-indigo-400 transition-all disabled:opacity-50"
                                 >
                                     {actionLoading ? "Creating..." : "Create Tenant"}
                                 </button>
