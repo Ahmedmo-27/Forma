@@ -1,45 +1,73 @@
+const mongoose = require("mongoose");
 const Counter = require("../models/Counter");
-const Member = require("../models/Member");
+const { getTenantId } = require("../context/tenantContext");
 
-async function syncAndIncrement(key, getMax) {
-    const max = await getMax();
-    await Counter.updateOne({ _id: key }, { $max: { seq: max } }, { upsert: true });
+/**
+ * Atomically increment and return the next per-tenant sequence number.
+ * Uses atomic findOneAndUpdate with upsert and $inc.
+ *
+ * @param {string} name - Sequence key name ("systemId", "memberId", "subscriptionId")
+ * @param {number} startingFloor - Minimum starting value when initialized
+ * @param {string} [tenantIdOverride] - Explicit tenantId if called from migrations/scripts
+ * @returns {Promise<number>}
+ */
+async function nextSequence(name, startingFloor = 100, tenantIdOverride = null) {
+    const tenantId = tenantIdOverride || getTenantId();
+    if (!tenantId) {
+        throw new Error(
+            `TenantContextMissingError: Cannot allocate sequence '${name}' without active tenant context.`
+        );
+    }
+
+    const tenantObjId = new mongoose.Types.ObjectId(tenantId);
+
     const doc = await Counter.findOneAndUpdate(
-        { _id: key },
+        { tenantId: tenantObjId, name },
         { $inc: { seq: 1 } },
-        { new: true }
+        { new: true, upsert: true }
     );
+
+    if (doc.seq < startingFloor) {
+        const adjusted = await Counter.findOneAndUpdate(
+            { tenantId: tenantObjId, name, seq: { $lt: startingFloor } },
+            { $set: { seq: startingFloor } },
+            { new: true }
+        );
+        return adjusted ? adjusted.seq : doc.seq;
+    }
+
     return doc.seq;
 }
 
-async function nextSystemId() {
-    return syncAndIncrement("systemId", async () => {
-        const last = await Member.findOne({}, { systemId: 1 }).sort({ systemId: -1 });
-        return last?.systemId || 99999;  // starts from 100000
-    });
+/** Next systemId for a guest/member within the tenant (starts from 100000) */
+async function nextSystemId(tenantIdOverride = null) {
+    return nextSequence("systemId", 100000, tenantIdOverride);
 }
 
-async function nextMemberId() {
-    return syncAndIncrement("memberId", async () => {
-        const last = await Member.findOne({ memberId: { $ne: null } }, { memberId: 1 }).sort({ memberId: -1 });
-        return last?.memberId || 99;
-    });
+/** Next memberId for subscribed members within the tenant (starts from 100) */
+async function nextMemberId(tenantIdOverride = null) {
+    return nextSequence("memberId", 100, tenantIdOverride);
 }
 
-async function nextSubscriptionId() {
-    return syncAndIncrement("subscriptionId", async () => {
-        const result = await Member.aggregate([
-            { $unwind: "$subscriptions" },
-            { $group: { _id: null, maxId: { $max: "$subscriptions.subscriptionId" } } },
-        ]);
-        return result[0]?.maxId ?? 99;
-    });
+/** Next subscriptionId for member packages within the tenant (starts from 100) */
+async function nextSubscriptionId(tenantIdOverride = null) {
+    return nextSequence("subscriptionId", 100, tenantIdOverride);
 }
 
+/**
+ * Check if a Mongo error is duplicate key error (code 11000),
+ * optionally scoped to specific fields.
+ */
 function isDuplicateKeyError(error, fields = []) {
     if (error?.code !== 11000) return false;
     const dupFields = Object.keys(error.keyPattern || {});
     return fields.length === 0 || dupFields.some((f) => fields.includes(f));
 }
 
-module.exports = { nextSystemId, nextMemberId, nextSubscriptionId, isDuplicateKeyError };
+module.exports = {
+    nextSequence,
+    nextSystemId,
+    nextMemberId,
+    nextSubscriptionId,
+    isDuplicateKeyError,
+};

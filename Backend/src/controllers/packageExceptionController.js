@@ -11,6 +11,7 @@ const {
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const { writeAudit } = require("../utils/audit");
 const { buildPackageSnapshot } = require("../utils/packageSnapshot");
+const { nextMemberId, nextSubscriptionId } = require("../utils/sequence");
 
 const calcEndDate = (startDate, duration) => {
     const end = new Date(startDate);
@@ -24,21 +25,11 @@ const calcEndDate = (startDate, duration) => {
 };
 
 const generateMemberId = async () => {
-    const last = await Member.findOne(
-        { memberId: { $ne: null } },
-        { memberId: 1 }
-    ).sort({ memberId: -1 });
-    if (!last || !last.memberId) return 100;
-    return last.memberId + 1;
+    return nextMemberId();
 };
 
 const generateSubscriptionId = async () => {
-    const result = await Member.aggregate([
-        { $unwind: "$subscriptions" },
-        { $group: { _id: null, maxId: { $max: "$subscriptions.subscriptionId" } } }
-    ]);
-    if (!result.length || result[0].maxId == null) return 100;
-    return result[0].maxId + 1;
+    return nextSubscriptionId();
 };
 
 const buildExceptionPackage = async (request, memberId, userId, freePtSessions = 0) => {
