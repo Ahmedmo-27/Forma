@@ -4,6 +4,8 @@ const { protect } = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 const validate = require("../middleware/validate");
 const { requireFeature } = require("../middleware/featureGating");
+const { cacheResponse } = require("../middleware/apiCache");
+const { autoInvalidate } = require("../utils/cacheInvalidator");
 const {
     createWhatsAppTemplateSchema,
     updateWhatsAppTemplateSchema,
@@ -20,7 +22,7 @@ const {
 router.use(protect);
 router.use(requireFeature("whatsapp"));
 
-router.get("/", getTemplates);
+router.get("/", cacheResponse({ ttlSeconds: 300, tags: ["whatsapp"] }), getTemplates);
 
 router.post(
     "/log-send",
@@ -32,17 +34,20 @@ router.post(
     "/",
     authorize("Owner", "Sales Manager", "Accountant", "Coach Manager"),
     validate(createWhatsAppTemplateSchema),
+    autoInvalidate(["whatsapp"]),
     createTemplate
 );
 router.patch(
     "/:id",
     authorize("Owner", "Sales Manager", "Accountant", "Coach Manager"),
     validate(updateWhatsAppTemplateSchema),
+    autoInvalidate(["whatsapp"]),
     updateTemplate
 );
 router.delete(
     "/:id",
     authorize("Owner", "Sales Manager", "Accountant", "Coach Manager"),
+    autoInvalidate(["whatsapp"]),
     deleteTemplate
 );
 
