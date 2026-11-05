@@ -30,10 +30,14 @@ export default function PlatformLayout() {
 
     return (
         <div className="min-h-screen bg-slate-950 font-sans text-slate-100 flex flex-col antialiased selection:bg-indigo-500 selection:text-white relative">
+            {/* Dot/Grid Pattern Overlay */}
+            <div className="pointer-events-none fixed inset-0 z-0" style={{backgroundImage: 'radial-gradient(circle, rgba(148,163,184,0.04) 1px, transparent 1px)', backgroundSize: '28px 28px'}} />
+
             {/* Ambient Background Glow */}
-            <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-30">
+            <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-40">
                 <div className="absolute -top-40 -left-40 h-96 w-96 rounded-full bg-indigo-600/20 blur-3xl" />
                 <div className="absolute top-1/3 -right-40 h-96 w-96 rounded-full bg-emerald-600/10 blur-3xl" />
+                <div className="absolute bottom-0 left-1/2 -translate-x-1/2 h-64 w-96 rounded-full bg-violet-600/8 blur-3xl" />
             </div>
 
             {/* Platform Top Header */}

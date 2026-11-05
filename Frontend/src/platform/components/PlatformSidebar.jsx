@@ -57,7 +57,7 @@ export default function PlatformSidebar({ isOpen, onClose }) {
 
     return (
         <aside
-            className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-800/80 bg-slate-900/95 p-4 text-slate-300 backdrop-blur-xl transition-transform duration-300 ease-in-out lg:static lg:z-auto lg:translate-x-0 ${
+            className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-800/60 bg-slate-900/95 px-3 py-4 text-slate-300 backdrop-blur-xl transition-transform duration-300 ease-in-out lg:static lg:z-auto lg:translate-x-0 ${
                 isOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
             }`}
         >
@@ -76,7 +76,7 @@ export default function PlatformSidebar({ isOpen, onClose }) {
             </div>
 
             {/* Navigation Sections */}
-            <nav className="flex-1 space-y-6 overflow-y-auto pr-1 py-1 custom-scrollbar">
+            <nav className="flex-1 space-y-5 overflow-y-auto pr-1 py-1 custom-scrollbar">
                 {navSections.map((section) => {
                     const accessible = section.items.filter(
                         (item) => !item.permission || hasPermission(item.permission)
@@ -85,7 +85,7 @@ export default function PlatformSidebar({ isOpen, onClose }) {
 
                     return (
                         <div key={section.title} className="space-y-1.5">
-                            <div className="px-3 text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                            <div className="px-3 mb-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
                                 {section.title}
                             </div>
                             <div className="space-y-0.5">
@@ -100,10 +100,10 @@ export default function PlatformSidebar({ isOpen, onClose }) {
                                             key={item.path}
                                             to={item.path}
                                             onClick={onClose}
-                                            className={`group flex items-center gap-3 rounded-lg px-3 py-2 text-xs font-medium transition-all duration-150 ${
+                                            className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-xs font-medium transition-all duration-150 ${
                                                 isActive
-                                                    ? "bg-indigo-600/15 text-indigo-300 font-semibold border border-indigo-500/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
-                                                    : "text-slate-400 hover:bg-slate-800/60 hover:text-slate-200"
+                                                    ? "relative overflow-hidden bg-indigo-600/20 text-indigo-200 font-semibold border border-indigo-500/40 shadow-[0_0_12px_rgba(99,102,241,0.15)] before:absolute before:left-0 before:inset-y-1 before:w-0.5 before:rounded-r before:bg-indigo-400"
+                                                    : "text-slate-400 hover:bg-slate-800/70 hover:text-slate-100 hover:translate-x-0.5"
                                             }`}
                                         >
                                             <Icon
@@ -113,7 +113,7 @@ export default function PlatformSidebar({ isOpen, onClose }) {
                                             />
                                             <span>{item.label}</span>
                                             {isActive && (
-                                                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-indigo-400 shadow-[0_0_6px_rgba(129,140,248,0.8)]" />
+                                                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-indigo-300 shadow-[0_0_8px_rgba(165,180,252,0.9)] animate-pulse" />
                                             )}
                                         </Link>
                                     );
@@ -126,15 +126,16 @@ export default function PlatformSidebar({ isOpen, onClose }) {
 
             {/* Bottom Status Card */}
             <div className="mt-auto pt-4 border-t border-slate-800/70">
-                <div className="rounded-xl border border-slate-800/80 bg-slate-950/60 p-3 text-[11px]">
-                    <div className="flex items-center justify-between text-slate-300 font-semibold">
-                        <span>Leap Engine</span>
-                        <span className="font-mono text-[10px] text-indigo-400">v2.4 LTS</span>
+                <div className="rounded-xl border border-slate-700/60 bg-gradient-to-b from-slate-800/40 to-slate-900/60 p-3 text-[11px] shadow-inner">
+                    <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-200 tracking-tight">Leap Engine</span>
+                        <span className="font-mono text-[10px] rounded-md bg-indigo-500/15 border border-indigo-500/25 px-1.5 py-0.5 text-indigo-300">v2.4 LTS</span>
                     </div>
-                    <div className="mt-1 flex items-center gap-1.5 text-slate-400">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                        <span>Security & Ledger OK</span>
+                    <div className="mt-2 flex items-center gap-1.5 text-slate-400">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.7)]" />
+                        <span className="text-emerald-300/80">All Systems Healthy</span>
                     </div>
+                    <div className="mt-1.5 text-[10px] text-slate-500">Security &amp; Ledger verified</div>
                 </div>
             </div>
         </aside>
