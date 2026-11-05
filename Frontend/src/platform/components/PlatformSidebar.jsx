@@ -69,6 +69,7 @@ export default function PlatformSidebar({ isOpen, onClose }) {
                 <button
                     type="button"
                     onClick={onClose}
+                    aria-label="Close navigation"
                     className="rounded-lg p-1 text-slate-400 hover:bg-slate-800 hover:text-white"
                 >
                     <XIcon className="h-5 w-5" />
