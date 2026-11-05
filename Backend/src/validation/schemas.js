@@ -193,7 +193,7 @@ const createPlanSchema = z.object({
     name: z.string().trim().min(1).max(100),
     priceMonthly: z.coerce.number().min(0),
     priceYearly: z.coerce.number().min(0),
-    currency: z.string().trim().min(1).max(10).default("USD"),
+    currency: z.string().trim().min(1).max(10).default("EGP"),
     features: z.array(z.string()).default([]),
     allowedRoles: z.array(z.string()).default([]),
     limits: z.object({

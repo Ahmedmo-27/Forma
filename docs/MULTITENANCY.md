@@ -180,8 +180,8 @@ Content-Type: application/json
       }
     },
     "locale": {
-      "currency": "USD",
-      "timezone": "America/New_York",
+      "currency": "EGP",
+      "timezone": "Africa/Cairo",
       "language": "en"
     },
     "enabledActivities": ["gym", "crossfit", "box"]

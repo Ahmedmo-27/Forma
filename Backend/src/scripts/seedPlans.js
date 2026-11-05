@@ -16,9 +16,9 @@ const DEFAULT_PLANS = [
     {
         key: "basic",
         name: "Basic Plan",
-        priceMonthly: 29,
-        priceYearly: 290,
-        currency: "USD",
+        priceMonthly: 1500,
+        priceYearly: 15000,
+        currency: "EGP",
         features: ["members", "checkin", "packages", "pt_tracking", "audit"],
         allowedRoles: ["Owner", "Receptionist", "Coach", "Coach Manager"],
         limits: {
@@ -31,9 +31,9 @@ const DEFAULT_PLANS = [
     {
         key: "gold",
         name: "Gold Plan",
-        priceMonthly: 79,
-        priceYearly: 790,
-        currency: "USD",
+        priceMonthly: 3500,
+        priceYearly: 35000,
+        currency: "EGP",
         features: [
             "members",
             "checkin",
@@ -65,9 +65,9 @@ const DEFAULT_PLANS = [
     {
         key: "platinum",
         name: "Platinum Plan",
-        priceMonthly: 149,
-        priceYearly: 1490,
-        currency: "USD",
+        priceMonthly: 6500,
+        priceYearly: 65000,
+        currency: "EGP",
         features: [
             "members",
             "checkin",
@@ -109,7 +109,7 @@ async function seedPlans(options = {}) {
     const results = [];
 
     for (const planDef of DEFAULT_PLANS) {
-        console.log(`Plan [${planDef.key.toUpperCase()}]: ${planDef.name} ($${planDef.priceMonthly}/mo)`);
+        console.log(`Plan [${planDef.key.toUpperCase()}]: ${planDef.name} (${planDef.priceMonthly} ${planDef.currency}/mo)`);
         console.log(`  Features: ${planDef.features.join(", ")}`);
         console.log(`  Allowed Roles: ${planDef.allowedRoles.join(", ")}`);
 

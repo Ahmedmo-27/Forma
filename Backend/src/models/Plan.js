@@ -53,7 +53,7 @@ const planSchema = new mongoose.Schema(
         },
         currency: {
             type: String,
-            default: "USD",
+            default: "EGP",
             uppercase: true,
             trim: true,
         },
