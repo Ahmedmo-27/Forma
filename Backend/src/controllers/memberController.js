@@ -1070,8 +1070,19 @@ const getAllNotes = async (req, res) => {
             {
                 $lookup: {
                     from: "users",
-                    localField: "notes.createdBy",
-                    foreignField: "_id",
+                    let: { authorId: "$notes.createdBy" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$_id", "$$authorId"] },
+                                        ...(req.user?.tenantId ? [{ $eq: ["$tenantId", new mongoose.Types.ObjectId(req.user.tenantId)] }] : []),
+                                    ],
+                                },
+                            },
+                        },
+                    ],
                     as: "noteAuthor",
                 },
             },
@@ -1079,8 +1090,19 @@ const getAllNotes = async (req, res) => {
             {
                 $lookup: {
                     from: "users",
-                    localField: "assignedSales",
-                    foreignField: "_id",
+                    let: { salesId: "$assignedSales" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $and: [
+                                        { $eq: ["$_id", "$$salesId"] },
+                                        ...(req.user?.tenantId ? [{ $eq: ["$tenantId", new mongoose.Types.ObjectId(req.user.tenantId)] }] : []),
+                                    ],
+                                },
+                            },
+                        },
+                    ],
                     as: "salesRep",
                 },
             },
@@ -1809,10 +1831,11 @@ const bulkTransferCoach = async (req, res) => {
             return res.status(400).json({ message: "Invalid coach — user not found or not a Coach role" });
         }
 
-        // Use bulkWrite for speed instead of saving one by one
+        // Use bulkWrite for speed instead of saving one by one — explicitly scope each op to tenant
+        const tenantFilter = req.user?.tenantId ? { tenantId: req.user.tenantId } : {};
         const bulkOps = memberIds.map(id => ({
             updateOne: {
-                filter: { _id: id },
+                filter: { _id: id, ...tenantFilter },
                 update: {
                     $set: { current_couch: coachId, couch_subscription_status: "active" },
                     $push: {

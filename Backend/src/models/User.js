@@ -1,17 +1,20 @@
 const mongoose = require("mongoose");
-const userSchema = new mongoose.Schema({
+const tenantPlugin = require("../plugins/tenantPlugin");
 
+const userSchema = new mongoose.Schema({
     name: String,
 
     email: {
         type: String,
-        unique: true
+        required: true,
+        trim: true,
+        lowercase: true,
     },
 
     username: String,
-    mobile_number:String,
+    mobile_number: String,
     password: String,
-    
+
     canViewPhones: {
         type: Boolean,
         default: true,
@@ -19,7 +22,7 @@ const userSchema = new mongoose.Schema({
 
     role: {
         type: String,
-        enum: ["Owner", "Receptionist", "Coach","Coach Manager", "Accountant", "Sales", "Sales Manager"],
+        enum: ["Owner", "Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"],
         default: "Receptionist"
     },
 
@@ -34,7 +37,9 @@ const userSchema = new mongoose.Schema({
         canRequestTakeover: { type: Boolean, default: true },
         canSendWhatsAppTemplates: { type: Boolean, default: true },
     }
-
 }, { timestamps: true });
 
-module.exports = mongoose.model("User", userSchema)
+userSchema.plugin(tenantPlugin);
+userSchema.index({ tenantId: 1, email: 1 }, { unique: true });
+
+module.exports = mongoose.model("User", userSchema);

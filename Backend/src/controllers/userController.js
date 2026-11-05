@@ -1,8 +1,10 @@
 const User = require("../models/User");
+const Tenant = require("../models/Tenant");
 const jwt = require("jsonwebtoken");
 const { formatUserResponse } = require("../utils/userAbilities");
 const logger = require("../utils/logger");
 const { hashPassword, verifyPassword, normalizeEmail } = require("../utils/passwordUtils");
+const { runWithTenant, runAsPlatform } = require("../context/tenantContext");
 const {
     getLockState,
     recordLoginFailure,
@@ -117,7 +119,55 @@ const loginUser = async (req, res) => {
             });
         }
 
-        const user = await User.findOne({ email });
+        // 1. Resolve tenant from subdomain, header, or body gym code/slug
+        let gymSlug = req.get("x-tenant-slug") || req.get("x-gym-code") || req.body?.gymCode || req.body?.gymSlug;
+        if (!gymSlug) {
+            const host = req.get("host") || "";
+            const hostNoPort = host.split(":")[0];
+            const parts = hostNoPort.split(".");
+            if (parts.length > 2 && !["www", "api", "app", "localhost"].includes(parts[0])) {
+                gymSlug = parts[0];
+            }
+        }
+
+        let tenant = null;
+        if (gymSlug) {
+            tenant = await runAsPlatform(async () => {
+                return await Tenant.findOne({ slug: String(gymSlug).toLowerCase().trim() });
+            });
+            if (!tenant) {
+                return res.status(404).json({
+                    code: "TENANT_NOT_FOUND",
+                    message: "Gym not found. Please verify your gym domain or gym code.",
+                });
+            }
+        } else {
+            // Fallback for default tenant or single-tenant backwards compatibility
+            tenant = await runAsPlatform(async () => {
+                return (await Tenant.findOne({ slug: "leap" })) || (await Tenant.findOne());
+            });
+        }
+
+        if (tenant) {
+            if (tenant.status === "suspended" || tenant.status === "cancelled") {
+                return res.status(403).json({
+                    code: "TENANT_SUSPENDED",
+                    message: "This gym's subscription is suspended or cancelled. Please contact your administrator.",
+                });
+            }
+        }
+
+        let user = null;
+        if (tenant) {
+            await runWithTenant({ tenantId: tenant._id.toString(), tenantSlug: tenant.slug }, async () => {
+                user = await User.findOne({ email });
+            });
+        } else {
+            await runAsPlatform(async () => {
+                user = await User.findOne({ email });
+            });
+        }
+
         if (!user) {
             const fail = recordLoginFailure(email);
             logger.auth("warn", "Login failed: invalid credentials", {
@@ -149,15 +199,25 @@ const loginUser = async (req, res) => {
 
         if (needsRehash) {
             user.password = await hashPassword(req.body.password);
-            await user.save();
+            await runAsPlatform(async () => {
+                await user.save();
+            });
             logger.auth("info", "Password rehashed to current cost factor", {
                 requestId,
                 userId: user._id.toString(),
             });
         }
 
+        const effectiveTenantId = tenant ? tenant._id.toString() : (user.tenantId ? user.tenantId.toString() : null);
+        const effectiveTenantSlug = tenant ? tenant.slug : null;
+
         const token = jwt.sign(
-            { id: user.id, role: user.role },
+            {
+                id: user.id,
+                role: user.role,
+                tenantId: effectiveTenantId,
+                tenantSlug: effectiveTenantSlug,
+            },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
         );

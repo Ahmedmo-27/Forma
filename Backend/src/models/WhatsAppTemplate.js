@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const SENDABLE_ROLES = [
     "Owner",
@@ -94,6 +95,10 @@ const whatsAppTemplateSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+whatsAppTemplateSchema.plugin(tenantPlugin);
+whatsAppTemplateSchema.index({ tenantId: 1, name: 1, type: 1 });
+whatsAppTemplateSchema.index({ tenantId: 1, type: 1, isDefault: 1 });
 
 module.exports = mongoose.model("WhatsAppTemplate", whatsAppTemplateSchema);
 module.exports.SENDABLE_ROLES = SENDABLE_ROLES;

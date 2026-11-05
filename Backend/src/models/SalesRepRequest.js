@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const salesRepRequestSchema = new mongoose.Schema({
     member: {
@@ -17,5 +18,8 @@ const salesRepRequestSchema = new mongoose.Schema({
         default: "pending"
     }
 }, { timestamps: true });
+
+salesRepRequestSchema.plugin(tenantPlugin);
+salesRepRequestSchema.index({ tenantId: 1, member: 1, status: 1 });
 
 module.exports = mongoose.model("SalesRepRequest", salesRepRequestSchema);

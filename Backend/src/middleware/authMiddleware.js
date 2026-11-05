@@ -1,10 +1,12 @@
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const Tenant = require("../models/Tenant");
 const logger = require("../utils/logger");
+const { runWithTenant, runAsPlatform } = require("../context/tenantContext");
 
 /**
- * Verifies Bearer JWT and reloads the user from DB so role/ability changes
- * take effect without waiting for token expiry.
+ * Verifies Bearer JWT, validates tenant status, reloads user from DB,
+ * and initializes AsyncLocalStorage tenant context for all downstream operations.
  */
 const protect = async (req, res, next) => {
     let token;
@@ -31,7 +33,24 @@ const protect = async (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id).select("-password");
+
+        let tenantId = decoded.tenantId || null;
+        let tenantSlug = decoded.tenantSlug || null;
+
+        let user = null;
+        if (tenantId) {
+            await runWithTenant({ tenantId, tenantSlug }, async () => {
+                user = await User.findById(decoded.id).select("-password");
+            });
+        } else {
+            // Legacy / migration fallback: look up user across platform
+            await runAsPlatform(async () => {
+                user = await User.findById(decoded.id).select("-password");
+                if (user?.tenantId) {
+                    tenantId = user.tenantId.toString();
+                }
+            }, { reason: "auth_token_legacy_tenant_lookup" });
+        }
 
         if (!user) {
             logger.auth("warn", "Auth middleware: user not found for token", {
@@ -41,14 +60,40 @@ const protect = async (req, res, next) => {
             return res.status(401).json({ message: "Not authorized, user not found" });
         }
 
+        if (tenantId) {
+            // Validate tenant status
+            const tenant = await runAsPlatform(async () => {
+                return await Tenant.findById(tenantId);
+            });
+
+            if (tenant) {
+                if (tenant.status === "suspended" || tenant.status === "cancelled") {
+                    return res.status(403).json({
+                        code: "TENANT_SUSPENDED",
+                        message: "Your gym's subscription is suspended or cancelled. Please contact your administrator.",
+                    });
+                }
+                tenantSlug = tenant.slug;
+            }
+        }
+
         req.user = {
             id: user._id.toString(),
             role: user.role,
             name: user.name,
             email: user.email,
             canViewPhones: user.canViewPhones,
+            tenantId: tenantId ? String(tenantId) : null,
+            tenantSlug,
         };
-        next();
+
+        if (tenantId) {
+            runWithTenant({ tenantId, tenantSlug }, () => {
+                next();
+            });
+        } else {
+            next();
+        }
     } catch (err) {
         logger.auth("warn", "Auth middleware: token verification failed", {
             path: req.originalUrl,

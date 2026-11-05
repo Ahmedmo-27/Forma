@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const packageSchema = new mongoose.Schema({
-
     name: {
         type: String,
         required: true,
@@ -10,7 +10,6 @@ const packageSchema = new mongoose.Schema({
 
     activityType: {
         type: String,
-        enum: ["gym", "crossfit", "box", "mma", "kickboxing", "calisthenics"],
         default: "gym"
     },
 
@@ -87,6 +86,11 @@ const packageSchema = new mongoose.Schema({
     }
 
 },
-    {timestamps:true}
+    { timestamps: true }
 );
+
+packageSchema.plugin(tenantPlugin);
+packageSchema.index({ tenantId: 1, name: 1, hasException: 1 });
+packageSchema.index({ tenantId: 1, isActive: 1 });
+
 module.exports = mongoose.model("Package", packageSchema);

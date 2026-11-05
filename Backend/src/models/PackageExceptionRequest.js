@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const packageExceptionRequestSchema = new mongoose.Schema({
     member: {
@@ -30,7 +31,6 @@ const packageExceptionRequestSchema = new mongoose.Schema({
     name: { type: String, required: true },
     activityType: {
         type: String,
-        enum: ["gym", "crossfit", "box", "mma", "kickboxing", "calisthenics"],
         required: true
     },
     duration: {
@@ -61,6 +61,7 @@ const packageExceptionRequestSchema = new mongoose.Schema({
     reviewNote: { type: String, default: null }
 }, { timestamps: true });
 
-packageExceptionRequestSchema.index({ member: 1, status: 1 });
+packageExceptionRequestSchema.plugin(tenantPlugin);
+packageExceptionRequestSchema.index({ tenantId: 1, member: 1, status: 1 });
 
 module.exports = mongoose.model("PackageExceptionRequest", packageExceptionRequestSchema);

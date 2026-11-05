@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const noteSchema = new mongoose.Schema({
     text: {
@@ -99,7 +100,6 @@ const packageSnapshotSchema = new mongoose.Schema({
     name: { type: String, required: true },
     activityType: {
         type: String,
-        enum: ["gym", "crossfit", "box", "mma", "kickboxing", "calisthenics"],
         default: "gym"
     },
     duration: {
@@ -202,21 +202,18 @@ const memberSchema = new mongoose.Schema({
     // Given to everyone added to the system (guests + members). Used for search.
     systemId: {
         type: Number,
-        unique: true,
         sparse: true
     },
 
     // Given only when a person subscribes. Used for check-in and search.
     memberId: {
         type: Number,
-        unique: true,
         sparse: true,
     },
 
     // Barcode string for card/keytag scanning. Generated from memberId.
     barcode: {
         type: String,
-        unique: true,
         sparse: true,
         index: true,
     },
@@ -386,14 +383,20 @@ blockedAt: {
 
 }, { timestamps: true });
 
-// ── Indexes for performance ───────────────────────────────────────────────────
-memberSchema.index({ status: 1, systemId: 1 });
-memberSchema.index({ assignedSales: 1, status: 1 });
-memberSchema.index({ assignedSales: 1, systemId: 1 });
-memberSchema.index({ "subscriptions.startDate": 1 });
-memberSchema.index({ current_couch: 1 });
-memberSchema.index({ isBlocked: 1 });
-memberSchema.index({ name: 1 });
-memberSchema.index({ phones: 1 });
+memberSchema.plugin(tenantPlugin);
+
+// ── Compound Indexes for Multi-Tenant Performance & Isolation ────────────────
+memberSchema.index({ tenantId: 1, systemId: 1 }, { unique: true, sparse: true });
+memberSchema.index({ tenantId: 1, memberId: 1 }, { unique: true, sparse: true });
+memberSchema.index({ tenantId: 1, barcode: 1 }, { unique: true, sparse: true });
+
+memberSchema.index({ tenantId: 1, status: 1, systemId: 1 });
+memberSchema.index({ tenantId: 1, assignedSales: 1, status: 1 });
+memberSchema.index({ tenantId: 1, assignedSales: 1, systemId: 1 });
+memberSchema.index({ tenantId: 1, "subscriptions.startDate": 1 });
+memberSchema.index({ tenantId: 1, current_couch: 1 });
+memberSchema.index({ tenantId: 1, isBlocked: 1 });
+memberSchema.index({ tenantId: 1, name: 1 });
+memberSchema.index({ tenantId: 1, phones: 1 });
 
 module.exports = mongoose.model("Member", memberSchema);

@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const notificationSchema = new mongoose.Schema({
     recipient: {
@@ -39,6 +40,7 @@ const notificationSchema = new mongoose.Schema({
     },
 }, { timestamps: true });
 
-notificationSchema.index({ recipient: 1, read: 1, createdAt: -1 });
+notificationSchema.plugin(tenantPlugin);
+notificationSchema.index({ tenantId: 1, recipient: 1, read: 1, createdAt: -1 });
 
 module.exports = mongoose.model("Notification", notificationSchema);

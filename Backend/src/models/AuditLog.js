@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 /**
  * Durable audit trail for sensitive mutations (exceptions, freezes, package assign, staff).
@@ -20,6 +21,9 @@ const auditLogSchema = new mongoose.Schema({
             "upload_accessed",
             "phone_privacy_updated",
             "whatsapp_template_sent",
+            "platform_impersonation",
+            "tenant_status_updated",
+            "plan_updated",
         ],
     },
     actor: {
@@ -30,7 +34,7 @@ const auditLogSchema = new mongoose.Schema({
     actorRole: { type: String, default: null },
     targetType: {
         type: String,
-        enum: ["member", "user", "package_exception", "upload", "other"],
+        enum: ["member", "user", "package_exception", "upload", "tenant", "plan", "other"],
         default: "other",
     },
     targetId: { type: String, default: null },
@@ -39,7 +43,8 @@ const auditLogSchema = new mongoose.Schema({
     requestId: { type: String, default: null },
 }, { timestamps: true });
 
-auditLogSchema.index({ action: 1, createdAt: -1 });
-auditLogSchema.index({ targetId: 1, createdAt: -1 });
+auditLogSchema.plugin(tenantPlugin);
+auditLogSchema.index({ tenantId: 1, action: 1, createdAt: -1 });
+auditLogSchema.index({ tenantId: 1, targetId: 1, createdAt: -1 });
 
 module.exports = mongoose.model("AuditLog", auditLogSchema);
