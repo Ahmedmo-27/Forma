@@ -36,16 +36,25 @@ const {
     bulkTenantActions,
 } = require("../controllers/platformTenantController");
 const {
+    getFeatures,
+    createFeature,
+    updateFeature,
     getPlans,
     createPlan,
+    getPlanImpactPreview,
     updatePlan,
-    getTenants,
-    getTenantById,
-    createTenant,
-    updateTenantStatus,
-    updateTenantPlan,
-    impersonateTenant,
-} = require("../controllers/platformController");
+    archivePlan,
+    getPlanPrices,
+    createPlanPrice,
+    updatePlanPrice,
+    togglePlanPriceSales,
+    getCoupons,
+    createCoupon,
+    updateCoupon,
+    deleteCoupon,
+} = require("../controllers/platformPlanController");
+
+const { impersonateTenant } = require("../controllers/platformController");
 
 const {
     createPlanSchema,
@@ -80,10 +89,30 @@ router.delete("/users/:id", requirePlatformPermission(PERMISSIONS.PLATFORM_USERS
 router.post("/users/:id/reset-mfa", requirePlatformPermission(PERMISSIONS.PLATFORM_USERS_REVOKE), resetUserMfa);
 router.post("/users/:id/revoke-sessions", requirePlatformPermission(PERMISSIONS.PLATFORM_USERS_REVOKE), revokeUserSessions);
 
-// Plans & Features (Phase 3 will expand)
+// ==========================================
+// Features & Plans Management (Phase 3)
+// ==========================================
+router.get("/features", requirePlatformPermission(PERMISSIONS.TENANTS_READ), getFeatures);
+router.post("/features", requirePlatformPermission(PERMISSIONS.FEATURES_MANAGE), createFeature);
+router.patch("/features/:id", requirePlatformPermission(PERMISSIONS.FEATURES_MANAGE), updateFeature);
+
 router.get("/plans", requirePlatformPermission(PERMISSIONS.TENANTS_READ), getPlans);
-router.post("/plans", requirePlatformPermission(PERMISSIONS.PLANS_MANAGE), validate(createPlanSchema), createPlan);
-router.patch("/plans/:id", requirePlatformPermission(PERMISSIONS.PLANS_MANAGE), validate(updatePlanSchema), updatePlan);
+router.post("/plans", requirePlatformPermission(PERMISSIONS.PLANS_MANAGE), createPlan);
+router.post("/plans/:id/impact-preview", requirePlatformPermission(PERMISSIONS.PLANS_MANAGE), getPlanImpactPreview);
+router.patch("/plans/:id", requirePlatformPermission(PERMISSIONS.PLANS_MANAGE), updatePlan);
+router.post("/plans/:id/archive", requirePlatformPermission(PERMISSIONS.PLANS_MANAGE), archivePlan);
+
+// Pricing Tiers & Lifetime Seat Caps
+router.get("/prices", requirePlatformPermission(PERMISSIONS.TENANTS_READ), getPlanPrices);
+router.post("/prices", requirePlatformPermission(PERMISSIONS.PRICING_MANAGE), createPlanPrice);
+router.patch("/prices/:id", requirePlatformPermission(PERMISSIONS.PRICING_MANAGE), updatePlanPrice);
+router.post("/prices/:id/toggle-sales", requirePlatformPermission(PERMISSIONS.PRICING_MANAGE), togglePlanPriceSales);
+
+// Coupons & Promotions
+router.get("/coupons", requirePlatformPermission(PERMISSIONS.PRICING_MANAGE), getCoupons);
+router.post("/coupons", requirePlatformPermission(PERMISSIONS.PRICING_MANAGE), createCoupon);
+router.patch("/coupons/:id", requirePlatformPermission(PERMISSIONS.PRICING_MANAGE), updateCoupon);
+router.delete("/coupons/:id", requirePlatformPermission(PERMISSIONS.PRICING_MANAGE), deleteCoupon);
 
 // ==========================================
 // Tenants Management & Subscriber Operations (Phase 2)
