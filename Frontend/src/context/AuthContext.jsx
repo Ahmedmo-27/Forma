@@ -50,17 +50,16 @@ export function AuthProvider({ children }) {
       .finally(() => setChecked(true));
   }, []);
 
-  const signIn = useCallback(async (email, password, gymCode) => {
+  const signIn = useCallback(async (email, password) => {
     const apiUrl = import.meta.env.BACKEND_ORIGIN || import.meta.env.VITE_API_URL;
     console.info('[auth] Login attempt', {
       apiUrl: apiUrl || '(missing BACKEND_ORIGIN)',
       email: email?.trim(),
-      gymCode: gymCode?.trim(),
       passwordLength: password?.length ?? 0,
     });
 
     try {
-      const res = await loginApi(email, password, gymCode);
+      const res = await loginApi(email, password);
       const { token, user: u } = res.data;
       localStorage.setItem('ff_token', token);
       localStorage.setItem('ff_user', JSON.stringify(u));
@@ -87,6 +86,7 @@ export function AuthProvider({ children }) {
   const signOut = useCallback(() => {
     localStorage.removeItem('ff_token');
     localStorage.removeItem('ff_user');
+    localStorage.removeItem('ff_tenant_slug');
     setUser(null);
   }, []);
 

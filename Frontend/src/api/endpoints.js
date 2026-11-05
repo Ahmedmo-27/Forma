@@ -1,8 +1,8 @@
 import api from './axios';
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-export const login        = (email, password, gymCode) =>
-  api.post('/users/login', { email, password, gymCode });
+export const login        = (email, password) =>
+  api.post('/users/login', { email, password });
 
 export const getSalesUsers   = () => api.get('/users/sales');
 export const getReceptionists = () => api.get('/users/receptionists');

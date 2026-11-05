@@ -17,8 +17,8 @@ In this architecture, each gym operates as an isolated subscriber ("tenant") wit
 ### 2.1 Context Isolation via `AsyncLocalStorage`
 - Every request entering the system resolves the tenant identity from:
   1. The cryptographically verified JWT payload (`user.tenantId`, `user.tenantSlug`).
-  2. The subdomain (e.g. `leap.leapgym.com` → slug `leap`).
-  3. The `X-Tenant-Slug` request header or `gymCode` body parameter during login.
+  2. The subdomain (optional fallback: e.g. `leap.leapgym.com` → slug `leap`).
+  3. During login, user identity resolves their tenant directly, embedding tenant context into the token.
 - **Rule of Engagement:** The system **never** trusts `tenantId` passed in request bodies, query strings, or URL parameters for queries. It is established exclusively by the authentication middleware and stored in Node.js `AsyncLocalStorage` (`tenantContext.js`).
 
 ### 2.2 Schema-Level Mongoose Plugin (`tenantPlugin.js`)

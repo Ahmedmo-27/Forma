@@ -15,6 +15,11 @@ const {
 } = require("../context/tenantContext");
 const Member = require("../models/Member");
 const User = require("../models/User");
+const Tenant = require("../models/Tenant");
+const { loginUser } = require("../controllers/userController");
+const { hashPassword } = require("../utils/passwordUtils");
+const jwt = require("jsonwebtoken");
+const { protect } = require("../middleware/authMiddleware");
 
 describe("Phase 9: Multi-Tenancy System Tests", () => {
     const tenantAId = new mongoose.Types.ObjectId().toString();
@@ -292,6 +297,105 @@ describe("Phase 9: Multi-Tenancy System Tests", () => {
 
             const canAccess = canAccessMemberUpload(staffTenantA, memberTenantA);
             expect(canAccess).toBe(true);
+        });
+    });
+
+    describe("5. Token-Only Login & Tenant Resolution (No Gym Code Required)", () => {
+        beforeEach(() => {
+            vi.restoreAllMocks();
+            process.env.JWT_SECRET = "test-jwt-secret-key-12345";
+        });
+
+        it("logs in successfully with only email & password (no gymCode) and issues tenant token", async () => {
+            const tenantId = new mongoose.Types.ObjectId().toString();
+            const userId = new mongoose.Types.ObjectId().toString();
+            const hashedPassword = await hashPassword("StrongP@ssw0rd!");
+
+            const mockUser = {
+                _id: userId,
+                id: userId,
+                name: "Test Staff",
+                email: "staff@powergym.com",
+                password: hashedPassword,
+                role: "Sales",
+                tenantId: new mongoose.Types.ObjectId(tenantId),
+                abilities: {},
+                monthlyTarget: 0,
+                createdAt: new Date(),
+            };
+
+            const mockTenant = {
+                _id: new mongoose.Types.ObjectId(tenantId),
+                name: "Power Gym",
+                slug: "power-gym",
+                status: "active",
+            };
+
+            vi.spyOn(User, "find").mockResolvedValue([mockUser]);
+            vi.spyOn(Tenant, "findById").mockResolvedValue(mockTenant);
+
+            const req = {
+                body: {
+                    email: "staff@powergym.com",
+                    password: "StrongP@ssw0rd!",
+                    // NO gymCode or gymSlug passed
+                },
+                get: vi.fn().mockReturnValue(null), // NO x-tenant-slug or x-gym-code headers
+                ip: "127.0.0.1",
+            };
+
+            let responseStatus = 200;
+            let responseData = null;
+            const res = {
+                status: vi.fn().mockImplementation((code) => {
+                    responseStatus = code;
+                    return res;
+                }),
+                json: vi.fn().mockImplementation((data) => {
+                    responseData = data;
+                    return res;
+                }),
+            };
+
+            await loginUser(req, res);
+
+            expect(responseStatus).toBe(200);
+            expect(responseData.message).toBe("Login successful");
+            expect(responseData.token).toBeDefined();
+
+            // Verify JWT token has tenantId and tenantSlug
+            const decoded = jwt.verify(responseData.token, process.env.JWT_SECRET);
+            expect(decoded.tenantId).toBe(tenantId);
+            expect(decoded.tenantSlug).toBe("power-gym");
+            expect(decoded.id).toBe(userId);
+            expect(decoded.role).toBe("Sales");
+
+            // Verify returned user has tenantSlug
+            expect(responseData.user.tenantSlug).toBe("power-gym");
+            expect(responseData.user.email).toBe("staff@powergym.com");
+
+            // Verify protect middleware extracts tenantId and tenantSlug from token only
+            vi.spyOn(User, "findById").mockReturnValue({
+                select: vi.fn().mockResolvedValue(mockUser),
+            });
+            const protectReq = {
+                headers: {
+                    authorization: `Bearer ${responseData.token}`,
+                },
+                originalUrl: "/api/members",
+                method: "GET",
+                ip: "127.0.0.1",
+            };
+            const protectRes = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+            const next = vi.fn();
+
+            await protect(protectReq, protectRes, next);
+            expect(next).toHaveBeenCalled();
+            expect(protectReq.user.tenantId).toBe(tenantId);
+            expect(protectReq.user.tenantSlug).toBe("power-gym");
         });
     });
 });

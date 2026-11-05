@@ -119,56 +119,63 @@ const loginUser = async (req, res) => {
             });
         }
 
-        // 1. Resolve tenant from body gym code/slug, header, or subdomain
-        let gymSlug = req.body?.gymCode || req.body?.gymSlug || req.get("x-tenant-slug") || req.get("x-gym-code");
-        if (!gymSlug) {
+        // Look up candidate user(s) matching email across platform
+        const candidateUsers = await runAsPlatform(async () => {
+            return await User.find({ email });
+        });
+
+        if (!candidateUsers || candidateUsers.length === 0) {
+            const fail = recordLoginFailure(email);
+            logger.auth("warn", "Login failed: invalid credentials", {
+                requestId,
+                failureCount: fail.count,
+                locked: Boolean(fail.lockedUntil),
+            });
+            return respondAfterLoginFailure(res, fail);
+        }
+
+        let user = null;
+        let verifiedNeedsRehash = false;
+
+        // Optional gym hint (subdomain / legacy header / body) if available
+        let gymHint = req.body?.gymCode || req.body?.gymSlug || req.get("x-tenant-slug") || req.get("x-gym-code");
+        if (!gymHint) {
             const host = req.get("host") || "";
             const hostNoPort = host.split(":")[0];
             const isPlatformHost = /\.(onrender\.com|render\.com|railway\.app|vercel\.app|herokuapp\.com|netlify\.app|elasticbeanstalk\.com|azurewebsites\.net)$/i.test(hostNoPort);
             if (!isPlatformHost) {
                 const parts = hostNoPort.split(".");
                 if (parts.length > 2 && !["www", "api", "app", "localhost"].includes(parts[0])) {
-                    gymSlug = parts[0];
+                    gymHint = parts[0];
                 }
             }
         }
 
-        let tenant = null;
-        if (gymSlug) {
-            tenant = await runAsPlatform(async () => {
-                return await Tenant.findOne({ slug: String(gymSlug).toLowerCase().trim() });
+        let sortedCandidates = candidateUsers;
+        if (gymHint && candidateUsers.length > 1) {
+            const hintTenant = await runAsPlatform(async () => {
+                return await Tenant.findOne({ slug: String(gymHint).toLowerCase().trim() });
             });
-            if (!tenant) {
-                return res.status(404).json({
-                    code: "TENANT_NOT_FOUND",
-                    message: "Gym not found. Please verify your gym domain or gym code.",
-                });
-            }
-        } else {
-            // Fallback for default tenant or single-tenant backwards compatibility
-            tenant = await runAsPlatform(async () => {
-                return (await Tenant.findOne({ slug: "leap" })) || (await Tenant.findOne());
-            });
-        }
-
-        if (tenant) {
-            if (tenant.status === "suspended" || tenant.status === "cancelled") {
-                return res.status(403).json({
-                    code: "TENANT_SUSPENDED",
-                    message: "This gym's subscription is suspended or cancelled. Please contact your administrator.",
+            if (hintTenant) {
+                sortedCandidates = [...candidateUsers].sort((a, b) => {
+                    const aMatch = String(a.tenantId) === String(hintTenant._id);
+                    const bMatch = String(b.tenantId) === String(hintTenant._id);
+                    return bMatch - aMatch;
                 });
             }
         }
 
-        let user = null;
-        if (tenant) {
-            await runWithTenant({ tenantId: tenant._id.toString(), tenantSlug: tenant.slug }, async () => {
-                user = await User.findOne({ email });
-            });
-        } else {
-            await runAsPlatform(async () => {
-                user = await User.findOne({ email });
-            });
+        for (const candidate of sortedCandidates) {
+            const { match, compareSkipped, needsRehash } = await verifyPassword(
+                req.body.password,
+                candidate.password,
+                { requestId, userId: candidate._id.toString() }
+            );
+            if (!compareSkipped && match) {
+                user = candidate;
+                verifiedNeedsRehash = needsRehash;
+                break;
+            }
         }
 
         if (!user) {
@@ -181,26 +188,9 @@ const loginUser = async (req, res) => {
             return respondAfterLoginFailure(res, fail);
         }
 
-        const { match, compareSkipped, needsRehash } = await verifyPassword(
-            req.body.password,
-            user.password,
-            { requestId, userId: user._id.toString() }
-        );
-
-        if (compareSkipped || !match) {
-            const fail = recordLoginFailure(email);
-            logger.auth("warn", "Login failed: invalid credentials", {
-                requestId,
-                userId: user._id.toString(),
-                failureCount: fail.count,
-                locked: Boolean(fail.lockedUntil),
-            });
-            return respondAfterLoginFailure(res, fail);
-        }
-
         clearLoginFailures(email);
 
-        if (needsRehash) {
+        if (verifiedNeedsRehash) {
             user.password = await hashPassword(req.body.password);
             await runAsPlatform(async () => {
                 await user.save();
@@ -209,6 +199,27 @@ const loginUser = async (req, res) => {
                 requestId,
                 userId: user._id.toString(),
             });
+        }
+
+        let tenant = null;
+        if (user.tenantId) {
+            tenant = await runAsPlatform(async () => {
+                return await Tenant.findById(user.tenantId);
+            });
+        } else {
+            // Fallback for single-tenant or legacy data
+            tenant = await runAsPlatform(async () => {
+                return (await Tenant.findOne({ slug: "leap" })) || (await Tenant.findOne());
+            });
+        }
+
+        if (tenant) {
+            if (tenant.status === "suspended" || tenant.status === "cancelled") {
+                return res.status(403).json({
+                    code: "TENANT_SUSPENDED",
+                    message: "This gym's subscription is suspended or cancelled. Please contact your administrator.",
+                });
+            }
         }
 
         const effectiveTenantId = tenant ? tenant._id.toString() : (user.tenantId ? user.tenantId.toString() : null);
@@ -229,12 +240,21 @@ const loginUser = async (req, res) => {
             requestId,
             userId: user._id.toString(),
             role: user.role,
+            tenantSlug: effectiveTenantSlug,
         });
+
+        const formattedUser = formatUserResponse(user);
+        if (effectiveTenantSlug) {
+            formattedUser.tenantSlug = effectiveTenantSlug;
+        }
+        if (effectiveTenantId) {
+            formattedUser.tenantId = effectiveTenantId;
+        }
 
         res.json({
             message: "Login successful",
             token,
-            user: formatUserResponse(user),
+            user: formattedUser,
         });
     } catch (error) {
         logger.auth("error", "Login error", { requestId, error: error.message });
@@ -432,7 +452,11 @@ const getMyProfile = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        res.json(formatUserResponse(user));
+        const formatted = formatUserResponse(user);
+        if (req.user?.tenantSlug) formatted.tenantSlug = req.user.tenantSlug;
+        if (req.user?.tenantId) formatted.tenantId = req.user.tenantId;
+
+        res.json(formatted);
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }

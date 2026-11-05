@@ -11,7 +11,6 @@ export default function Login() {
   const navigate = useNavigate();
   const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
-  const [gymCode, setGymCode]   = useState(() => localStorage.getItem('ff_tenant_slug') || '');
   const [showPwd, setShowPwd]   = useState(false);
   const [loading, setLoading]   = useState(false);
   const [errors, setErrors]     = useState({});
@@ -37,13 +36,7 @@ export default function Login() {
     if (!validate()) return;
     setLoading(true);
     try {
-      const trimmedGym = gymCode.trim() || undefined;
-      if (trimmedGym) {
-        localStorage.setItem('ff_tenant_slug', trimmedGym);
-      } else {
-        localStorage.removeItem('ff_tenant_slug');
-      }
-      const user = await signIn(email.trim(), password, trimmedGym);
+      const user = await signIn(email.trim(), password);
       toast.success(`Welcome back, ${user.name}!`);
       if (user.role === 'Accountant') {
         navigate('/accounting/dashboard', { replace: true });
@@ -61,7 +54,7 @@ export default function Login() {
           ? 'Cannot reach the server. Check your connection and API URL.'
           : 'App is misconfigured: Backend origin is missing (BACKEND_ORIGIN).';
       } else if (err.response.status === 404) {
-        msg = err.response.data?.message || 'Gym or API endpoint not found. Please check your gym code or API URL.';
+        msg = err.response.data?.message || 'API endpoint not found. Please check your API URL.';
       } else {
         msg = err.response.data?.message || 'Invalid email or password.';
       }
@@ -171,49 +164,6 @@ export default function Login() {
             </div>
           )}
 
-          {/* Gym Code / Subdomain slug */}
-          <div style={{ marginBottom: 16 }}>
-            <label style={{
-              display: 'block', fontSize: 12, fontWeight: 600,
-              color: '#374151', letterSpacing: '0.3px',
-              textTransform: 'uppercase', marginBottom: 7,
-            }}>
-              Gym Code (Optional)
-            </label>
-            <div style={{ position: 'relative' }}>
-              <svg style={{
-                position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)',
-                color: '#9CA3AF', pointerEvents: 'none',
-              }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                <polyline points="9 22 9 12 15 12 15 22"/>
-              </svg>
-              <input
-                type="text"
-                value={gymCode}
-                onChange={(e) => setGymCode(e.target.value)}
-                placeholder="e.g. leap"
-                style={{
-                  width: '100%', padding: '12px 14px 12px 40px', fontSize: 14,
-                  border: '1.5px solid #E5E7EB',
-                  borderRadius: 10, outline: 'none', color: '#111827',
-                  background: '#F9FAFB',
-                  transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
-                  boxSizing: 'border-box',
-                }}
-                onFocus={(e) => {
-                  e.target.style.borderColor = '#44298C';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)';
-                  e.target.style.background = '#FAFAFF';
-                }}
-                onBlur={(e) => {
-                  e.target.style.borderColor = '#E5E7EB';
-                  e.target.style.boxShadow = 'none';
-                  e.target.style.background = '#F9FAFB';
-                }}
-              />
-            </div>
-          </div>
 
           {/* Email */}
           <div style={{ marginBottom: 16 }}>
