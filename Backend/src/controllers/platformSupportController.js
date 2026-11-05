@@ -23,7 +23,8 @@ const logger = require("../utils/logger");
 
 async function createImpersonationSession(req, res) {
     try {
-        const { tenantId, mode = "read_only", reason } = req.body;
+        const tenantId = req.body?.tenantId || req.params?.id;
+        const { mode = "read_only", reason } = req.body || {};
         if (!tenantId) return res.status(400).json({ message: "tenantId is required" });
 
         const isWriteMode = mode === "read_write";
@@ -352,6 +353,7 @@ async function getPlatformAuditLogs(req, res) {
 
 module.exports = {
     createImpersonationSession,
+    impersonateTenant: createImpersonationSession,
     exportTenantData,
     purgeTenant,
     getAnnouncements,

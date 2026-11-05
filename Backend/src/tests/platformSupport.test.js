@@ -106,6 +106,32 @@ describe("Phase 6: Support, Impersonation & Operations Tools", () => {
             expect(decoded.impersonatedBy).toBe(supportUser.id);
         });
 
+        it("accepts tenantId via req.params.id (RESTful /tenants/:id/impersonate route)", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
+            const mockTenant = { _id: tenantId, name: "Beta Gym", slug: "beta-gym" };
+            const mockUser = { _id: new mongoose.Types.ObjectId(), name: "Gym Owner", role: "Owner" };
+
+            vi.spyOn(Tenant, "findById").mockResolvedValue(mockTenant);
+            vi.spyOn(User, "findOne").mockResolvedValue(mockUser);
+
+            const req = {
+                params: { id: tenantId.toString() },
+                body: {},
+                platformUser: supportUser,
+            };
+            const res = {
+                json: vi.fn(),
+                status: vi.fn().mockReturnThis(),
+            };
+
+            await createImpersonationSession(req, res);
+
+            expect(res.json).toHaveBeenCalled();
+            const callData = res.json.mock.calls[0][0];
+            expect(callData.token).toBeDefined();
+            expect(callData.session.tenant.id).toEqual(tenantId);
+        });
+
         it("strictly blocks mutating HTTP operations during read-only impersonation", async () => {
             const token = jwt.sign(
                 {

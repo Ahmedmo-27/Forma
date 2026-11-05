@@ -161,7 +161,7 @@ router.post("/tenants/:id/notes", requirePlatformPermission(PERMISSIONS.TENANTS_
 router.delete("/tenants/:id/notes/:noteId", requirePlatformPermission(PERMISSIONS.TENANTS_NOTES), deleteTenantNote);
 router.patch("/tenants/:id/tags", requirePlatformPermission(PERMISSIONS.TENANTS_NOTES), updateTenantTags);
 router.post("/tenants/bulk", requirePlatformPermission(PERMISSIONS.TENANTS_LIFECYCLE), bulkTenantActions);
-router.post("/tenants/:id/impersonate", requirePlatformPermission(PERMISSIONS.SUPPORT_IMPERSONATE_READ), impersonateTenant);
+router.post("/tenants/:id/impersonate", requirePlatformPermission(PERMISSIONS.SUPPORT_IMPERSONATE_READ), createImpersonationSession);
 
 // ==========================================
 // Billing & Payments Operations (Phase 4)
