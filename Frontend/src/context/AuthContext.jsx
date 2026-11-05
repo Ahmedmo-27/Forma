@@ -51,9 +51,9 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signIn = useCallback(async (email, password, gymCode) => {
-    const apiUrl = import.meta.env.VITE_API_URL;
+    const apiUrl = import.meta.env.BACKEND_ORIGIN || import.meta.env.VITE_API_URL;
     console.info('[auth] Login attempt', {
-      apiUrl: apiUrl || '(missing VITE_API_URL)',
+      apiUrl: apiUrl || '(missing BACKEND_ORIGIN)',
       email: email?.trim(),
       gymCode: gymCode?.trim(),
       passwordLength: password?.length ?? 0,
@@ -72,7 +72,7 @@ export function AuthProvider({ children }) {
       return u;
     } catch (err) {
       console.error('[auth] Login failed', {
-        apiUrl: apiUrl || '(missing VITE_API_URL)',
+        apiUrl: apiUrl || '(missing BACKEND_ORIGIN)',
         status: err.response?.status,
         message: err.response?.data?.message,
         networkError: !err.response ? err.message : null,

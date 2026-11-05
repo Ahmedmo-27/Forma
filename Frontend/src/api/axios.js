@@ -9,7 +9,7 @@ function normalizeApiBaseURL(url) {
   return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
 }
 
-const rawApiURL = import.meta.env.VITE_API_URL;
+const rawApiURL = import.meta.env.BACKEND_ORIGIN || import.meta.env.VITE_API_URL;
 const apiBaseURL = normalizeApiBaseURL(rawApiURL);
 
 /** Server origin without /api — use for authenticated /uploads downloads. */
@@ -29,12 +29,12 @@ export async function fetchProtectedUploadBlobUrl(filename) {
 
 if (!rawApiURL) {
   console.error(
-    'VITE_API_URL is not set. Login and API calls will fail. ' +
-    'Set VITE_API_URL in Frontend/.env (dev) or your hosting provider env vars (prod).'
+    'BACKEND_ORIGIN is not set. Login and API calls will fail. ' +
+    'Set BACKEND_ORIGIN in Frontend/.env (dev) or your hosting provider env vars (prod).'
   );
 } else if (rawApiURL !== apiBaseURL) {
   console.warn(
-    `[api] VITE_API_URL should end with /api. Normalized "${rawApiURL}" → "${apiBaseURL}".`
+    `[api] BACKEND_ORIGIN should end with /api. Normalized "${rawApiURL}" → "${apiBaseURL}".`
   );
 }
 

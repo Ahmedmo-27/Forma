@@ -53,11 +53,11 @@ export default function Login() {
     } catch (err) {
       let msg;
       if (!err.response) {
-        msg = import.meta.env.VITE_API_URL
+        msg = (import.meta.env.BACKEND_ORIGIN || import.meta.env.VITE_API_URL)
           ? 'Cannot reach the server. Check your connection and API URL.'
-          : 'App is misconfigured: API URL is missing (VITE_API_URL).';
+          : 'App is misconfigured: Backend origin is missing (BACKEND_ORIGIN).';
       } else if (err.response.status === 404) {
-        msg = 'API endpoint not found. Set VITE_API_URL to your backend URL including /api.';
+        msg = 'API endpoint not found. Set BACKEND_ORIGIN to your backend URL.';
       } else {
         msg = err.response.data?.message || 'Invalid email or password.';
       }

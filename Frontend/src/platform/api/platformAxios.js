@@ -1,7 +1,8 @@
 import axios from "axios";
+import { apiOrigin } from "../../api/axios";
 
 const platformAxios = axios.create({
-    baseURL: "/api/platform",
+    baseURL: apiOrigin ? `${apiOrigin}/api/platform` : "/api/platform",
     headers: {
         "Content-Type": "application/json",
     },
