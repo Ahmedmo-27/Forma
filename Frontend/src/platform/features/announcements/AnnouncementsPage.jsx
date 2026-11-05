@@ -245,6 +245,7 @@ export default function AnnouncementsPage() {
                     <button
                       type="button"
                       onClick={() => handleToggleActive(ann)}
+                      aria-label={ann.isActive ? "Deactivate announcement" : "Activate announcement"}
                       className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${
                         ann.isActive
                           ? "bg-[var(--platform-success-surface)] text-[var(--platform-success)] border border-[var(--platform-success-border)]"

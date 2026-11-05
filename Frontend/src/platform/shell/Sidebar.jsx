@@ -20,6 +20,7 @@ import {
   ChevronLeft,
   ChevronRight,
   ShieldAlert,
+  X,
 } from "lucide-react";
 import { usePlatformAuth } from "../lib/auth/AuthContext";
 import { usePermission } from "../lib/auth/PermissionContext";
@@ -90,7 +91,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
       {/* Brand Header */}
       <div className="h-12 px-3.5 flex items-center justify-between border-b border-[var(--platform-border-subtle)]">
         <div className="flex items-center gap-2.5 overflow-hidden">
-          <div className="w-7 h-7 rounded-[var(--platform-radius-md)] bg-[var(--platform-accent)] text-white flex items-center justify-center font-bold text-xs tracking-wider shrink-0 shadow-xs">
+          <div className="w-7 h-7 rounded-[var(--platform-radius-md)] bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs tracking-wider shrink-0 shadow-xs ring-1 ring-blue-500/30">
             LP
           </div>
           {!isCollapsed && (
@@ -105,15 +106,28 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
           )}
         </div>
 
-        {/* Desktop Collapse Toggle */}
-        <button
-          type="button"
-          onClick={onToggleCollapse}
-          className="hidden md:flex p-1 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)] cursor-pointer"
-          title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
-        </button>
+        <div className="flex items-center gap-1">
+          {/* Mobile Close Button */}
+          <button
+            type="button"
+            onClick={onCloseMobile}
+            aria-label="Close navigation"
+            className="md:hidden p-1.5 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)] transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
+          {/* Desktop Collapse Toggle */}
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="hidden md:flex p-1 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)] cursor-pointer transition-colors"
+            title={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
+          </button>
+        </div>
       </div>
 
       {/* Navigation Groups */}
@@ -139,11 +153,11 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
                     title={isCollapsed ? item.label : undefined}
                     className={({ isActive }) =>
                       cn(
-                        "flex items-center gap-2.5 px-2.5 py-1.5 rounded-[var(--platform-radius-md)] text-xs font-medium transition-all group",
+                        "flex items-center gap-2.5 px-3 py-2 rounded-[var(--platform-radius-md)] text-xs font-medium transition-all group relative",
                         isActive
-                          ? "bg-[var(--platform-surface-subtle)] text-[var(--platform-accent)] font-semibold border border-[var(--platform-border-subtle)] shadow-xs"
+                          ? "bg-[var(--platform-accent-subtle)] text-[var(--platform-accent)] font-semibold shadow-2xs before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:bg-[var(--platform-accent)] before:rounded-full"
                           : "text-[var(--platform-text-secondary)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)]/70",
-                        isCollapsed && "justify-center px-1"
+                        isCollapsed && "justify-center px-1 before:hidden"
                       )
                     }
                   >
@@ -179,6 +193,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
               type="button"
               onClick={logout}
               title="Logout from console"
+              aria-label="Logout from console"
               className="p-1.5 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-danger)] hover:bg-[var(--platform-danger-subtle)] transition-colors cursor-pointer"
             >
               <LogOut className="w-3.5 h-3.5" />

@@ -38,7 +38,7 @@ export function BulkActionsModal({ isOpen, onClose, selectedIds = [], onSuccess 
         setPreview(res.data);
       })
       .catch((err) => {
-        setError(err.message || "Failed to preview bulk action");
+        setError(err.normalized?.message || err.response?.data?.error?.message || err.response?.data?.message || err.message || "Failed to preview bulk action");
       })
       .finally(() => {
         setLoadingPreview(false);
@@ -68,7 +68,7 @@ export function BulkActionsModal({ isOpen, onClose, selectedIds = [], onSuccess 
       onSuccess?.();
       onClose?.();
     } catch (err) {
-      setError(err.message || "Bulk action execution failed");
+      setError(err.normalized?.message || err.response?.data?.error?.message || err.response?.data?.message || err.message || "Bulk action execution failed");
     } finally {
       setLoadingExecute(false);
     }

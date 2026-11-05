@@ -43,6 +43,8 @@
   --platform-radius-xl: 12px;
 
   /* Elevation Shadows (Soft & restrained) */
+  --platform-shadow-card: 0 1px 3px 0 rgba(15, 23, 42, 0.04), 0 1px 2px -1px rgba(15, 23, 42, 0.02);
+  --platform-shadow-card-hover: 0 4px 12px -2px rgba(15, 23, 42, 0.08), 0 2px 4px -2px rgba(15, 23, 42, 0.04);
   --platform-shadow-popover: 0 4px 16px -2px rgba(15, 23, 42, 0.08), 0 0 0 1px var(--platform-border);
   --platform-shadow-dialog: 0 16px 40px -8px rgba(15, 23, 42, 0.16), 0 0 0 1px var(--platform-border);
 
@@ -88,6 +90,8 @@
   --platform-info: #38bdf8;             /* sky-400 */
   --platform-info-subtle: rgba(56, 189, 248, 0.12);
 
+  --platform-shadow-card: 0 1px 3px 0 rgba(0, 0, 0, 0.4);
+  --platform-shadow-card-hover: 0 4px 16px -2px rgba(0, 0, 0, 0.6);
   --platform-shadow-popover: 0 8px 24px -4px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--platform-border);
   --platform-shadow-dialog: 0 24px 60px -12px rgba(0, 0, 0, 0.75), 0 0 0 1px var(--platform-border);
 }
@@ -135,4 +139,65 @@
 }
 .platform-root ::-webkit-scrollbar-thumb:hover {
   background: var(--platform-text-muted);
+}
+
+/* ── Form Controls Isolation & Reset (Prevent Tenant Style Leakage) ── */
+.platform-root input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+.platform-root select,
+.platform-root textarea {
+  color-scheme: light dark;
+  background-color: var(--platform-surface);
+  color: var(--platform-text-primary);
+  border-color: var(--platform-border-strong);
+}
+
+.platform-root input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+.platform-root select:focus,
+.platform-root textarea:focus {
+  border-color: var(--platform-accent);
+  box-shadow: 0 0 0 3px var(--platform-accent-subtle);
+  outline: none;
+}
+
+.platform-root :focus-visible {
+  outline: 2px solid var(--platform-accent);
+  outline-offset: 2px;
+}
+
+/* ── Interactive Card & Surface Utilities ── */
+.platform-card {
+  background-color: var(--platform-surface);
+  border: 1px solid var(--platform-border);
+  border-radius: var(--platform-radius-lg);
+  box-shadow: var(--platform-shadow-card);
+  transition: border-color 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+.platform-card-interactive {
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.platform-card-interactive:hover {
+  border-color: var(--platform-border-strong);
+  box-shadow: var(--platform-shadow-card-hover);
+  transform: translateY(-1px);
+}
+
+/* ── Glassmorphism Surface ── */
+.platform-glass {
+  background-color: var(--platform-surface);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+/* ── Reduced Motion Support (WCAG 2.2.2 / 2.3.3) ── */
+@media (prefers-reduced-motion: reduce) {
+  .platform-root *,
+  .platform-root *::before,
+  .platform-root *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

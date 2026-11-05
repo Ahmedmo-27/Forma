@@ -112,7 +112,9 @@ export default function DesignSystemPage() {
           {/* Theme Switch */}
           <div className="flex items-center gap-1 p-1 rounded-[var(--platform-radius-md)] bg-[var(--platform-surface-subtle)] border border-[var(--platform-border)] text-xs">
             <button
+              type="button"
               onClick={() => setTheme("light")}
+              aria-label="Switch to light mode"
               className={`p-1.5 rounded-[var(--platform-radius-sm)] cursor-pointer ${
                 theme === "light"
                   ? "bg-[var(--platform-surface)] text-[var(--platform-text-primary)] shadow-xs"
@@ -123,7 +125,9 @@ export default function DesignSystemPage() {
               <Sun className="w-3.5 h-3.5" />
             </button>
             <button
+              type="button"
               onClick={() => setTheme("dark")}
+              aria-label="Switch to dark mode"
               className={`p-1.5 rounded-[var(--platform-radius-sm)] cursor-pointer ${
                 theme === "dark"
                   ? "bg-[var(--platform-surface)] text-[var(--platform-text-primary)] shadow-xs"
@@ -134,7 +138,9 @@ export default function DesignSystemPage() {
               <Moon className="w-3.5 h-3.5" />
             </button>
             <button
+              type="button"
               onClick={() => setTheme("system")}
+              aria-label="Switch to system theme"
               className={`p-1.5 rounded-[var(--platform-radius-sm)] cursor-pointer ${
                 theme === "system"
                   ? "bg-[var(--platform-surface)] text-[var(--platform-text-primary)] shadow-xs"

@@ -584,7 +584,8 @@ export default function TenantDetailPage() {
                         <button
                           type="button"
                           onClick={() => handleDeleteNote(note._id)}
-                          className="text-[var(--platform-text-muted)] hover:text-[var(--platform-danger)] transition-colors cursor-pointer"
+                          aria-label="Delete operator note"
+                          className="text-[var(--platform-text-muted)] hover:text-[var(--platform-danger)] transition-colors cursor-pointer p-0.5 rounded"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>
@@ -623,7 +624,8 @@ export default function TenantDetailPage() {
                     <button
                       type="button"
                       onClick={() => handleRemoveTag(tag)}
-                      className="text-[var(--platform-text-muted)] hover:text-[var(--platform-danger)] p-0.5"
+                      aria-label={`Remove tag ${tag}`}
+                      className="text-[var(--platform-text-muted)] hover:text-[var(--platform-danger)] p-0.5 rounded cursor-pointer"
                     >
                       <X className="w-3 h-3" />
                     </button>

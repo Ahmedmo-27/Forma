@@ -106,7 +106,7 @@ export function PlatformShell() {
             breadcrumbs={getBreadcrumbs()}
           />
 
-          <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl w-full mx-auto">
+          <main className="flex-1 min-w-0 px-6 lg:px-8 py-6 lg:py-8 max-w-screen-2xl w-full mx-auto">
             <Outlet />
           </main>
         </div>

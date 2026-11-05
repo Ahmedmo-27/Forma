@@ -54,7 +54,7 @@ export default function LoginPage() {
         navigate("/platform/dashboard");
       }
     } catch (err) {
-      setError(err.message || "Invalid platform operator credentials");
+      setError(err.normalized?.message || err.response?.data?.error?.message || err.response?.data?.message || "Invalid platform operator credentials");
     } finally {
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export default function LoginPage() {
       platformToast.success("MFA verified successfully");
       navigate("/platform/dashboard");
     } catch (err) {
-      setError(err.message || "Invalid verification code");
+      setError(err.normalized?.message || err.response?.data?.error?.message || err.response?.data?.message || "Invalid verification code");
     } finally {
       setLoading(false);
     }
@@ -99,18 +99,18 @@ export default function LoginPage() {
       setStep("mfa_recovery_display");
       loginSuccess(res.data);
     } catch (err) {
-      setError(err.message || "Invalid 6-digit enrollment code");
+      setError(err.normalized?.message || err.response?.data?.error?.message || err.response?.data?.message || "Invalid 6-digit enrollment code");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--platform-canvas)] text-[var(--platform-text-primary)] select-none">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--platform-canvas)] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(37,99,235,0.12),transparent)] text-[var(--platform-text-primary)] select-none">
       <div className="w-full max-w-sm rounded-[var(--platform-radius-xl)] bg-[var(--platform-surface)] border border-[var(--platform-border)] p-6 shadow-xl space-y-6 text-left animate-in fade-in duration-200">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-[var(--platform-radius-md)] bg-[var(--platform-accent)] text-white font-bold text-sm shadow-xs">
+          <div className="inline-flex items-center justify-center w-10 h-10 rounded-[var(--platform-radius-md)] bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-sm shadow-md ring-1 ring-blue-500/30">
             LP
           </div>
           <div>
@@ -156,7 +156,8 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword((p) => !p)}
-                  className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] p-1"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] p-1 rounded cursor-pointer transition-colors"
                 >
                   {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                 </button>

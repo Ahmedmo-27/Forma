@@ -166,8 +166,10 @@ export function CommandPalette({ isOpen, onClose }) {
               Keyboard Shortcuts
             </h3>
             <button
+              type="button"
               onClick={() => setShowShortcutsHelp(false)}
-              className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)]"
+              aria-label="Close shortcuts dialog"
+              className="p-1 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)] transition-colors cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>

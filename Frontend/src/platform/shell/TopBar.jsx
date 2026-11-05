@@ -48,6 +48,7 @@ export function TopBar({ onOpenMobile, onOpenCommandPalette, breadcrumbs = [] })
         <button
           type="button"
           onClick={onOpenCommandPalette}
+          aria-label="Search console (Cmd+K)"
           className="flex items-center gap-2 px-2.5 py-1 text-xs rounded-[var(--platform-radius-md)] bg-[var(--platform-surface-subtle)] text-[var(--platform-text-muted)] border border-[var(--platform-border)] hover:border-[var(--platform-border-strong)] hover:text-[var(--platform-text-primary)] transition-all cursor-pointer shadow-2xs"
         >
           <Search className="w-3.5 h-3.5" />
@@ -58,16 +59,18 @@ export function TopBar({ onOpenMobile, onOpenCommandPalette, breadcrumbs = [] })
           </div>
         </button>
 
-        {/* Environment Indicator */}
-        <Badge variant="success" size="sm" className="hidden sm:inline-flex">
-          Production
-        </Badge>
+        {/* Live Operational Indicator */}
+        <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[var(--platform-surface-subtle)] border border-[var(--platform-border)] text-[10px] font-medium text-[var(--platform-text-secondary)]">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Production</span>
+        </div>
 
         {/* Density Mode Toggle */}
         <button
           type="button"
           onClick={toggleDensity}
           title={`Switch to ${density === "comfortable" ? "compact" : "comfortable"} density`}
+          aria-label={`Switch to ${density === "comfortable" ? "compact" : "comfortable"} density`}
           className="p-1.5 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)] transition-colors cursor-pointer"
         >
           <Layers className="w-3.5 h-3.5" />
@@ -78,6 +81,7 @@ export function TopBar({ onOpenMobile, onOpenCommandPalette, breadcrumbs = [] })
           type="button"
           onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
           title={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} mode`}
+          aria-label={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} mode`}
           className="p-1.5 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)] transition-colors cursor-pointer"
         >
           {resolvedTheme === "dark" ? (
@@ -90,9 +94,13 @@ export function TopBar({ onOpenMobile, onOpenCommandPalette, breadcrumbs = [] })
         {/* User Dropdown */}
         <DropdownMenu
           trigger={
-            <div className="flex items-center gap-2 cursor-pointer">
+            <button
+              type="button"
+              aria-label="Operator user profile menu"
+              className="flex items-center gap-2 cursor-pointer rounded-full p-0.5 hover:ring-2 hover:ring-[var(--platform-accent)]/20 transition-all outline-none focus-visible:ring-2 focus-visible:ring-[var(--platform-accent)]"
+            >
               <Avatar name={user?.name || "Super Admin"} size="sm" />
-            </div>
+            </button>
           }
           items={[
             { header: true, label: user?.email || "Super Admin" },

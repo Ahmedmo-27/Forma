@@ -66,7 +66,7 @@ export default function ProcessRefundModal({
       onRefunded?.();
       onOpenChange(false);
     } catch (err) {
-      setError(err?.message || "Failed to process refund");
+      setError(err.normalized?.message || err.response?.data?.error?.message || err?.message || "Failed to process refund");
     } finally {
       setLoading(false);
     }

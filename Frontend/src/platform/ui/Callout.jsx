@@ -44,7 +44,8 @@ export function Callout({
         <button
           type="button"
           onClick={onDismiss}
-          className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] transition-colors p-0.5 cursor-pointer"
+          aria-label="Dismiss alert"
+          className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] transition-colors p-0.5 cursor-pointer rounded"
         >
           <X className="w-3.5 h-3.5" />
         </button>

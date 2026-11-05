@@ -28,6 +28,7 @@ export function CopyChip({
       type="button"
       onClick={handleCopy}
       title={label || `Copy '${value}' to clipboard`}
+      aria-label={label || (copied ? "Copied to clipboard" : `Copy ${value} to clipboard`)}
       className={cn(
         "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[var(--platform-radius-sm)] text-[11px] platform-mono font-medium",
         "bg-[var(--platform-surface-subtle)] text-[var(--platform-text-secondary)] border border-[var(--platform-border-subtle)]",

@@ -310,6 +310,7 @@ export default function PricingCouponsPage() {
                           <button
                             type="button"
                             onClick={() => handleToggleSales(p)}
+                            aria-label={p.isActive ? "Close sales for pricing tier" : "Open sales for pricing tier"}
                             className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${
                               p.isActive
                                 ? "bg-[var(--platform-success-surface)] text-[var(--platform-success)] border border-[var(--platform-success-border)]"

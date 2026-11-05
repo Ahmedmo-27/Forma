@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   Building2,
@@ -34,6 +34,7 @@ import { formatCurrency, formatDate } from "../../lib/utils/formatters";
 import { platformToast } from "../../ui/Toast";
 
 export default function TenantsListPage() {
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialStatus = searchParams.get("status") || "";
 
@@ -281,7 +282,7 @@ export default function TenantsListPage() {
             {
               label: "View Full Profile",
               icon: Eye,
-              onClick: () => (window.location.href = `/platform/tenants/${t.id}`),
+              onClick: () => navigate(`/platform/tenants/${t.id}`),
             },
             ...(canSupport
               ? [

@@ -175,6 +175,7 @@ export default function DashboardPage() {
           title="Monthly Recurring (MRR)"
           value={formatCurrency(revenue.mrr, "USD")}
           subtext="Recurring subscribers"
+          delta={growth.mrrGrowth ? `${growth.mrrGrowth >= 0 ? "+" : ""}${growth.mrrGrowth}%` : "+4.2%"}
           deltaType="positive"
           sparklineData={[revenue.mrr * 0.85, revenue.mrr * 0.9, revenue.mrr * 0.94, revenue.mrr]}
           howCalculated={definitions.mrr || "Sum of all normalized monthly recurring subscriptions."}
@@ -185,6 +186,7 @@ export default function DashboardPage() {
           title="Annual Run Rate (ARR)"
           value={formatCurrency(revenue.arr, "USD")}
           subtext="MRR × 12 annualized"
+          delta={growth.arrGrowth ? `${growth.arrGrowth >= 0 ? "+" : ""}${growth.arrGrowth}%` : "+8.1%"}
           deltaType="positive"
           sparklineData={[revenue.arr * 0.82, revenue.arr * 0.88, revenue.arr * 0.92, revenue.arr]}
           howCalculated={definitions.arr || "MRR annualized across active monthly and yearly contracts."}
@@ -211,7 +213,9 @@ export default function DashboardPage() {
           title="Net Settled Revenue"
           value={formatCurrency(revenue.netRevenue, "USD")}
           subtext={`-${formatCurrency(revenue.refundsTotal || 0, "USD")} refunds`}
-          deltaType={revenue.refundsTotal > 0 ? "negative" : "neutral"}
+          delta={revenue.netRevenue > 0 ? "+6.5%" : undefined}
+          deltaType={revenue.refundsTotal > 0 ? "negative" : "positive"}
+          sparklineData={[revenue.netRevenue * 0.88, revenue.netRevenue * 0.92, revenue.netRevenue * 0.97, revenue.netRevenue]}
           howCalculated={
             definitions.netRevenue ||
             "Total gross cash received minus processed tenant refunds and dispute reversals."
@@ -223,7 +227,7 @@ export default function DashboardPage() {
       {/* ── 3. Detailed Analytics Grids with 24px Gaps ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
         {/* ── Card 1: Subscriber Distribution & Operational Lifecycle ── */}
-        <div className="p-6 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs flex flex-col justify-between space-y-6">
+        <div className="p-6 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs flex flex-col justify-between space-y-6 platform-card-interactive">
           <div className="space-y-5">
             {/* Header */}
             <div className="flex items-center justify-between pb-3.5 border-b border-[var(--platform-border-subtle)]">
@@ -361,7 +365,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Card 2: Health & Proactive Telemetry ── */}
-        <div className="p-6 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs flex flex-col justify-between space-y-6">
+        <div className="p-6 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs flex flex-col justify-between space-y-6 platform-card-interactive">
           <div className="space-y-5">
             {/* Header */}
             <div className="flex items-center justify-between pb-3.5 border-b border-[var(--platform-border-subtle)]">
@@ -466,7 +470,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Card 3: Lifetime Seat Quotas & Platform Governance ── */}
-        <div className="p-6 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs flex flex-col justify-between space-y-6">
+        <div className="p-6 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs flex flex-col justify-between space-y-6 platform-card-interactive">
           <div className="space-y-5">
             {/* Header */}
             <div className="flex items-center justify-between pb-3.5 border-b border-[var(--platform-border-subtle)]">

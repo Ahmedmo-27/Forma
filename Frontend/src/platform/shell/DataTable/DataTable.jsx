@@ -105,7 +105,8 @@ export function DataTable({
                 <button
                   type="button"
                   onClick={() => onSearch("")}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)]"
+                  aria-label="Clear search"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] cursor-pointer p-0.5 rounded"
                 >
                   <X className="w-3 h-3" />
                 </button>
@@ -207,35 +208,47 @@ export function DataTable({
                   />
                 </th>
               )}
-              {activeColumns.map((col) => (
-                <th
-                  key={col.key}
-                  style={{ width: col.width }}
-                  onClick={() => col.sortable && handleColumnSort(col.key)}
-                  className={cn(
-                    "py-2.5 px-3 font-semibold",
-                    col.sortable && "cursor-pointer hover:text-[var(--platform-text-primary)]",
-                    col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"
-                  )}
-                >
-                  <div className={cn("inline-flex items-center gap-1", col.align === "right" && "flex-row-reverse")}>
-                    <span>{col.header}</span>
-                    {col.sortable && (
-                      <span className="text-[var(--platform-text-muted)]">
-                        {sortBy === col.key ? (
-                          sortOrder === "asc" ? (
-                            <ChevronUp className="w-3 h-3 text-[var(--platform-accent)]" />
-                          ) : (
-                            <ChevronDown className="w-3.5 h-3.5 text-[var(--platform-accent)]" />
-                          )
-                        ) : (
-                          <ChevronsUpDown className="w-3 h-3 opacity-40" />
-                        )}
-                      </span>
+              {activeColumns.map((col) => {
+                const isSorted = sortBy === col.key;
+                const sortDirection = isSorted ? (sortOrder === "asc" ? "ascending" : "descending") : "none";
+                return (
+                  <th
+                    key={col.key}
+                    style={{ width: col.width }}
+                    onClick={() => col.sortable && handleColumnSort(col.key)}
+                    onKeyDown={(e) => {
+                      if (col.sortable && (e.key === "Enter" || e.key === " ")) {
+                        e.preventDefault();
+                        handleColumnSort(col.key);
+                      }
+                    }}
+                    tabIndex={col.sortable ? 0 : undefined}
+                    aria-sort={col.sortable ? sortDirection : undefined}
+                    className={cn(
+                      "py-2.5 px-3 font-semibold transition-colors outline-none",
+                      col.sortable && "cursor-pointer hover:text-[var(--platform-text-primary)] focus-visible:bg-[var(--platform-surface)] focus-visible:ring-1 focus-visible:ring-[var(--platform-accent)]",
+                      col.align === "right" ? "text-right" : col.align === "center" ? "text-center" : "text-left"
                     )}
-                  </div>
-                </th>
-              ))}
+                  >
+                    <div className={cn("inline-flex items-center gap-1", col.align === "right" && "flex-row-reverse")}>
+                      <span>{col.header}</span>
+                      {col.sortable && (
+                        <span className="text-[var(--platform-text-muted)]">
+                          {isSorted ? (
+                            sortOrder === "asc" ? (
+                              <ChevronUp className="w-3.5 h-3.5 text-[var(--platform-accent)]" />
+                            ) : (
+                              <ChevronDown className="w-3.5 h-3.5 text-[var(--platform-accent)]" />
+                            )
+                          ) : (
+                            <ChevronsUpDown className="w-3 h-3 opacity-40 hover:opacity-100" />
+                          )}
+                        </span>
+                      )}
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
 

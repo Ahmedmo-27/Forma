@@ -13,29 +13,42 @@ export function KpiCard({
   icon: Icon,
   className = "",
 }) {
-  // Generate lightweight SVG path for sparkline
+  const gradientId = `spark-${(title || "kpi").toLowerCase().replace(/[^a-z0-9]/g, "-")}`;
+
+  // Generate lightweight SVG path and area fill for sparkline
   const renderSparkline = () => {
     if (!sparklineData || sparklineData.length < 2) return null;
     const min = Math.min(...sparklineData);
     const max = Math.max(...sparklineData);
     const range = max - min || 1;
-    const width = 80;
-    const height = 24;
+    const width = 84;
+    const height = 26;
 
     const points = sparklineData.map((val, idx) => {
       const x = (idx / (sparklineData.length - 1)) * width;
-      const y = height - ((val - min) / range) * (height - 4) - 2;
+      const y = height - ((val - min) / range) * (height - 6) - 3;
       return `${x},${y}`;
     });
 
     const isPositive = deltaType === "positive";
+    const strokeColor = isPositive ? "var(--platform-success)" : "var(--platform-accent)";
 
     return (
-      <svg width={width} height={height} className="overflow-visible shrink-0">
+      <svg width={width} height={height} className="overflow-visible shrink-0" aria-hidden="true">
+        <defs>
+          <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={strokeColor} stopOpacity="0.22" />
+            <stop offset="100%" stopColor={strokeColor} stopOpacity="0.0" />
+          </linearGradient>
+        </defs>
+        <polygon
+          fill={`url(#${gradientId})`}
+          points={`0,${height} ${points.join(" ")} ${width},${height}`}
+        />
         <polyline
           fill="none"
-          stroke={isPositive ? "var(--platform-success)" : "var(--platform-accent)"}
-          strokeWidth="1.5"
+          stroke={strokeColor}
+          strokeWidth="1.75"
           strokeLinecap="round"
           strokeLinejoin="round"
           points={points.join(" ")}
@@ -47,7 +60,7 @@ export function KpiCard({
   return (
     <div
       className={cn(
-        "p-4 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs text-left space-y-2 select-none",
+        "p-4 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs text-left space-y-2 select-none platform-card-interactive hover:border-[var(--platform-border-strong)] transition-all duration-150",
         className
       )}
     >
@@ -64,8 +77,9 @@ export function KpiCard({
             trigger={
               <button
                 type="button"
-                className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] cursor-pointer"
+                className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] cursor-pointer p-0.5 rounded"
                 title="How this metric is computed"
+                aria-label={`How ${title} is calculated`}
               >
                 <Info className="w-3.5 h-3.5" />
               </button>

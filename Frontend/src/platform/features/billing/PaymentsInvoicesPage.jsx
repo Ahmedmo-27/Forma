@@ -98,7 +98,7 @@ export default function PaymentsInvoicesPage() {
       refetchPayments();
       refetchInvoices();
     } catch (err) {
-      platformToast.error(err?.message || "Failed to confirm payment");
+      platformToast.error(err.normalized?.message || err.response?.data?.error?.message || err?.message || "Failed to confirm payment");
     } finally {
       setReviewing(false);
     }
@@ -114,7 +114,7 @@ export default function PaymentsInvoicesPage() {
       setRejectPaymentTarget(null);
       refetchPayments();
     } catch (err) {
-      platformToast.error(err?.message || "Failed to reject payment");
+      platformToast.error(err.normalized?.message || err.response?.data?.error?.message || err?.message || "Failed to reject payment");
     } finally {
       setReviewing(false);
     }

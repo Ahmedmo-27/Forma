@@ -81,7 +81,7 @@ export default function SupportPage() {
       platformToast.success("Secure impersonation session activated (30m countdown)");
       setReason("");
     } catch (err) {
-      setError(err?.message || "Failed to initiate impersonation session");
+      setError(err.normalized?.message || err.response?.data?.error?.message || err.response?.data?.message || err?.message || "Failed to initiate impersonation session");
     } finally {
       setInitiating(false);
     }

@@ -67,7 +67,7 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
       onGranted?.();
       onOpenChange(false);
     } catch (err) {
-      setError(err?.message || "Failed to issue manual grant");
+      setError(err.normalized?.message || err.response?.data?.error?.message || err?.message || "Failed to issue manual grant");
     } finally {
       setLoading(false);
     }
