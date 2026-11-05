@@ -119,14 +119,17 @@ const loginUser = async (req, res) => {
             });
         }
 
-        // 1. Resolve tenant from subdomain, header, or body gym code/slug
-        let gymSlug = req.get("x-tenant-slug") || req.get("x-gym-code") || req.body?.gymCode || req.body?.gymSlug;
+        // 1. Resolve tenant from body gym code/slug, header, or subdomain
+        let gymSlug = req.body?.gymCode || req.body?.gymSlug || req.get("x-tenant-slug") || req.get("x-gym-code");
         if (!gymSlug) {
             const host = req.get("host") || "";
             const hostNoPort = host.split(":")[0];
-            const parts = hostNoPort.split(".");
-            if (parts.length > 2 && !["www", "api", "app", "localhost"].includes(parts[0])) {
-                gymSlug = parts[0];
+            const isPlatformHost = /\.(onrender\.com|render\.com|railway\.app|vercel\.app|herokuapp\.com|netlify\.app|elasticbeanstalk\.com|azurewebsites\.net)$/i.test(hostNoPort);
+            if (!isPlatformHost) {
+                const parts = hostNoPort.split(".");
+                if (parts.length > 2 && !["www", "api", "app", "localhost"].includes(parts[0])) {
+                    gymSlug = parts[0];
+                }
             }
         }
 

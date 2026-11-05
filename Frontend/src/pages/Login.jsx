@@ -38,7 +38,11 @@ export default function Login() {
     setLoading(true);
     try {
       const trimmedGym = gymCode.trim() || undefined;
-      if (trimmedGym) localStorage.setItem('ff_tenant_slug', trimmedGym);
+      if (trimmedGym) {
+        localStorage.setItem('ff_tenant_slug', trimmedGym);
+      } else {
+        localStorage.removeItem('ff_tenant_slug');
+      }
       const user = await signIn(email.trim(), password, trimmedGym);
       toast.success(`Welcome back, ${user.name}!`);
       if (user.role === 'Accountant') {
@@ -57,7 +61,7 @@ export default function Login() {
           ? 'Cannot reach the server. Check your connection and API URL.'
           : 'App is misconfigured: Backend origin is missing (BACKEND_ORIGIN).';
       } else if (err.response.status === 404) {
-        msg = 'API endpoint not found. Set BACKEND_ORIGIN to your backend URL.';
+        msg = err.response.data?.message || 'Gym or API endpoint not found. Please check your gym code or API URL.';
       } else {
         msg = err.response.data?.message || 'Invalid email or password.';
       }
