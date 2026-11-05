@@ -87,13 +87,13 @@ export default function PlatformDashboard() {
     return (
         <div className="space-y-8 animate-in fade-in duration-300">
             {/* Page Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-2 border-b border-slate-800/60">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pb-4 border-b border-slate-800/50">
                 <div>
                     <div className="flex items-center gap-2">
-                        <h1 className="text-2xl font-black tracking-tight text-slate-100">
+                        <h1 className="text-2xl font-black tracking-tight bg-gradient-to-r from-slate-100 to-slate-300 bg-clip-text text-transparent">
                             Executive Overview
                         </h1>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
+                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/30 shadow-[0_0_10px_rgba(52,211,153,0.12)]">
                             <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
                             Live Ledger Synced
                         </span>
@@ -108,7 +108,7 @@ export default function PlatformDashboard() {
                         type="button"
                         onClick={handleComputeNow}
                         disabled={refreshing}
-                        className="group inline-flex items-center gap-2 rounded-xl border border-slate-700/80 bg-slate-900/90 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:border-slate-600 transition shadow-sm disabled:opacity-50"
+                        className="group inline-flex items-center gap-2 rounded-xl border border-slate-700/60 bg-slate-800/60 px-4 py-2 text-xs font-semibold text-slate-200 hover:bg-slate-800 hover:border-indigo-500/40 hover:text-indigo-200 transition-all duration-150 shadow-sm disabled:opacity-50"
                     >
                         <RefreshIcon
                             className={`h-4 w-4 text-indigo-400 transition-transform ${
@@ -123,7 +123,7 @@ export default function PlatformDashboard() {
             {/* Metric KPI Cards Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* MRR Card */}
-                <div className="relative overflow-hidden rounded-2xl border border-slate-800/90 bg-gradient-to-b from-slate-900/90 to-slate-950/80 p-5 shadow-lg backdrop-blur-md group hover:border-indigo-500/40 transition duration-200">
+                <div className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-gradient-to-b from-slate-900 to-slate-950 p-5 shadow-xl backdrop-blur-md group hover:border-indigo-500/50 transition duration-200">
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-indigo-600 opacity-80" />
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -134,11 +134,11 @@ export default function PlatformDashboard() {
                         </span>
                     </div>
                     <div className="mt-3 flex items-baseline gap-2">
-                        <span className="font-mono text-3xl font-black text-indigo-300 tracking-tight">
+                        <span className="font-mono text-3xl font-black text-indigo-200 tracking-tight drop-shadow-[0_0_8px_rgba(99,102,241,0.4)]">
                             ${(revenue.mrr || 0).toLocaleString()}
                         </span>
                     </div>
-                    <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-800/80 text-[11px]">
+                    <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-800/50 text-[11px]">
                         <span className="text-slate-400">Recurring subscribers</span>
                         <span className="text-slate-400 cursor-help" title={definitions.mrr}>
                             <InfoIcon className="h-3.5 w-3.5 text-slate-400 hover:text-slate-200" />
@@ -147,7 +147,7 @@ export default function PlatformDashboard() {
                 </div>
 
                 {/* ARR Card */}
-                <div className="relative overflow-hidden rounded-2xl border border-slate-800/90 bg-gradient-to-b from-slate-900/90 to-slate-950/80 p-5 shadow-lg backdrop-blur-md group hover:border-slate-700 transition duration-200">
+                <div className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-gradient-to-b from-slate-900 to-slate-950 p-5 shadow-xl backdrop-blur-md group hover:border-blue-500/40 transition duration-200">
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-blue-500 to-indigo-500 opacity-60" />
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -162,7 +162,7 @@ export default function PlatformDashboard() {
                             ${(revenue.arr || 0).toLocaleString()}
                         </span>
                     </div>
-                    <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-800/80 text-[11px]">
+                    <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-800/50 text-[11px]">
                         <span className="text-slate-400">MRR × 12 annualized</span>
                         <span className="text-slate-400 cursor-help" title={definitions.arr}>
                             <InfoIcon className="h-3.5 w-3.5 text-slate-400 hover:text-slate-200" />
@@ -171,7 +171,7 @@ export default function PlatformDashboard() {
                 </div>
 
                 {/* Lifetime Capital Card */}
-                <div className="relative overflow-hidden rounded-2xl border border-slate-800/90 bg-gradient-to-b from-slate-900/90 to-slate-950/80 p-5 shadow-lg backdrop-blur-md group hover:border-emerald-500/40 transition duration-200">
+                <div className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-gradient-to-b from-slate-900 to-slate-950 p-5 shadow-xl backdrop-blur-md group hover:border-emerald-500/40 transition duration-200">
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-emerald-500 to-teal-500 opacity-80" />
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -186,7 +186,7 @@ export default function PlatformDashboard() {
                             ${(revenue.lifetimeRevenueTotal || 0).toLocaleString()}
                         </span>
                     </div>
-                    <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-800/80 text-[11px]">
+                    <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-800/50 text-[11px]">
                         <span className="text-slate-400">One-time capital collected</span>
                         <span className="text-slate-400 cursor-help" title={definitions.lifetimeRevenueTotal}>
                             <InfoIcon className="h-3.5 w-3.5 text-slate-400 hover:text-slate-200" />
@@ -195,7 +195,7 @@ export default function PlatformDashboard() {
                 </div>
 
                 {/* Net Revenue Card */}
-                <div className="relative overflow-hidden rounded-2xl border border-slate-800/90 bg-gradient-to-b from-slate-900/90 to-slate-950/80 p-5 shadow-lg backdrop-blur-md group hover:border-slate-700 transition duration-200">
+                <div className="relative overflow-hidden rounded-2xl border border-slate-800/70 bg-gradient-to-b from-slate-900 to-slate-950 p-5 shadow-xl backdrop-blur-md group hover:border-violet-500/40 transition duration-200">
                     <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 opacity-60" />
                     <div className="flex items-center justify-between">
                         <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
@@ -210,7 +210,7 @@ export default function PlatformDashboard() {
                             ${(revenue.netRevenue || 0).toLocaleString()}
                         </span>
                     </div>
-                    <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-800/80 text-[11px]">
+                    <div className="mt-3 flex items-center justify-between pt-3 border-t border-slate-800/50 text-[11px]">
                         <span className="text-rose-400 font-medium">
                             -${(revenue.refundsTotal || 0).toLocaleString()} refunds
                         </span>
@@ -224,9 +224,9 @@ export default function PlatformDashboard() {
             {/* Subscriber Mix & Health Section */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Tenant Mix by Cycle & Status */}
-                <div className="rounded-2xl border border-slate-800/90 bg-slate-900/70 p-6 shadow-xl backdrop-blur-md space-y-5">
+                <div className="rounded-2xl border border-slate-800/60 bg-slate-900/60 p-6 shadow-xl backdrop-blur-md ring-1 ring-white/[0.02] space-y-5">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                        <h2 className="text-xs font-bold uppercase tracking-widest text-slate-300 letter-spacing-widest">
                             Subscriber Distribution
                         </h2>
                         <Link
@@ -251,9 +251,9 @@ export default function PlatformDashboard() {
                                     </span>
                                 </span>
                             </div>
-                            <div className="h-2 w-full rounded-full bg-slate-950 overflow-hidden border border-slate-800">
+                            <div className="h-1.5 w-full rounded-full bg-slate-950 overflow-hidden border border-slate-800">
                                 <div
-                                    className="h-full bg-indigo-500 rounded-full transition-all duration-500"
+                                    className="h-full bg-gradient-to-r from-indigo-500 to-indigo-400 rounded-full transition-all duration-500"
                                     style={{
                                         width: `${Math.round(((mix.byCycle?.monthly || 0) / totalSubscribers) * 100)}%`,
                                     }}
@@ -272,9 +272,9 @@ export default function PlatformDashboard() {
                                     </span>
                                 </span>
                             </div>
-                            <div className="h-2 w-full rounded-full bg-slate-950 overflow-hidden border border-slate-800">
+                            <div className="h-1.5 w-full rounded-full bg-slate-950 overflow-hidden border border-slate-800">
                                 <div
-                                    className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                                    className="h-full bg-gradient-to-r from-blue-500 to-blue-400 rounded-full transition-all duration-500"
                                     style={{
                                         width: `${Math.round(((mix.byCycle?.yearly || 0) / totalSubscribers) * 100)}%`,
                                     }}
@@ -293,9 +293,9 @@ export default function PlatformDashboard() {
                                     </span>
                                 </span>
                             </div>
-                            <div className="h-2 w-full rounded-full bg-slate-950 overflow-hidden border border-slate-800">
+                            <div className="h-1.5 w-full rounded-full bg-slate-950 overflow-hidden border border-slate-800">
                                 <div
-                                    className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                                    className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 rounded-full transition-all duration-500"
                                     style={{
                                         width: `${Math.round(((mix.byCycle?.lifetime || 0) / totalSubscribers) * 100)}%`,
                                     }}
@@ -312,7 +312,7 @@ export default function PlatformDashboard() {
                         <div className="grid grid-cols-2 gap-2.5">
                             <Link
                                 to="/platform/tenants?status=active"
-                                className="group p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 hover:border-emerald-500/40 transition"
+                                className="group p-3 rounded-xl bg-slate-950/60 border border-slate-800/70 backdrop-blur-sm hover:border-emerald-500/40 transition"
                             >
                                 <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
                                     <span className="h-2 w-2 rounded-full bg-emerald-400" />
@@ -325,7 +325,7 @@ export default function PlatformDashboard() {
 
                             <Link
                                 to="/platform/tenants?status=trial"
-                                className="group p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 hover:border-indigo-500/40 transition"
+                                className="group p-3 rounded-xl bg-slate-950/60 border border-slate-800/70 backdrop-blur-sm hover:border-indigo-500/40 transition"
                             >
                                 <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
                                     <span className="h-2 w-2 rounded-full bg-indigo-400" />
@@ -338,7 +338,7 @@ export default function PlatformDashboard() {
 
                             <Link
                                 to="/platform/tenants?status=past_due"
-                                className="group p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 hover:border-amber-500/40 transition"
+                                className="group p-3 rounded-xl bg-slate-950/60 border border-slate-800/70 backdrop-blur-sm hover:border-amber-500/40 transition"
                             >
                                 <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
                                     <span className="h-2 w-2 rounded-full bg-amber-400" />
@@ -351,7 +351,7 @@ export default function PlatformDashboard() {
 
                             <Link
                                 to="/platform/tenants?status=suspended"
-                                className="group p-3 rounded-xl bg-slate-950/70 border border-slate-800/80 hover:border-rose-500/40 transition"
+                                className="group p-3 rounded-xl bg-slate-950/60 border border-slate-800/70 backdrop-blur-sm hover:border-rose-500/40 transition"
                             >
                                 <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
                                     <span className="h-2 w-2 rounded-full bg-rose-400" />
@@ -366,9 +366,9 @@ export default function PlatformDashboard() {
                 </div>
 
                 {/* Customer Health & Retention Actions */}
-                <div className="rounded-2xl border border-slate-800/90 bg-slate-900/70 p-6 shadow-xl backdrop-blur-md space-y-4">
+                <div className="rounded-2xl border border-slate-800/60 bg-slate-900/60 p-6 shadow-xl backdrop-blur-md ring-1 ring-white/[0.02] space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                        <h2 className="text-xs font-bold uppercase tracking-widest text-slate-300 letter-spacing-widest">
                             Health & Proactive Actions
                         </h2>
                         <span className="rounded-full bg-indigo-500/10 px-2 py-0.5 font-mono text-[10px] text-indigo-400 border border-indigo-500/20">
@@ -383,7 +383,7 @@ export default function PlatformDashboard() {
                                 <span className="font-semibold text-xs text-indigo-200">
                                     Capacity Upsell Candidates
                                 </span>
-                                <span className="font-mono font-black text-indigo-400 text-lg">
+                                <span className="font-mono font-black text-indigo-400 text-xl font-black">
                                     {health.upsellCandidates || 0}
                                 </span>
                             </div>
@@ -398,7 +398,7 @@ export default function PlatformDashboard() {
                                 <span className="font-semibold text-xs text-rose-200">
                                     Inactive Churn Risks
                                 </span>
-                                <span className="font-mono font-black text-rose-400 text-lg">
+                                <span className="font-mono font-black text-rose-400 text-xl font-black">
                                     {health.churnRisks || 0}
                                 </span>
                             </div>
@@ -413,7 +413,7 @@ export default function PlatformDashboard() {
                                 <span className="font-semibold text-xs text-amber-200">
                                     Expiring Trials (7 Days)
                                 </span>
-                                <span className="font-mono font-black text-amber-400 text-lg">
+                                <span className="font-mono font-black text-amber-400 text-xl font-black">
                                     {health.expiringTrialsCount || 0}
                                 </span>
                             </div>
@@ -425,9 +425,9 @@ export default function PlatformDashboard() {
                 </div>
 
                 {/* Promotional Lifetime Seat Caps */}
-                <div className="rounded-2xl border border-slate-800/90 bg-slate-900/70 p-6 shadow-xl backdrop-blur-md space-y-4">
+                <div className="rounded-2xl border border-slate-800/60 bg-slate-900/60 p-6 shadow-xl backdrop-blur-md ring-1 ring-white/[0.02] space-y-4">
                     <div className="flex items-center justify-between">
-                        <h2 className="text-xs font-bold uppercase tracking-wider text-slate-300">
+                        <h2 className="text-xs font-bold uppercase tracking-widest text-slate-300 letter-spacing-widest">
                             Lifetime Seat Quotas
                         </h2>
                         <span className="font-mono text-[10px] text-slate-400">Hard Cap Rules</span>
@@ -471,7 +471,7 @@ export default function PlatformDashboard() {
                     </div>
 
                     {/* Audit verified notice */}
-                    <div className="mt-6 p-3 rounded-xl bg-slate-950/70 border border-slate-800 text-[11px] text-slate-400 leading-relaxed flex items-start gap-2.5">
+                    <div className="mt-6 p-3 rounded-xl bg-slate-950/60 border border-slate-700/50 text-[11px] text-slate-400 leading-relaxed flex items-start gap-2.5">
                         <ShieldCheckIcon className="h-4 w-4 text-emerald-400 shrink-0 mt-0.5" />
                         <div>
                             <strong className="text-slate-300">Deterministic Ledger Sync:</strong> Computed automatically via immutable platform audit logs and pre-aggregated ledger snapshots.
