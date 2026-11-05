@@ -92,4 +92,4 @@ billingEventSchema.pre("deleteOne", rejectMutation);
 billingEventSchema.pre("deleteMany", rejectMutation);
 billingEventSchema.pre("findOneAndDelete", rejectMutation);
 
-module.exports = mongoose.model("BillingEvent", billingEventSchema);
+module.exports = mongoose.models.BillingEvent || mongoose.model("BillingEvent", billingEventSchema);

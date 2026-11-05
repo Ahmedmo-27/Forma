@@ -408,4 +408,4 @@ memberSchema.index({ tenantId: 1, isBlocked: 1 });
 memberSchema.index({ tenantId: 1, name: 1 });
 memberSchema.index({ tenantId: 1, phones: 1 });
 
-module.exports = mongoose.model("Member", memberSchema);
+module.exports = mongoose.models.Member || mongoose.model("Member", memberSchema);

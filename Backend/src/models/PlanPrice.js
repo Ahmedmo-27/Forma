@@ -58,4 +58,4 @@ const planPriceSchema = new mongoose.Schema(
 
 planPriceSchema.index({ planId: 1, cycle: 1, isActive: 1 });
 
-module.exports = mongoose.model("PlanPrice", planPriceSchema);
+module.exports = mongoose.models.PlanPrice || mongoose.model("PlanPrice", planPriceSchema);

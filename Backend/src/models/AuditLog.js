@@ -53,4 +53,4 @@ auditLogSchema.plugin(tenantPlugin);
 auditLogSchema.index({ tenantId: 1, action: 1, createdAt: -1 });
 auditLogSchema.index({ tenantId: 1, targetId: 1, createdAt: -1 });
 
-module.exports = mongoose.model("AuditLog", auditLogSchema);
+module.exports = mongoose.models.AuditLog || mongoose.model("AuditLog", auditLogSchema);
