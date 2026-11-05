@@ -1,7 +1,8 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
 import GlobalSearch from './GlobalSearch';
 import NotificationBell from './NotificationBell';
 import { updateMyProfile } from '../api/endpoints';
@@ -10,7 +11,7 @@ const NAV = {
   Receptionist:  [{ to: '/checkin', label: 'Check In' }, { to: '/members', label: 'Members' }, { to: '/contacts', label: 'Contacts' }],
   Sales:         [{ to: '/sales/dashboard', label: 'Dashboard' }, { to: '/sales/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/sales/my-callcenter', label: 'Call Center' }, { to: '/contacts', label: 'Contacts' }],
   'Sales Manager': [{ to: '/sales/dashboard', label: 'Dashboard' }, { to: '/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/management', label: 'Management' }, { to: '/sales/callcenter', label: 'Call Center' }, { to: '/contacts', label: 'Contacts' }],
-  Owner:         [{ to: '/owner/dashboard', label: 'Dashboard' }, { to: '/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/management', label: 'Management' }, { to: '/sales/callcenter', label: 'Call Center' }, { to: '/contacts', label: 'Contacts' }],
+  Owner:         [{ to: '/owner/dashboard', label: 'Dashboard' }, { to: '/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/management', label: 'Management' }, { to: '/sales/callcenter', label: 'Call Center' }, { to: '/contacts', label: 'Contacts' }, { to: '/owner/settings', label: 'Settings' }],
   Accountant:    [{ to: '/accounting/dashboard', label: 'Dashboard' }, { to: '/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/accounting/contract-history', label: 'Contracts' }, { to: '/sales/targets', label: 'Targets' }, { to: '/accounting/package-requests', label: 'Requests' }, { to: '/contacts', label: 'Contacts' }],
   Coach:           [{ to: '/coach/dashboard', label: 'Dashboard' }, { to: '/coach/members', label: 'Members' }, { to: '/coach/checkin', label: 'Check In' }, { to: '/coach/my-transfers', label: 'Transfers' }, { to: '/contacts', label: 'Contacts' }],
   'Coach Manager': [{ to: '/coach/dashboard', label: 'Dashboard' }, { to: '/coach/members', label: 'Members' }, { to: '/coach/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/management', label: 'Management' }, { to: '/contacts', label: 'Contacts' }],
@@ -86,6 +87,7 @@ function DrawerItem({ item, onNavigate }) {
 // ── Main layout ───────────────────────────────────────────────────────────────
 export default function Layout({ children }) {
   const { user, signOut } = useAuth();
+  const { tenant, branding, hasFeature } = useTenant();
   const navigate = useNavigate();
   const [mob, setMob]         = useState(false);
   const [drop, setDrop]       = useState(false);
@@ -94,8 +96,23 @@ export default function Layout({ children }) {
   const [profileErrors, setProfileErrors] = useState({});
   const [profileSaving, setProfileSaving] = useState(false);
   const dropRef         = useRef(null);
-  const items           = NAV[user?.role] ?? NAV.Receptionist;
+
+  const rawItems        = NAV[user?.role] ?? NAV.Receptionist;
+  const items           = useMemo(() => {
+    return rawItems.filter(item => {
+      if (item.to.startsWith('/accounting') && !hasFeature('accounting') && !hasFeature('exception_approvals')) return false;
+      if (item.to === '/sales/targets' && !hasFeature('accounting')) return false;
+      if ((item.to === '/sales/callcenter' || item.to === '/sales/my-callcenter') && !hasFeature('sales_crm')) return false;
+      if (item.to === '/reports' && !hasFeature('exec_analytics') && !hasFeature('sales_crm')) return false;
+      return true;
+    });
+  }, [rawItems, hasFeature]);
+
   const showNotif       = ['Sales', 'Sales Manager', 'Accountant'].includes(user?.role);
+
+  const logoKey = branding?.logoKey;
+  const logoUrl = logoKey ? `/uploads/${encodeURIComponent(logoKey)}` : '/leap-logo.svg';
+  const displayName = branding?.displayName || tenant?.name || 'LEAP';
 
   useEffect(() => {
     const h = e => { if (dropRef.current && !dropRef.current.contains(e.target)) setDrop(false); };
@@ -129,10 +146,11 @@ export default function Layout({ children }) {
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
               boxShadow: '0 3px 12px rgba(68,41,140,0.6)',
+              overflow: 'hidden',
             }}>
-              <img src="/leap-logo.svg" alt="LEAP" style={{ width: 34, height: 34 }} />
+              <img src={logoUrl} alt={displayName} style={{ width: 34, height: 34, objectFit: 'contain' }} />
             </div>
-            <span className="nav-logo-text" style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '2.5px', textTransform: 'uppercase' }}>LEAP</span>
+            <span className="nav-logo-text" style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '2.5px', textTransform: 'uppercase' }}>{displayName}</span>
           </div>
 
           {/* Search */}
@@ -186,6 +204,21 @@ export default function Layout({ children }) {
                     <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{user?.name}</p>
                     <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>{user?.role}</p>
                   </div>
+                  {user?.role === 'Owner' && (
+                    <button onClick={() => { setDrop(false); navigate('/owner/settings'); }} style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 12px', borderRadius: 6, border: 'none',
+                      background: 'transparent', cursor: 'pointer',
+                      fontSize: 13, fontWeight: 600, color: 'var(--t2)', fontFamily: 'inherit',
+                      transition: 'background 0.12s',
+                    }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                      Gym Settings
+                    </button>
+                  )}
                   <button onClick={() => { setDrop(false); setProfileForm({ name: user?.name || '', currentPassword: '', newPassword: '', confirmPassword: '' }); setProfileErrors({}); setEditProfile(true); }} style={{
                     width: '100%', display: 'flex', alignItems: 'center', gap: 8,
                     padding: '8px 12px', borderRadius: 6, border: 'none',

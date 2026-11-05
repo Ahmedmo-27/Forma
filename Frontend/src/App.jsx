@@ -1,6 +1,8 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { TenantProvider } from './context/TenantContext';
+import FeatureGate from './components/FeatureGate';
 import ErrorBoundary from './components/ErrorBoundary';
 
 import Login          from './pages/Login';
@@ -32,6 +34,7 @@ import AccountantDashboard from './pages/accounting/AccountantDashboard';
 import OwnerDashboard     from './pages/owner/OwnerDashboard';
 import OwnerTeams         from './pages/owner/OwnerTeams';
 import OwnerUserProfile   from './pages/owner/OwnerUserProfile';
+import TenantSettings     from './pages/owner/TenantSettings';
 import CheckIn            from './pages/CheckIn';
 import CallCenter         from './pages/sales/CallCenter';
 import Transfer           from './pages/sales/Transfer';
@@ -45,10 +48,13 @@ import ImportedMembers from './pages/reports/ImportedMembers';
 import NotFound       from './pages/NotFound';
 
 // ── Protected route wrapper ───────────────────────────────────────────────────
-function PrivateRoute({ children, roles }) {
+function PrivateRoute({ children, roles, feature }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
+  if (feature) {
+    return <FeatureGate feature={feature}>{children}</FeatureGate>;
+  }
   return children;
 }
 
@@ -124,7 +130,7 @@ function AppRoutes() {
         </PrivateRoute>
       } />
       <Route path="/sales/callcenter" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner']}>
+        <PrivateRoute roles={['Sales Manager', 'Owner']} feature="sales_crm">
           <CallCenter />
         </PrivateRoute>
       } />
@@ -134,22 +140,22 @@ function AppRoutes() {
         </PrivateRoute>
       } />
       <Route path="/sales/packages" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner']}>
+        <PrivateRoute roles={['Sales Manager', 'Owner']} feature="packages">
           <ManagePackages />
         </PrivateRoute>
       } />
       <Route path="/sales/whatsapp-templates" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner', 'Accountant', 'Coach Manager']}>
+        <PrivateRoute roles={['Sales Manager', 'Owner', 'Accountant', 'Coach Manager']} feature="whatsapp">
           <ManageWhatsAppTemplates />
         </PrivateRoute>
       } />
       <Route path="/coach/whatsapp-templates" element={
-        <PrivateRoute roles={['Coach Manager']}>
+        <PrivateRoute roles={['Coach Manager']} feature="whatsapp">
           <ManageWhatsAppTemplates />
         </PrivateRoute>
       } />
       <Route path="/sales/targets" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner', 'Accountant']}>
+        <PrivateRoute roles={['Sales Manager', 'Owner', 'Accountant']} feature="accounting">
           <TargetDashboard />
         </PrivateRoute>
       } />
@@ -159,7 +165,7 @@ function AppRoutes() {
         </PrivateRoute>
       } />
       <Route path="/sales/my-callcenter" element={
-        <PrivateRoute roles={['Sales']}>
+        <PrivateRoute roles={['Sales']} feature="sales_crm">
           <SalesCallCenter />
         </PrivateRoute>
       } />
@@ -169,24 +175,24 @@ function AppRoutes() {
         </PrivateRoute>
       } />
       <Route path="/sales/import" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner']}>
+        <PrivateRoute roles={['Sales Manager', 'Owner']} feature="excel_import">
           <ImportMembers />
         </PrivateRoute>
       } />
 
       {/* Accountant routes */}
       <Route path="/accounting/dashboard" element={
-        <PrivateRoute roles={['Accountant', 'Owner']}>
+        <PrivateRoute roles={['Accountant', 'Owner']} feature="accounting">
           <AccountantDashboard />
         </PrivateRoute>
       } />
       <Route path="/accounting/package-requests" element={
-        <PrivateRoute roles={['Accountant']}>
+        <PrivateRoute roles={['Accountant', 'Owner']} feature="exception_approvals">
           <PackageRequests />
         </PrivateRoute>
       } />
       <Route path="/accounting/contract-history" element={
-        <PrivateRoute roles={['Accountant', 'Owner', 'Sales Manager']}>
+        <PrivateRoute roles={['Accountant', 'Owner', 'Sales Manager']} feature="accounting">
           <ContractHistory />
         </PrivateRoute>
       } />
@@ -262,6 +268,11 @@ function AppRoutes() {
           <OwnerUserProfile />
         </PrivateRoute>
       } />
+      <Route path="/owner/settings" element={
+        <PrivateRoute roles={['Owner']}>
+          <TenantSettings />
+        </PrivateRoute>
+      } />
 
       {/* Management */}
       <Route path="/management" element={
@@ -303,24 +314,26 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <BrowserRouter>
-          <AppRoutes />
-          <Toaster
-            position="bottom-right"
-            toastOptions={{
-              duration: 3500,
-              style: {
-                background: '#191919',
-                color:      '#f0f0f0',
-                border:     '1px solid #2a2a2a',
-                fontSize:   '13px',
-                borderRadius: '8px',
-              },
-              success: { iconTheme: { primary: '#22c55e', secondary: '#191919' } },
-              error:   { iconTheme: { primary: '#ef4444', secondary: '#191919' } },
-            }}
-          />
-        </BrowserRouter>
+        <TenantProvider>
+          <BrowserRouter>
+            <AppRoutes />
+            <Toaster
+              position="bottom-right"
+              toastOptions={{
+                duration: 3500,
+                style: {
+                  background: '#191919',
+                  color:      '#f0f0f0',
+                  border:     '1px solid #2a2a2a',
+                  fontSize:   '13px',
+                  borderRadius: '8px',
+                },
+                success: { iconTheme: { primary: '#22c55e', secondary: '#191919' } },
+                error:   { iconTheme: { primary: '#ef4444', secondary: '#191919' } },
+              }}
+            />
+          </BrowserRouter>
+        </TenantProvider>
       </AuthProvider>
     </ErrorBoundary>
   );

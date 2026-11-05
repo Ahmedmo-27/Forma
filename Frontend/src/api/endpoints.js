@@ -1,8 +1,8 @@
 import api from './axios';
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-export const login        = (email, password) =>
-  api.post('/users/login', { email, password });
+export const login        = (email, password, gymCode) =>
+  api.post('/users/login', { email, password, gymCode });
 
 export const getSalesUsers   = () => api.get('/users/sales');
 export const getReceptionists = () => api.get('/users/receptionists');
@@ -134,3 +134,11 @@ export const refundMember = (id, refund_amount, reason) =>
   api.post(`/members/${id}/refund`, { memberID: id, refund_amount, reason });
 export const refundPTSessions = (id, refund_amount, reason) =>
   api.post(`/members/${id}/refund_pt`, { memberID: id, refund_amount, reason });
+
+// ── Multi-Tenant SaaS ─────────────────────────────────────────────────────────
+export const getTenantMe = () => api.get('/tenant/me');
+export const updateTenantMe = (data) => api.patch('/tenant/me', data);
+export const uploadTenantLogo = (formData) =>
+  api.post('/tenant/me/logo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });

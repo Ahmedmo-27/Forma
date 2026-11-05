@@ -40,21 +40,25 @@ export function AuthProvider({ children }) {
       .finally(() => setChecked(true));
   }, []);
 
-  const signIn = useCallback(async (email, password) => {
+  const signIn = useCallback(async (email, password, gymCode) => {
     const apiUrl = import.meta.env.VITE_API_URL;
     console.info('[auth] Login attempt', {
       apiUrl: apiUrl || '(missing VITE_API_URL)',
       email: email?.trim(),
+      gymCode: gymCode?.trim(),
       passwordLength: password?.length ?? 0,
     });
 
     try {
-      const res = await loginApi(email, password);
+      const res = await loginApi(email, password, gymCode);
       const { token, user: u } = res.data;
       localStorage.setItem('ff_token', token);
       localStorage.setItem('ff_user', JSON.stringify(u));
+      if (u.tenantSlug) {
+        localStorage.setItem('ff_tenant_slug', u.tenantSlug);
+      }
       setUser(u);
-      console.info('[auth] Login success', { role: u.role, email: u.email });
+      console.info('[auth] Login success', { role: u.role, email: u.email, tenantSlug: u.tenantSlug });
       return u;
     } catch (err) {
       console.error('[auth] Login failed', {

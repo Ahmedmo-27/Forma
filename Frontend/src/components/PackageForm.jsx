@@ -1,4 +1,5 @@
 import { Input, Select, Textarea } from './ui';
+import { useTenant } from '../context/TenantContext';
 
 export const ACTIVITY_TYPES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 export const DURATIONS = ['1 month', '3 months', '6 months', '1 year'];
@@ -40,6 +41,16 @@ export function packageFormToPayload(form) {
 
 export default function PackageForm({ form, onChange, errors }) {
   const set = (k, v) => onChange({ ...form, [k]: v });
+  let activities = ACTIVITY_TYPES;
+  let currency = 'EGP';
+  try {
+    const tenantCtx = useTenant();
+    if (tenantCtx?.enabledActivities?.length) activities = tenantCtx.enabledActivities;
+    if (tenantCtx?.currency) currency = tenantCtx.currency;
+  } catch {
+    // fallback if outside TenantProvider
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <Input
@@ -48,14 +59,14 @@ export default function PackageForm({ form, onChange, errors }) {
       />
       <div className="grid-2">
         <Select label="Activity Type" value={form.activityType} onChange={e => set('activityType', e.target.value)}>
-          {ACTIVITY_TYPES.map(a => <option key={a} value={a}>{a}</option>)}
+          {activities.map(a => <option key={a} value={a}>{a}</option>)}
         </Select>
         <Select label="Duration *" value={form.duration} onChange={e => set('duration', e.target.value)}>
           {DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}
         </Select>
       </div>
       <Input
-        label="Price (EGP) *" type="number" min="0" value={form.price} error={errors.price}
+        label={`Price (${currency}) *`} type="number" min="0" value={form.price} error={errors.price}
         onChange={e => set('price', e.target.value)} placeholder="0"
       />
       <div className="grid-3">

@@ -46,6 +46,11 @@ const api = axios.create({
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('ff_token');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+
+  // Tenant scoping header
+  const tenantSlug = localStorage.getItem('ff_tenant_slug');
+  if (tenantSlug) config.headers['X-Tenant-Slug'] = tenantSlug;
+
   config.headers['X-Request-Id'] = crypto.randomUUID().slice(0, 8);
   logRequest(config);
   return config;
@@ -66,6 +71,23 @@ api.interceptors.response.use(
         baseURL: err.config?.baseURL,
         requestId: err.response?.headers?.['x-request-id'] || err.config?.headers?.['X-Request-Id'],
       });
+    }
+
+    const code = err.response?.data?.code;
+    const msg = err.response?.data?.message;
+
+    if (err.response?.status === 403) {
+      if (code === 'FEATURE_NOT_IN_PLAN') {
+        toast.error(`Feature unavailable: ${msg || 'Upgrade your subscription plan to access this feature.'}`);
+      } else if (code === 'PLAN_LIMIT_REACHED') {
+        toast.error(`Limit reached: ${msg || 'Maximum limit reached for your current plan.'}`);
+      } else if (code === 'TENANT_SUSPENDED') {
+        toast.error('Your gym subscription is suspended. Please contact support.');
+      } else if (code === 'SUBSCRIPTION_PAST_DUE') {
+        toast.error('Subscription past due. Changes are disabled until payment is resolved.');
+      } else if (code === 'ROLE_NOT_IN_PLAN') {
+        toast.error('Role not permitted under your current plan.');
+      }
     }
 
     if (err.response?.status === 401 && !err.config?.url?.includes('/users/login')) {
