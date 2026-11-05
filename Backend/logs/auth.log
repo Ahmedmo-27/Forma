@@ -809,3 +809,5 @@
 {"ts":"2026-11-01T08:46:46.493Z","level":"info","category":"auth","message":"Password compare completed","env":"development","requestId":"1793522805898-kam7ym","userId":"6a41277bfbd6496e1d99b3d2","match":true,"needsRehash":false}
 {"ts":"2026-11-01T08:46:46.496Z","level":"info","category":"auth","message":"Login success","env":"development","requestId":"1793522805898-kam7ym","userId":"6a41277bfbd6496e1d99b3d2","role":"Sales Manager"}
 {"ts":"2026-11-01T08:46:46.498Z","level":"info","category":"auth","message":"Auth HTTP request","env":"development","requestId":"e7e8ff1b","method":"POST","path":"/api/users/login","status":200,"durationMs":601,"ip":"::1","userAgent":"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36"}
+{"ts":"2026-11-05T02:56:15.122Z","level":"warn","category":"auth","message":"Auth middleware: no token","env":"test","path":"/uploads/guessed.jpg","method":"GET","ip":"127.0.0.1"}
+{"ts":"2026-11-05T02:56:15.156Z","level":"warn","category":"auth","message":"invalid signature","env":"test","path":"/api/members","error":"JsonWebTokenError","hasJwtSecret":true}

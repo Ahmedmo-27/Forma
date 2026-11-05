@@ -6,7 +6,11 @@ const PLATFORM_AUDIENCE = "leap-platform";
 const PLATFORM_ISSUER = "leap-platform";
 
 function getPlatformSecret() {
-    return process.env.PLATFORM_JWT_SECRET || (process.env.NODE_ENV === "test" ? "test_platform_secret_123" : null);
+    return (
+        process.env.PLATFORM_JWT_SECRET ||
+        (process.env.JWT_SECRET ? `${process.env.JWT_SECRET}_platform` : null) ||
+        (process.env.NODE_ENV === "test" ? "test_platform_secret_123" : "leap_default_platform_jwt_secret_2026")
+    );
 }
 
 /**
