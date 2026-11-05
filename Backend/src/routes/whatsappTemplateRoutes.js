@@ -3,6 +3,7 @@ const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 const validate = require("../middleware/validate");
+const { requireFeature } = require("../middleware/featureGating");
 const {
     createWhatsAppTemplateSchema,
     updateWhatsAppTemplateSchema,
@@ -16,32 +17,31 @@ const {
     logTemplateSend,
 } = require("../controllers/whatsappTemplateController");
 
-router.get("/", protect, getTemplates);
+router.use(protect);
+router.use(requireFeature("whatsapp"));
+
+router.get("/", getTemplates);
 
 router.post(
     "/log-send",
-    protect,
     validate(logWhatsAppTemplateSendSchema),
     logTemplateSend
 );
 
 router.post(
     "/",
-    protect,
     authorize("Owner", "Sales Manager", "Accountant", "Coach Manager"),
     validate(createWhatsAppTemplateSchema),
     createTemplate
 );
 router.patch(
     "/:id",
-    protect,
     authorize("Owner", "Sales Manager", "Accountant", "Coach Manager"),
     validate(updateWhatsAppTemplateSchema),
     updateTemplate
 );
 router.delete(
     "/:id",
-    protect,
     authorize("Owner", "Sales Manager", "Accountant", "Coach Manager"),
     deleteTemplate
 );

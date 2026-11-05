@@ -206,10 +206,13 @@ const createException = async (req, res) => {
             notificationMessage,
         });
 
-        const accountants = await User.find({ role: "Accountant" }).select("_id");
+        let approvers = await User.find({ role: "Accountant" }).select("_id");
+        if (approvers.length === 0) {
+            approvers = await User.find({ role: "Owner" }).select("_id");
+        }
         try {
             await Promise.all(
-                accountants.map((acct) =>
+                approvers.map((acct) =>
                     notifyPackageExceptionPending({
                         recipientId: acct._id,
                         member,

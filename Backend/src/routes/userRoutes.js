@@ -32,31 +32,36 @@ const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 const loginLimiter = require("../middleware/loginLimiter");
 const validate = require("../middleware/validate");
 const { loginSchema, createStaffSchema } = require("../validation/schemas");
+const { enforceStaffLimit, enforceSubscriptionStatus } = require("../middleware/tenantStatus");
+const { requireFeature } = require("../middleware/featureGating");
 
 // Public auth — rate limited + validated
 router.post("/login", loginLimiter, validate(loginSchema), loginUser);
 
-// Registration is Owner-only (was publicly open — anyone could create Receptionist accounts)
-router.post("/register", protect, authorizeRoles("Owner"), registerUser);
+router.use(protect);
+router.use(enforceSubscriptionStatus);
 
-router.get("/profile", protect, (req, res) => {
+// Registration is Owner-only (was publicly open — anyone could create Receptionist accounts)
+router.post("/register", authorizeRoles("Owner"), enforceStaffLimit, registerUser);
+
+router.get("/profile", (req, res) => {
     res.json({ message: "protected route accessed", user: req.user });
 });
 
-router.get("/me", protect, getMyProfile);
-router.patch("/me", protect, updateMyProfile);
-router.get("/sales-revenue", protect, authorizeRoles("Sales"), getSalesRevenue);
-router.get("/sales-manager/revenue", protect, authorizeRoles("Sales Manager", "Owner", "Accountant"), getSalesManagerRevenue);
-router.get("/sales-manager/subscriptions", protect, authorizeRoles("Sales Manager", "Owner", "Accountant"), getSubscriptionsByDate);
-router.get("/my-subscriptions", protect, authorizeRoles("Sales"), getSalesMySubscriptions);
-router.get("/sales-reps", protect, authorizeRoles("Sales Manager", "Owner"), getSalesReps);
-router.get("/sales", protect, authorizeRoles("Sales Manager", "Owner", "Accountant", "Receptionist", "Sales"), getSalesUsers);
-router.get("/receptionists", protect, getReceptionists);
-router.get("/team", protect, authorizeRoles("Sales Manager", "Owner", "Accountant"), getSalesTeam);
-router.get("/team/:id", protect, authorizeRoles("Sales Manager", "Owner", "Accountant"), getSalesProfile);
-router.get("/coach-team", protect, authorizeRoles("Coach Manager", "Owner", "Sales Manager", "Receptionist", "Sales", "Accountant"), getCoachTeam);
-router.get("/coach-team/:id", protect, authorizeRoles("Coach Manager", "Owner"), getCoachProfile);
-router.post("/staff", protect, authorizeRoles("Sales Manager", "Owner", "Coach Manager"), createStaffUser);
+router.get("/me", getMyProfile);
+router.patch("/me", updateMyProfile);
+router.get("/sales-revenue", authorizeRoles("Sales"), getSalesRevenue);
+router.get("/sales-manager/revenue", authorizeRoles("Sales Manager", "Owner", "Accountant"), requireFeature("exec_analytics"), getSalesManagerRevenue);
+router.get("/sales-manager/subscriptions", authorizeRoles("Sales Manager", "Owner", "Accountant"), getSubscriptionsByDate);
+router.get("/my-subscriptions", authorizeRoles("Sales"), getSalesMySubscriptions);
+router.get("/sales-reps", authorizeRoles("Sales Manager", "Owner"), getSalesReps);
+router.get("/sales", authorizeRoles("Sales Manager", "Owner", "Accountant", "Receptionist", "Sales"), getSalesUsers);
+router.get("/receptionists", getReceptionists);
+router.get("/team", authorizeRoles("Sales Manager", "Owner", "Accountant"), getSalesTeam);
+router.get("/team/:id", authorizeRoles("Sales Manager", "Owner", "Accountant"), getSalesProfile);
+router.get("/coach-team", authorizeRoles("Coach Manager", "Owner", "Sales Manager", "Receptionist", "Sales", "Accountant"), getCoachTeam);
+router.get("/coach-team/:id", authorizeRoles("Coach Manager", "Owner"), getCoachProfile);
+router.post("/staff", authorizeRoles("Sales Manager", "Owner", "Coach Manager"), enforceStaffLimit, createStaffUser);
 router.patch("/:id/target", protect, authorizeRoles("Sales Manager"), updateSalesRepTarget);
 router.patch("/:id/abilities", protect, authorizeRoles("Sales Manager"), updateSalesRepAbilities);
 router.patch("/:id/coach-abilities", protect, authorizeRoles("Coach Manager"), updateCoachRepAbilities);

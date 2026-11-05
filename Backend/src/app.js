@@ -23,6 +23,7 @@ const authorize = require("./middleware/roleMiddleware");
 const { writeAudit } = require("./utils/audit");
 const { detectMimeFromFile, MIME_TO_EXT } = require("./utils/fileMagic");
 const coachRequestRoutes = require("./routes/coachRequestRoutes");
+const tenantRoutes = require("./routes/tenantRoutes");
 
 
 const app = express();
@@ -72,6 +73,7 @@ app.use("/api/accounting", contractRoutes);
 app.use("/api/requests", salesRequestRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/coach-requests", coachRequestRoutes);
+app.use("/api/tenant", tenantRoutes);
 
 const uploadsDir = path.resolve(__dirname, "../uploads");
 const uploadReadLimiter = rateLimit({

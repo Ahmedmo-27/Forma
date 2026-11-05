@@ -1,0 +1,56 @@
+const Tenant = require("../models/Tenant");
+const Plan = require("../models/Plan");
+const { getEffectiveFeatures, getEffectiveLimits } = require("../models/Tenant");
+const { runAsPlatform } = require("../context/tenantContext");
+
+/**
+ * Middleware that verifies the active tenant's subscription plan (and overrides)
+ * includes the specified featureKey.
+ * Runs BEFORE the RBAC authorizer.
+ * Returns HTTP 403 with code FEATURE_NOT_IN_PLAN if forbidden.
+ *
+ * @param {string} featureKey
+ */
+function requireFeature(featureKey) {
+    return async (req, res, next) => {
+        try {
+            const tenantId = req.user?.tenantId;
+            if (!tenantId) {
+                // If route is platform or unauthenticated, feature gating doesn't apply directly
+                return next();
+            }
+
+            // Retrieve tenant and plan (cached on req if previously loaded in request)
+            if (!req.tenant) {
+                const tenant = await runAsPlatform(async () => {
+                    return await Tenant.findById(tenantId).populate("planId");
+                });
+
+                if (!tenant) {
+                    return res.status(404).json({
+                        code: "TENANT_NOT_FOUND",
+                        message: "Gym subscription not found.",
+                    });
+                }
+
+                req.tenant = tenant;
+                req.plan = tenant.planId;
+            }
+
+            const effectiveFeatures = getEffectiveFeatures(req.tenant, req.plan);
+            if (!effectiveFeatures.includes(featureKey)) {
+                return res.status(403).json({
+                    code: "FEATURE_NOT_IN_PLAN",
+                    feature: featureKey,
+                    message: `The '${featureKey}' feature is not enabled for your gym's current subscription plan. Please upgrade to access this feature.`,
+                });
+            }
+
+            next();
+        } catch (error) {
+            next(error);
+        }
+    };
+}
+
+module.exports = { requireFeature };

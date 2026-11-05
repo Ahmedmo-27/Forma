@@ -5,6 +5,8 @@ const authorize = require("../middleware/roleMiddleware");
 const uploadLimiter = require("../middleware/uploadLimiter");
 const { uploadSingle, uploadSinglePhoto } = require("../config/multer");
 const validate  = require("../middleware/validate");
+const { requireFeature } = require("../middleware/featureGating");
+const { enforceMemberLimit, enforceSubscriptionStatus } = require("../middleware/tenantStatus");
 const {
     createMemberSchema,
     freezeMemberSchema,
@@ -50,16 +52,20 @@ const {
 
 // ── Role groups ───────────────────────────────────────────────────────────────
 
-const readAccess  = [protect, authorize("Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Accountant")];
-const writeAccess = [protect, authorize("Receptionist", "Owner", "Sales Manager", "Sales")];
-const notesAccess = [protect, authorize("Owner", "Sales", "Sales Manager", "Coach", "Coach Manager")];
-const freezeAccess = [protect, authorize("Receptionist", "Owner", "Sales", "Sales Manager")];
-const inviteAccess = [protect, authorize("Receptionist", "Owner", "Sales", "Sales Manager")];
+router.use(protect);
+router.use(enforceSubscriptionStatus);
+router.use(requireFeature("members"));
+
+const readAccess  = [authorize("Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Accountant")];
+const writeAccess = [authorize("Receptionist", "Owner", "Sales Manager", "Sales")];
+const notesAccess = [authorize("Owner", "Sales", "Sales Manager", "Coach", "Coach Manager")];
+const freezeAccess = [authorize("Receptionist", "Owner", "Sales", "Sales Manager")];
+const inviteAccess = [authorize("Receptionist", "Owner", "Sales", "Sales Manager")];
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-router.post("/", ...writeAccess, validate(createMemberSchema), createMember);
-router.post("/bulk-import", protect, authorizeRoles("Sales Manager", "Owner"), (req, res, next) => {
+router.post("/", ...writeAccess, enforceMemberLimit, validate(createMemberSchema), createMember);
+router.post("/bulk-import", authorizeRoles("Sales Manager", "Owner"), requireFeature("excel_import"), (req, res, next) => {
     const multer = require("multer");
     const upload = multer({
         storage: multer.memoryStorage(),
@@ -79,7 +85,7 @@ router.post("/bulk-transfer-sales", protect, authorizeRoles("Sales Manager", "Ow
 router.post("/bulk-transfer-coach", protect, authorizeRoles("Coach Manager", "Owner"), bulkTransferCoach);
 
 // Body-based check-in for barcode scanners: POST /members/check-in { identifier: "FF000105" }
-router.post("/check-in", ...writeAccess, (req, res, next) => {
+router.post("/check-in", ...writeAccess, requireFeature("checkin"), (req, res, next) => {
     req.params.memberId = req.body.identifier;
     checkInMember(req, res, next);
 });
@@ -113,18 +119,18 @@ router.post("/:memberId/notes", ...notesAccess, validate(addNoteSchema), addNote
 router.post("/:memberId/invitations", ...inviteAccess, uploadLimiter, uploadSingle("idFile"), validate(invitationSchema), addInvitation);
 router.put("/:memberId/sales-rep", protect, authorizeRoles("Sales Manager", "Owner"), switchSalesRep);
 router.post("/:memberId/alerts", protect, authorize("Receptionist", "Sales", "Sales Manager"), validate(addAlertSchema), addAlert);
-router.post("/:memberId/checkin", ...writeAccess, checkInMember);
+router.post("/:memberId/checkin", ...writeAccess, requireFeature("checkin"), checkInMember);
 router.patch("/:memberId/alerts/:alertId/deactivate", protect, authorize("Receptionist", "Sales", "Sales Manager", "Owner"), deactivateAlert);
 router.patch("/:memberId/assign-sales", ...writeAccess, assignSalesman);
 router.patch("/:memberId/freeze", ...freezeAccess, validate(freezeMemberSchema), freezeMember);
 router.patch("/:memberId/block", protect, authorize("Sales Manager"), blockMember);
 router.patch("/:memberId/unblock", protect, authorize("Sales Manager"), unblockMember);
-router.post("/:memberId/package", protect, authorize("Accountant", "Owner"), validate(assignPackageSchema), assignPackage);
+router.post("/:memberId/package", protect, authorize("Accountant", "Owner"), requireFeature("packages"), validate(assignPackageSchema), assignPackage);
 router.patch("/:memberId/national-id", protect, authorize("Accountant"), uploadLimiter, uploadSingle("nationalIdFile"), uploadNationalId);
 router.patch("/:memberId/photo", protect, authorize("Accountant"), uploadLimiter, uploadSinglePhoto("photoFile"), uploadProfilePhoto);
 router.delete("/:memberId/photo", protect, authorize("Accountant"), uploadLimiter, deleteProfilePhoto);
 
-router.post("/PTcheckin", protect, authorizeRoles("Coach", "Coach Manager"), sessionCheckIn_for_couch);
+router.post("/PTcheckin", protect, authorizeRoles("Coach", "Coach Manager"), requireFeature("pt_tracking"), sessionCheckIn_for_couch);
 
 // ── Coach routes ──────────────────────────────────────────────────────────────
 
@@ -134,7 +140,7 @@ router.post("/:memberId/couch-notes", protect, authorizeRoles("Coach", "Coach Ma
 router.get("/by/:memberId", ...readAccess, getMemberById);
 
 
-router.post("/:memberId/pt-sessions", protect, authorizeRoles("Owner", "Accountant"), addPT_sessions);
-router.post("/:memberId/refund", protect, authorizeRoles("Owner","Accountant"), refund);
-router.post("/:memberId/refund_pt", protect, authorizeRoles("Owner","Accountant"), refundPT_Sessions);
+router.post("/:memberId/pt-sessions", protect, authorizeRoles("Owner", "Accountant"), requireFeature("pt_tracking"), addPT_sessions);
+router.post("/:memberId/refund", protect, authorizeRoles("Owner","Accountant"), requireFeature("accounting"), refund);
+router.post("/:memberId/refund_pt", protect, authorizeRoles("Owner","Accountant"), requireFeature("accounting"), refundPT_Sessions);
 module.exports = router;

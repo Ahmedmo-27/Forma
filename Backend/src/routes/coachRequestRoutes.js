@@ -7,9 +7,11 @@ const {
 } = require("../controllers/coachRequestController");
 const { protect } = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
+const { requireFeature } = require("../middleware/featureGating");
 
 // All routes require authentication
 router.use(protect);
+router.use(requireFeature("pt_tracking"));
 
 // Sales sees own requests; Sales Manager/Owner sees all
 router.get("/",           authorize("Coach", "Coach Manager", "Owner"), getRequests);
