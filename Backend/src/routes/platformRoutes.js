@@ -67,6 +67,32 @@ const {
 } = require("../controllers/platformBillingController");
 
 const {
+    getOverview,
+    getSnapshots,
+    getUpsellAndChurnLists,
+    getCostInsights,
+    triggerSnapshot,
+    exportAnalyticsCsv,
+} = require("../controllers/platformAnalyticsController");
+
+const {
+    createImpersonationSession,
+    exportTenantData,
+    purgeTenant,
+    getAnnouncements,
+    createAnnouncement,
+    updateAnnouncement,
+    deleteAnnouncement,
+    getPlatformAuditLogs,
+} = require("../controllers/platformSupportController");
+
+const {
+    getSystemHealth,
+    toggleMaintenanceMode,
+    updatePlatformSetting,
+} = require("../controllers/platformSystemController");
+
+const {
     createPlanSchema,
     updatePlanSchema,
     createTenantSchema,
@@ -152,5 +178,36 @@ router.post("/billing/grants", requirePlatformPermission(PERMISSIONS.BILLING_GRA
 
 router.get("/billing/ledger", requirePlatformPermission(PERMISSIONS.BILLING_LEDGER), getLedgerEvents);
 router.get("/billing/ledger/export", requirePlatformPermission(PERMISSIONS.BILLING_LEDGER), exportLedgerCsv);
+
+// ==========================================
+// Business Analytics & Snapshots (Phase 5)
+// ==========================================
+router.get("/analytics/overview", requirePlatformPermission(PERMISSIONS.ANALYTICS_VIEW), getOverview);
+router.get("/analytics/snapshots", requirePlatformPermission(PERMISSIONS.ANALYTICS_VIEW), getSnapshots);
+router.get("/analytics/health-details", requirePlatformPermission(PERMISSIONS.ANALYTICS_VIEW), getUpsellAndChurnLists);
+router.get("/analytics/cost-insights", requirePlatformPermission(PERMISSIONS.ANALYTICS_VIEW), getCostInsights);
+router.post("/analytics/snapshots/compute", requirePlatformPermission(PERMISSIONS.ANALYTICS_VIEW), triggerSnapshot);
+router.get("/analytics/export", requirePlatformPermission(PERMISSIONS.ANALYTICS_VIEW), exportAnalyticsCsv);
+
+// ==========================================
+// Support, Impersonation & Data Lifecycle (Phase 6)
+// ==========================================
+router.post("/support/impersonate", requirePlatformPermission(PERMISSIONS.SUPPORT_IMPERSONATE_READ), createImpersonationSession);
+router.get("/support/tenants/:id/export", requirePlatformPermission(PERMISSIONS.SUPPORT_EXPORT_DATA), exportTenantData);
+router.delete("/tenants/:id/purge", requirePlatformPermission(PERMISSIONS.TENANTS_PURGE), purgeTenant);
+
+// Announcements
+router.get("/announcements", requirePlatformPermission(PERMISSIONS.TENANTS_READ), getAnnouncements);
+router.post("/announcements", requirePlatformPermission(PERMISSIONS.ANNOUNCEMENTS_MANAGE), createAnnouncement);
+router.patch("/announcements/:id", requirePlatformPermission(PERMISSIONS.ANNOUNCEMENTS_MANAGE), updateAnnouncement);
+router.delete("/announcements/:id", requirePlatformPermission(PERMISSIONS.ANNOUNCEMENTS_MANAGE), deleteAnnouncement);
+
+// Platform Audit Log Viewer
+router.get("/audit", requirePlatformPermission(PERMISSIONS.AUDIT_VIEW), getPlatformAuditLogs);
+
+// System Health & Maintenance
+router.get("/system/health", requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH), getSystemHealth);
+router.post("/system/maintenance", requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH), toggleMaintenanceMode);
+router.patch("/system/settings/:key", requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH), updatePlatformSetting);
 
 module.exports = router;

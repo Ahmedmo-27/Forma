@@ -17,8 +17,18 @@ export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [checked, setChecked] = useState(false); // true once token is verified
 
-  // On mount — verify stored token is still valid with the backend
+  // On mount — check for impersonation query token and verify stored token
   useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const impToken = params.get('impersonation_token');
+      if (impToken) {
+        localStorage.setItem('ff_token', impToken);
+        const cleanUrl = window.location.pathname + window.location.hash;
+        window.history.replaceState({}, document.title, cleanUrl);
+      }
+    } catch (_) {}
+
     const token = localStorage.getItem('ff_token');
     if (!token) {
       setChecked(true);

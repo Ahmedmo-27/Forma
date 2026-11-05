@@ -1,6 +1,7 @@
 const Tenant = require("../models/Tenant");
 const Member = require("../models/Member");
 const User = require("../models/User");
+const Announcement = require("../models/Announcement");
 const { getEffectiveFeatures, getEffectiveLimits } = require("../models/Tenant");
 const { runAsPlatform } = require("../context/tenantContext");
 const { encryptSecret } = require("../utils/tenantCrypto");
@@ -89,15 +90,25 @@ const getMyTenant = async (req, res) => {
             return res.status(404).json({ message: "Tenant not found" });
         }
 
-        const [membersCount, staffCount] = await Promise.all([
+        const [membersCount, staffCount, announcements] = await Promise.all([
             Member.countDocuments(),
             User.countDocuments(),
+            runAsPlatform(async () => {
+                const now = new Date();
+                return await Announcement.find({
+                    isActive: true,
+                    startDate: { $lte: now },
+                    $or: [{ endDate: null }, { endDate: { $gt: now } }],
+                }).select("title message type startDate");
+            }),
         ]);
 
         const response = sanitizeTenantResponse(tenant, tenant.planId, {
             members: membersCount,
             staff: staffCount,
         });
+
+        response.announcements = announcements || [];
 
         res.json(response);
     } catch (error) {

@@ -130,6 +130,55 @@ export default function Layout({ children }) {
   return (
     <div style={{ minHeight: '100svh', display: 'flex', flexDirection: 'column', background: 'var(--bg)' }}>
 
+      {/* ── Platform Impersonation Session Banner ─────────────────── */}
+      {user?.isImpersonation && (
+        <div style={{
+          position: 'sticky', top: 0, zIndex: 100,
+          background: 'linear-gradient(90deg, #d97706, #b45309)',
+          color: '#ffffff',
+          padding: '8px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: 13,
+          fontWeight: 600,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 16 }}>⚠️</span>
+            <span>
+              Platform Support Session Active (Admin: {user?.impersonatedBy?.name || user?.impersonatedBy?.email || 'Operator'}) — Mode: <strong>{user?.readOnly ? 'READ-ONLY' : 'READ-WRITE'}</strong>
+            </span>
+            {user?.readOnly && (
+              <span style={{ fontSize: 11, background: 'rgba(0,0,0,0.25)', padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                Mutations Blocked
+              </span>
+            )}
+          </div>
+          <button
+            onClick={() => {
+              signOut();
+              window.close();
+            }}
+            style={{
+              background: '#111827',
+              color: '#f9fafb',
+              border: 'none',
+              padding: '5px 14px',
+              borderRadius: 6,
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = '#000'}
+            onMouseLeave={e => e.currentTarget.style.background = '#111827'}
+          >
+            Exit Impersonation
+          </button>
+        </div>
+      )}
+
       {/* ── ROW 1 — sticky top bar ─────────────────────────────── */}
       <div style={{
         position: 'sticky', top: 0, zIndex: 50,

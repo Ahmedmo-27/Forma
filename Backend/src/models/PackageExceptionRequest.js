@@ -64,4 +64,8 @@ const packageExceptionRequestSchema = new mongoose.Schema({
 packageExceptionRequestSchema.plugin(tenantPlugin);
 packageExceptionRequestSchema.index({ tenantId: 1, member: 1, status: 1 });
 
-module.exports = mongoose.model("PackageExceptionRequest", packageExceptionRequestSchema);
+try {
+    module.exports = mongoose.model("PackageExceptionRequest");
+} catch (_) {
+    module.exports = mongoose.model("PackageExceptionRequest", packageExceptionRequestSchema);
+}

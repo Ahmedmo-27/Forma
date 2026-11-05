@@ -47,6 +47,24 @@ import ExpiredMembers  from './pages/reports/ExpiredMembers';
 import ImportedMembers from './pages/reports/ImportedMembers';
 import NotFound       from './pages/NotFound';
 
+// ── Platform Console Imports (Zero Tenant Context) ───────────────────────────
+import { PlatformAuthProvider } from './platform/context/PlatformAuthContext';
+import PlatformLayout from './platform/components/PlatformLayout';
+import PlatformLogin from './platform/pages/PlatformLogin';
+import PlatformDashboard from './platform/pages/PlatformDashboard';
+import PlatformTenants from './platform/pages/PlatformTenants';
+import PlatformTenantDetail from './platform/pages/PlatformTenantDetail';
+import PlatformPlansFeatures from './platform/pages/PlatformPlansFeatures';
+import PlatformPricingCoupons from './platform/pages/PlatformPricingCoupons';
+import PlatformPaymentsInvoices from './platform/pages/PlatformPaymentsInvoices';
+import PlatformLedger from './platform/pages/PlatformLedger';
+import PlatformUsage from './platform/pages/PlatformUsage';
+import PlatformSupport from './platform/pages/PlatformSupport';
+import PlatformAnnouncements from './platform/pages/PlatformAnnouncements';
+import PlatformAuditLog from './platform/pages/PlatformAuditLog';
+import PlatformUsers from './platform/pages/PlatformUsers';
+import PlatformSystemHealth from './platform/pages/PlatformSystemHealth';
+
 // ── Protected route wrapper ───────────────────────────────────────────────────
 function PrivateRoute({ children, roles, feature }) {
   const { user } = useAuth();
@@ -70,8 +88,8 @@ function RootRedirect() {
   return <Navigate to="/members" replace />;
 }
 
-// ── Router ────────────────────────────────────────────────────────────────────
-function AppRoutes() {
+// ── Tenant Router ─────────────────────────────────────────────────────────────
+function TenantAppRoutes() {
   return (
     <Routes>
       <Route path="/"      element={<RootRedirect />} />
@@ -313,28 +331,66 @@ function AppRoutes() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <AuthProvider>
-        <TenantProvider>
-          <BrowserRouter>
-            <AppRoutes />
-            <Toaster
-              position="bottom-right"
-              toastOptions={{
-                duration: 3500,
-                style: {
-                  background: '#191919',
-                  color:      '#f0f0f0',
-                  border:     '1px solid #2a2a2a',
-                  fontSize:   '13px',
-                  borderRadius: '8px',
-                },
-                success: { iconTheme: { primary: '#22c55e', secondary: '#191919' } },
-                error:   { iconTheme: { primary: '#ef4444', secondary: '#191919' } },
-              }}
-            />
-          </BrowserRouter>
-        </TenantProvider>
-      </AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* ── Platform Console Subsystem (Zero Tenant Context) ─────────────── */}
+          <Route
+            path="/platform/*"
+            element={
+              <PlatformAuthProvider>
+                <Routes>
+                  <Route path="login" element={<PlatformLogin />} />
+                  <Route element={<PlatformLayout />}>
+                    <Route index element={<Navigate to="/platform/dashboard" replace />} />
+                    <Route path="dashboard" element={<PlatformDashboard />} />
+                    <Route path="tenants" element={<PlatformTenants />} />
+                    <Route path="tenants/:id" element={<PlatformTenantDetail />} />
+                    <Route path="plans-features" element={<PlatformPlansFeatures />} />
+                    <Route path="pricing-coupons" element={<PlatformPricingCoupons />} />
+                    <Route path="payments-invoices" element={<PlatformPaymentsInvoices />} />
+                    <Route path="ledger" element={<PlatformLedger />} />
+                    <Route path="usage" element={<PlatformUsage />} />
+                    <Route path="support" element={<PlatformSupport />} />
+                    <Route path="announcements" element={<PlatformAnnouncements />} />
+                    <Route path="audit" element={<PlatformAuditLog />} />
+                    <Route path="users" element={<PlatformUsers />} />
+                    <Route path="health" element={<PlatformSystemHealth />} />
+                    <Route path="*" element={<Navigate to="/platform/dashboard" replace />} />
+                  </Route>
+                </Routes>
+              </PlatformAuthProvider>
+            }
+          />
+
+          {/* ── Tenant SaaS Subsystem (With AuthProvider and TenantProvider) ─── */}
+          <Route
+            path="/*"
+            element={
+              <AuthProvider>
+                <TenantProvider>
+                  <TenantAppRoutes />
+                </TenantProvider>
+              </AuthProvider>
+            }
+          />
+        </Routes>
+
+        <Toaster
+          position="bottom-right"
+          toastOptions={{
+            duration: 3500,
+            style: {
+              background: '#191919',
+              color:      '#f0f0f0',
+              border:     '1px solid #2a2a2a',
+              fontSize:   '13px',
+              borderRadius: '8px',
+            },
+            success: { iconTheme: { primary: '#22c55e', secondary: '#191919' } },
+            error:   { iconTheme: { primary: '#ef4444', secondary: '#191919' } },
+          }}
+        />
+      </BrowserRouter>
     </ErrorBoundary>
   );
 }

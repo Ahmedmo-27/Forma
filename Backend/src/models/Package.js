@@ -93,4 +93,8 @@ packageSchema.plugin(tenantPlugin);
 packageSchema.index({ tenantId: 1, name: 1, hasException: 1 });
 packageSchema.index({ tenantId: 1, isActive: 1 });
 
-module.exports = mongoose.model("Package", packageSchema);
+try {
+    module.exports = mongoose.model("Package");
+} catch (_) {
+    module.exports = mongoose.model("Package", packageSchema);
+}

@@ -85,7 +85,23 @@ const protect = async (req, res, next) => {
             canViewPhones: user.canViewPhones,
             tenantId: tenantId ? String(tenantId) : null,
             tenantSlug,
+            isImpersonation: Boolean(decoded.isImpersonation),
+            impersonatedBy: decoded.impersonatedBy || decoded.platformAdminId || null,
+            platformAdminName: decoded.platformAdminName || null,
+            readOnly: Boolean(decoded.readOnly),
         };
+
+        // Block mutating HTTP requests if impersonation session is read-only
+        if (req.user.isImpersonation && req.user.readOnly) {
+            const isMutation = ["POST", "PUT", "PATCH", "DELETE"].includes((req.method || "").toUpperCase());
+            const isLogout = (req.originalUrl || "").includes("/logout");
+            if (isMutation && !isLogout) {
+                return res.status(403).json({
+                    code: "IMPERSONATION_READ_ONLY",
+                    message: "Read-only platform support impersonation active. Mutations are strictly blocked.",
+                });
+            }
+        }
 
         if (tenantId) {
             runWithTenant({ tenantId, tenantSlug }, () => {

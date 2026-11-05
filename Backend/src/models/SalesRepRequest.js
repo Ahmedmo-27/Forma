@@ -22,4 +22,8 @@ const salesRepRequestSchema = new mongoose.Schema({
 salesRepRequestSchema.plugin(tenantPlugin);
 salesRepRequestSchema.index({ tenantId: 1, member: 1, status: 1 });
 
-module.exports = mongoose.model("SalesRepRequest", salesRepRequestSchema);
+try {
+    module.exports = mongoose.model("SalesRepRequest");
+} catch (_) {
+    module.exports = mongoose.model("SalesRepRequest", salesRepRequestSchema);
+}

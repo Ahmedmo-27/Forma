@@ -22,4 +22,8 @@ const coachRepRequestSchema = new mongoose.Schema({
 coachRepRequestSchema.plugin(tenantPlugin);
 coachRepRequestSchema.index({ tenantId: 1, member: 1, status: 1 });
 
-module.exports = mongoose.model("CoachRepRequest", coachRepRequestSchema);
+try {
+    module.exports = mongoose.model("CoachRepRequest");
+} catch (_) {
+    module.exports = mongoose.model("CoachRepRequest", coachRepRequestSchema);
+}

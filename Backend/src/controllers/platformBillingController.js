@@ -29,85 +29,83 @@ async function getPendingPayments(req, res) {
 }
 
 async function confirmPayment(req, res) {
-    try {
-        const { id } = req.params;
-        const { reason } = req.body;
-        if (!reason || !reason.trim()) {
-            return res.status(400).json({ message: "Mandatory 'reason' required to confirm payment" });
-        }
+    return runAsPlatform(async () => {
+        try {
+            const { id } = req.params;
+            const { reason } = req.body;
+            if (!reason || !reason.trim()) {
+                return res.status(400).json({ message: "Mandatory 'reason' required to confirm payment" });
+            }
 
-        const payment = await ManualPayment.findById(id).populate("tenantId");
-        if (!payment) return res.status(404).json({ message: "Payment submission not found" });
+            const payment = await ManualPayment.findById(id).populate("tenantId");
+            if (!payment) return res.status(404).json({ message: "Payment submission not found" });
 
-        if (payment.status === "confirmed") {
-            return res.status(400).json({ message: "Payment has already been confirmed" });
-        }
+            if (payment.status === "confirmed") {
+                return res.status(400).json({ message: "Payment has already been confirmed" });
+            }
 
-        const tenant = payment.tenantId;
+            const tenant = payment.tenantId;
 
-        let billingEvent;
-        if (payment.cycle === "lifetime") {
-            // Transactional lifetime confirmation
-            const result = await billingService.confirmLifetimePurchase({
-                paymentRef: payment.paymentRef,
-                actorId: req.platformUser.id,
-                actorType: "PlatformAdmin",
-                paymentMethod: "manual_transfer",
-            });
-            billingEvent = result.billingEvent;
-        } else {
-            // Recurring confirmation
-            const now = new Date();
-            const months = payment.cycle === "yearly" ? 12 : 1;
-            tenant.status = "active";
-            tenant.billing.cycle = payment.cycle;
-            tenant.currentPeriodEnd = new Date(now.getTime() + months * 30 * 24 * 60 * 60 * 1000);
-            await tenant.save();
-
-            const createdEvents = await BillingEvent.create([
-                {
-                    tenantId: tenant._id,
-                    type: "purchase",
-                    planKey: payment.planKey,
-                    cycle: payment.cycle,
-                    amount: payment.amount,
-                    currency: payment.currency,
+            let billingEvent;
+            if (payment.cycle === "lifetime") {
+                const result = await billingService.confirmLifetimePurchase({
+                    paymentRef: payment.paymentRef,
                     actorId: req.platformUser.id,
                     actorType: "PlatformAdmin",
-                    externalRef: payment.paymentRef,
-                    meta: { confirmedBy: req.platformUser.email, reason },
-                },
-            ]);
-            billingEvent = createdEvents[0];
+                    paymentMethod: "manual_transfer",
+                });
+                billingEvent = result.billingEvent;
+            } else {
+                const now = new Date();
+                const months = payment.cycle === "yearly" ? 12 : 1;
+                tenant.status = "active";
+                tenant.billing.cycle = payment.cycle;
+                tenant.currentPeriodEnd = new Date(now.getTime() + months * 30 * 24 * 60 * 60 * 1000);
+                await tenant.save();
+
+                const createdEvents = await BillingEvent.create([
+                    {
+                        tenantId: tenant._id,
+                        type: "purchase",
+                        planKey: payment.planKey,
+                        cycle: payment.cycle,
+                        amount: payment.amount,
+                        currency: payment.currency,
+                        actorId: req.platformUser.id,
+                        actorType: "PlatformAdmin",
+                        externalRef: payment.paymentRef,
+                        meta: { confirmedBy: req.platformUser.email, reason },
+                    },
+                ]);
+                billingEvent = createdEvents[0];
+            }
+
+            const invoice = await invoiceService.createInvoiceForPayment({
+                tenant,
+                planKey: payment.planKey,
+                cycle: payment.cycle,
+                amount: payment.amount,
+                currency: payment.currency,
+                paymentRef: payment.paymentRef,
+                paymentMethod: "manual_transfer",
+                billingEventId: billingEvent?._id || null,
+            });
+
+            payment.status = "confirmed";
+            payment.reviewedBy = req.platformUser.id;
+            payment.reviewedAt = new Date();
+            await payment.save();
+
+            res.json({
+                message: "Payment confirmed and invoice issued successfully",
+                invoiceNumber: invoice.invoiceNumber,
+                payment,
+            });
+        } catch (err) {
+            logger.error("platform", "confirmPayment error", { error: err.message });
+            res.status(500).json({ message: "Server error", error: err.message });
         }
-
-        // Generate sequential PDF/HTML Invoice
-        const invoice = await invoiceService.createInvoiceForPayment({
-            tenant,
-            planKey: payment.planKey,
-            cycle: payment.cycle,
-            amount: payment.amount,
-            currency: payment.currency,
-            paymentRef: payment.paymentRef,
-            paymentMethod: "manual_transfer",
-            billingEventId: billingEvent?._id || null,
-        });
-
-        // Mark payment submission confirmed
-        payment.status = "confirmed";
-        payment.reviewedBy = req.platformUser.id;
-        payment.reviewedAt = new Date();
-        await payment.save();
-
-        res.json({
-            message: "Payment confirmed and invoice issued successfully",
-            invoiceNumber: invoice.invoiceNumber,
-            payment,
-        });
-    } catch (err) {
-        logger.error("platform", "confirmPayment error", { error: err.message });
-        res.status(500).json({ message: "Server error", error: err.message });
-    }
+    }, { actorId: req.platformUser?.id, reason: "confirm_manual_payment" });
 }
 
 async function rejectPayment(req, res) {
@@ -188,109 +186,109 @@ async function downloadInvoice(req, res) {
 // ==========================================
 
 async function processRefund(req, res) {
-    try {
-        const { tenantId, amount, reason, revokeLifetimeIfApplicable = false } = req.body;
-        if (!tenantId || amount == null || !reason || !reason.trim()) {
-            return res.status(400).json({ message: "tenantId, amount, and mandatory 'reason' are required" });
-        }
+    return runAsPlatform(async () => {
+        try {
+            const { tenantId, amount, reason, revokeLifetimeIfApplicable = false } = req.body;
+            if (!tenantId || amount == null || !reason || !reason.trim()) {
+                return res.status(400).json({ message: "tenantId, amount, and mandatory 'reason' are required" });
+            }
 
-        const tenant = await Tenant.findById(tenantId).populate("planId");
-        if (!tenant) return res.status(404).json({ message: "Tenant not found" });
+            const tenant = await Tenant.findById(tenantId).populate("planId");
+            if (!tenant) return res.status(404).json({ message: "Tenant not found" });
 
-        const isLifetime = tenant.billing?.cycle === "lifetime";
+            const isLifetime = tenant.billing?.cycle === "lifetime";
 
-        if (isLifetime && revokeLifetimeIfApplicable) {
-            await billingService.revokeLifetime({
+            if (isLifetime && revokeLifetimeIfApplicable) {
+                await billingService.revokeLifetime({
+                    tenantId: tenant._id,
+                    reason,
+                    actorId: req.platformUser.id,
+                    refundAmount: Number(amount),
+                });
+                return res.json({ message: "Lifetime subscription refunded and revoked successfully" });
+            }
+
+            // Standard refund record
+            const refundAmount = Number(amount);
+            const billingEvent = await BillingEvent.create({
                 tenantId: tenant._id,
-                reason,
+                type: "refund",
+                planKey: tenant.planId?.key || "basic",
+                cycle: tenant.billing?.cycle || "monthly",
+                amount: refundAmount,
+                currency: tenant.settings?.locale?.currency || "USD",
                 actorId: req.platformUser.id,
-                refundAmount: Number(amount),
+                actorType: "PlatformAdmin",
+                meta: { reason, refundedBy: req.platformUser.email },
             });
-            return res.json({ message: "Lifetime subscription refunded and revoked successfully" });
+
+            await AuditLog.create({
+                tenantId: tenant._id,
+                action: "tenant_status_updated",
+                actor: req.platformUser.id,
+                actorRole: "PlatformUser",
+                targetType: "tenant",
+                targetId: tenant._id.toString(),
+                meta: { action: "refund_processed", amount: refundAmount, reason },
+            });
+
+            res.json({ message: "Refund processed successfully", billingEvent });
+        } catch (err) {
+            logger.error("platform", "processRefund error", { error: err.message });
+            res.status(500).json({ message: "Server error", error: err.message });
         }
-
-        // Standard refund record
-        const refundAmount = Number(amount);
-        const billingEvent = await BillingEvent.create({
-            tenantId: tenant._id,
-            type: "refund",
-            planKey: tenant.planId?.key || "basic",
-            cycle: tenant.billing?.cycle || "monthly",
-            amount: refundAmount,
-            currency: tenant.settings?.locale?.currency || "USD",
-            actorId: req.platformUser.id,
-            actorType: "PlatformAdmin",
-            meta: { reason, refundedBy: req.platformUser.email },
-        });
-
-        await AuditLog.create({
-            tenantId: tenant._id,
-            action: "tenant_status_updated",
-            actor: req.platformUser.id,
-            actorRole: "PlatformUser",
-            targetType: "tenant",
-            targetId: tenant._id.toString(),
-            meta: { action: "refund_processed", amount: refundAmount, reason },
-        });
-
-        res.json({ message: "Refund processed successfully", billingEvent });
-    } catch (err) {
-        logger.error("platform", "processRefund error", { error: err.message });
-        res.status(500).json({ message: "Server error", error: err.message });
-    }
+    }, { actorId: req.platformUser?.id, reason: "process_refund" });
 }
 
-// ==========================================
-// 4. Manual Subscription Grants
-// ==========================================
-
 async function issueManualGrant(req, res) {
-    try {
-        const { tenantId, planKey, cycle = "monthly", durationMonths = 1, reason } = req.body;
-        if (!tenantId || !planKey || !reason || !reason.trim()) {
-            return res.status(400).json({ message: "tenantId, planKey, and mandatory 'reason' are required" });
-        }
+    return runAsPlatform(async () => {
+        try {
+            const { tenantId, planKey, cycle = "monthly", durationMonths = 1, reason } = req.body;
+            if (!tenantId || !planKey || !reason || !reason.trim()) {
+                return res.status(400).json({ message: "tenantId, planKey, and mandatory 'reason' are required" });
+            }
 
-        const tenant = await Tenant.findById(tenantId);
-        if (!tenant) return res.status(404).json({ message: "Tenant not found" });
+            const tenant = await Tenant.findById(tenantId);
+            if (!tenant) return res.status(404).json({ message: "Tenant not found" });
 
-        const plan = await Plan.findOne({ key: planKey });
-        if (!plan) return res.status(400).json({ message: "Plan not found" });
+            const plan = await Plan.findOne({ key: planKey });
+            if (!plan) return res.status(400).json({ message: "Plan not found" });
 
-        if (cycle === "lifetime") {
-            const result = await billingService.grantLifetimeManually({
+            if (cycle === "lifetime") {
+                const result = await billingService.grantLifetimeManually({
+                    tenantId: tenant._id,
+                    planKey,
+                    reason,
+                    actorId: req.platformUser.id,
+                });
+                return res.json({ message: "Lifetime subscription granted manually", result });
+            }
+
+            // Recurring complementary grant
+            const now = new Date();
+            tenant.status = "active";
+            tenant.planId = plan._id;
+            tenant.billing.cycle = cycle;
+            tenant.currentPeriodEnd = new Date(now.getTime() + Number(durationMonths) * 30 * 24 * 60 * 60 * 1000);
+            await tenant.save();
+
+            const billingEvent = await BillingEvent.create({
                 tenantId: tenant._id,
-                planKey,
-                reason,
+                type: "manual_grant",
+                planKey: plan.key,
+                cycle,
+                amount: 0,
+                currency: "USD",
                 actorId: req.platformUser.id,
+                actorType: "PlatformAdmin",
+                meta: { reason, durationMonths, grantedBy: req.platformUser.email },
             });
-            return res.json({ message: "Lifetime subscription granted manually", result });
+
+            res.json({ message: "Complimentary grant issued successfully", tenant, billingEvent });
+        } catch (err) {
+            res.status(500).json({ message: "Server error", error: err.message });
         }
-
-        // Recurring complementary grant
-        const now = new Date();
-        tenant.status = "active";
-        tenant.planId = plan._id;
-        tenant.billing.cycle = cycle;
-        tenant.currentPeriodEnd = new Date(now.getTime() + Number(durationMonths) * 30 * 24 * 60 * 60 * 1000);
-        await tenant.save();
-
-        const billingEvent = await BillingEvent.create({
-            tenantId: tenant._id,
-            type: "manual_grant",
-            planKey: plan.key,
-            cycle,
-            amount: 0,
-            currency: "USD",
-            actorId: req.platformUser.id,
-            actorType: "PlatformAdmin",
-            meta: { reason, durationMonths, grantedBy: req.platformUser.email },
-        });
-
-        res.json({ message: "Complimentary grant issued successfully", tenant, billingEvent });
-    } catch (err) {
-        res.status(500).json({ message: "Server error", error: err.message });
-    }
+    }, { actorId: req.platformUser?.id, reason: "issue_manual_grant" });
 }
 
 // ==========================================

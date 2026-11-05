@@ -17,4 +17,8 @@ const profileViewSchema = new mongoose.Schema({
 profileViewSchema.plugin(tenantPlugin);
 profileViewSchema.index({ tenantId: 1, member: 1, createdAt: -1 });
 
-module.exports = mongoose.model("ProfileView", profileViewSchema);
+try {
+    module.exports = mongoose.model("ProfileView");
+} catch (_) {
+    module.exports = mongoose.model("ProfileView", profileViewSchema);
+}
