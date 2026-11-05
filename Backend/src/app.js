@@ -30,19 +30,46 @@ const platformRoutes = require("./routes/platformRoutes");
 const app = express();
 app.set("trust proxy", 1);
 
-// Browser Origin never has a trailing slash — strip so misconfigured env still matches.
-const frontendOrigin = (process.env.FRONTEND_ORIGIN || "http://localhost:5173").replace(/\/+$/, "");
+// Support comma-separated origins in FRONTEND_ORIGIN (and strip any trailing slashes)
+const configuredOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173")
+    .split(",")
+    .map((o) => o.trim().replace(/\/+$/, ""))
+    .filter(Boolean);
 
 app.use(helmet({
-    crossOriginResourcePolicy: { policy: "same-site" },
+    crossOriginResourcePolicy: { policy: "cross-origin" },
     // API responses; SPA CSP is set on Vercel
     contentSecurityPolicy: false,
 }));
 
 app.use(cors({
-    origin: frontendOrigin,
+    origin: (origin, callback) => {
+        // Allow requests with no origin (e.g. mobile apps, curl, server-to-server)
+        if (!origin) return callback(null, true);
+        const cleanOrigin = origin.replace(/\/+$/, "");
+        if (
+            configuredOrigins.includes("*") ||
+            configuredOrigins.includes(cleanOrigin) ||
+            /^https:\/\/leap[a-z0-9-]*\.vercel\.app$/.test(cleanOrigin) ||
+            /^http:\/\/localhost(:\d+)?$/.test(cleanOrigin) ||
+            /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(cleanOrigin)
+        ) {
+            return callback(null, true);
+        }
+        return callback(null, false);
+    },
     methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization", "X-Request-Id"],
+    allowedHeaders: [
+        "Content-Type",
+        "Authorization",
+        "X-Request-Id",
+        "x-request-id",
+        "X-Tenant-Slug",
+        "x-tenant-slug",
+        "X-Gym-Code",
+        "x-gym-code",
+    ],
+    exposedHeaders: ["X-Request-Id"],
     credentials: false,
 }));
 

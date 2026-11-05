@@ -9,6 +9,7 @@
     "seed": "node src/seed.js",
     "test": "vitest --run",
     "simulate:package-immutability": "node scripts/simulate-package-price-immutability.js",
+    "seed:superadmin": "node src/scripts/seedSuperAdminUser.js",
     "seed:plans": "node src/scripts/seedPlans.js",
     "seed:prices": "node src/scripts/seedPlanPrices.js",
     "migrate:multitenant": "node src/scripts/migrateToMultitenant.js",
