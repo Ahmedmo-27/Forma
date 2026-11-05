@@ -54,7 +54,17 @@ const {
     deleteCoupon,
 } = require("../controllers/platformPlanController");
 
-const { impersonateTenant } = require("../controllers/platformController");
+const {
+    getPendingPayments,
+    confirmPayment,
+    rejectPayment,
+    getInvoices,
+    downloadInvoice,
+    processRefund,
+    issueManualGrant,
+    getLedgerEvents,
+    exportLedgerCsv,
+} = require("../controllers/platformBillingController");
 
 const {
     createPlanSchema,
@@ -126,5 +136,21 @@ router.delete("/tenants/:id/notes/:noteId", requirePlatformPermission(PERMISSION
 router.patch("/tenants/:id/tags", requirePlatformPermission(PERMISSIONS.TENANTS_NOTES), updateTenantTags);
 router.post("/tenants/bulk", requirePlatformPermission(PERMISSIONS.TENANTS_LIFECYCLE), bulkTenantActions);
 router.post("/tenants/:id/impersonate", requirePlatformPermission(PERMISSIONS.SUPPORT_IMPERSONATE_READ), impersonateTenant);
+
+// ==========================================
+// Billing & Payments Operations (Phase 4)
+// ==========================================
+router.get("/billing/payments", requirePlatformPermission(PERMISSIONS.BILLING_PAYMENTS), getPendingPayments);
+router.post("/billing/payments/:id/confirm", requirePlatformPermission(PERMISSIONS.BILLING_PAYMENTS), confirmPayment);
+router.post("/billing/payments/:id/reject", requirePlatformPermission(PERMISSIONS.BILLING_PAYMENTS), rejectPayment);
+
+router.get("/billing/invoices", requirePlatformPermission(PERMISSIONS.BILLING_INVOICES), getInvoices);
+router.get("/billing/invoices/:id/download", requirePlatformPermission(PERMISSIONS.BILLING_INVOICES), downloadInvoice);
+
+router.post("/billing/refunds", requirePlatformPermission(PERMISSIONS.BILLING_REFUNDS), processRefund);
+router.post("/billing/grants", requirePlatformPermission(PERMISSIONS.BILLING_GRANTS), issueManualGrant);
+
+router.get("/billing/ledger", requirePlatformPermission(PERMISSIONS.BILLING_LEDGER), getLedgerEvents);
+router.get("/billing/ledger/export", requirePlatformPermission(PERMISSIONS.BILLING_LEDGER), exportLedgerCsv);
 
 module.exports = router;
