@@ -70,6 +70,24 @@ const planSchema = new mongoose.Schema(
             maxStaff: { type: Number, default: 10 },
             maxBranches: { type: Number, default: 1 },
         },
+        fairUseCaps: {
+            storageGb: { type: Number, default: 25 },
+            whatsappMessagesMonthly: { type: Number, default: 2000 },
+        },
+        visibility: {
+            type: String,
+            enum: ["public", "hidden", "archived"],
+            default: "public",
+            index: true,
+        },
+        sortOrder: {
+            type: Number,
+            default: 0,
+        },
+        description: {
+            type: String,
+            default: "",
+        },
         isActive: {
             type: Boolean,
             default: true,
