@@ -253,3 +253,42 @@ node Backend/src/scripts/migrateToMultitenant.js --dry-run
 # Live execution
 npm --prefix Backend run migrate:multitenant
 ```
+
+---
+
+## 10. Billing Cycles & Lifetime Plans
+
+### 10.1 Philosophy & Architecture
+Lifetime is strictly a **billing cycle** (`monthly` | `yearly` | `lifetime`) rather than a plan tier. Gating, features, and limits continue to resolve through `getEffectiveFeatures` and `getEffectiveLimits` without code duplication or fragmented tier keys.
+
+### 10.2 Data Model
+- **`PlanPrice` (Platform Collection)**:
+  - `planId`: ObjectId (ref Plan)
+  - `cycle`: `monthly` | `yearly` | `lifetime`
+  - `amount`: Number
+  - `currency`: String (e.g. `USD`, `EGP`)
+  - `isActive`: Boolean
+  - `validFrom` / `validUntil`: Date window for promotional deals
+  - `maxLifetimeSeats`: Number (null if uncapped)
+  - `soldLifetimeSeats`: Atomic counter (`$inc: { soldLifetimeSeats: 1 }`)
+- **`Tenant.billing` (Subdocument)**:
+  - `cycle`: `monthly` | `yearly` | `lifetime`
+  - `lifetime`: `{ purchasedAt, amountPaid, currency, priceSnapshot, paymentRef, paymentMethod, entitlementPolicy, featureSnapshot, lifetimeTermsVersion, refundWindowEndsAt, revokedAt, revokeReason, fairUseLimits }`
+  - `currentPeriodEnd`: Nullable, ignored by middleware when `billing.cycle === 'lifetime'`.
+- **`BillingEvent` (Append-Only Platform Ledger)**:
+  - `tenantId`, `type` (`purchase` | `upgrade` | `refund` | `revoke` | `price_change` | `manual_grant`), `planKey`, `cycle`, `amount`, `currency`, `actorId`, `actorType`, `externalRef`, `createdAt`.
+  - Schema-level pre-hooks block `updateOne`, `updateMany`, `deleteOne`, and `deleteMany`.
+
+### 10.3 Policy Decisions Confirmed
+1. **Feature Entitlement Over Time**: Default policy is `follow_tier` (lifetime subscribers receive new features added to their tier automatically). Configurable per tenant as `snapshot` (frozen to purchase time) via `entitlementPolicy`. Platform admin can exclude specific features via `featureOverrides.remove`.
+2. **Quotas & Fair Use**: Base tier limits (`maxMembers`, `maxStaff`, `maxBranches`) apply. Variable costly resources have fair-use ceilings (default 25 GB storage, 2,000 monthly WhatsApp messages), metered on the owner billing dashboard.
+3. **Upgrade Path**:
+   - Math: `amountDue = priceNewLifetime - amountCredited`, where `amountCredited` is the net amount previously paid.
+   - Downgrades are rejected with HTTP 400. Lateral tier changes are prohibited.
+4. **Revocation & Suspended State**:
+   - Revocation (due to 30-day refund window or terms-of-service abuse) transitions tenant status to `suspended`.
+   - Never performs silent deletion.
+   - A 14-day data export grace period is provided while mutations remain blocked by `enforceSubscriptionStatus`.
+5. **Contract Meaning of "Lifetime"**:
+   - Stored on the tenant as `lifetimeTermsVersion` (e.g. `2026.1`).
+   - Legally defines access for the lifetime of the SaaS cloud product service. Mandatory explicit terms checkbox required at checkout.
