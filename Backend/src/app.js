@@ -84,6 +84,8 @@ const uploadReadLimiter = rateLimit({
     message: { message: "Too many file requests, try again later" },
 });
 
+const storageService = require("./services/storageService");
+
 function idOf(value) {
     return value?._id?.toString?.() || value?.toString?.() || null;
 }
@@ -100,6 +102,11 @@ function uploadTypeForMember(member, filename) {
 }
 
 function canAccessMemberUpload(user, member, type) {
+    // 1. Strict multi-tenant isolation: owning record must belong to current tenant
+    if (user?.tenantId && member?.tenantId && String(member.tenantId) !== String(user.tenantId)) {
+        return false;
+    }
+
     const profileRoles = ["Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant"];
     if (!profileRoles.includes(user.role)) return false;
 
@@ -126,9 +133,28 @@ app.get(
             return res.status(400).json({ message: "Invalid filename" });
         }
 
-        const filePath = path.resolve(uploadsDir, safe);
-        if (path.dirname(filePath) !== uploadsDir || !fs.existsSync(filePath)) {
-            return res.status(404).json({ message: "File not found" });
+        // Check tenant directory first, fallback to root uploads for unmigrated legacy files
+        let filePath = req.user?.tenantId
+            ? path.resolve(storageService.getTenantDir(req.user.tenantId), safe)
+            : path.resolve(uploadsDir, safe);
+
+        if (!fs.existsSync(filePath)) {
+            // Fallback check in root uploadsDir
+            const fallbackPath = path.resolve(uploadsDir, safe);
+            if (fs.existsSync(fallbackPath) && path.dirname(fallbackPath) === uploadsDir) {
+                filePath = fallbackPath;
+            } else {
+                return res.status(404).json({ message: "File not found" });
+            }
+        }
+
+        // Check if file is a tenant logo
+        if (safe.startsWith("logo-") || (req.tenant?.settings?.branding?.logoKey && req.tenant.settings.branding.logoKey.includes(safe))) {
+            const mime = await detectMimeFromFile(filePath);
+            if (!mime) return res.status(404).json({ message: "File not found" });
+            res.setHeader("Content-Type", mime);
+            res.setHeader("X-Content-Type-Options", "nosniff");
+            return res.sendFile(filePath);
         }
 
         const member = await Member.findOne({
@@ -138,7 +164,7 @@ app.get(
                 { "invitations.idFile": safe },
             ],
         })
-            .select("photo nationalId invitations.idFile assignedSales current_couch")
+            .select("photo nationalId invitations.idFile assignedSales current_couch tenantId")
             .lean();
 
         const uploadType = member ? uploadTypeForMember(member, safe) : null;

@@ -168,8 +168,47 @@ const updateMyTenantSettings = async (req, res) => {
     }
 };
 
+/**
+ * POST /api/tenant/me/logo
+ * Allows Owner to upload tenant logo via StorageService.
+ */
+const uploadTenantLogo = async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ message: "Logo file is required" });
+        }
+
+        const tenantId = req.user?.tenantId;
+        const tenant = await runAsPlatform(async () => {
+            return await Tenant.findById(tenantId).populate("planId");
+        });
+
+        if (!tenant) {
+            return res.status(404).json({ message: "Tenant not found" });
+        }
+
+        const filename = req.file.filename;
+        const logoKey = `${tenantId}/branding/${filename}`;
+
+        tenant.settings.branding.logoKey = logoKey;
+        await runAsPlatform(async () => {
+            await tenant.save();
+        });
+
+        res.json({
+            message: "Logo uploaded successfully",
+            logoKey,
+            filename,
+            url: `/uploads/${filename}`,
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 module.exports = {
     getMyTenant,
     updateMyTenantSettings,
+    uploadTenantLogo,
     sanitizeTenantResponse,
 };

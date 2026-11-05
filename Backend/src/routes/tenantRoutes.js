@@ -4,9 +4,11 @@ const { protect } = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
 const validate = require("../middleware/validate");
 const { tenantSettingsSchema } = require("../validation/schemas");
+const { uploadSinglePhoto } = require("../config/multer");
 const {
     getMyTenant,
     updateMyTenantSettings,
+    uploadTenantLogo,
 } = require("../controllers/tenantController");
 
 router.use(protect);
@@ -16,5 +18,8 @@ router.get("/me", getMyTenant);
 
 // PATCH /api/tenant/me — Owner only
 router.patch("/me", authorize("Owner"), validate(tenantSettingsSchema), updateMyTenantSettings);
+
+// POST /api/tenant/me/logo — Owner only
+router.post("/me/logo", authorize("Owner"), uploadSinglePhoto("logoFile"), uploadTenantLogo);
 
 module.exports = router;
