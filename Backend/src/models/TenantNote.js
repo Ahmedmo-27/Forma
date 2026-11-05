@@ -37,4 +37,4 @@ const tenantNoteSchema = new mongoose.Schema(
 
 tenantNoteSchema.index({ tenantId: 1, pinned: -1, createdAt: -1 });
 
-module.exports = mongoose.model("TenantNote", tenantNoteSchema);
+module.exports = mongoose.models.TenantNote || mongoose.model("TenantNote", tenantNoteSchema);

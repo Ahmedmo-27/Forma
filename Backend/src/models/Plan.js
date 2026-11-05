@@ -78,6 +78,6 @@ const planSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-module.exports = mongoose.model("Plan", planSchema);
+module.exports = mongoose.models.Plan || mongoose.model("Plan", planSchema);
 module.exports.ALL_FEATURES = ALL_FEATURES;
 module.exports.ALL_ROLES = ALL_ROLES;
