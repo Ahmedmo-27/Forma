@@ -1,0 +1,5 @@
+*.log
+logs/
+graphify-out/
+.DS_Store
+Thumbs.db

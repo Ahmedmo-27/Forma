@@ -10,13 +10,31 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
     const effectiveFeatures = getEffectiveFeatures(tenant, plan);
     const limits = getEffectiveLimits(tenant, plan);
 
+    const isLifetime = tenant?.billing?.cycle === "lifetime";
+    const lifetimeDetails = isLifetime && tenant?.billing?.lifetime ? {
+        purchasedAt: tenant.billing.lifetime.purchasedAt,
+        amountPaid: tenant.billing.lifetime.amountPaid,
+        currency: tenant.billing.lifetime.currency,
+        entitlementPolicy: tenant.billing.lifetime.entitlementPolicy || "follow_tier",
+        lifetimeTermsVersion: tenant.billing.lifetime.lifetimeTermsVersion,
+        fairUseLimits: tenant.billing.lifetime.fairUseLimits || {
+            storageGbLimit: 25,
+            whatsappMessagesMonthlyLimit: 2000,
+        },
+    } : null;
+
     return {
         id: tenant._id,
         name: tenant.name,
         slug: tenant.slug,
         status: tenant.status,
-        trialEndsAt: tenant.trialEndsAt,
-        currentPeriodEnd: tenant.currentPeriodEnd,
+        trialEndsAt: isLifetime ? null : tenant.trialEndsAt,
+        currentPeriodEnd: isLifetime ? null : tenant.currentPeriodEnd,
+        billing: {
+            cycle: tenant?.billing?.cycle || "monthly",
+            isLifetime,
+            lifetime: lifetimeDetails,
+        },
         plan: plan ? {
             id: plan._id,
             key: plan.key,
@@ -24,10 +42,16 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
             allowedRoles: plan.allowedRoles || [],
         } : null,
         effectiveFeatures,
-        limits,
+        limits: {
+            ...limits,
+            storageGb: isLifetime ? (tenant.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25) : 5,
+            whatsappMonthlyMessages: isLifetime ? (tenant.billing?.lifetime?.fairUseLimits?.whatsappMessagesMonthlyLimit || 2000) : 500,
+        },
         usage: {
             members: usage.members ?? 0,
             staff: usage.staff ?? 0,
+            storageGb: usage.storageGb ?? 0.5,
+            whatsappMonthlyMessages: usage.whatsappMonthlyMessages ?? 0,
         },
         settings: {
             branding: tenant.settings?.branding || {},

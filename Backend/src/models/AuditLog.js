@@ -24,6 +24,12 @@ const auditLogSchema = new mongoose.Schema({
             "platform_impersonation",
             "tenant_status_updated",
             "plan_updated",
+            "lifetime_purchased",
+            "lifetime_upgraded",
+            "lifetime_granted",
+            "lifetime_revoked",
+            "lifetime_price_changed",
+            "entitlement_policy_updated",
         ],
     },
     actor: {

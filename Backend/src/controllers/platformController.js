@@ -5,6 +5,9 @@ const Plan = require("../models/Plan");
 const User = require("../models/User");
 const Member = require("../models/Member");
 const AuditLog = require("../models/AuditLog");
+const PlanPrice = require("../models/PlanPrice");
+const BillingEvent = require("../models/BillingEvent");
+const billingService = require("../services/billing/billingService");
 const { hashPassword, verifyPassword, normalizeEmail } = require("../utils/passwordUtils");
 const { PLATFORM_AUDIENCE } = require("../middleware/platformAuth");
 const { getEffectiveFeatures, getEffectiveLimits } = require("../models/Tenant");
@@ -234,6 +237,128 @@ const impersonateTenant = async (req, res) => {
     }
 };
 
+/**
+ * Lifetime Platform Management
+ */
+const grantTenantLifetime = async (req, res) => {
+    try {
+        const { planKey, reason, entitlementPolicy, amountPaid, currency, paymentMethod, paymentRef, termsVersion } = req.body;
+        const result = await billingService.grantLifetimeManually({
+            tenantId: req.params.id,
+            planKey,
+            reason,
+            actorId: req.platformAdmin.id,
+            entitlementPolicy,
+            amountPaid,
+            currency,
+            paymentMethod,
+            paymentRef,
+            termsVersion,
+        });
+
+        res.json({
+            message: `Lifetime ${planKey.toUpperCase()} granted successfully to tenant.`,
+            ...result,
+        });
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+};
+
+const revokeTenantLifetime = async (req, res) => {
+    try {
+        const { reason, refundAmount, allowGracePeriodDays } = req.body;
+        const result = await billingService.revokeLifetime({
+            tenantId: req.params.id,
+            reason,
+            actorId: req.platformAdmin.id,
+            refundAmount,
+            allowGracePeriodDays,
+        });
+
+        res.json({
+            message: "Lifetime subscription revoked. Tenant suspended with grace period.",
+            ...result,
+        });
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+};
+
+const updateTenantEntitlementPolicy = async (req, res) => {
+    try {
+        const { entitlementPolicy } = req.body;
+        const tenant = await billingService.updateEntitlementPolicy({
+            tenantId: req.params.id,
+            entitlementPolicy,
+            actorId: req.platformAdmin.id,
+        });
+
+        res.json({
+            message: `Entitlement policy updated to '${entitlementPolicy}'.`,
+            tenant,
+        });
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+};
+
+const getBillingEvents = async (req, res) => {
+    try {
+        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
+        const skip = (page - 1) * limit;
+
+        const query = {};
+        if (req.query.tenantId) query.tenantId = req.query.tenantId;
+        if (req.query.type) query.type = req.query.type;
+
+        const [events, total] = await Promise.all([
+            BillingEvent.find(query)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit)
+                .populate("tenantId", "name slug"),
+            BillingEvent.countDocuments(query),
+        ]);
+
+        res.json({
+            events,
+            pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+        });
+    } catch (err) {
+        res.status(500).json({ message: "Server error", error: err.message });
+    }
+};
+
+const getPlanPrices = async (_req, res) => {
+    try {
+        const prices = await PlanPrice.find().populate("planId", "key name").sort({ cycle: 1, amount: 1 });
+        res.json(prices);
+    } catch (err) {
+        res.status(500).json({ message: "Server error", error: err.message });
+    }
+};
+
+const createPlanPrice = async (req, res) => {
+    try {
+        const price = await PlanPrice.create(req.body);
+        res.status(201).json(price);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+};
+
+const updatePlanPrice = async (req, res) => {
+    try {
+        const price = await PlanPrice.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        if (!price) return res.status(404).json({ message: "PlanPrice not found" });
+        res.json(price);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+};
+
 module.exports = {
     loginPlatformAdmin,
     getPlans,
@@ -245,4 +370,11 @@ module.exports = {
     updateTenantStatus,
     updateTenantPlan,
     impersonateTenant,
+    grantTenantLifetime,
+    revokeTenantLifetime,
+    updateTenantEntitlementPolicy,
+    getBillingEvents,
+    getPlanPrices,
+    createPlanPrice,
+    updatePlanPrice,
 };

@@ -41,6 +41,11 @@ async function enforceSubscriptionStatus(req, res, next) {
             });
         }
 
+        // Lifetime subscribers: perpetual access, never expire by date, period-end, or past-due
+        if (tenant.billing?.cycle === "lifetime" && tenant.status === "active") {
+            return next();
+        }
+
         if (tenant.status === "trial" && tenant.trialEndsAt && new Date(tenant.trialEndsAt) < now) {
             return res.status(403).json({
                 code: "TRIAL_EXPIRED",

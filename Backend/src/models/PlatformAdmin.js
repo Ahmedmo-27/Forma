@@ -1,29 +1,6 @@
+// Legacy compatibility wrapper: PlatformAdmin points to PlatformUser
 const mongoose = require("mongoose");
+const PlatformUser = require("./PlatformUser");
 
-const platformAdminSchema = new mongoose.Schema(
-    {
-        name: {
-            type: String,
-            required: true,
-            trim: true,
-        },
-        email: {
-            type: String,
-            required: true,
-            unique: true,
-            lowercase: true,
-            trim: true,
-        },
-        password: {
-            type: String,
-            required: true,
-        },
-        isActive: {
-            type: Boolean,
-            default: true,
-        },
-    },
-    { timestamps: true }
-);
-
-module.exports = mongoose.model("PlatformAdmin", platformAdminSchema);
+// Export PlatformUser model under PlatformAdmin name if not already registered
+module.exports = mongoose.models.PlatformAdmin || mongoose.model("PlatformAdmin", PlatformUser.schema);

@@ -1,0 +1,28 @@
+{
+  "lifetimePricing": [
+    {
+      "planKey": "basic",
+      "cycle": "lifetime",
+      "amount": 499,
+      "currency": "USD",
+      "maxLifetimeSeats": 100,
+      "isActive": true
+    },
+    {
+      "planKey": "gold",
+      "cycle": "lifetime",
+      "amount": 1299,
+      "currency": "USD",
+      "maxLifetimeSeats": 50,
+      "isActive": true
+    },
+    {
+      "planKey": "platinum",
+      "cycle": "lifetime",
+      "amount": 2499,
+      "currency": "USD",
+      "maxLifetimeSeats": 25,
+      "isActive": true
+    }
+  ]
+}

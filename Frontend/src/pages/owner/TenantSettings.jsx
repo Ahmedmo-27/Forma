@@ -7,6 +7,8 @@ import { updateTenantMe, uploadTenantLogo } from '../../api/endpoints';
 import {
   PageHeader, Card, CardHeader, Input, Select, Btn, Spinner,
 } from '../../components/ui';
+import LifetimeCheckoutModal from '../../components/billing/LifetimeCheckoutModal';
+import LifetimeUpgradeModal from '../../components/billing/LifetimeUpgradeModal';
 
 const KNOWN_ACTIVITIES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 
@@ -17,6 +19,8 @@ export default function TenantSettings() {
   const [activeTab, setActiveTab] = useState('branding');
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
 
   // Form states initialized from tenant
   const [displayName, setDisplayName] = useState('');
@@ -418,8 +422,57 @@ export default function TenantSettings() {
         {activeTab === 'plan' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <Card>
-              <CardHeader title="Subscription Details" sub={`Current Plan: ${plan?.name || 'Standard'}`} />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginTop: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#111827' }}>
+                      Subscription Details
+                    </h3>
+                    {tenant?.billing?.isLifetime && (
+                      <span
+                        style={{
+                          background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
+                          color: '#FFFFFF',
+                          fontSize: 11,
+                          fontWeight: 800,
+                          padding: '3px 10px',
+                          borderRadius: 20,
+                          letterSpacing: '0.05em',
+                          boxShadow: '0 2px 4px rgba(217, 119, 6, 0.2)',
+                        }}
+                      >
+                        ★ LIFETIME LICENSE
+                      </span>
+                    )}
+                  </div>
+                  <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6B7280' }}>
+                    Current Plan: <strong>{plan?.name || 'Standard Plan'}</strong>
+                    {tenant?.billing?.isLifetime
+                      ? ' • Perpetual License (No renewal required)'
+                      : ` • Billing Cycle: ${tenant?.billing?.cycle || 'Monthly'}`}
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: 10 }}>
+                  {tenant?.billing?.isLifetime ? (
+                    plan?.key !== 'platinum' && (
+                      <Btn variant="primary" onClick={() => setIsUpgradeOpen(true)}>
+                        Upgrade Lifetime Tier
+                      </Btn>
+                    )
+                  ) : (
+                    <Btn
+                      variant="primary"
+                      onClick={() => setIsCheckoutOpen(true)}
+                      style={{ background: 'linear-gradient(135deg, #44298C 0%, #6D47CC 100%)' }}
+                    >
+                      Buy Lifetime License
+                    </Btn>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginTop: 20 }}>
                 <div style={{ padding: 16, background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB' }}>
                   <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>STATUS</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: '#16A34A', textTransform: 'uppercase', marginTop: 4 }}>
@@ -433,27 +486,31 @@ export default function TenantSettings() {
                   </div>
                 </div>
                 <div style={{ padding: 16, background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB' }}>
-                  <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>SLUG IDENTIFIER</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginTop: 4 }}>
-                    {tenant?.slug || 'leap'}
+                  <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>
+                    {tenant?.billing?.isLifetime ? 'ENTITLEMENT POLICY' : 'RENEWAL / EXPIRY'}
+                  </div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginTop: 4 }}>
+                    {tenant?.billing?.isLifetime
+                      ? (tenant.billing?.lifetime?.entitlementPolicy === 'snapshot' ? 'Frozen Snapshot' : 'Follow Tier Updates')
+                      : (tenant?.currentPeriodEnd ? new Date(tenant.currentPeriodEnd).toLocaleDateString() : 'Never')}
                   </div>
                 </div>
               </div>
             </Card>
 
             <Card>
-              <CardHeader title="Plan Quotas & Current Usage" sub="Track your capacity limits against your active subscription" />
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginTop: 16 }}>
+              <CardHeader title="Plan Quotas & Fair-Use Meters" sub="Track your active usage against subscription allocations" />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, marginTop: 16 }}>
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
                     <span>Active Members</span>
-                    <span>{usage.memberCount ?? 0} / {limits.maxMembers ?? '∞'}</span>
+                    <span>{usage.members ?? 0} / {limits.maxMembers ?? '∞'}</span>
                   </div>
                   <div style={{ height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
                     <div style={{
                       height: '100%',
                       background: 'var(--navy)',
-                      width: `${Math.min(100, ((usage.memberCount || 0) / (limits.maxMembers || 100)) * 100)}%`,
+                      width: `${Math.min(100, ((usage.members || 0) / (limits.maxMembers || 100)) * 100)}%`,
                     }} />
                   </div>
                 </div>
@@ -461,13 +518,41 @@ export default function TenantSettings() {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
                     <span>Staff Users</span>
-                    <span>{usage.staffCount ?? 0} / {limits.maxStaff ?? '∞'}</span>
+                    <span>{usage.staff ?? 0} / {limits.maxStaff ?? '∞'}</span>
                   </div>
                   <div style={{ height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
                     <div style={{
                       height: '100%',
                       background: 'var(--navy-2)',
-                      width: `${Math.min(100, ((usage.staffCount || 0) / (limits.maxStaff || 10)) * 100)}%`,
+                      width: `${Math.min(100, ((usage.staff || 0) / (limits.maxStaff || 10)) * 100)}%`,
+                    }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                    <span>Storage Capacity</span>
+                    <span>{usage.storageGb ?? 0.5} GB / {limits.storageGb ?? 25} GB</span>
+                  </div>
+                  <div style={{ height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      background: '#0284C7',
+                      width: `${Math.min(100, ((usage.storageGb || 0.5) / (limits.storageGb || 25)) * 100)}%`,
+                    }} />
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+                    <span>WhatsApp Messages (Monthly)</span>
+                    <span>{usage.whatsappMonthlyMessages ?? 0} / {limits.whatsappMonthlyMessages ?? 2000}</span>
+                  </div>
+                  <div style={{ height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
+                    <div style={{
+                      height: '100%',
+                      background: '#16A34A',
+                      width: `${Math.min(100, ((usage.whatsappMonthlyMessages || 0) / (limits.whatsappMonthlyMessages || 2000)) * 100)}%`,
                     }} />
                   </div>
                 </div>
@@ -495,6 +580,28 @@ export default function TenantSettings() {
                 ))}
               </div>
             </Card>
+
+            {/* Modals */}
+            <LifetimeCheckoutModal
+              isOpen={isCheckoutOpen}
+              onClose={() => setIsCheckoutOpen(false)}
+              defaultPlanKey={plan?.key || 'gold'}
+              onSuccess={() => {
+                refreshTenant();
+                setIsCheckoutOpen(false);
+              }}
+            />
+
+            <LifetimeUpgradeModal
+              isOpen={isUpgradeOpen}
+              onClose={() => setIsUpgradeOpen(false)}
+              currentPlanKey={plan?.key || 'basic'}
+              currentAmountPaid={tenant?.billing?.lifetime?.amountPaid || 0}
+              onSuccess={() => {
+                refreshTenant();
+                setIsUpgradeOpen(false);
+              }}
+            />
           </div>
         )}
       </div>

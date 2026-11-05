@@ -142,3 +142,9 @@ export const uploadTenantLogo = (formData) =>
   api.post('/tenant/me/logo', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
+
+// ── Multi-Tenant Billing & Lifetime ───────────────────────────────────────────
+export const getBillingPrices = () => api.get('/tenant/billing/prices');
+export const checkoutLifetimeBilling = (data) => api.post('/tenant/billing/lifetime/checkout', data);
+export const confirmLifetimeBilling = (data) => api.post('/tenant/billing/lifetime/confirm', data);
+export const upgradeLifetimeBilling = (data) => api.post('/tenant/billing/lifetime/upgrade', data);

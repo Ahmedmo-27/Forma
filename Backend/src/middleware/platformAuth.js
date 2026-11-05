@@ -1,12 +1,18 @@
 const jwt = require("jsonwebtoken");
-const PlatformAdmin = require("../models/PlatformAdmin");
+const PlatformUser = require("../models/PlatformUser");
 const { runAsPlatform } = require("../context/tenantContext");
 
-const PLATFORM_AUDIENCE = "leap-platform-admin";
+const PLATFORM_AUDIENCE = "leap-platform";
+const PLATFORM_ISSUER = "leap-platform";
+
+function getPlatformSecret() {
+    return process.env.PLATFORM_JWT_SECRET || (process.env.NODE_ENV === "test" ? "test_platform_secret_123" : null);
+}
 
 /**
- * Protect middleware strictly for Platform Admins.
- * Enforces JWT audience: leap-platform-admin.
+ * Protect middleware strictly for Platform Users.
+ * Enforces dedicated JWT audience, issuer, and secret.
+ * Checks account status and session revocation (tokenVersion).
  * Automatically wraps downstream execution in runAsPlatform().
  */
 async function protectPlatform(req, res, next) {
@@ -19,27 +25,47 @@ async function protectPlatform(req, res, next) {
         return res.status(401).json({ message: "Platform authentication required: no token provided" });
     }
 
+    const secret = getPlatformSecret();
+    if (!secret) {
+        return res.status(500).json({ message: "Platform JWT configuration missing (PLATFORM_JWT_SECRET)" });
+    }
+
     try {
-        const decoded = jwt.verify(token, process.env.PLATFORM_JWT_SECRET || process.env.JWT_SECRET, {
+        const decoded = jwt.verify(token, secret, {
             audience: PLATFORM_AUDIENCE,
+            issuer: PLATFORM_ISSUER,
         });
 
-        const admin = await PlatformAdmin.findById(decoded.id).select("-password");
-        if (!admin || !admin.isActive) {
-            return res.status(401).json({ message: "Platform admin account not found or disabled" });
+        const user = await PlatformUser.findById(decoded.id).select("-password");
+        if (!user || user.status !== "active") {
+            return res.status(401).json({ message: "Platform user account not found or disabled" });
         }
 
-        req.platformAdmin = {
-            id: admin._id.toString(),
-            email: admin.email,
-            name: admin.name,
+        // Verify token version (session revocation check)
+        if (decoded.version != null && user.tokenVersion != null && decoded.version < user.tokenVersion) {
+            return res.status(401).json({ message: "Platform session has been revoked. Please sign in again." });
+        }
+
+        req.platformUser = {
+            id: user._id.toString(),
+            email: user.email,
+            name: user.name,
+            role: user.role,
         };
+        // Backwards compatibility for existing platform handlers
+        req.platformAdmin = req.platformUser;
 
         // Wrap execution in platform context
-        runAsPlatform(() => {
-            next();
-        }, { actorId: admin._id.toString(), reason: `platform_api_${req.method}_${req.baseUrl}${req.path}` });
-    } catch {
+        runAsPlatform(
+            () => {
+                next();
+            },
+            {
+                actorId: user._id.toString(),
+                reason: `platform_api_${req.method}_${req.baseUrl || ""}${req.path || ""}`,
+            }
+        );
+    } catch (err) {
         return res.status(401).json({ message: "Invalid or expired platform administration token" });
     }
 }
@@ -47,4 +73,6 @@ async function protectPlatform(req, res, next) {
 module.exports = {
     protectPlatform,
     PLATFORM_AUDIENCE,
+    PLATFORM_ISSUER,
+    getPlatformSecret,
 };

@@ -10,7 +10,9 @@
     "test": "vitest --run",
     "simulate:package-immutability": "node scripts/simulate-package-price-immutability.js",
     "seed:plans": "node src/scripts/seedPlans.js",
+    "seed:prices": "node src/scripts/seedPlanPrices.js",
     "migrate:multitenant": "node src/scripts/migrateToMultitenant.js",
+    "migrate:lifetime": "node src/scripts/migrateAddLifetimeBilling.js",
     "migrate:indexes": "node src/scripts/migrateIndexes.js",
     "migrate:uploads": "node src/scripts/migrateUploads.js"
   },

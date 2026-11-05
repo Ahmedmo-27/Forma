@@ -34,6 +34,52 @@ const whatsappSettingsSchema = new mongoose.Schema(
     { _id: false }
 );
 
+const lifetimeBillingSchema = new mongoose.Schema(
+    {
+        purchasedAt: { type: Date, default: null },
+        amountPaid: { type: Number, default: null },
+        currency: { type: String, default: "USD", uppercase: true },
+        priceSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
+        paymentRef: { type: String, default: null },
+        paymentMethod: {
+            type: String,
+            enum: ["online", "manual_transfer", "cash"],
+            default: "manual_transfer",
+        },
+        entitlementPolicy: {
+            type: String,
+            enum: ["follow_tier", "snapshot"],
+            default: "follow_tier",
+        },
+        featureSnapshot: [{ type: String }],
+        lifetimeTermsVersion: { type: String, default: null },
+        refundWindowEndsAt: { type: Date, default: null },
+        revokedAt: { type: Date, default: null },
+        revokeReason: { type: String, default: null },
+        fairUseLimits: {
+            storageGbLimit: { type: Number, default: 25 },
+            whatsappMessagesMonthlyLimit: { type: Number, default: 2000 },
+        },
+    },
+    { _id: false }
+);
+
+const tenantBillingSchema = new mongoose.Schema(
+    {
+        cycle: {
+            type: String,
+            enum: ["monthly", "yearly", "lifetime"],
+            default: "monthly",
+            index: true,
+        },
+        lifetime: {
+            type: lifetimeBillingSchema,
+            default: () => ({}),
+        },
+    },
+    { _id: false }
+);
+
 const tenantSettingsSchema = new mongoose.Schema(
     {
         branding: { type: brandingSchema, default: () => ({}) },
@@ -95,11 +141,27 @@ const tenantSchema = new mongoose.Schema(
             type: String,
             default: null,
         },
+        billing: {
+            type: tenantBillingSchema,
+            default: () => ({ cycle: "monthly" }),
+        },
         ownerUserId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
             default: null,
         },
+        tags: [{ type: String, trim: true }],
+        slugHistory: [
+            {
+                slug: { type: String, required: true },
+                changedAt: { type: Date, default: Date.now },
+                changedBy: { type: mongoose.Schema.Types.ObjectId, ref: "PlatformUser" },
+            },
+        ],
+        isSoftDeleted: { type: Boolean, default: false, index: true },
+        softDeletedAt: { type: Date, default: null },
+        purgeScheduledAt: { type: Date, default: null },
+        lastActivityAt: { type: Date, default: null },
         dbUri: {
             type: String,
             default: null, // Reserved for future dedicated database mode
@@ -137,10 +199,24 @@ tenantSchema.methods.getDecryptedWhatsApp = function () {
 };
 
 /**
- * Returns effective features: plan.features + overrides.add - overrides.remove
+ * Returns effective features:
+ * - If tenant has lifetime cycle and entitlementPolicy is 'snapshot' and has featureSnapshot:
+ *   baseFeatures = featureSnapshot
+ * - Else: baseFeatures = plan.features
+ * - Then apply: + overrides.add - overrides.remove
  */
 function getEffectiveFeatures(tenant, plan) {
-    const baseFeatures = new Set(plan?.features || []);
+    let baseFeaturesList = plan?.features || [];
+    if (
+        tenant?.billing?.cycle === "lifetime" &&
+        tenant?.billing?.lifetime?.entitlementPolicy === "snapshot" &&
+        Array.isArray(tenant?.billing?.lifetime?.featureSnapshot) &&
+        tenant.billing.lifetime.featureSnapshot.length > 0
+    ) {
+        baseFeaturesList = tenant.billing.lifetime.featureSnapshot;
+    }
+
+    const baseFeatures = new Set(baseFeaturesList);
     const add = tenant?.featureOverrides?.add || [];
     const remove = new Set(tenant?.featureOverrides?.remove || []);
 

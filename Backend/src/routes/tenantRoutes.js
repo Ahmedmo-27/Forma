@@ -10,6 +10,9 @@ const {
     updateMyTenantSettings,
     uploadTenantLogo,
 } = require("../controllers/tenantController");
+const tenantBillingRoutes = require("./tenantBillingRoutes");
+
+router.use("/billing", tenantBillingRoutes);
 
 router.use(protect);
 
