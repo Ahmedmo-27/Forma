@@ -1,19 +1,22 @@
-import axios from 'axios';
-import toast from 'react-hot-toast';
-import { logRequest, logResponse, logError } from './apiLogger';
+import axios from "axios";
+import toast from "react-hot-toast";
+import { logRequest, logResponse, logError } from "./apiLogger";
+import { normalizeError } from "./errorNormalizer";
+import { emitErrorEvent } from "../lib/errorBus";
+import { ERROR_MESSAGES } from "../lib/errorCatalog";
 
 /** Ensure base URL ends with /api (backend mounts routes under /api/*). */
 function normalizeApiBaseURL(url) {
   if (!url) return url;
-  const trimmed = url.replace(/\/+$/, '');
-  return trimmed.endsWith('/api') ? trimmed : `${trimmed}/api`;
+  const trimmed = url.replace(/\/+$/, "");
+  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
 }
 
 const rawApiURL = import.meta.env.BACKEND_ORIGIN || import.meta.env.VITE_API_URL;
 const apiBaseURL = normalizeApiBaseURL(rawApiURL);
 
 /** Server origin without /api — use for authenticated /uploads downloads. */
-export const apiOrigin = apiBaseURL?.replace(/\/api$/, '') ?? '';
+export const apiOrigin = apiBaseURL?.replace(/\/api$/, "") ?? "";
 
 /**
  * Fetch a protected upload with the staff Bearer token and return a blob URL.
@@ -22,20 +25,9 @@ export const apiOrigin = apiBaseURL?.replace(/\/api$/, '') ?? '';
 export async function fetchProtectedUploadBlobUrl(filename) {
   const name = String(filename).split(/[/\\]/).pop();
   const res = await api.get(`${apiOrigin}/uploads/${encodeURIComponent(name)}`, {
-    responseType: 'blob',
+    responseType: "blob",
   });
   return URL.createObjectURL(res.data);
-}
-
-if (!rawApiURL) {
-  console.error(
-    'BACKEND_ORIGIN is not set. Login and API calls will fail. ' +
-    'Set BACKEND_ORIGIN in Frontend/.env (dev) or your hosting provider env vars (prod).'
-  );
-} else if (rawApiURL !== apiBaseURL) {
-  console.warn(
-    `[api] BACKEND_ORIGIN should end with /api. Normalized "${rawApiURL}" → "${apiBaseURL}".`
-  );
 }
 
 const api = axios.create({
@@ -44,14 +36,15 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('ff_token');
+  const token = localStorage.getItem("ff_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
 
   // Tenant scoping header
-  const tenantSlug = localStorage.getItem('ff_tenant_slug');
-  if (tenantSlug) config.headers['X-Tenant-Slug'] = tenantSlug;
+  const tenantSlug = localStorage.getItem("ff_tenant_slug");
+  if (tenantSlug) config.headers["X-Tenant-Slug"] = tenantSlug;
 
-  config.headers['X-Request-Id'] = crypto.randomUUID().slice(0, 8);
+  const reqId = `req_${crypto.randomUUID().slice(0, 8)}`;
+  config.headers["X-Request-Id"] = reqId;
   logRequest(config);
   return config;
 });
@@ -63,40 +56,31 @@ api.interceptors.response.use(
   },
   (err) => {
     logError(err);
+    const normalized = normalizeError(err);
+    err.normalized = normalized;
 
-    if (err.config?.url?.includes('/users/login')) {
-      console.error('[api] Login response error', {
-        status: err.response?.status,
-        message: err.response?.data?.message,
-        baseURL: err.config?.baseURL,
-        requestId: err.response?.headers?.['x-request-id'] || err.config?.headers?.['X-Request-Id'],
-      });
+    // Support opt-out of global error handling
+    if (err.config?.skipGlobalError) {
+      return Promise.reject(err);
     }
 
-    const code = err.response?.data?.code;
-    const msg = err.response?.data?.message;
+    const isLoginEndpoint = err.config?.url?.includes("/users/login");
 
-    if (err.response?.status === 403) {
-      if (code === 'FEATURE_NOT_IN_PLAN') {
-        toast.error(`Feature unavailable: ${msg || 'Upgrade your subscription plan to access this feature.'}`);
-      } else if (code === 'PLAN_LIMIT_REACHED') {
-        toast.error(`Limit reached: ${msg || 'Maximum limit reached for your current plan.'}`);
-      } else if (code === 'TENANT_SUSPENDED') {
-        toast.error('Your gym subscription is suspended. Please contact support.');
-      } else if (code === 'SUBSCRIPTION_PAST_DUE') {
-        toast.error('Subscription past due. Changes are disabled until payment is resolved.');
-      } else if (code === 'ROLE_NOT_IN_PLAN') {
-        toast.error('Role not permitted under your current plan.');
-      }
+    // Don't intercept login validation errors with modals
+    if (isLoginEndpoint) {
+      return Promise.reject(err);
     }
 
-    if (err.response?.status === 401 && !err.config?.url?.includes('/users/login')) {
-      localStorage.removeItem('ff_token');
-      localStorage.removeItem('ff_user');
-      toast.error('Session expired. Please sign in again.');
-      // small delay so toast is visible before redirect
-      setTimeout(() => { window.location.href = '/'; }, 1200);
+    const catalogMeta = ERROR_MESSAGES[normalized.code] || ERROR_MESSAGES.INTERNAL_ERROR;
+
+    if (catalogMeta.presentation === "modal" || normalized.status === 403 || normalized.status === 429 || normalized.status >= 500) {
+      emitErrorEvent(normalized, { modal: true });
+    } else if (catalogMeta.presentation === "banner") {
+      emitErrorEvent(normalized, { banner: true });
+    } else if (catalogMeta.presentation === "toast") {
+      toast.error(normalized.message);
     }
+
     return Promise.reject(err);
   }
 );

@@ -1,10 +1,11 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { TenantProvider } from './context/TenantContext';
 import FeatureGate from './components/FeatureGate';
-import ErrorBoundary from './components/ErrorBoundary';
+import ErrorBoundary from './components/errors/ErrorBoundary';
+import GlobalErrorContainer from './components/errors/GlobalErrorContainer';
 
 import Login          from './pages/Login';
 import Members        from './pages/Members';
@@ -315,9 +316,24 @@ function TenantAppRoutes() {
 
 // ── App root ──────────────────────────────────────────────────────────────────
 export default function App() {
+  useEffect(() => {
+    const handleGlobalError = (event) => {
+      console.error('[GlobalError]', event.error || event.message);
+    };
+    const handleUnhandledRejection = (event) => {
+      console.error('[UnhandledRejection]', event.reason);
+    };
+    window.addEventListener('error', handleGlobalError);
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    return () => {
+      window.removeEventListener('error', handleGlobalError);
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
   return (
     <ErrorBoundary>
       <BrowserRouter>
+        <GlobalErrorContainer />
         <Routes>
           {/* ── Platform Console Subsystem (Rebuilt from Scratch, Zero Tenant Context) ──── */}
           <Route

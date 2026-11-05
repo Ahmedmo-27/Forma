@@ -1,5 +1,7 @@
 import axios from "axios";
 import { apiOrigin } from "../../../api/axios";
+import { normalizeError } from "../../../api/errorNormalizer";
+import { emitErrorEvent } from "../../../lib/errorBus";
 
 export const platformClient = axios.create({
   baseURL: apiOrigin ? `${apiOrigin}/api/platform` : "/api/platform",
@@ -9,30 +11,29 @@ export const platformClient = axios.create({
   timeout: 30000,
 });
 
-// Normalized error parser
+// Normalized error parser backwards-compatible wrapper
 export function normalizeApiError(err) {
-  if (axios.isCancel(err)) {
-    return { isCancelled: true, message: "Request cancelled", status: 0 };
-  }
-
-  const status = err.response?.status || 500;
-  const message =
-    err.response?.data?.message ||
-    err.response?.data?.error ||
-    err.message ||
-    "An unexpected error occurred while communicating with the platform API";
-  const details = err.response?.data?.errors || null;
-
-  return { isCancelled: false, status, message, details, raw: err };
+  const norm = normalizeError(err);
+  return {
+    isCancelled: norm.isCancelled,
+    status: norm.status,
+    message: norm.message,
+    details: norm.fieldErrors || norm.details || null,
+    code: norm.code,
+    requestId: norm.requestId,
+    raw: err,
+    ...norm,
+  };
 }
 
-// Request Interceptor: Injects platform authorization token
+// Request Interceptor: Injects platform authorization token and Request ID
 platformClient.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem("leap_platform_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    config.headers["X-Request-Id"] = `req_${crypto.randomUUID().slice(0, 8)}`;
     return config;
   },
   (error) => Promise.reject(normalizeApiError(error))
@@ -57,21 +58,23 @@ platformClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    const normalized = normalizeApiError(error);
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (error.response?.status === 401 && !originalRequest?._retry) {
       // Avoid looping on auth endpoints
       if (
-        originalRequest.url?.includes("/auth/login") ||
-        originalRequest.url?.includes("/auth/refresh") ||
-        originalRequest.url?.includes("/auth/mfa/")
+        originalRequest?.url?.includes("/auth/login") ||
+        originalRequest?.url?.includes("/auth/refresh") ||
+        originalRequest?.url?.includes("/auth/mfa/")
       ) {
-        return Promise.reject(normalizeApiError(error));
+        return Promise.reject(normalized);
       }
 
       const refreshToken = localStorage.getItem("leap_platform_refresh_token");
       if (!refreshToken) {
         handleLogoutRedirect();
-        return Promise.reject(normalizeApiError(error));
+        emitErrorEvent(normalized, { modal: true });
+        return Promise.reject(normalized);
       }
 
       if (isRefreshing) {
@@ -106,13 +109,18 @@ platformClient.interceptors.response.use(
       } catch (refreshErr) {
         processQueue(refreshErr, null);
         handleLogoutRedirect();
+        emitErrorEvent(normalized, { modal: true });
         return Promise.reject(normalizeApiError(refreshErr));
       } finally {
         isRefreshing = false;
       }
     }
 
-    return Promise.reject(normalizeApiError(error));
+    if (!originalRequest?.skipGlobalError && (normalized.status === 403 || normalized.status === 429 || normalized.status >= 500)) {
+      emitErrorEvent(normalized, { modal: true });
+    }
+
+    return Promise.reject(normalized);
   }
 );
 
@@ -123,8 +131,6 @@ function handleLogoutRedirect() {
 
   const path = window.location.pathname;
   if (path.startsWith("/platform") && !path.includes("/login")) {
-    window.location.href = "/platform/login";
-  } else if (path.startsWith("/platform") && !path.includes("/login")) {
     window.location.href = "/platform/login";
   }
 }

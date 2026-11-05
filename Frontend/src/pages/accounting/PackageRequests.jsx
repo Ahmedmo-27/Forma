@@ -187,7 +187,9 @@ export default function PackageRequests() {
       setAcceptRequest(null);
       fetchRequests();
     } catch (e) {
-      toast.error(e.response?.data?.message ?? 'Action failed.');
+      if (e.normalized?.status !== 403 && e.normalized?.status !== 429) {
+        toast.error(e.normalized?.message || e.response?.data?.message || 'Action failed.');
+      }
     } finally {
       setActionLoading(false);
     }
@@ -203,7 +205,9 @@ export default function PackageRequests() {
       setSelected(null);
       fetchRequests();
     } catch (e) {
-      toast.error(e.response?.data?.message ?? 'Action failed.');
+      if (e.normalized?.status !== 403 && e.normalized?.status !== 429) {
+        toast.error(e.normalized?.message || e.response?.data?.message || 'Action failed.');
+      }
     } finally {
       setActionLoading(false);
     }
