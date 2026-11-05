@@ -81,7 +81,7 @@ async function run() {
     console.log(`ID:    ${superAdmin._id}`);
     console.log(`Email: ${superAdmin.email}`);
     console.log(`Role:  ${superAdmin.role}`);
-    console.log(`\nNext Step: Sign in at /platform/login and complete mandatory TOTP MFA enrollment.\n`);
+    console.log(`\nNext Step: Sign in at /platform/login\n`);
 
     process.exit(0);
 }

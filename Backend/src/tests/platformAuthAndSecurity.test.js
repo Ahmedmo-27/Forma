@@ -16,6 +16,9 @@ import {
     getPermissionsForRole,
 } from "../config/platformPermissions";
 import { requirePlatformPermission } from "../middleware/platformRbac";
+import { login } from "../controllers/platformAuthController";
+import PlatformUser from "../models/PlatformUser";
+import * as passwordUtils from "../utils/passwordUtils";
 
 describe("Phase 1: Platform Identity, Security & RBAC", () => {
     const platformSecret = "test_platform_secret_123";
@@ -197,6 +200,62 @@ describe("Phase 1: Platform Identity, Security & RBAC", () => {
             middleware(req, res, next);
 
             expect(next).toHaveBeenCalled();
+        });
+    });
+
+    describe("Platform Direct Login (No Authenticator)", () => {
+        it("logs in directly with email and password without MFA or authenticator challenge", async () => {
+            const hashedPassword = await passwordUtils.hashPassword("password123");
+            const fakeUser = {
+                _id: "user-super-1",
+                name: "Super Admin",
+                email: "admin@platform.com",
+                password: hashedPassword,
+                role: "super_admin",
+                status: "active",
+                failedLoginCount: 1,
+                lockedUntil: null,
+                tokenVersion: 0,
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            vi.spyOn(PlatformUser, "findOne").mockResolvedValue(fakeUser);
+
+            const req = {
+                body: {
+                    email: "admin@platform.com",
+                    password: "password123",
+                },
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await login(req, res);
+
+            expect(fakeUser.failedLoginCount).toBe(0);
+            expect(fakeUser.lastLoginAt).toBeInstanceOf(Date);
+            expect(fakeUser.save).toHaveBeenCalled();
+
+            expect(res.json).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: "Authentication successful",
+                    token: expect.any(String),
+                    refreshToken: expect.any(String),
+                    user: expect.objectContaining({
+                        id: "user-super-1",
+                        email: "admin@platform.com",
+                        role: "super_admin",
+                    }),
+                })
+            );
+
+            // Verify response has no MFA requirement flags
+            const jsonArg = res.json.mock.calls[0][0];
+            expect(jsonArg.mfaRequired).toBeUndefined();
+            expect(jsonArg.mfaSetupRequired).toBeUndefined();
+            expect(jsonArg.tempToken).toBeUndefined();
         });
     });
 });

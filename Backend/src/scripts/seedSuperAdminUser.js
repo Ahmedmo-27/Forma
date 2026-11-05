@@ -48,7 +48,6 @@ async function seed() {
         console.log(`Password: ${rawPassword}`);
         console.log(`Role:     ${user.role}`);
         console.log(`Status:   ${user.status}`);
-        console.log(`MFA:      ${user.mfa?.enabled ? "Enrolled" : "Setup on initial login"}`);
         console.log("\nYou can now sign in at /platform/login\n");
 
         process.exit(0);

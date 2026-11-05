@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import {
     getTenants,
     onboardTenant,
@@ -9,14 +9,18 @@ import {
 import PlatformDataTable from "../components/PlatformDataTable";
 import ConfirmActionModal from "../components/ConfirmActionModal";
 import SlugConfirmModal from "../components/SlugConfirmModal";
+import { PlusIcon } from "../components/PlatformIcons";
 import toast from "react-hot-toast";
 
 export default function PlatformTenants() {
+    const [searchParams] = useSearchParams();
+    const initialStatus = searchParams.get("status") || "";
+
     const [tenants, setTenants] = useState([]);
     const [total, setTotal] = useState(0);
     const [page, setPage] = useState(1);
     const [search, setSearch] = useState("");
-    const [statusFilter, setStatusFilter] = useState("");
+    const [statusFilter, setStatusFilter] = useState(initialStatus);
     const [cycleFilter, setCycleFilter] = useState("");
     const [loading, setLoading] = useState(true);
 
@@ -52,7 +56,7 @@ export default function PlatformTenants() {
             const res = await getTenants(params);
             setTenants(res.data.tenants || []);
             setTotal(res.data.pagination?.total || 0);
-        } catch (err) {
+        } catch {
             toast.error("Failed to load subscribers list");
         } finally {
             setLoading(false);
@@ -157,14 +161,16 @@ export default function PlatformTenants() {
             header: "Status",
             render: (t) => {
                 const styles = {
-                    active: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-                    trial: "bg-indigo-500/10 text-indigo-400 border-indigo-500/20",
-                    past_due: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-                    suspended: "bg-rose-500/10 text-rose-400 border-rose-500/20",
-                    cancelled: "bg-slate-700/30 text-slate-400 border-slate-700",
+                    active: { bg: "bg-emerald-500/10 text-emerald-300 border-emerald-500/20", dot: "bg-emerald-400" },
+                    trial: { bg: "bg-indigo-500/10 text-indigo-300 border-indigo-500/20", dot: "bg-indigo-400" },
+                    past_due: { bg: "bg-amber-500/10 text-amber-300 border-amber-500/20", dot: "bg-amber-400" },
+                    suspended: { bg: "bg-rose-500/10 text-rose-300 border-rose-500/20", dot: "bg-rose-400" },
+                    cancelled: { bg: "bg-slate-800 text-slate-400 border-slate-700", dot: "bg-slate-500" },
                 };
+                const s = styles[t.status] || styles.cancelled;
                 return (
-                    <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${styles[t.status] || styles.cancelled}`}>
+                    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider border ${s.bg}`}>
+                        <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
                         {t.status.replace("_", " ")}
                     </span>
                 );
@@ -173,12 +179,25 @@ export default function PlatformTenants() {
         {
             key: "usage",
             header: "Capacity Usage",
-            render: (t) => (
-                <div className="text-[11px] space-y-0.5">
-                    <div>Members: <strong className="text-slate-200">{t.usage?.members || 0}</strong> / {t.usage?.maxMembers || 500}</div>
-                    <div>Staff: <strong className="text-slate-200">{t.usage?.staff || 0}</strong> / {t.usage?.maxStaff || 10}</div>
-                </div>
-            ),
+            render: (t) => {
+                const memPct = Math.min(100, Math.round(((t.usage?.members || 0) / (t.usage?.maxMembers || 500)) * 100));
+                return (
+                    <div className="text-[11px] space-y-1 min-w-[130px]">
+                        <div>
+                            <div className="flex justify-between text-[10px] text-slate-400">
+                                <span>Members</span>
+                                <span className="font-mono text-slate-200">{t.usage?.members || 0}/{t.usage?.maxMembers || 500}</span>
+                            </div>
+                            <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden mt-0.5">
+                                <div className={`h-full rounded-full ${memPct >= 80 ? "bg-amber-500" : "bg-indigo-500"}`} style={{ width: `${memPct}%` }} />
+                            </div>
+                        </div>
+                        <div className="text-[10px] text-slate-400">
+                            Staff: <span className="font-mono text-slate-300">{t.usage?.staff || 0}/{t.usage?.maxStaff || 10}</span>
+                        </div>
+                    </div>
+                );
+            },
         },
         {
             key: "mrrContribution",
@@ -261,9 +280,10 @@ export default function PlatformTenants() {
                 <button
                     type="button"
                     onClick={() => setIsOnboardOpen(true)}
-                    className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-xs font-bold text-white shadow-lg shadow-indigo-600/30 hover:bg-indigo-500 transition"
+                    className="flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-xs font-bold text-white shadow-lg shadow-indigo-600/25 hover:bg-indigo-500 hover:shadow-indigo-600/40 transition active:scale-[0.98]"
                 >
-                    + Onboard New Gym
+                    <PlusIcon className="h-4 w-4" />
+                    <span>Onboard New Gym</span>
                 </button>
             </div>
 

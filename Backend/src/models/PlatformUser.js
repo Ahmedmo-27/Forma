@@ -75,4 +75,4 @@ platformUserSchema.virtual("isActive").get(function () {
     return this.status === "active";
 });
 
-module.exports = mongoose.model("PlatformUser", platformUserSchema);
+module.exports = mongoose.models.PlatformUser || mongoose.model("PlatformUser", platformUserSchema);
