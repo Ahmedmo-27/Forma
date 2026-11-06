@@ -7,6 +7,7 @@ const BillingEvent = require("../models/BillingEvent");
 const AuditLog = require("../models/AuditLog");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const logger = require("../utils/logger");
+const { BILLING_CURRENCY } = require("../config/currency");
 
 const DEFAULT_FEATURES = [
     { key: "members", name: "Members Management", category: "members", description: "Full membership directory, profiles, barcodes, and statuses", isCore: true },
@@ -169,7 +170,7 @@ async function getPlans(_req, res) {
 
 async function createPlan(req, res) {
     try {
-        const { key, name, priceMonthly, priceYearly, currency, features, allowedRoles, limits, fairUseCaps, visibility, description } = req.body;
+        const { key, name, priceMonthly, priceYearly, features, allowedRoles, limits, fairUseCaps, visibility, description } = req.body;
 
         const existing = await Plan.findOne({ key: key?.trim()?.toLowerCase() });
         if (existing) {
@@ -181,7 +182,7 @@ async function createPlan(req, res) {
             name: name?.trim(),
             priceMonthly,
             priceYearly,
-            currency: currency || "USD",
+            currency: BILLING_CURRENCY,
             features: features || [],
             allowedRoles: allowedRoles || [],
             limits: limits || { maxMembers: 500, maxStaff: 10, maxBranches: 1 },
@@ -258,6 +259,7 @@ async function updatePlan(req, res) {
 
         // Update plan fields
         Object.assign(plan, req.body);
+        plan.currency = BILLING_CURRENCY;
         await plan.save();
 
         res.json({ message: "Plan updated successfully", plan });
@@ -315,7 +317,7 @@ async function getPlanPrices(_req, res) {
 
 async function createPlanPrice(req, res) {
     try {
-        const { planId, cycle, amount, currency, maxLifetimeSeats, validFrom, validUntil, isActive } = req.body;
+        const { planId, cycle, amount, maxLifetimeSeats, validFrom, validUntil, isActive } = req.body;
         if (!planId || !cycle || amount == null) {
             return res.status(400).json({ message: "planId, cycle, and amount are required" });
         }
@@ -324,7 +326,7 @@ async function createPlanPrice(req, res) {
             planId,
             cycle,
             amount: Number(amount),
-            currency: currency || "USD",
+            currency: BILLING_CURRENCY,
             maxLifetimeSeats: cycle === "lifetime" ? (maxLifetimeSeats != null ? Number(maxLifetimeSeats) : null) : null,
             validFrom: validFrom || new Date(),
             validUntil: validUntil || null,
@@ -340,7 +342,7 @@ async function createPlanPrice(req, res) {
 async function updatePlanPrice(req, res) {
     try {
         const { id } = req.params;
-        const { amount, currency, maxLifetimeSeats, validUntil, isActive, reason } = req.body;
+        const { amount, maxLifetimeSeats, validUntil, isActive, reason } = req.body;
 
         const price = await PlanPrice.findById(id).populate("planId", "key name");
         if (!price) return res.status(404).json({ message: "PlanPrice not found" });
@@ -360,7 +362,7 @@ async function updatePlanPrice(req, res) {
                 planKey: price.planId.key,
                 cycle: price.cycle,
                 amount: Number(amount),
-                currency: currency || price.currency,
+                currency: BILLING_CURRENCY,
                 actorId: req.platformUser.id,
                 actorType: "PlatformAdmin",
                 meta: {
@@ -373,7 +375,7 @@ async function updatePlanPrice(req, res) {
         }
 
         if (amount != null) price.amount = Number(amount);
-        if (currency) price.currency = currency;
+        price.currency = BILLING_CURRENCY;
         if (maxLifetimeSeats !== undefined) price.maxLifetimeSeats = maxLifetimeSeats != null ? Number(maxLifetimeSeats) : null;
         if (validUntil !== undefined) price.validUntil = validUntil;
         if (isActive !== undefined) price.isActive = Boolean(isActive);
@@ -437,7 +439,7 @@ async function getCoupons(req, res) {
 
 async function createCoupon(req, res) {
     try {
-        const { code, type, discountValue, currency, appliesTo, maxRedemptions, expiresAt, isActive } = req.body;
+        const { code, type, discountValue, appliesTo, maxRedemptions, expiresAt, isActive } = req.body;
         if (!code || !type || discountValue == null) {
             return res.status(400).json({ message: "code, type, and discountValue are required" });
         }
@@ -452,7 +454,7 @@ async function createCoupon(req, res) {
             code: normalizedCode,
             type,
             discountValue: Number(discountValue),
-            currency: currency || "USD",
+            currency: BILLING_CURRENCY,
             appliesTo: appliesTo || { planKeys: [], cycles: [] },
             maxRedemptions: maxRedemptions != null ? Number(maxRedemptions) : null,
             expiresAt: expiresAt || null,
@@ -468,7 +470,7 @@ async function createCoupon(req, res) {
 async function updateCoupon(req, res) {
     try {
         const { id } = req.params;
-        const coupon = await Coupon.findByIdAndUpdate(id, req.body, { new: true });
+        const coupon = await Coupon.findByIdAndUpdate(id, { ...req.body, currency: BILLING_CURRENCY }, { new: true });
         if (!coupon) return res.status(404).json({ message: "Coupon not found" });
         res.json(coupon);
     } catch (err) {

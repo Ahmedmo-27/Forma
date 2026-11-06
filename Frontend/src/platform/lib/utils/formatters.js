@@ -2,20 +2,25 @@
  * Tabular-Numeric and Date/Time Formatters for Platform Console
  */
 
-export function formatCurrency(amount, currency = "USD") {
+export const BILLING_CURRENCY = "EGP";
+
+export function formatCurrency(amount, _currency = BILLING_CURRENCY) {
   if (amount === undefined || amount === null || isNaN(Number(amount))) {
-    return "$0.00";
+    return formatEgp(0);
   }
-  const numeric = Number(amount);
+  return formatEgp(Number(amount));
+}
+
+function formatEgp(numeric) {
   try {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat("en-EG", {
       style: "currency",
-      currency: currency || "USD",
+      currency: BILLING_CURRENCY,
       minimumFractionDigits: 0,
       maximumFractionDigits: 2,
     }).format(numeric);
   } catch {
-    return `${currency} ${numeric.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
+    return `EGP ${numeric.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
   }
 }
 

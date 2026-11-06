@@ -6,6 +6,7 @@ const BillingEvent = require("../../models/BillingEvent");
 const AuditLog = require("../../models/AuditLog");
 const { getPaymentAdapter } = require("./paymentAdapter");
 const { runAsPlatform } = require("../../context/tenantContext");
+const { BILLING_CURRENCY } = require("../../config/currency");
 
 const TIER_RANKS = {
     basic: 1,
@@ -112,7 +113,7 @@ async function checkoutLifetime({
             plan,
             planPrice,
             amount: planPrice.amount,
-            currency: planPrice.currency,
+            currency: BILLING_CURRENCY,
             actorId,
             metadata: {
                 termsVersion,
@@ -124,7 +125,7 @@ async function checkoutLifetime({
         return {
             paymentRef: paymentSession.paymentRef,
             amount: planPrice.amount,
-            currency: planPrice.currency,
+            currency: BILLING_CURRENCY,
             planKey: plan.key,
             planName: plan.name,
             paymentMethod,
@@ -205,11 +206,11 @@ async function confirmLifetimePurchase({
                         "billing.cycle": "lifetime",
                         "billing.lifetime.purchasedAt": now,
                         "billing.lifetime.amountPaid": finalAmount,
-                        "billing.lifetime.currency": planPrice.currency,
+                        "billing.lifetime.currency": BILLING_CURRENCY,
                         "billing.lifetime.priceSnapshot": {
                             planPriceId: planPrice._id,
                             amount: planPrice.amount,
-                            currency: planPrice.currency,
+                            currency: BILLING_CURRENCY,
                         },
                         "billing.lifetime.paymentRef": paymentRef,
                         "billing.lifetime.paymentMethod": paymentMethod,
@@ -236,7 +237,7 @@ async function confirmLifetimePurchase({
                         planKey: plan.key,
                         cycle: "lifetime",
                         amount: finalAmount,
-                        currency: planPrice.currency,
+                        currency: BILLING_CURRENCY,
                         actorId,
                         actorType,
                         externalRef: paymentRef,
@@ -262,7 +263,7 @@ async function confirmLifetimePurchase({
                         meta: {
                             planKey: plan.key,
                             amountPaid: finalAmount,
-                            currency: planPrice.currency,
+                            currency: BILLING_CURRENCY,
                             paymentRef,
                             entitlementPolicy,
                             termsVersion,
@@ -367,7 +368,7 @@ async function upgradeLifetime({
                         "billing.lifetime.priceSnapshot": {
                             planPriceId: targetPlanPrice._id,
                             amount: targetPlanPrice.amount,
-                            currency: targetPlanPrice.currency,
+                            currency: BILLING_CURRENCY,
                         },
                         "billing.lifetime.paymentRef": effectivePaymentRef,
                         "billing.lifetime.paymentMethod": paymentMethod,
@@ -389,7 +390,7 @@ async function upgradeLifetime({
                         planKey: targetPlan.key,
                         cycle: "lifetime",
                         amount: amountDifference,
-                        currency: targetPlanPrice.currency,
+                        currency: BILLING_CURRENCY,
                         actorId,
                         actorType,
                         externalRef: effectivePaymentRef,
@@ -446,7 +447,6 @@ async function grantLifetimeManually({
     actorId,
     entitlementPolicy = "follow_tier",
     amountPaid = 0,
-    currency = "USD",
     paymentMethod = "manual_transfer",
     paymentRef,
     termsVersion = "2026.1",
@@ -476,7 +476,7 @@ async function grantLifetimeManually({
                         "billing.cycle": "lifetime",
                         "billing.lifetime.purchasedAt": now,
                         "billing.lifetime.amountPaid": amountPaid,
-                        "billing.lifetime.currency": currency,
+                        "billing.lifetime.currency": BILLING_CURRENCY,
                         "billing.lifetime.paymentRef": effectivePaymentRef,
                         "billing.lifetime.paymentMethod": paymentMethod,
                         "billing.lifetime.entitlementPolicy": entitlementPolicy,
@@ -500,7 +500,7 @@ async function grantLifetimeManually({
                         planKey: plan.key,
                         cycle: "lifetime",
                         amount: amountPaid,
-                        currency,
+                        currency: BILLING_CURRENCY,
                         actorId,
                         actorType: "PlatformAdmin",
                         externalRef: effectivePaymentRef,
@@ -581,7 +581,7 @@ async function revokeLifetime({
                         planKey: tenant.planId?.key || "unknown",
                         cycle: "lifetime",
                         amount: refundAmount,
-                        currency: tenant.billing?.lifetime?.currency || "USD",
+                        currency: BILLING_CURRENCY,
                         actorId,
                         actorType: "PlatformAdmin",
                         externalRef,

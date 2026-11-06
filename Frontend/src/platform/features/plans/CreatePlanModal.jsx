@@ -44,7 +44,6 @@ export default function CreatePlanModal({
   const [visibility, setVisibility] = useState(planToEdit?.visibility || "public");
   const [priceMonthly, setPriceMonthly] = useState(planToEdit?.priceMonthly ?? 49);
   const [priceYearly, setPriceYearly] = useState(planToEdit?.priceYearly ?? 490);
-  const [currency, setCurrency] = useState(planToEdit?.currency || "EGP");
 
   // Limits
   const [maxMembers, setMaxMembers] = useState(planToEdit?.limits?.maxMembers ?? 500);
@@ -73,7 +72,6 @@ export default function CreatePlanModal({
     setVisibility(planToEdit?.visibility || "public");
     setPriceMonthly(planToEdit?.priceMonthly ?? 49);
     setPriceYearly(planToEdit?.priceYearly ?? 490);
-    setCurrency(planToEdit?.currency || "EGP");
     setMaxMembers(planToEdit?.limits?.maxMembers ?? 500);
     setStaffLimit(planToEdit?.limits?.maxStaff ?? 10);
     setBranchesLimit(planToEdit?.limits?.maxBranches ?? 1);
@@ -145,7 +143,7 @@ export default function CreatePlanModal({
       description: description.trim(),
       priceMonthly: Number(priceMonthly),
       priceYearly: Number(priceYearly),
-      currency,
+      currency: "EGP",
       visibility,
       features: selectedFeatures,
       allowedRoles: selectedRoles,
@@ -292,12 +290,7 @@ export default function CreatePlanModal({
                 <label className="block text-xs text-[var(--platform-text-secondary)] mb-1">
                   Currency
                 </label>
-                <Select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                  <option value="USD">USD ($)</option>
-                  <option value="EUR">EUR (€)</option>
-                  <option value="EGP">EGP (E£)</option>
-                  <option value="SAR">SAR (﷼)</option>
-                </Select>
+                <Input value="EGP" readOnly />
               </div>
             </div>
           </div>

@@ -142,7 +142,7 @@ export default function LifetimeUpgradeModal({ isOpen, onClose, currentPlanKey, 
                   >
                     <div style={{ fontSize: 14, fontWeight: 700, textTransform: 'capitalize' }}>{key} Plan</div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--navy)', margin: '4px 0' }}>
-                      ${price?.amount ?? '—'}
+                      EGP {price?.amount ?? '—'}
                     </div>
                     <div style={{ fontSize: 11, color: '#6B7280' }}>
                       {isLowerOrEqual ? 'Current or Lower Tier' : isSoldOut ? 'Sold Out' : 'Available for Upgrade'}
@@ -156,11 +156,11 @@ export default function LifetimeUpgradeModal({ isOpen, onClose, currentPlanKey, 
             <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', borderRadius: 10, padding: 16, marginBottom: 20 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
                 <span style={{ color: '#64748B' }}>Target Tier Full Price:</span>
-                <span style={{ fontWeight: 600 }}>${targetAmount}</span>
+                <span style={{ fontWeight: 600 }}>EGP {targetAmount}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 6 }}>
                 <span style={{ color: '#64748B' }}>Amount Credited (Previously Paid):</span>
-                <span style={{ fontWeight: 600, color: '#16A34A' }}>-${currentAmountPaid}</span>
+                <span style={{ fontWeight: 600, color: '#16A34A' }}>-EGP {currentAmountPaid}</span>
               </div>
               <div
                 style={{
@@ -175,7 +175,7 @@ export default function LifetimeUpgradeModal({ isOpen, onClose, currentPlanKey, 
                 }}
               >
                 <span>Amount Due Today:</span>
-                <span>${upgradeDifference}</span>
+                <span>EGP {upgradeDifference}</span>
               </div>
             </div>
 
@@ -197,7 +197,7 @@ export default function LifetimeUpgradeModal({ isOpen, onClose, currentPlanKey, 
                 Cancel
               </Btn>
               <Btn variant="primary" onClick={handleUpgrade} disabled={submitting || !termsAccepted || upgradeDifference <= 0}>
-                {submitting ? <><Spinner size="sm" /> Upgrading...</> : `Pay Difference ($${upgradeDifference})`}
+                {submitting ? <><Spinner size="sm" /> Upgrading...</> : `Pay Difference (EGP ${upgradeDifference})`}
               </Btn>
             </div>
           </div>

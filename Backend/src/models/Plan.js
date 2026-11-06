@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { enforceEgpCurrency } = require("./forceEgp");
 
 const ALL_FEATURES = [
     "members",
@@ -93,6 +94,8 @@ const planSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
+
+enforceEgpCurrency(planSchema);
 
 try {
     module.exports = mongoose.model("Plan");

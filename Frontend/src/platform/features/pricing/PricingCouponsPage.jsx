@@ -109,7 +109,7 @@ export default function PricingCouponsPage() {
             </Badge>
           </div>
           <p className="text-xs text-[var(--platform-text-muted)] mt-1">
-            Manage multi-currency billing cadences, hard lifetime caps, and checkout promotions.
+            Manage EGP billing cadences, hard lifetime caps, and checkout promotions.
           </p>
         </div>
 
@@ -273,7 +273,7 @@ export default function PricingCouponsPage() {
 
                         <td className="py-3 px-4">
                           <span className="font-mono font-semibold text-sm text-[var(--platform-text-primary)]">
-                            {formatCurrency(p.amount, p.currency || "USD")}
+                            {formatCurrency(p.amount)}
                           </span>
                           <span className="text-[11px] text-[var(--platform-text-muted)] block">
                             {p.cycle === "lifetime" ? "one-time" : `/${p.cycle}`}
@@ -414,7 +414,7 @@ export default function PricingCouponsPage() {
                           <span className="font-semibold text-sm text-[var(--platform-success)]">
                             {c.type === "percentage"
                               ? `${c.discountValue}% OFF`
-                              : `-${formatCurrency(c.discountValue, c.currency || "USD")}`}
+                              : `-${formatCurrency(c.discountValue)}`}
                           </span>
                         </td>
 

@@ -312,7 +312,7 @@ export default function PlansFeaturesPage() {
                         {/* Pricing Tag */}
                         <div className="text-right">
                           <span className="text-lg font-bold font-mono text-[var(--platform-text-primary)]">
-                            {formatCurrency(plan.priceMonthly, plan.currency || "USD")}
+                            {formatCurrency(plan.priceMonthly)}
                           </span>
                           <span className="text-[11px] text-[var(--platform-text-muted)] block">
                             /month
@@ -497,7 +497,7 @@ export default function PlansFeaturesPage() {
                           </Badge>
                         </div>
                         <span className="font-mono text-xs text-[var(--platform-text-secondary)]">
-                          {formatCurrency(p.priceMonthly, p.currency || "USD")}/mo
+                          {formatCurrency(p.priceMonthly)}/mo
                         </span>
                         <Button
                           variant="ghost"

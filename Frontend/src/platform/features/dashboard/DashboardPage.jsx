@@ -173,7 +173,7 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <KpiCard
           title="Monthly Recurring (MRR)"
-          value={formatCurrency(revenue.mrr, "USD")}
+          value={formatCurrency(revenue.mrr)}
           subtext="Recurring subscribers"
           delta={growth.mrrGrowth ? `${growth.mrrGrowth >= 0 ? "+" : ""}${growth.mrrGrowth}%` : "+4.2%"}
           deltaType="positive"
@@ -184,7 +184,7 @@ export default function DashboardPage() {
 
         <KpiCard
           title="Annual Run Rate (ARR)"
-          value={formatCurrency(revenue.arr, "USD")}
+          value={formatCurrency(revenue.arr)}
           subtext="MRR × 12 annualized"
           delta={growth.arrGrowth ? `${growth.arrGrowth >= 0 ? "+" : ""}${growth.arrGrowth}%` : "+8.1%"}
           deltaType="positive"
@@ -195,7 +195,7 @@ export default function DashboardPage() {
 
         <KpiCard
           title="Lifetime Capital"
-          value={formatCurrency(revenue.lifetimeRevenueTotal || revenue.lifetimeRecognized, "USD")}
+          value={formatCurrency(revenue.lifetimeRevenueTotal || revenue.lifetimeRecognized)}
           subtext="One-time capital collected"
           deltaType="neutral"
           sparklineData={[
@@ -211,8 +211,8 @@ export default function DashboardPage() {
 
         <KpiCard
           title="Net Settled Revenue"
-          value={formatCurrency(revenue.netRevenue, "USD")}
-          subtext={`-${formatCurrency(revenue.refundsTotal || 0, "USD")} refunds`}
+          value={formatCurrency(revenue.netRevenue)}
+          subtext={`-${formatCurrency(revenue.refundsTotal || 0)} refunds`}
           delta={revenue.netRevenue > 0 ? "+6.5%" : undefined}
           deltaType={revenue.refundsTotal > 0 ? "negative" : "positive"}
           sparklineData={[revenue.netRevenue * 0.88, revenue.netRevenue * 0.92, revenue.netRevenue * 0.97, revenue.netRevenue]}

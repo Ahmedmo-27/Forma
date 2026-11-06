@@ -25,7 +25,6 @@ export default function CreatePriceModal({
   const [planId, setPlanId] = useState("");
   const [cycle, setCycle] = useState("monthly");
   const [amount, setAmount] = useState(49);
-  const [currency, setCurrency] = useState("EGP");
   const [maxLifetimeSeats, setMaxLifetimeSeats] = useState("");
   const [validUntil, setValidUntil] = useState("");
   const [isActive, setIsActive] = useState(true);
@@ -39,7 +38,6 @@ export default function CreatePriceModal({
       setPlanId(priceToEdit.planId?._id || priceToEdit.planId || "");
       setCycle(priceToEdit.cycle || "monthly");
       setAmount(priceToEdit.amount || 0);
-      setCurrency(priceToEdit.currency || "EGP");
       setMaxLifetimeSeats(priceToEdit.maxLifetimeSeats ?? "");
       setValidUntil(
         priceToEdit.validUntil
@@ -54,7 +52,6 @@ export default function CreatePriceModal({
       }
       setCycle("monthly");
       setAmount(49);
-      setCurrency("USD");
       setMaxLifetimeSeats("");
       setValidUntil("");
       setIsActive(true);
@@ -92,7 +89,7 @@ export default function CreatePriceModal({
       planId,
       cycle,
       amount: Number(amount),
-      currency,
+      currency: "EGP",
       maxLifetimeSeats:
         cycle === "lifetime" && maxLifetimeSeats !== ""
           ? Number(maxLifetimeSeats)
@@ -138,7 +135,7 @@ export default function CreatePriceModal({
       isOpen={open}
       onClose={() => onOpenChange(false)}
       title={isEdit ? "Edit Plan Pricing Tier" : "Define New Price Tier"}
-      description="Attach currency, billing frequency, and seat quotas to a subscription tier."
+      description="Attach an EGP price, billing frequency, and seat quotas to a subscription tier."
       footer={footer}
       size="md"
     >
@@ -198,12 +195,7 @@ export default function CreatePriceModal({
             <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
               Currency
             </label>
-            <Select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-              <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="EGP">EGP (E£)</option>
-              <option value="SAR">SAR (﷼)</option>
-            </Select>
+            <Input value="EGP" readOnly />
           </div>
         </div>
 

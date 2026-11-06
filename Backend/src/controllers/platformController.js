@@ -11,6 +11,7 @@ const billingService = require("../services/billing/billingService");
 const { hashPassword, verifyPassword, normalizeEmail } = require("../utils/passwordUtils");
 const { PLATFORM_AUDIENCE } = require("../middleware/platformAuth");
 const { getEffectiveFeatures, getEffectiveLimits } = require("../models/Tenant");
+const { BILLING_CURRENCY } = require("../config/currency");
 
 /**
  * Platform Admin Login
@@ -71,7 +72,7 @@ const getPlans = async (_req, res) => {
 
 const createPlan = async (req, res) => {
     try {
-        const plan = await Plan.create(req.body);
+        const plan = await Plan.create({ ...req.body, currency: BILLING_CURRENCY });
         res.status(201).json(plan);
     } catch (err) {
         res.status(400).json({ message: err.message });
@@ -80,7 +81,7 @@ const createPlan = async (req, res) => {
 
 const updatePlan = async (req, res) => {
     try {
-        const plan = await Plan.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const plan = await Plan.findByIdAndUpdate(req.params.id, { ...req.body, currency: BILLING_CURRENCY }, { new: true });
         if (!plan) return res.status(404).json({ message: "Plan not found" });
         res.json(plan);
     } catch (err) {
@@ -242,7 +243,7 @@ const impersonateTenant = async (req, res) => {
  */
 const grantTenantLifetime = async (req, res) => {
     try {
-        const { planKey, reason, entitlementPolicy, amountPaid, currency, paymentMethod, paymentRef, termsVersion } = req.body;
+        const { planKey, reason, entitlementPolicy, amountPaid, paymentMethod, paymentRef, termsVersion } = req.body;
         const result = await billingService.grantLifetimeManually({
             tenantId: req.params.id,
             planKey,
@@ -250,7 +251,6 @@ const grantTenantLifetime = async (req, res) => {
             actorId: req.platformAdmin.id,
             entitlementPolicy,
             amountPaid,
-            currency,
             paymentMethod,
             paymentRef,
             termsVersion,
@@ -342,7 +342,7 @@ const getPlanPrices = async (_req, res) => {
 
 const createPlanPrice = async (req, res) => {
     try {
-        const price = await PlanPrice.create(req.body);
+        const price = await PlanPrice.create({ ...req.body, currency: BILLING_CURRENCY });
         res.status(201).json(price);
     } catch (err) {
         res.status(400).json({ message: err.message });
@@ -351,7 +351,11 @@ const createPlanPrice = async (req, res) => {
 
 const updatePlanPrice = async (req, res) => {
     try {
-        const price = await PlanPrice.findByIdAndUpdate(req.params.id, req.body, { new: true });
+        const price = await PlanPrice.findByIdAndUpdate(
+            req.params.id,
+            { ...req.body, currency: BILLING_CURRENCY },
+            { new: true }
+        );
         if (!price) return res.status(404).json({ message: "PlanPrice not found" });
         res.json(price);
     } catch (err) {

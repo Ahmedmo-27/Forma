@@ -13,6 +13,7 @@ const { normalizeEmail, hashPassword } = require("../utils/passwordUtils");
 const passwordSetup = require("../services/passwordSetupService");
 const mailer = require("../services/mailer");
 const { parsePagination, buildPagination } = require("../utils/pagination");
+const { BILLING_CURRENCY } = require("../config/currency");
 const logger = require("../utils/logger");
 
 const RESERVED_SLUGS = new Set([
@@ -281,7 +282,6 @@ async function onboardTenant(req, res) {
             trialDays = 14,
             isLifetime = false,
             amountPaid = 0,
-            currency = "USD",
             tags = [],
             settings = {},
         } = req.body;
@@ -337,7 +337,7 @@ async function onboardTenant(req, res) {
             billing.lifetime = {
                 purchasedAt: now,
                 amountPaid: Number(amountPaid) || 0,
-                currency,
+                currency: BILLING_CURRENCY,
                 entitlementPolicy: "follow_tier",
                 refundWindowEndsAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days
             };
@@ -355,7 +355,11 @@ async function onboardTenant(req, res) {
             tags,
             settings: {
                 branding: settings.branding || {},
-                locale: settings.locale || { currency: currency || "USD", timezone: "Africa/Cairo" },
+                locale: {
+                    ...(settings.locale || {}),
+                    currency: BILLING_CURRENCY,
+                    timezone: settings.locale?.timezone || "Africa/Cairo",
+                },
             },
         });
 
@@ -406,7 +410,7 @@ async function onboardTenant(req, res) {
                 planKey: plan.key,
                 cycle: "lifetime",
                 amount: Number(amountPaid) || 0,
-                currency,
+                currency: BILLING_CURRENCY,
                 actorId: ownerUser._id,
                 actorType: "PlatformAdmin",
                 meta: {

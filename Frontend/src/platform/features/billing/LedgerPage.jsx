@@ -269,21 +269,21 @@ export default function LedgerPage() {
                       {isRefund ? (
                         <span className="text-[var(--platform-danger)] flex items-center justify-end gap-1">
                           <TrendingDown className="w-3 h-3" />
-                          -{formatCurrency(evt.amount, evt.currency || "USD")}
+                          -{formatCurrency(evt.amount)}
                         </span>
                       ) : isPurchase ? (
                         <span className="text-[var(--platform-success)] flex items-center justify-end gap-1">
                           <TrendingUp className="w-3 h-3" />
-                          +{formatCurrency(evt.amount, evt.currency || "USD")}
+                          +{formatCurrency(evt.amount)}
                         </span>
                       ) : isGrant ? (
                         <span className="text-[var(--platform-info)] flex items-center justify-end gap-1">
                           <Gift className="w-3 h-3" />
-                          $0.00 (Grant)
+                          {formatCurrency(0)} (Grant)
                         </span>
                       ) : (
                         <span className="text-[var(--platform-text-muted)]">
-                          {formatCurrency(evt.amount, evt.currency || "USD")}
+                          {formatCurrency(evt.amount)}
                         </span>
                       )}
                     </td>

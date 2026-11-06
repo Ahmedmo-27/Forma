@@ -206,7 +206,7 @@ export default function PaymentsInvoicesPage() {
               payments
                 .filter((p) => p.status === "pending")
                 .reduce((acc, p) => acc + (p.amount || 0), 0),
-              "USD"
+              "EGP"
             )}
           </div>
           <span className="text-[11px] text-[var(--platform-text-muted)]">Unsettled transfers</span>
@@ -337,7 +337,7 @@ export default function PaymentsInvoicesPage() {
                         </td>
 
                         <td className="py-3 px-4 font-mono font-bold text-sm text-[var(--platform-text-primary)]">
-                          {formatCurrency(p.amount, p.currency || "USD")}
+                          {formatCurrency(p.amount)}
                         </td>
 
                         <td className="py-3 px-4 font-mono text-[11px]">
@@ -511,7 +511,7 @@ export default function PaymentsInvoicesPage() {
                       </td>
 
                       <td className="py-3 px-4 font-mono font-bold text-sm text-[var(--platform-text-primary)]">
-                        {formatCurrency(inv.total, inv.currency || "USD")}
+                        {formatCurrency(inv.total)}
                       </td>
 
                       <td className="py-3 px-4 text-[11px] text-[var(--platform-text-secondary)]">
@@ -569,7 +569,7 @@ export default function PaymentsInvoicesPage() {
         title="Approve & Confirm Manual Payment"
         description={`Confirming payment of ${formatCurrency(
           confirmPaymentTarget?.amount,
-          confirmPaymentTarget?.currency || "USD"
+          "EGP"
         )} will immediately activate subscription tier ${
           confirmPaymentTarget?.planKey
         } and issue an official tax invoice.`}

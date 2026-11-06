@@ -11,6 +11,7 @@ const { parsePagination, buildPagination } = require("../utils/pagination");
 const logger = require("../utils/logger");
 const User = require("../models/User");
 const mailer = require("../services/mailer");
+const { BILLING_CURRENCY } = require("../config/currency");
 
 // ==========================================
 // 1. Manual Payments Inbox
@@ -93,7 +94,7 @@ async function confirmPayment(req, res) {
                         planKey: payment.planKey,
                         cycle: payment.cycle,
                         amount: payment.amount,
-                        currency: payment.currency,
+                        currency: BILLING_CURRENCY,
                         actorId: req.platformUser.id,
                         actorType: "PlatformAdmin",
                         externalRef: payment.paymentRef,
@@ -108,13 +109,14 @@ async function confirmPayment(req, res) {
                 planKey: payment.planKey,
                 cycle: payment.cycle,
                 amount: payment.amount,
-                currency: payment.currency,
+                currency: BILLING_CURRENCY,
                 paymentRef: payment.paymentRef,
                 paymentMethod: "manual_transfer",
                 billingEventId: billingEvent?._id || null,
             });
 
             payment.status = "confirmed";
+            payment.currency = BILLING_CURRENCY;
             payment.reviewedBy = req.platformUser.id;
             payment.reviewedAt = new Date();
             await payment.save();
@@ -254,7 +256,7 @@ async function processRefund(req, res) {
                 planKey: tenant.planId?.key || "basic",
                 cycle: tenant.billing?.cycle || "monthly",
                 amount: refundAmount,
-                currency: tenant.settings?.locale?.currency || "USD",
+                currency: BILLING_CURRENCY,
                 actorId: req.platformUser.id,
                 actorType: "PlatformAdmin",
                 meta: { reason, refundedBy: req.platformUser.email },
@@ -316,7 +318,7 @@ async function issueManualGrant(req, res) {
                 planKey: plan.key,
                 cycle,
                 amount: 0,
-                currency: "USD",
+                currency: BILLING_CURRENCY,
                 actorId: req.platformUser.id,
                 actorType: "PlatformAdmin",
                 meta: { reason, durationMonths, grantedBy: req.platformUser.email },
@@ -385,7 +387,7 @@ async function exportLedgerCsv(req, res) {
             const tenantSlug = e.tenantId?.slug || "";
             const tenantName = `"${(e.tenantId?.name || "").replace(/"/g, '""')}"`;
             const reason = `"${(e.meta?.reason || "").replace(/"/g, '""')}"`;
-            csv += `${e._id},${dateStr},${tenantSlug},${tenantName},${e.type},${e.planKey},${e.cycle},${e.amount},${e.currency},${e.actorType},${e.externalRef || ""},${reason}\n`;
+            csv += `${e._id},${dateStr},${tenantSlug},${tenantName},${e.type},${e.planKey},${e.cycle},${e.amount},${BILLING_CURRENCY},${e.actorType},${e.externalRef || ""},${reason}\n`;
         }
 
         res.setHeader("Content-Type", "text/csv");

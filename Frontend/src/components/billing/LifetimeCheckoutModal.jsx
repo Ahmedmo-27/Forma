@@ -173,7 +173,7 @@ export default function LifetimeCheckoutModal({ isOpen, onClose, defaultPlanKey 
                       {key}
                     </div>
                     <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--navy)', margin: '6px 0' }}>
-                      ${price?.amount ?? '—'}
+                      EGP {price?.amount ?? '—'}
                     </div>
                     <div style={{ fontSize: 11, color: '#6B7280' }}>One-time</div>
 
@@ -249,7 +249,7 @@ export default function LifetimeCheckoutModal({ isOpen, onClose, defaultPlanKey 
                 Cancel
               </Btn>
               <Btn variant="primary" onClick={handleCheckout} disabled={submitting || !termsAccepted || selectedPrice?.isSoldOut}>
-                {submitting ? <><Spinner size="sm" /> Activating...</> : `Confirm & Pay $${selectedPrice?.amount || ''}`}
+                {submitting ? <><Spinner size="sm" /> Activating...</> : `Confirm & Pay EGP ${selectedPrice?.amount || ''}`}
               </Btn>
             </div>
           </div>

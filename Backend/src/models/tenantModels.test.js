@@ -119,6 +119,7 @@ describe("Phase 1: Core Models & Tenant Helpers", () => {
             };
             const parsed = createPlanSchema.safeParse(validPlan);
             expect(parsed.success).toBe(true);
+            expect(parsed.data.currency).toBe("EGP");
         });
 
         it("rejects invalid plan key", () => {

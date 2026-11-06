@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { enforceEgpCurrency } = require("./forceEgp");
 
 /**
  * PlanPrice (Platform-Level)
@@ -26,7 +27,7 @@ const planPriceSchema = new mongoose.Schema(
         },
         currency: {
             type: String,
-            default: "USD",
+            default: "EGP",
             uppercase: true,
             trim: true,
         },
@@ -57,6 +58,7 @@ const planPriceSchema = new mongoose.Schema(
 );
 
 planPriceSchema.index({ planId: 1, cycle: 1, isActive: 1 });
+enforceEgpCurrency(planPriceSchema);
 
 try {
     module.exports = mongoose.model("PlanPrice");

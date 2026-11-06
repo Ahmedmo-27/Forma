@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { encryptSecret, decryptSecret } = require("../utils/tenantCrypto");
+const { BILLING_CURRENCY } = require("../config/currency");
 
 const brandingSchema = new mongoose.Schema(
     {
@@ -38,7 +39,7 @@ const lifetimeBillingSchema = new mongoose.Schema(
     {
         purchasedAt: { type: Date, default: null },
         amountPaid: { type: Number, default: null },
-        currency: { type: String, default: "USD", uppercase: true },
+        currency: { type: String, default: "EGP", uppercase: true },
         priceSnapshot: { type: mongoose.Schema.Types.Mixed, default: null },
         paymentRef: { type: String, default: null },
         paymentMethod: {
@@ -178,8 +179,61 @@ const tenantSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-// Pre-save hook: auto-encrypt WhatsApp access token if updated and plaintext
+function forceTenantCurrency(doc) {
+    if (!doc.settings) doc.settings = {};
+    if (!doc.settings.locale) doc.settings.locale = {};
+    doc.settings.locale.currency = BILLING_CURRENCY;
+    if (!doc.billing) doc.billing = {};
+    if (!doc.billing.lifetime) doc.billing.lifetime = {};
+    doc.billing.lifetime.currency = BILLING_CURRENCY;
+    const snapshot = doc.billing.lifetime.priceSnapshot;
+    if (snapshot && typeof snapshot === "object") {
+        snapshot.currency = BILLING_CURRENCY;
+    }
+}
+
+tenantSchema.pre(["findOneAndUpdate", "updateOne", "updateMany"], function () {
+    const update = this.getUpdate() || {};
+    const hasOperator = Object.keys(update).some((key) => key.startsWith("$"));
+    if (hasOperator) {
+        update.$set = { ...(update.$set || {}) };
+        if (update.$set.settings && typeof update.$set.settings === "object") {
+            if (!update.$set.settings.locale) update.$set.settings.locale = {};
+            update.$set.settings.locale.currency = BILLING_CURRENCY;
+        } else {
+            update.$set["settings.locale.currency"] = BILLING_CURRENCY;
+        }
+        if (update.$set.billing && typeof update.$set.billing === "object") {
+            if (!update.$set.billing.lifetime) update.$set.billing.lifetime = {};
+            update.$set.billing.lifetime.currency = BILLING_CURRENCY;
+        } else {
+            update.$set["billing.lifetime.currency"] = BILLING_CURRENCY;
+            const snapshot = update.$set["billing.lifetime.priceSnapshot"];
+            if (snapshot && typeof snapshot === "object") snapshot.currency = BILLING_CURRENCY;
+        }
+        this.setUpdate(update);
+        return;
+    }
+
+    const next = { ...update };
+    if (next.settings) {
+        if (!next.settings.locale) next.settings.locale = {};
+        next.settings.locale.currency = BILLING_CURRENCY;
+    } else {
+        next["settings.locale.currency"] = BILLING_CURRENCY;
+    }
+    if (next.billing) {
+        if (!next.billing.lifetime) next.billing.lifetime = {};
+        next.billing.lifetime.currency = BILLING_CURRENCY;
+    } else {
+        next["billing.lifetime.currency"] = BILLING_CURRENCY;
+    }
+    this.setUpdate({ $set: next });
+});
+
+// Pre-save hook: keep billing in EGP and encrypt WhatsApp access token if updated and plaintext
 tenantSchema.pre("save", function () {
+    forceTenantCurrency(this);
     if (this.settings?.whatsapp?.accessToken) {
         const token = this.settings.whatsapp.accessToken;
         // Check if token is already in iv:tag:cipher format (hex with 2 colons)

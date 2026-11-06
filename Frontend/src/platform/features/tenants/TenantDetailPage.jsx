@@ -775,7 +775,7 @@ export default function TenantDetailPage() {
                           </td>
                           <td className="py-3 px-4 capitalize">{inv.cycle || "Monthly"}</td>
                           <td className="py-3 px-4 platform-mono font-bold">
-                            {formatCurrency(inv.amount, inv.currency || "USD")}
+                            {formatCurrency(inv.amount)}
                           </td>
                           <td className="py-3 px-4">
                             <StatusPill status={inv.status || inv.type || "active"} />

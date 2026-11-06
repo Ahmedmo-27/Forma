@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { enforceEgpCurrency } = require("./forceEgp");
 
 /**
  * BillingEvent (Platform-Level, Append-Only Ledger)
@@ -46,7 +47,7 @@ const billingEventSchema = new mongoose.Schema(
         currency: {
             type: String,
             required: true,
-            default: "USD",
+            default: "EGP",
             uppercase: true,
             trim: true,
         },
@@ -91,6 +92,8 @@ billingEventSchema.pre("findOneAndReplace", rejectMutation);
 billingEventSchema.pre("deleteOne", rejectMutation);
 billingEventSchema.pre("deleteMany", rejectMutation);
 billingEventSchema.pre("findOneAndDelete", rejectMutation);
+
+enforceEgpCurrency(billingEventSchema, { updates: false });
 
 try {
     module.exports = mongoose.model("BillingEvent");

@@ -318,21 +318,12 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
           {form.isLifetime && (
             <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[var(--platform-border-subtle)]">
               <Input
-                label="Amount Paid ($)"
+                label="Amount Paid (EGP)"
                 type="number"
                 value={form.amountPaid}
                 onChange={(e) => setForm({ ...form, amountPaid: e.target.value })}
               />
-              <Select
-                label="Currency"
-                value={form.currency}
-                onChange={(e) => setForm({ ...form, currency: e.target.value })}
-                options={[
-                  { value: "USD", label: "USD ($)" },
-                  { value: "EGP", label: "EGP (LE)" },
-                  { value: "EUR", label: "EUR (€)" },
-                ]}
-              />
+              <Input label="Currency" value="EGP" readOnly />
             </div>
           )}
         </div>

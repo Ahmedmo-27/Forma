@@ -195,6 +195,7 @@ const logWhatsAppTemplateSendSchema = z.object({
     templateId: objectId.optional().nullable(),
 });
 
+const egpCurrency = z.preprocess(() => "EGP", z.literal("EGP"));
 const planKeySchema = z.enum(["basic", "gold", "platinum"]);
 
 const createPlanSchema = z.object({
@@ -202,7 +203,7 @@ const createPlanSchema = z.object({
     name: z.string().trim().min(1).max(100),
     priceMonthly: z.coerce.number().min(0),
     priceYearly: z.coerce.number().min(0),
-    currency: z.string().trim().min(1).max(10).default("EGP"),
+    currency: egpCurrency,
     features: z.array(z.string()).default([]),
     allowedRoles: z.array(z.string()).default([]),
     limits: z.object({
@@ -230,7 +231,7 @@ const tenantSettingsSchema = z.object({
         }).optional(),
     }).optional(),
     locale: z.object({
-        currency: z.string().trim().max(10).optional(),
+        currency: egpCurrency,
         timezone: z.string().trim().max(100).optional(),
         language: z.string().trim().max(10).optional(),
     }).optional(),
@@ -292,7 +293,7 @@ const adminLifetimeGrantSchema = z.object({
     reason: z.string().trim().min(5, "A reason of at least 5 characters is required for manual grants"),
     entitlementPolicy: z.enum(["follow_tier", "snapshot"]).default("follow_tier"),
     amountPaid: z.coerce.number().min(0).default(0),
-    currency: z.string().trim().max(10).default("USD"),
+    currency: egpCurrency,
     paymentMethod: z.enum(["online", "manual_transfer", "cash"]).default("manual_transfer"),
     paymentRef: z.string().trim().nullable().optional(),
     termsVersion: z.string().trim().default("2026.1"),
@@ -312,7 +313,7 @@ const planPriceSchema = z.object({
     planId: objectId,
     cycle: z.enum(["monthly", "yearly", "lifetime"]),
     amount: z.coerce.number().min(0),
-    currency: z.string().trim().max(10).default("USD"),
+    currency: egpCurrency,
     isActive: z.boolean().default(true),
     validFrom: z.preprocess(emptyToNull, z.string().datetime().nullable().optional()),
     validUntil: z.preprocess(emptyToNull, z.string().datetime().nullable().optional()),

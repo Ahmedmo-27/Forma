@@ -87,7 +87,7 @@ export function TenantProvider({ children }) {
     ? tenant.settings.enabledActivities
     : DEFAULT_ACTIVITIES;
 
-  const currency = tenant?.settings?.locale?.currency || 'EGP';
+  const currency = 'EGP';
   const timezone = tenant?.settings?.locale?.timezone || 'Africa/Cairo';
 
   const value = {

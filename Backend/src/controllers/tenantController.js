@@ -10,6 +10,7 @@ const { runAsPlatform } = require("../context/tenantContext");
 const { encryptSecret } = require("../utils/tenantCrypto");
 const { writeAudit } = require("../utils/audit");
 const { assertAllowedLogo, MIME_TO_EXT } = require("../utils/fileMagic");
+const { BILLING_CURRENCY } = require("../config/currency");
 
 function sanitizeTenantResponse(tenant, plan, usage = {}) {
     const effectiveFeatures = getEffectiveFeatures(tenant, plan);
@@ -19,7 +20,7 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
     const lifetimeDetails = isLifetime && tenant?.billing?.lifetime ? {
         purchasedAt: tenant.billing.lifetime.purchasedAt,
         amountPaid: tenant.billing.lifetime.amountPaid,
-        currency: tenant.billing.lifetime.currency,
+        currency: BILLING_CURRENCY,
         entitlementPolicy: tenant.billing.lifetime.entitlementPolicy || "follow_tier",
         lifetimeTermsVersion: tenant.billing.lifetime.lifetimeTermsVersion,
         fairUseLimits: tenant.billing.lifetime.fairUseLimits || {
@@ -60,7 +61,10 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
         },
         settings: {
             branding: tenant.settings?.branding || {},
-            locale: tenant.settings?.locale || { currency: "EGP", timezone: "Africa/Cairo", language: "en" },
+            locale: {
+                ...(tenant.settings?.locale || { timezone: "Africa/Cairo", language: "en" }),
+                currency: BILLING_CURRENCY,
+            },
             enabledActivities: tenant.settings?.enabledActivities || [
                 "gym", "crossfit", "box", "mma", "kickboxing", "calisthenics",
             ],
@@ -155,6 +159,7 @@ const updateMyTenantSettings = async (req, res) => {
             tenant.settings.locale = {
                 ...tenant.settings.locale.toObject(),
                 ...locale,
+                currency: BILLING_CURRENCY,
             };
         }
 

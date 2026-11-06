@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { enforceEgpCurrency } = require("./forceEgp");
 
 const manualPaymentSchema = new mongoose.Schema(
     {
@@ -29,7 +30,7 @@ const manualPaymentSchema = new mongoose.Schema(
         },
         currency: {
             type: String,
-            default: "USD",
+            default: "EGP",
             uppercase: true,
         },
         status: {
@@ -69,6 +70,7 @@ const manualPaymentSchema = new mongoose.Schema(
 );
 
 manualPaymentSchema.index({ status: 1, createdAt: -1 });
+enforceEgpCurrency(manualPaymentSchema);
 
 try {
     module.exports = mongoose.model("ManualPayment");

@@ -1,6 +1,7 @@
 const PlanPrice = require("../models/PlanPrice");
 const Plan = require("../models/Plan");
 const billingService = require("../services/billing/billingService");
+const { BILLING_CURRENCY } = require("../config/currency");
 
 /**
  * GET /api/tenant/billing/prices
@@ -35,7 +36,7 @@ const getPlanPrices = async (_req, res) => {
                     planName: p.planId?.name,
                     cycle: p.cycle,
                     amount: p.amount,
-                    currency: p.currency,
+                    currency: BILLING_CURRENCY,
                     validUntil: p.validUntil,
                     maxLifetimeSeats: p.maxLifetimeSeats,
                     soldLifetimeSeats: p.soldLifetimeSeats,

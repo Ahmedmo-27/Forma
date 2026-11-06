@@ -1,4 +1,5 @@
 const crypto = require("crypto");
+const { BILLING_CURRENCY } = require("../../config/currency");
 
 function bankInstructions(paymentRef) {
     const bankName = (process.env.PAYMENT_BANK_NAME || "").trim();
@@ -41,7 +42,7 @@ class BasePaymentAdapter {
  * Generates an offline payment reference and instructions for direct bank transfer or cash deposit.
  */
 class ManualTransferAdapter extends BasePaymentAdapter {
-    async initiatePayment({ tenant, plan, planPrice, amount, currency, actorId, metadata = {} }) {
+    async initiatePayment({ tenant, plan, planPrice, amount, actorId, metadata = {} }) {
         const randomHex = crypto.randomBytes(4).toString("hex").toUpperCase();
         const paymentRef = `MANUAL-${Date.now()}-${randomHex}`;
         const instructions = bankInstructions(paymentRef);
@@ -51,7 +52,7 @@ class ManualTransferAdapter extends BasePaymentAdapter {
             paymentMethod: "manual_transfer",
             status: "pending",
             amount,
-            currency,
+            currency: BILLING_CURRENCY,
             instructions,
             metadata: {
                 ...metadata,
@@ -71,7 +72,7 @@ class ManualTransferAdapter extends BasePaymentAdapter {
  * Online Payment Provider Adapter Stub (Paymob / Stripe)
  */
 class OnlinePaymentAdapterStub extends BasePaymentAdapter {
-    async initiatePayment({ tenant, plan, planPrice, amount, currency, actorId, metadata = {} }) {
+    async initiatePayment({ tenant, plan, planPrice, amount, actorId, metadata = {} }) {
         const randomHex = crypto.randomBytes(6).toString("hex");
         const paymentRef = `ONLINE-${Date.now()}-${randomHex}`;
 
@@ -83,7 +84,7 @@ class OnlinePaymentAdapterStub extends BasePaymentAdapter {
             paymentMethod: "online",
             status: "pending",
             amount,
-            currency,
+            currency: BILLING_CURRENCY,
             checkoutUrl,
             provider: process.env.PAYMENT_PROVIDER_NAME || "stripe_stub",
             metadata: {

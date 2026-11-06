@@ -16,6 +16,7 @@
     "migrate:lifetime": "node src/scripts/migrateAddLifetimeBilling.js",
     "migrate:indexes": "node src/scripts/migrateIndexes.js",
     "migrate:uploads": "node src/scripts/migrateUploads.js",
+    "migrate:currency": "node src/scripts/normalizeCurrencyToEgp.js",
     "clean:photos": "node src/scripts/cleanMissingPhotos.js"
   },
   "keywords": [],

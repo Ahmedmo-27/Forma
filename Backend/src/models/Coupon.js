@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { enforceEgpCurrency } = require("./forceEgp");
 
 const couponSchema = new mongoose.Schema(
     {
@@ -22,7 +23,7 @@ const couponSchema = new mongoose.Schema(
         },
         currency: {
             type: String,
-            default: "USD",
+            default: "EGP",
             uppercase: true,
         },
         appliesTo: {
@@ -86,6 +87,8 @@ couponSchema.statics.redeemAtomic = async function (code, planKey = null, cycle 
 
     return updated;
 };
+
+enforceEgpCurrency(couponSchema);
 
 try {
     module.exports = mongoose.model("Coupon");

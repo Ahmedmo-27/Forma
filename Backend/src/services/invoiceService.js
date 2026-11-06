@@ -1,6 +1,7 @@
 const PlatformCounter = require("../models/PlatformCounter");
 const Invoice = require("../models/Invoice");
 const PlatformSetting = require("../models/PlatformSetting");
+const { BILLING_CURRENCY } = require("../config/currency");
 
 /**
  * Atomically generates the next sequential platform invoice number.
@@ -28,7 +29,6 @@ async function createInvoiceForPayment({
     planKey,
     cycle,
     amount,
-    currency = "USD",
     paymentRef,
     paymentMethod = "manual_transfer",
     billingEventId = null,
@@ -49,7 +49,7 @@ async function createInvoiceForPayment({
         tenantId: tenant._id,
         billingEventId,
         amount,
-        currency,
+        currency: BILLING_CURRENCY,
         planKey,
         cycle,
         paymentRef,

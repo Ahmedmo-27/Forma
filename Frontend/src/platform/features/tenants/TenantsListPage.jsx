@@ -264,7 +264,7 @@ export default function TenantsListPage() {
       align: "right",
       render: (t) => (
         <span className="font-semibold platform-mono text-[var(--platform-text-primary)]">
-          {formatCurrency(t.mrrContribution || 0, "USD")}
+          {formatCurrency(t.mrrContribution || 0)}
         </span>
       ),
     },

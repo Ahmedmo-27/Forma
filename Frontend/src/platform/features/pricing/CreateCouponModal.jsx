@@ -24,7 +24,6 @@ export default function CreateCouponModal({
   const [code, setCode] = useState("");
   const [type, setType] = useState("percentage");
   const [discountValue, setDiscountValue] = useState(20);
-  const [currency, setCurrency] = useState("EGP");
   const [maxRedemptions, setMaxRedemptions] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [isActive, setIsActive] = useState(true);
@@ -81,7 +80,7 @@ export default function CreateCouponModal({
         code: codeTrim,
         type,
         discountValue: val,
-        currency,
+        currency: "EGP",
         appliesTo: {
           planKeys: selectedPlanKeys,
           cycles: selectedCycles,
@@ -152,7 +151,7 @@ export default function CreateCouponModal({
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
-              Discount Value ({type === "percentage" ? "%" : currency}) <span className="text-[var(--platform-danger)]">*</span>
+              Discount Value ({type === "percentage" ? "%" : "EGP"}) <span className="text-[var(--platform-danger)]">*</span>
             </label>
             <Input
               type="number"
@@ -170,12 +169,7 @@ export default function CreateCouponModal({
               <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
                 Currency
               </label>
-              <Select value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                <option value="USD">USD ($)</option>
-                <option value="EUR">EUR (€)</option>
-                <option value="EGP">EGP (E£)</option>
-                <option value="SAR">SAR (﷼)</option>
-              </Select>
+              <Input value="EGP" readOnly />
             </div>
           )}
 

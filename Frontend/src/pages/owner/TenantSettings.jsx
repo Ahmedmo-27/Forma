@@ -33,7 +33,6 @@ export default function TenantSettings() {
     background: '#F4F5F7',
     text: '#111827',
   });
-  const [currency, setCurrency] = useState('EGP');
   const [timezone, setTimezone] = useState('Africa/Cairo');
   const [language, setLanguage] = useState('en');
   const [activities, setActivities] = useState(KNOWN_ACTIVITIES);
@@ -51,7 +50,6 @@ export default function TenantSettings() {
         setPalette(prev => ({ ...prev, ...tenant.settings.branding.palette }));
       }
       if (tenant.settings.locale) {
-        setCurrency(tenant.settings.locale.currency || 'EGP');
         setTimezone(tenant.settings.locale.timezone || 'Africa/Cairo');
         setLanguage(tenant.settings.locale.language || 'en');
       }
@@ -82,11 +80,6 @@ export default function TenantSettings() {
       }
     }
 
-    if (currency && currency.trim().length > 10) {
-      toast.error('Currency code must not exceed 10 characters');
-      return;
-    }
-
     if (timezone && timezone.trim().length > 100) {
       toast.error('Timezone must not exceed 100 characters');
       return;
@@ -101,7 +94,7 @@ export default function TenantSettings() {
             palette,
           },
           locale: {
-            currency: currency.trim() || 'EGP',
+            currency: 'EGP',
             timezone: timezone.trim() || 'Africa/Cairo',
             language: language.trim() || 'en',
           },
@@ -355,10 +348,8 @@ export default function TenantSettings() {
             <Card>
               <CardHeader title="Regional & Locale Settings" sub="Controls currency symbols, timezone dates, and system formatting" />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginTop: 16 }}>
-                <Select label="Currency" value={currency} onChange={e => setCurrency(e.target.value)}>
-                  {['EGP', 'USD', 'EUR', 'GBP', 'SAR', 'AED', 'KWD'].map(cur => (
-                    <option key={cur} value={cur}>{cur}</option>
-                  ))}
+                <Select label="Currency" value="EGP" disabled>
+                  <option value="EGP">EGP</option>
                 </Select>
 
                 <Select label="Timezone" value={timezone} onChange={e => setTimezone(e.target.value)}>

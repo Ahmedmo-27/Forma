@@ -84,7 +84,7 @@ async function migrateAddLifetimeBilling(options = {}) {
                         lifetime: {
                             purchasedAt: now,
                             amountPaid: 0,
-                            currency: "USD",
+                            currency: "EGP",
                             paymentMethod: "manual_transfer",
                             paymentRef: "FOUNDING-LEAP-LIFETIME",
                             entitlementPolicy: "follow_tier",
@@ -111,7 +111,7 @@ async function migrateAddLifetimeBilling(options = {}) {
                             planKey: "platinum",
                             cycle: "lifetime",
                             amount: 0,
-                            currency: "USD",
+                            currency: "EGP",
                             actorId,
                             actorType: "system",
                             externalRef: "FOUNDING-LEAP-LIFETIME",
