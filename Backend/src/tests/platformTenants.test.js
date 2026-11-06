@@ -11,6 +11,11 @@ import {
     updateTenantLifecycle,
     bulkTenantActions,
 } from "../controllers/platformTenantController";
+import {
+    listTenantStaff,
+    getTenantStaffAccess,
+    updateTenantStaffAccess,
+} from "../controllers/platformStaffAccessController";
 import mailer from "../services/mailer";
 import PasswordSetupToken from "../models/PasswordSetupToken";
 
@@ -312,6 +317,171 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
                     proposedChanges: { days: 7 },
                 })
             );
+        });
+    });
+
+    describe("Platform staff access for one gym", () => {
+        function queryResult(value) {
+            const promise = Promise.resolve(value);
+            const query = {
+                select() { return query; },
+                sort() { return promise; },
+                then: promise.then.bind(promise),
+                catch: promise.catch.bind(promise),
+                finally: promise.finally.bind(promise),
+            };
+            return query;
+        }
+
+        function mockRes() {
+            return { status: vi.fn().mockReturnThis(), json: vi.fn() };
+        }
+
+        function staffDoc(overrides) {
+            return {
+                _id: new mongoose.Types.ObjectId(),
+                name: "Staff",
+                email: "staff@gym.com",
+                role: "Sales",
+                abilities: {},
+                featureAccess: { grants: [], revokes: [] },
+                markModified: vi.fn(),
+                save: vi.fn().mockResolvedValue(true),
+                ...overrides,
+            };
+        }
+
+        it("lists every role in this gym, including the owner, and skips other gyms", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
+            const otherTenantId = new mongoose.Types.ObjectId();
+            const owner = staffDoc({
+                name: "Gym Owner",
+                email: "owner@gym.com",
+                role: "Owner",
+                tenantId,
+            });
+            const coach = staffDoc({
+                name: "Gym Coach",
+                email: "coach@gym.com",
+                role: "Coach",
+                tenantId,
+            });
+            const stranger = staffDoc({
+                name: "Other Gym",
+                email: "other@gym.com",
+                role: "Sales",
+                tenantId: otherTenantId,
+            });
+
+            vi.spyOn(Tenant, "findById").mockImplementation((id) => (
+                queryResult(String(id) === String(tenantId)
+                    ? { _id: tenantId, ownerUserId: owner._id }
+                    : null)
+            ));
+            vi.spyOn(User, "find").mockImplementation((query) => queryResult(
+                [owner, coach, stranger].filter((user) => String(user.tenantId) === String(query.tenantId))
+            ));
+
+            const res = mockRes();
+            await listTenantStaff({ params: { id: tenantId.toString() }, platformUser: adminUser }, res);
+
+            const payload = res.json.mock.calls[0][0];
+            const ids = payload.users.map((user) => String(user._id));
+            expect(ids).toEqual(expect.arrayContaining([String(owner._id), String(coach._id)]));
+            expect(ids).not.toContain(String(stranger._id));
+            expect(payload.users.find((user) => String(user._id) === String(owner._id)).isPrimaryOwner).toBe(true);
+            expect(payload.users.find((user) => String(user._id) === String(coach._id)).role).toBe("Coach");
+            expect(res.status).not.toHaveBeenCalled();
+        });
+
+        it("saves an owner feature revoke and writes the platform audit action", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
+            const owner = staffDoc({
+                name: "Gym Owner",
+                email: "owner@gym.com",
+                role: "Owner",
+                tenantId,
+            });
+
+            vi.spyOn(Tenant, "findById").mockImplementation(() => (
+                queryResult({ _id: tenantId, ownerUserId: owner._id })
+            ));
+            vi.spyOn(User, "findOne").mockImplementation((query) => queryResult(
+                String(query._id) === String(owner._id) && String(query.tenantId) === String(tenantId)
+                    ? owner
+                    : null
+            ));
+            const audit = vi.spyOn(AuditLog, "create").mockResolvedValue({});
+
+            const res = mockRes();
+            await updateTenantStaffAccess({
+                params: { id: tenantId.toString(), userId: owner._id.toString() },
+                body: { features: [] },
+                platformUser: adminUser,
+            }, res);
+
+            expect(owner.featureAccess.revokes).toEqual(expect.arrayContaining(["owner_dashboard", "settings"]));
+            expect(owner.save).toHaveBeenCalled();
+            expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+                tenantId,
+                action: "platform_staff_access_updated",
+                actor: adminUser.id,
+                actorRole: "PlatformUser",
+                targetType: "user",
+                targetId: String(owner._id),
+                meta: expect.objectContaining({
+                    role: "Owner",
+                    actorEmail: adminUser.email,
+                    revokes: expect.arrayContaining(["owner_dashboard", "settings"]),
+                }),
+            }));
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: "Access updated" }));
+        });
+
+        it("returns 404 when the user is not in this gym", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
+            const otherUserId = new mongoose.Types.ObjectId();
+
+            vi.spyOn(Tenant, "findById").mockImplementation(() => (
+                queryResult({ _id: tenantId, ownerUserId: null })
+            ));
+            vi.spyOn(User, "findOne").mockImplementation(() => queryResult(null));
+
+            const res = mockRes();
+            await getTenantStaffAccess({
+                params: { id: tenantId.toString(), userId: otherUserId.toString() },
+                platformUser: adminUser,
+            }, res);
+
+            expect(User.findOne).toHaveBeenCalledWith({
+                _id: otherUserId.toString(),
+                tenantId,
+            });
+            expect(res.status).toHaveBeenCalledWith(404);
+            expect(res.json).toHaveBeenCalledWith({ message: "User not found" });
+        });
+
+        it("rejects an exclusive feature granted to a role that does not have it by default", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
+            const sales = staffDoc({ role: "Sales", tenantId });
+
+            vi.spyOn(Tenant, "findById").mockImplementation(() => (
+                queryResult({ _id: tenantId, ownerUserId: null })
+            ));
+            vi.spyOn(User, "findOne").mockImplementation(() => queryResult(sales));
+
+            const res = mockRes();
+            await updateTenantStaffAccess({
+                params: { id: tenantId.toString(), userId: sales._id.toString() },
+                body: { features: ["settings"] },
+                platformUser: adminUser,
+            }, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith(
+                expect.objectContaining({ message: expect.stringContaining("limited to its default role") })
+            );
+            expect(sales.save).not.toHaveBeenCalled();
         });
     });
 });

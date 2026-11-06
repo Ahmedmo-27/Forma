@@ -51,6 +51,15 @@ export const apiGetTenants = (params, signal) =>
 export const apiGetTenantDetail = (id, signal) =>
   platformClient.get(`/tenants/${id}`, { signal });
 
+export const apiListTenantStaff = (id, signal) =>
+  platformClient.get(`/tenants/${id}/staff`, { signal });
+
+export const apiGetTenantStaffAccess = (id, userId, signal) =>
+  platformClient.get(`/tenants/${id}/staff/${userId}/access`, { signal });
+
+export const apiUpdateTenantStaffAccess = (id, userId, features, signal) =>
+  platformClient.put(`/tenants/${id}/staff/${userId}/access`, { features }, { signal });
+
 export const apiOnboardTenant = (data, signal) =>
   platformClient.post("/tenants", data, { signal });
 

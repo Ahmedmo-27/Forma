@@ -22,6 +22,7 @@ const auditLogSchema = new mongoose.Schema({
             "phone_privacy_updated",
             "whatsapp_template_sent",
             "platform_impersonation",
+            "platform_staff_access_updated",
             "tenant_status_updated",
             "plan_updated",
             "lifetime_purchased",

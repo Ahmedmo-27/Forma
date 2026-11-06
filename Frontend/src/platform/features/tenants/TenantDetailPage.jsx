@@ -35,6 +35,7 @@ import { Skeleton } from "../../ui/Skeleton";
 import { ConfirmDialog } from "../../shell/ConfirmDialog";
 import TenantOverridesModal from "./TenantOverridesModal";
 import TenantFeatureEditor from "./TenantFeatureEditor";
+import TenantStaffAccess from "./TenantStaffAccess";
 import { usePermission } from "../../lib/auth/PermissionContext";
 import { usePlatformAuth } from "../../lib/auth/AuthContext";
 import { formatCurrency, formatDate, formatBytes } from "../../lib/utils/formatters";
@@ -430,6 +431,7 @@ export default function TenantDetailPage() {
         <TabsList>
           <TabTrigger value="overview">Overview & Limits</TabTrigger>
           <TabTrigger value="features">Features</TabTrigger>
+          <TabTrigger value="access">Access</TabTrigger>
           <TabTrigger value="notes" badge={notes.length}>
             Internal Notes
           </TabTrigger>
@@ -602,6 +604,10 @@ export default function TenantDetailPage() {
 
         <TabContent value="features">
           <TenantFeatureEditor tenant={tenant} onSaved={refetch} />
+        </TabContent>
+
+        <TabContent value="access">
+          <TenantStaffAccess tenantId={id} />
         </TabContent>
 
         {/* TAB 2: INTERNAL NOTES */}

@@ -38,6 +38,11 @@ const {
     bulkTenantActions,
 } = require("../controllers/platformTenantController");
 const {
+    listTenantStaff,
+    getTenantStaffAccess,
+    updateTenantStaffAccess,
+} = require("../controllers/platformStaffAccessController");
+const {
     getFeatures,
     getRoles,
     createFeature,
@@ -165,6 +170,9 @@ router.delete("/coupons/:id", requirePlatformPermission(PERMISSIONS.PRICING_MANA
 router.get("/tenants", requirePlatformPermission(PERMISSIONS.TENANTS_READ), cacheResponse({ ttlSeconds: 60, scope: "platform", tags: ["platform:tenants"] }), getTenants);
 router.post("/tenants", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), autoInvalidate(["tenants", "analytics"], "platform"), onboardTenant);
 router.get("/tenants/:id", requirePlatformPermission(PERMISSIONS.TENANTS_READ), cacheResponse({ ttlSeconds: 60, scope: "platform", tags: ["platform:tenants"] }), getTenantDetail);
+router.get("/tenants/:id/staff", requirePlatformPermission(PERMISSIONS.TENANTS_READ), listTenantStaff);
+router.get("/tenants/:id/staff/:userId/access", requirePlatformPermission(PERMISSIONS.TENANTS_READ), getTenantStaffAccess);
+router.put("/tenants/:id/staff/:userId/access", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), updateTenantStaffAccess);
 router.patch("/tenants/:id/lifecycle", requirePlatformPermission(PERMISSIONS.TENANTS_LIFECYCLE), autoInvalidate(["tenants", "analytics"], "platform"), updateTenantLifecycle);
 router.post("/tenants/:id/notes", requirePlatformPermission(PERMISSIONS.TENANTS_NOTES), addTenantNote);
 router.delete("/tenants/:id/notes/:noteId", requirePlatformPermission(PERMISSIONS.TENANTS_NOTES), deleteTenantNote);
