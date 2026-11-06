@@ -1,17 +1,38 @@
 const PlatformUser = require("../models/PlatformUser");
 const AuditLog = require("../models/AuditLog");
 const { hashPassword, normalizeEmail } = require("../utils/passwordUtils");
+const { parsePagination, buildPagination } = require("../utils/pagination");
 
 /**
- * List all Platform Users
+ * List all Platform Users with Server-Side Pagination, Filtering and Search
  * GET /api/platform/users
  */
-async function getPlatformUsers(_req, res) {
+async function getPlatformUsers(req, res) {
     try {
-        const users = await PlatformUser.find()
-            .select("-password -mfa.secretEncrypted -mfa.recoveryCodesHashed")
-            .sort({ createdAt: -1 });
-        res.json(users);
+        const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 20 });
+        const { role, status, search } = req.query || {};
+
+        const filter = {};
+        if (role) filter.role = role;
+        if (status) filter.status = status;
+        if (search && search.trim()) {
+            const regex = new RegExp(search.trim(), "i");
+            filter.$or = [{ name: regex }, { email: regex }];
+        }
+
+        const [users, total] = await Promise.all([
+            PlatformUser.find(filter)
+                .select("-password -mfa.secretEncrypted -mfa.recoveryCodesHashed")
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            PlatformUser.countDocuments(filter),
+        ]);
+
+        res.json({
+            users,
+            pagination: buildPagination(page, limit, total),
+        });
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
     }

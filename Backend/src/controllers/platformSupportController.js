@@ -15,6 +15,7 @@ const TenantNote = require("../models/TenantNote");
 const Announcement = require("../models/Announcement");
 const storageService = require("../services/storageService");
 const { runAsPlatform } = require("../context/tenantContext");
+const { parsePagination, buildPagination } = require("../utils/pagination");
 const logger = require("../utils/logger");
 
 // ==========================================
@@ -256,10 +257,30 @@ async function purgeTenant(req, res) {
 // 4. Announcements
 // ==========================================
 
-async function getAnnouncements(_req, res) {
+async function getAnnouncements(req, res) {
     try {
-        const announcements = await Announcement.find().sort({ createdAt: -1 });
-        res.json(announcements);
+        const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 20 });
+        const { type, isActive, search } = req.query || {};
+
+        const filter = {};
+        if (type) filter.type = type;
+        if (isActive !== undefined && isActive !== "") {
+            filter.isActive = isActive === "true" || isActive === true;
+        }
+        if (search && search.trim()) {
+            const regex = new RegExp(search.trim(), "i");
+            filter.$or = [{ title: regex }, { message: regex }];
+        }
+
+        const [announcements, total] = await Promise.all([
+            Announcement.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+            Announcement.countDocuments(filter),
+        ]);
+
+        res.json({
+            announcements,
+            pagination: buildPagination(page, limit, total),
+        });
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
     }
@@ -316,9 +337,7 @@ async function deleteAnnouncement(req, res) {
 
 async function getPlatformAuditLogs(req, res) {
     try {
-        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
-        const skip = (page - 1) * limit;
+        const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 25 });
 
         const { tenantId, action, actor, fromDate, toDate } = req.query;
         const filter = {};
@@ -343,7 +362,7 @@ async function getPlatformAuditLogs(req, res) {
 
             res.json({
                 logs,
-                pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+                pagination: buildPagination(page, limit, total),
             });
         });
     } catch (err) {

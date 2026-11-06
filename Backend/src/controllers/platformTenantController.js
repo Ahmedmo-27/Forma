@@ -8,10 +8,11 @@ const Member = require("../models/Member");
 const AuditLog = require("../models/AuditLog");
 const BillingEvent = require("../models/BillingEvent");
 const TenantNote = require("../models/TenantNote");
-const { getEffectiveFeatures, getEffectiveLimits } = require("../models/Tenant");
+const { getEffectiveFeatures, getEffectiveLimits, getEffectiveRoles } = require("../models/Tenant");
 const { runAsPlatform } = require("../context/tenantContext");
 const storageService = require("../services/storageService");
 const { normalizeEmail, hashPassword } = require("../utils/passwordUtils");
+const { parsePagination, buildPagination } = require("../utils/pagination");
 const logger = require("../utils/logger");
 
 const RESERVED_SLUGS = new Set([
@@ -59,9 +60,7 @@ function getTenantStorageBytes(tenantId) {
  */
 async function getTenants(req, res) {
     try {
-        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
-        const skip = (page - 1) * limit;
+        const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 20 });
 
         const {
             search,
@@ -180,12 +179,7 @@ async function getTenants(req, res) {
 
         res.json({
             tenants: summaryRows,
-            pagination: {
-                total,
-                page,
-                limit,
-                totalPages: Math.ceil(total / limit),
-            },
+            pagination: buildPagination(page, limit, total),
         });
     } catch (err) {
         logger.error("platform", "getTenants failed", { error: err.message });
@@ -231,6 +225,7 @@ async function getTenantDetail(req, res) {
 
         const storageBytes = getTenantStorageBytes(tenant._id);
         const effectiveFeatures = getEffectiveFeatures(tenant, tenant.planId);
+        const effectiveRoles = getEffectiveRoles(tenant, tenant.planId);
         const effectiveLimits = getEffectiveLimits(tenant, tenant.planId);
 
         res.json({
@@ -242,9 +237,11 @@ async function getTenantDetail(req, res) {
                 plan: tenant.planId,
                 owner: tenant.ownerUserId,
                 billing: tenant.billing,
-                featureOverrides: tenant.featureOverrides,
-                limitOverrides: tenant.limitOverrides,
+                featureOverrides: tenant.featureOverrides || { add: [], remove: [] },
+                roleOverrides: tenant.roleOverrides || { add: [], remove: [] },
+                limitOverrides: tenant.limitOverrides || {},
                 effectiveFeatures,
+                effectiveRoles,
                 effectiveLimits,
                 trialEndsAt: tenant.trialEndsAt,
                 currentPeriodEnd: tenant.currentPeriodEnd,
@@ -482,6 +479,7 @@ async function updateTenantLifecycle(req, res) {
             trialEndsAt: tenant.trialEndsAt,
             slug: tenant.slug,
             featureOverrides: tenant.featureOverrides,
+            roleOverrides: tenant.roleOverrides,
             limitOverrides: tenant.limitOverrides,
             entitlementPolicy: tenant.billing?.lifetime?.entitlementPolicy,
         };
@@ -548,6 +546,10 @@ async function updateTenantLifecycle(req, res) {
                 if (payload.featureOverrides) {
                     tenant.featureOverrides = payload.featureOverrides;
                     afterState.featureOverrides = payload.featureOverrides;
+                }
+                if (payload.roleOverrides) {
+                    tenant.roleOverrides = payload.roleOverrides;
+                    afterState.roleOverrides = payload.roleOverrides;
                 }
                 if (payload.limitOverrides) {
                     tenant.limitOverrides = payload.limitOverrides;
@@ -640,6 +642,7 @@ async function updateTenantLifecycle(req, res) {
                 billing: tenant.billing,
                 trialEndsAt: tenant.trialEndsAt,
                 featureOverrides: tenant.featureOverrides,
+                roleOverrides: tenant.roleOverrides,
                 limitOverrides: tenant.limitOverrides,
             },
         });

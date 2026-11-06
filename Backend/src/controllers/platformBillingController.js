@@ -7,6 +7,7 @@ const AuditLog = require("../models/AuditLog");
 const billingService = require("../services/billing/billingService");
 const invoiceService = require("../services/invoiceService");
 const { runAsPlatform } = require("../context/tenantContext");
+const { parsePagination, buildPagination } = require("../utils/pagination");
 const logger = require("../utils/logger");
 
 // ==========================================
@@ -15,14 +16,34 @@ const logger = require("../utils/logger");
 
 async function getPendingPayments(req, res) {
     try {
-        const { status = "pending" } = req.query;
-        const payments = await ManualPayment.find({ status })
-            .populate("tenantId", "name slug")
-            .populate("submittedBy", "name email")
-            .populate("reviewedBy", "name email")
-            .sort({ createdAt: -1 });
+        const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 20 });
+        const { status = "pending", tenantId, search } = req.query || {};
 
-        res.json(payments);
+        const filter = {};
+        if (status) filter.status = status;
+        if (tenantId) filter.tenantId = tenantId;
+        if (search && search.trim()) {
+            filter.$or = [
+                { paymentRef: new RegExp(search.trim(), "i") },
+                { notes: new RegExp(search.trim(), "i") },
+            ];
+        }
+
+        const [payments, total] = await Promise.all([
+            ManualPayment.find(filter)
+                .populate("tenantId", "name slug")
+                .populate("submittedBy", "name email")
+                .populate("reviewedBy", "name email")
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            ManualPayment.countDocuments(filter),
+        ]);
+
+        res.json({
+            payments,
+            pagination: buildPagination(page, limit, total),
+        });
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
     }
@@ -137,10 +158,7 @@ async function rejectPayment(req, res) {
 
 async function getInvoices(req, res) {
     try {
-        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 20));
-        const skip = (page - 1) * limit;
-
+        const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 20 });
         const { search, tenantId, status } = req.query;
         const filter = {};
         if (tenantId) filter.tenantId = tenantId;
@@ -160,7 +178,7 @@ async function getInvoices(req, res) {
 
         res.json({
             invoices,
-            pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+            pagination: buildPagination(page, limit, total),
         });
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
@@ -297,9 +315,7 @@ async function issueManualGrant(req, res) {
 
 async function getLedgerEvents(req, res) {
     try {
-        const page = Math.max(1, parseInt(req.query.page, 10) || 1);
-        const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 25));
-        const skip = (page - 1) * limit;
+        const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 25 });
 
         const { tenantId, type, fromDate, toDate } = req.query;
         const filter = {};
@@ -322,7 +338,7 @@ async function getLedgerEvents(req, res) {
 
         res.json({
             events,
-            pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+            pagination: buildPagination(page, limit, total),
         });
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
