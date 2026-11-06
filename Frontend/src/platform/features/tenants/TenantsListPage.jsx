@@ -13,6 +13,7 @@ import {
   ExternalLink,
   Layers,
   ArrowRight,
+  Sliders,
 } from "lucide-react";
 import {
   apiGetTenants,
@@ -23,6 +24,7 @@ import {
 import { DataTable } from "../../shell/DataTable/DataTable";
 import { OnboardTenantModal } from "./OnboardTenantModal";
 import { BulkActionsModal } from "./BulkActionsModal";
+import TenantOverridesModal from "./TenantOverridesModal";
 import { ConfirmDialog } from "../../shell/ConfirmDialog";
 import { Button } from "../../ui/Button";
 import { Badge, StatusPill } from "../../ui/Badge";
@@ -47,6 +49,8 @@ export default function TenantsListPage() {
   // Modals
   const [isOnboardOpen, setIsOnboardOpen] = useState(false);
   const [isBulkOpen, setIsBulkOpen] = useState(false);
+  const [overridesModalOpen, setOverridesModalOpen] = useState(false);
+  const [selectedTenantForOverrides, setSelectedTenantForOverrides] = useState(null);
 
   // Single tenant action confirm modal
   const [lifecycleModal, setLifecycleModal] = useState({
@@ -190,14 +194,22 @@ export default function TenantsListPage() {
       render: (t) => {
         const cycle = t.cycle || t.billing?.cycle || "monthly";
         const isLifetime = cycle === "lifetime";
+        const hasOverrides = (t.featureOverrides?.add || []).length > 0 || (t.roleOverrides?.add || []).length > 0;
         return (
           <div className="space-y-1">
             <div className="font-medium text-[var(--platform-text-primary)] capitalize">
               {t.plan?.name || "Basic Tier"}
             </div>
-            <Badge variant={isLifetime ? "success" : "neutral"} size="sm">
-              {cycle}
-            </Badge>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <Badge variant={isLifetime ? "success" : "neutral"} size="sm">
+                {cycle}
+              </Badge>
+              {hasOverrides && (
+                <Badge variant="accent" size="xs">
+                  +{(t.featureOverrides?.add || []).length} custom
+                </Badge>
+              )}
+            </div>
           </div>
         );
       },
@@ -284,6 +296,18 @@ export default function TenantsListPage() {
               icon: Eye,
               onClick: () => navigate(`/platform/tenants/${t.id}`),
             },
+            ...(canLifecycle
+              ? [
+                  {
+                    label: "Customize Entitlements",
+                    icon: Sliders,
+                    onClick: () => {
+                      setSelectedTenantForOverrides(t);
+                      setOverridesModalOpen(true);
+                    },
+                  },
+                ]
+              : []),
             ...(canSupport
               ? [
                   {
@@ -496,6 +520,15 @@ export default function TenantsListPage() {
           variant="danger"
           typedSlugMatch={purgeModal.tenant.slug}
           loading={actionLoading}
+        />
+      )}
+      {/* Tenant Entitlements Customizer Modal */}
+      {selectedTenantForOverrides && (
+        <TenantOverridesModal
+          open={overridesModalOpen}
+          onOpenChange={setOverridesModalOpen}
+          tenant={selectedTenantForOverrides}
+          onSaved={refetch}
         />
       )}
     </div>

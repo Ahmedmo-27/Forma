@@ -10,6 +10,7 @@ import {
   platformToast,
 } from "../../ui";
 import { apiCreateCoupon } from "../../lib/api/endpoints";
+import { isPositiveInteger } from "../../lib/utils/validation";
 
 export default function CreateCouponModal({
   open,
@@ -45,16 +46,30 @@ export default function CreateCouponModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!code.trim()) {
+    const codeTrim = code.trim().toUpperCase();
+    if (!codeTrim) {
       setError("Coupon promotional code is required");
       return;
     }
-    if (discountValue === "" || Number(discountValue) <= 0) {
-      setError("Please provide a valid discount value");
+    if (codeTrim.length > 50 || !/^[A-Z0-9_-]+$/.test(codeTrim)) {
+      setError("Coupon code must be 1–50 alphanumeric characters, hyphens, or underscores");
       return;
     }
-    if (type === "percentage" && Number(discountValue) > 100) {
+    const val = Number(discountValue);
+    if (discountValue === "" || isNaN(val) || val <= 0) {
+      setError("Please provide a valid discount value greater than zero");
+      return;
+    }
+    if (type === "percentage" && val > 100) {
       setError("Percentage discount cannot exceed 100%");
+      return;
+    }
+    if (maxRedemptions !== "" && !isPositiveInteger(maxRedemptions)) {
+      setError("Maximum redemptions must be a positive whole number");
+      return;
+    }
+    if (expiresAt && new Date(expiresAt).getTime() <= Date.now()) {
+      setError("Expiration date must be in the future");
       return;
     }
 
@@ -63,9 +78,9 @@ export default function CreateCouponModal({
 
     try {
       await apiCreateCoupon({
-        code: code.trim().toUpperCase(),
+        code: codeTrim,
         type,
-        discountValue: Number(discountValue),
+        discountValue: val,
         currency,
         appliesTo: {
           planKeys: selectedPlanKeys,

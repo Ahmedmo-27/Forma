@@ -312,6 +312,8 @@ export default function LedgerPage() {
         <div className="flex justify-end pt-2">
           <Pagination
             page={pagination.page}
+            total={pagination.total}
+            limit={pagination.limit || 25}
             totalPages={pagination.totalPages}
             onPageChange={setPage}
           />

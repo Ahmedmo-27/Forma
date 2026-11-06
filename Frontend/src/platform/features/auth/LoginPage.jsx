@@ -8,6 +8,7 @@ import { Input } from "../../ui/Input";
 import { Badge } from "../../ui/Badge";
 import { Callout } from "../../ui/Callout";
 import { platformToast } from "../../ui/Toast";
+import { isValidEmail } from "../../lib/utils/validation";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -32,11 +33,25 @@ export default function LoginPage() {
   // Step 1: Initial Login
   const handleLogin = async (e) => {
     e.preventDefault();
+    const trimmedEmail = email.trim();
+    if (!trimmedEmail) {
+      setError("Email address is required");
+      return;
+    }
+    if (!isValidEmail(trimmedEmail)) {
+      setError("Please enter a valid email address");
+      return;
+    }
+    if (!password) {
+      setError("Password is required");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
     try {
-      const res = await apiLogin({ email: email.trim(), password });
+      const res = await apiLogin({ email: trimmedEmail, password });
       const data = res.data;
 
       if (data.mfaRequired) {
@@ -63,13 +78,19 @@ export default function LoginPage() {
   // Step 2: Submit MFA Challenge
   const handleMfaChallenge = async (e) => {
     e.preventDefault();
+    const trimmedCode = mfaCode.trim();
+    if (!trimmedCode) {
+      setError("Verification code is required");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
     try {
       const res = await apiMfaChallenge({
         tempToken,
-        code: mfaCode.trim(),
+        code: trimmedCode,
         isRecoveryCode,
       });
 
@@ -86,13 +107,19 @@ export default function LoginPage() {
   // Step 3: Verify Enrollment
   const handleVerifyEnrollment = async (e) => {
     e.preventDefault();
+    const trimmedCode = mfaCode.trim();
+    if (!trimmedCode) {
+      setError("6-digit verification code is required");
+      return;
+    }
+
     setError("");
     setLoading(true);
 
     try {
       const res = await apiMfaVerify({
         tempToken,
-        code: mfaCode.trim(),
+        code: trimmedCode,
       });
 
       setRecoveryCodes(res.data.recoveryCodes || []);

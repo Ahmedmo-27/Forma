@@ -18,6 +18,7 @@ import {
   CopyChip,
   Skeleton,
   EmptyState,
+  Pagination,
   platformToast,
 } from "../../ui";
 import CreatePriceModal from "./CreatePriceModal";
@@ -45,6 +46,7 @@ export default function PricingCouponsPage() {
   const [priceToEdit, setPriceToEdit] = useState(null);
 
   const [couponModalOpen, setCouponModalOpen] = useState(false);
+  const [couponPage, setCouponPage] = useState(1);
 
   // Queries
   const {
@@ -68,13 +70,19 @@ export default function PricingCouponsPage() {
     isLoading: couponsLoading,
     refetch: refetchCoupons,
   } = useQuery({
-    queryKey: ["platform", "coupons"],
-    queryFn: () => apiGetCoupons().then((r) => r.data),
+    queryKey: ["platform", "coupons", couponPage],
+    queryFn: () => apiGetCoupons({ page: couponPage, limit: 15 }).then((r) => r.data),
   });
 
   const prices = pricesData || [];
   const plans = plansData || [];
-  const coupons = couponsData || [];
+  const coupons = Array.isArray(couponsData) ? couponsData : couponsData?.coupons || [];
+  const couponsPagination = couponsData?.pagination || {
+    total: coupons.length,
+    page: 1,
+    limit: 15,
+    totalPages: 1,
+  };
 
   // Toggle Sales
   const handleToggleSales = async (price) => {
@@ -187,7 +195,7 @@ export default function PricingCouponsPage() {
             Plan Price Tiers ({prices.length})
           </TabTrigger>
           <TabTrigger value="coupons">
-            Promotional Coupons ({coupons.length})
+            Promotional Coupons ({couponsPagination.total || coupons.length})
           </TabTrigger>
         </TabsList>
 
@@ -468,6 +476,18 @@ export default function PricingCouponsPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {couponsPagination.totalPages > 1 && (
+            <div className="flex justify-end pt-2">
+              <Pagination
+                page={couponsPagination.page}
+                total={couponsPagination.total}
+                limit={couponsPagination.limit || 15}
+                totalPages={couponsPagination.totalPages}
+                onPageChange={setCouponPage}
+              />
             </div>
           )}
         </TabContent>

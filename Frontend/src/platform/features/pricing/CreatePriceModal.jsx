@@ -9,6 +9,7 @@ import {
   platformToast,
 } from "../../ui";
 import { apiCreatePlanPrice, apiUpdatePlanPrice } from "../../lib/api/endpoints";
+import { isNonNegativeNumber, isPositiveInteger } from "../../lib/utils/validation";
 
 export default function CreatePriceModal({
   open,
@@ -67,8 +68,16 @@ export default function CreatePriceModal({
       setError("Please select a target plan");
       return;
     }
-    if (amount === "" || Number(amount) < 0) {
-      setError("Please provide a valid price amount");
+    if (!isNonNegativeNumber(amount)) {
+      setError("Please provide a valid non-negative price amount");
+      return;
+    }
+    if (cycle === "lifetime" && maxLifetimeSeats !== "" && !isPositiveInteger(maxLifetimeSeats)) {
+      setError("Max lifetime seats must be a whole number greater than 0");
+      return;
+    }
+    if (validUntil && isNaN(Date.parse(validUntil))) {
+      setError("Please enter a valid expiration date");
       return;
     }
     if (isAmountChanged && (!reason || reason.trim().length < 5)) {

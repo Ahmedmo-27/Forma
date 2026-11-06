@@ -5,6 +5,7 @@ import {
   apiToggleMaintenanceMode,
   apiUpdateSystemSetting,
 } from "../../lib/api/endpoints";
+import { isValidEmail, isNonNegativeInteger } from "../../lib/utils/validation";
 import {
   Button,
   Badge,
@@ -112,13 +113,31 @@ export default function HealthSettingsPage() {
   // Handle Save Seller Details
   const handleSaveSeller = async (e) => {
     e.preventDefault();
+    const emailTrim = billingEmail.trim();
+    if (emailTrim && !isValidEmail(emailTrim)) {
+      platformToast.error("Please enter a valid billing email address");
+      return;
+    }
+    if (companyName.trim().length > 120) {
+      platformToast.error("Company name must not exceed 120 characters");
+      return;
+    }
+    if (taxId.trim().length > 50) {
+      platformToast.error("Tax ID must not exceed 50 characters");
+      return;
+    }
+    if (address.trim().length > 300) {
+      platformToast.error("Address must not exceed 300 characters");
+      return;
+    }
+
     setSavingSeller(true);
     try {
       await apiUpdateSystemSetting("seller_details", {
         value: {
           companyName: companyName.trim(),
           taxId: taxId.trim(),
-          billingEmail: billingEmail.trim(),
+          billingEmail: emailTrim,
           address: address.trim(),
         },
         description: "Official seller & VAT tax invoicing identity",
@@ -135,6 +154,11 @@ export default function HealthSettingsPage() {
   // Handle Save Dunning Schedule
   const handleSaveDunning = async (e) => {
     e.preventDefault();
+    if (!isNonNegativeInteger(gracePeriodDays)) {
+      platformToast.error("Grace period days must be a whole number of at least 0");
+      return;
+    }
+
     setSavingDunning(true);
     try {
       await apiUpdateSystemSetting("dunning_schedule", {

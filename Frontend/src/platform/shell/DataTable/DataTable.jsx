@@ -148,7 +148,7 @@ export function DataTable({
                 <div className="text-[10px] font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] pb-1 border-b border-[var(--platform-border-subtle)]">
                   Toggle Columns
                 </div>
-                {columns.map((col) => (
+                {columns.filter((col) => col.key !== "actions" && col.header).map((col) => (
                   <Checkbox
                     key={col.key}
                     label={col.header}
@@ -195,7 +195,7 @@ export function DataTable({
       )}
 
       {/* Main Table */}
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overflow-y-hidden">
         <table className="w-full text-left border-collapse" style={{ fontSize: "var(--platform-table-font-size)" }}>
           <thead className="sticky top-0 z-10 bg-[var(--platform-surface-subtle)] text-[var(--platform-text-muted)] uppercase text-[10px] font-bold tracking-wider border-b border-[var(--platform-border)] select-none">
             <tr>

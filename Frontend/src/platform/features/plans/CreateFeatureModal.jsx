@@ -9,6 +9,7 @@ import {
   platformToast,
 } from "../../ui";
 import { apiCreateFeature, apiUpdateFeature } from "../../lib/api/endpoints";
+import { isValidProgrammaticKey } from "../../lib/utils/validation";
 
 export default function CreateFeatureModal({ open, onOpenChange, featureToEdit = null, onSaved }) {
   const isEdit = Boolean(featureToEdit);
@@ -24,12 +25,21 @@ export default function CreateFeatureModal({ open, onOpenChange, featureToEdit =
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim()) {
+    const nameTrim = name.trim();
+    if (!nameTrim) {
       setError("Feature display name is required");
       return;
     }
-    if (!isEdit && !key.trim()) {
-      setError("Feature programmatic key is required");
+    if (nameTrim.length > 120) {
+      setError("Feature display name must not exceed 120 characters");
+      return;
+    }
+    if (!isEdit && !isValidProgrammaticKey(key)) {
+      setError("Programmatic feature key must be 2–60 characters (letters, numbers, dashes, underscores)");
+      return;
+    }
+    if (description && description.trim().length > 500) {
+      setError("Description must not exceed 500 characters");
       return;
     }
 
@@ -39,7 +49,7 @@ export default function CreateFeatureModal({ open, onOpenChange, featureToEdit =
     try {
       if (isEdit) {
         await apiUpdateFeature(featureToEdit._id, {
-          name: name.trim(),
+          name: nameTrim,
           description: description.trim(),
           category,
           isCore,
@@ -49,7 +59,7 @@ export default function CreateFeatureModal({ open, onOpenChange, featureToEdit =
       } else {
         await apiCreateFeature({
           key: key.trim().toLowerCase(),
-          name: name.trim(),
+          name: nameTrim,
           description: description.trim(),
           category,
           isCore,

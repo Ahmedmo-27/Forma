@@ -9,6 +9,7 @@ import { Callout } from "../../ui/Callout";
 import { CopyChip } from "../../ui/CopyChip";
 import { apiOnboardTenant, apiGetPlans } from "../../lib/api/endpoints";
 import { platformToast } from "../../ui/Toast";
+import { isValidSlug, isValidEmail } from "../../lib/utils/validation";
 
 export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
@@ -66,8 +67,40 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.name.trim() || !form.slug.trim() || !form.ownerEmail.trim()) {
-      setError("Please complete all required fields.");
+    const nameTrim = form.name.trim();
+    const slugTrim = form.slug.trim().toLowerCase();
+    const emailTrim = form.ownerEmail.trim();
+
+    if (!nameTrim || !slugTrim || !emailTrim) {
+      setError("Please complete all required fields (Name, Slug, Owner Email).");
+      return;
+    }
+    if (nameTrim.length > 120) {
+      setError("Gym name must not exceed 120 characters.");
+      return;
+    }
+    if (!isValidSlug(slugTrim)) {
+      setError("Gym slug must be 2–50 characters and contain only lowercase letters, numbers, and dashes.");
+      return;
+    }
+    if (!isValidEmail(emailTrim)) {
+      setError("Please enter a valid owner email address.");
+      return;
+    }
+    if (form.ownerName && form.ownerName.trim().length > 120) {
+      setError("Owner name must not exceed 120 characters.");
+      return;
+    }
+
+    const trial = Number(form.trialDays);
+    if (!form.isLifetime && (isNaN(trial) || !Number.isInteger(trial) || trial < 1 || trial > 365)) {
+      setError("Trial duration must be a whole number of days between 1 and 365.");
+      return;
+    }
+
+    const paid = Number(form.amountPaid);
+    if (isNaN(paid) || paid < 0) {
+      setError("Amount paid must be a non-negative number.");
       return;
     }
 
@@ -77,8 +110,12 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
     try {
       const res = await apiOnboardTenant({
         ...form,
-        trialDays: Number(form.trialDays) || 14,
-        amountPaid: Number(form.amountPaid) || 0,
+        name: nameTrim,
+        slug: slugTrim,
+        ownerEmail: emailTrim,
+        ownerName: form.ownerName.trim(),
+        trialDays: form.isLifetime ? 0 : trial,
+        amountPaid: paid,
       });
 
       platformToast.success(`Gym '${res.data.tenant.name}' successfully onboarded!`);

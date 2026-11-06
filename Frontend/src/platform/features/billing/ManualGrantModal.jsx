@@ -50,6 +50,10 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
       setError("A documented audit reason (at least 5 chars) is mandatory");
       return;
     }
+    if (cycle !== "lifetime" && (!Number.isInteger(Number(durationMonths)) || Number(durationMonths) < 1)) {
+      setError("Duration in months must be a whole number of at least 1");
+      return;
+    }
 
     setLoading(true);
     setError(null);

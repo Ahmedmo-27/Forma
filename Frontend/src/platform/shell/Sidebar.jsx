@@ -14,20 +14,23 @@ import {
   HeartPulse,
   LogOut,
   Palette,
-  Sun,
-  Moon,
-  Laptop,
   ChevronLeft,
   ChevronRight,
-  ShieldAlert,
   X,
 } from "lucide-react";
 import { usePlatformAuth } from "../lib/auth/AuthContext";
 import { usePermission } from "../lib/auth/PermissionContext";
 import { usePlatformTheme } from "../lib/theme/ThemeContext";
 import { Avatar } from "../ui/Avatar";
-import { Badge } from "../ui/Badge";
 import { cn } from "../lib/utils/cn";
+
+function formatRole(role) {
+  if (!role) return "Operator";
+  return role
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+}
 
 export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMobile }) {
   const { user, logout } = usePlatformAuth();
@@ -71,7 +74,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
     {
       title: "Operations",
       items: [
-        { label: "Support & 'View As'", path: "/platform/support", icon: Headphones, permitted: canSupport },
+        { label: "Support & Impersonation", path: "/platform/support", icon: Headphones, permitted: canSupport },
         { label: "Announcements", path: "/platform/announcements", icon: Megaphone, permitted: canAnnounce },
         { label: "Security Audit Log", path: "/platform/audit", icon: ShieldCheck, permitted: canAudit },
       ],
@@ -81,7 +84,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
       items: [
         { label: "Operators & Roles", path: "/platform/users", icon: Users, permitted: canManageUsers },
         { label: "System Health", path: "/platform/health", icon: HeartPulse, permitted: canHealth },
-        { label: "Design System", path: "/platform/_design", icon: Palette, permitted: true },
+        { label: "Design System", path: "/platform/_design", icon: Palette, permitted: import.meta.env.DEV },
       ],
     },
   ];
@@ -89,7 +92,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
   const sidebarContent = (
     <div className="flex flex-col h-full bg-[var(--platform-surface)] border-r border-[var(--platform-border)] text-left select-none">
       {/* Brand Header */}
-      <div className="h-12 px-3.5 flex items-center justify-between border-b border-[var(--platform-border-subtle)]">
+      <div className="h-12 px-3.5 flex items-center justify-between border-b border-[var(--platform-border-subtle)] shrink-0">
         <div className="flex items-center gap-2.5 overflow-hidden">
           <div className="w-7 h-7 rounded-[var(--platform-radius-md)] bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs tracking-wider shrink-0 shadow-xs ring-1 ring-blue-500/30">
             LP
@@ -100,7 +103,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
                 Platform Console
               </div>
               <div className="text-[10px] platform-mono text-[var(--platform-text-muted)]">
-                Super Admin
+                {formatRole(user?.role)}
               </div>
             </div>
           )}
@@ -131,13 +134,19 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
       </div>
 
       {/* Navigation Groups */}
-      <div className="flex-1 overflow-y-auto px-2 py-3 space-y-4">
+      <div
+        className="flex-1 overflow-y-auto min-h-0 px-2 pt-2.5 pb-4 space-y-3"
+        style={{
+          scrollbarWidth: "thin",
+          scrollbarColor: "var(--platform-border-strong) transparent",
+        }}
+      >
         {groups.map((group) => {
           const visibleItems = group.items.filter((item) => item.permitted);
           if (!visibleItems.length) return null;
 
           return (
-            <div key={group.title} className="space-y-1">
+            <div key={group.title} className="space-y-0.5">
               {!isCollapsed && (
                 <div className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--platform-text-muted)]">
                   {group.title}
@@ -153,7 +162,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
                     title={isCollapsed ? item.label : undefined}
                     className={({ isActive }) =>
                       cn(
-                        "flex items-center gap-2.5 px-3 py-2 rounded-[var(--platform-radius-md)] text-xs font-medium transition-all group relative",
+                        "flex items-center gap-2.5 px-3 py-1.5 rounded-[var(--platform-radius-md)] text-xs font-medium transition-all group relative",
                         isActive
                           ? "bg-[var(--platform-accent-subtle)] text-[var(--platform-accent)] font-semibold shadow-2xs before:absolute before:left-0 before:top-1.5 before:bottom-1.5 before:w-0.5 before:bg-[var(--platform-accent)] before:rounded-full"
                           : "text-[var(--platform-text-secondary)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)]/70",
@@ -172,7 +181,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
       </div>
 
       {/* Operator Profile Footer */}
-      <div className="p-2.5 border-t border-[var(--platform-border-subtle)] bg-[var(--platform-surface-subtle)]/30">
+      <div className="p-2.5 border-t border-[var(--platform-border)] bg-[var(--platform-surface)] shrink-0">
         <div className={cn("flex items-center justify-between gap-2", isCollapsed && "flex-col")}>
           <div className="flex items-center gap-2 min-w-0">
             <Avatar name={user?.name || "Operator"} size="sm" status="online" />
@@ -181,8 +190,8 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
                 <div className="text-xs font-semibold text-[var(--platform-text-primary)] truncate">
                   {user?.name || "Platform Operator"}
                 </div>
-                <div className="text-[10px] platform-mono text-[var(--platform-text-muted)] truncate capitalize">
-                  {user?.role || "Operator"}
+                <div className="text-[10px] platform-mono text-[var(--platform-text-muted)] truncate">
+                  {formatRole(user?.role)}
                 </div>
               </div>
             )}
@@ -209,11 +218,11 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
       {/* Desktop Sidebar */}
       <aside
         className={cn(
-          "hidden md:block shrink-0 transition-all duration-200 z-30",
+          "hidden md:flex flex-col h-full shrink-0 transition-all duration-200 z-30",
           isCollapsed ? "w-16" : "w-60"
         )}
       >
-        <div className="sticky top-0 h-screen">{sidebarContent}</div>
+        {sidebarContent}
       </aside>
 
       {/* Mobile Drawer Overlay */}

@@ -8,6 +8,7 @@ import {
   platformToast,
 } from "../../ui";
 import { apiCreatePlatformUser } from "../../lib/api/endpoints";
+import { isValidEmail, isValidAuditReason } from "../../lib/utils/validation";
 
 export default function CreatePlatformUserModal({ open, onOpenChange, onSaved }) {
   const [loading, setLoading] = useState(false);
@@ -21,12 +22,31 @@ export default function CreatePlatformUserModal({ open, onOpenChange, onSaved })
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name.trim() || !email.trim() || !password) {
+    const nameTrim = name.trim();
+    const emailTrim = email.trim().toLowerCase();
+
+    if (!nameTrim || !emailTrim || !password) {
       setError("Name, email, and a temporary password are required");
+      return;
+    }
+    if (nameTrim.length > 120) {
+      setError("Name must not exceed 120 characters");
+      return;
+    }
+    if (!isValidEmail(emailTrim)) {
+      setError("Please enter a valid email address");
       return;
     }
     if (password.length < 8) {
       setError("Temporary password must be at least 8 characters long");
+      return;
+    }
+    if (password.length > 200) {
+      setError("Temporary password must not exceed 200 characters");
+      return;
+    }
+    if (reason && !isValidAuditReason(reason)) {
+      setError("Audit reason must be at least 5 characters long");
       return;
     }
 
@@ -35,8 +55,8 @@ export default function CreatePlatformUserModal({ open, onOpenChange, onSaved })
 
     try {
       await apiCreatePlatformUser({
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
+        name: nameTrim,
+        email: emailTrim,
         password,
         role,
         reason: reason.trim() || "Authorizing platform operator access",

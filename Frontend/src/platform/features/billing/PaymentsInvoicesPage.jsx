@@ -42,6 +42,11 @@ import { formatCurrency, formatDate, formatRelativeTime } from "../../lib/utils/
 export default function PaymentsInvoicesPage() {
   const [activeTab, setActiveTab] = useState("inbox");
 
+  // Filters & Pagination for Payments
+  const [paymentPage, setPaymentPage] = useState(1);
+  const [paymentSearch, setPaymentSearch] = useState("");
+  const [paymentStatus, setPaymentStatus] = useState("pending");
+
   // Filters & Pagination for Invoices
   const [invoiceSearch, setInvoiceSearch] = useState("");
   const [invoiceStatus, setInvoiceStatus] = useState("");
@@ -58,12 +63,18 @@ export default function PaymentsInvoicesPage() {
 
   // Queries
   const {
-    data: paymentsData,
+    data: paymentsResponse,
     isLoading: paymentsLoading,
     refetch: refetchPayments,
   } = useQuery({
-    queryKey: ["platform", "pending-payments"],
-    queryFn: () => apiGetPendingPayments().then((r) => r.data || []),
+    queryKey: ["platform", "pending-payments", paymentPage, paymentSearch, paymentStatus],
+    queryFn: () =>
+      apiGetPendingPayments({
+        page: paymentPage,
+        limit: 15,
+        status: paymentStatus || undefined,
+        search: paymentSearch.trim() || undefined,
+      }).then((r) => r.data),
   });
 
   const {
@@ -81,9 +92,18 @@ export default function PaymentsInvoicesPage() {
       }).then((r) => r.data),
   });
 
-  const payments = paymentsData || [];
+  const payments = Array.isArray(paymentsResponse)
+    ? paymentsResponse
+    : paymentsResponse?.payments || [];
+  const paymentsPagination = paymentsResponse?.pagination || {
+    total: payments.length,
+    page: 1,
+    limit: 15,
+    totalPages: 1,
+  };
+
   const invoices = invoicesResponse?.invoices || [];
-  const pagination = invoicesResponse?.pagination || { total: 0, page: 1, totalPages: 1 };
+  const pagination = invoicesResponse?.pagination || { total: 0, page: 1, limit: 15, totalPages: 1 };
 
   // Handle Approve Payment
   const handleConfirmPayment = async (reason) => {
@@ -219,7 +239,7 @@ export default function PaymentsInvoicesPage() {
       <Tabs value={activeTab} onChange={setActiveTab}>
         <TabsList>
           <TabTrigger value="inbox">
-            Payments Inbox ({payments.length})
+            Payments Inbox ({paymentsPagination.total || payments.length})
           </TabTrigger>
           <TabTrigger value="invoices">
             Invoices Archive ({pagination.total || invoices.length})
@@ -228,6 +248,42 @@ export default function PaymentsInvoicesPage() {
 
         {/* Tab 1: Payments Inbox */}
         <TabContent value="inbox" className="space-y-4 mt-4">
+          {/* Filters */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="relative w-full sm:w-72">
+                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--platform-text-muted)]" />
+                <Input
+                  placeholder="Search payment ref or notes..."
+                  value={paymentSearch}
+                  onChange={(e) => {
+                    setPaymentSearch(e.target.value);
+                    setPaymentPage(1);
+                  }}
+                  className="pl-8"
+                />
+              </div>
+
+              <Select
+                value={paymentStatus}
+                onChange={(e) => {
+                  setPaymentStatus(e.target.value);
+                  setPaymentPage(1);
+                }}
+                className="w-40"
+              >
+                <option value="">All Statuses</option>
+                <option value="pending">Pending Review</option>
+                <option value="confirmed">Confirmed</option>
+                <option value="rejected">Rejected</option>
+              </Select>
+            </div>
+
+            <span className="text-xs text-[var(--platform-text-muted)] self-end sm:self-center">
+              Total {paymentsPagination.total} submissions
+            </span>
+          </div>
+
           {paymentsLoading ? (
             <div className="space-y-2">
               {[1, 2, 3].map((i) => (
@@ -344,6 +400,18 @@ export default function PaymentsInvoicesPage() {
                   })}
                 </tbody>
               </table>
+            </div>
+          )}
+
+          {paymentsPagination.totalPages > 1 && (
+            <div className="flex justify-end pt-2">
+              <Pagination
+                page={paymentsPagination.page}
+                total={paymentsPagination.total}
+                limit={paymentsPagination.limit || 15}
+                totalPages={paymentsPagination.totalPages}
+                onPageChange={setPaymentPage}
+              />
             </div>
           )}
         </TabContent>
@@ -484,6 +552,8 @@ export default function PaymentsInvoicesPage() {
             <div className="flex justify-end pt-2">
               <Pagination
                 page={pagination.page}
+                total={pagination.total}
+                limit={pagination.limit || 15}
                 totalPages={pagination.totalPages}
                 onPageChange={setInvoicePage}
               />

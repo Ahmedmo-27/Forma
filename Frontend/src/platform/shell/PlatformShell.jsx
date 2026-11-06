@@ -81,7 +81,7 @@ export function PlatformShell() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--platform-canvas)] text-[var(--platform-text-primary)] antialiased">
+    <div className="h-screen flex flex-col bg-[var(--platform-canvas)] text-[var(--platform-text-primary)] antialiased overflow-hidden">
       {/* Global Banners */}
       <ImpersonationBanner />
       <MaintenanceBanner
@@ -89,7 +89,7 @@ export function PlatformShell() {
         message={systemHealth?.maintenance?.message}
       />
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex min-h-0 overflow-hidden">
         {/* Sidebar */}
         <Sidebar
           isCollapsed={isSidebarCollapsed}

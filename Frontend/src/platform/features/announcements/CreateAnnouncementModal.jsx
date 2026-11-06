@@ -59,8 +59,31 @@ export default function CreateAnnouncementModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim() || !message.trim()) {
+    const titleTrim = title.trim();
+    const msgTrim = message.trim();
+
+    if (!titleTrim || !msgTrim) {
       setError("Broadcast title and message content are required");
+      return;
+    }
+    if (titleTrim.length > 200) {
+      setError("Broadcast title must not exceed 200 characters");
+      return;
+    }
+    if (msgTrim.length > 5000) {
+      setError("Message content must not exceed 5000 characters");
+      return;
+    }
+    if (startDate && isNaN(Date.parse(startDate))) {
+      setError("Please select a valid start date");
+      return;
+    }
+    if (endDate && isNaN(Date.parse(endDate))) {
+      setError("Please select a valid end date");
+      return;
+    }
+    if (startDate && endDate && new Date(endDate).getTime() < new Date(startDate).getTime()) {
+      setError("Expiration end date must be on or after the start date");
       return;
     }
 
@@ -68,8 +91,8 @@ export default function CreateAnnouncementModal({
     setError(null);
 
     const payload = {
-      title: title.trim(),
-      message: message.trim(),
+      title: titleTrim,
+      message: msgTrim,
       type,
       target: { type: targetType },
       startDate: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),

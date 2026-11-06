@@ -11,6 +11,9 @@ import {
   Button,
   Badge,
   Avatar,
+  Input,
+  Select,
+  Pagination,
   Skeleton,
   EmptyState,
   platformToast,
@@ -27,6 +30,7 @@ import {
   Trash2,
   Lock,
   Users,
+  Search,
   CheckCircle2,
   AlertCircle,
 } from "lucide-react";
@@ -40,6 +44,11 @@ export default function UsersPage() {
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editUser, setEditUser] = useState(null);
 
+  // Filters & Pagination
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+
   // Destructive Actions Targets
   const [resetMfaTarget, setResetMfaTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -47,15 +56,29 @@ export default function UsersPage() {
 
   // Queries
   const {
-    data: usersData,
+    data: usersResponse,
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["platform", "users"],
-    queryFn: () => apiGetPlatformUsers().then((r) => r.data || []),
+    queryKey: ["platform", "users", page, search, roleFilter],
+    queryFn: () =>
+      apiGetPlatformUsers({
+        page,
+        limit: 15,
+        search: search.trim() || undefined,
+        role: roleFilter || undefined,
+      }).then((r) => r.data),
   });
 
-  const users = usersData || [];
+  const users = Array.isArray(usersResponse)
+    ? usersResponse
+    : usersResponse?.users || [];
+  const pagination = usersResponse?.pagination || {
+    total: users.length,
+    page: 1,
+    limit: 15,
+    totalPages: 1,
+  };
 
   // Reset MFA
   const handleResetMfaConfirm = async (reason) => {
@@ -192,6 +215,43 @@ export default function UsersPage() {
         </div>
       </div>
 
+      {/* Filter toolbar */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="relative w-full sm:w-72">
+            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--platform-text-muted)]" />
+            <Input
+              placeholder="Search operators by name or email..."
+              value={search}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
+              className="pl-8"
+            />
+          </div>
+
+          <Select
+            value={roleFilter}
+            onChange={(e) => {
+              setRoleFilter(e.target.value);
+              setPage(1);
+            }}
+            className="w-40"
+          >
+            <option value="">All Roles</option>
+            <option value="super_admin">Super Admin</option>
+            <option value="billing">Billing Specialist</option>
+            <option value="support">Support Agent</option>
+            <option value="analyst">Data Analyst</option>
+          </Select>
+        </div>
+
+        <span className="text-xs text-[var(--platform-text-muted)] self-end sm:self-center">
+          Total {pagination.total} operators
+        </span>
+      </div>
+
       {/* Operators Table */}
       {isLoading ? (
         <div className="space-y-2">
@@ -317,6 +377,18 @@ export default function UsersPage() {
               })}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {pagination.totalPages > 1 && (
+        <div className="flex justify-end pt-2">
+          <Pagination
+            page={pagination.page}
+            total={pagination.total}
+            limit={pagination.limit || 15}
+            totalPages={pagination.totalPages}
+            onPageChange={setPage}
+          />
         </div>
       )}
 

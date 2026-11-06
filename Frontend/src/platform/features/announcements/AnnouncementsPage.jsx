@@ -8,6 +8,7 @@ import {
 import {
   Button,
   Badge,
+  Pagination,
   Skeleton,
   EmptyState,
   platformToast,
@@ -31,21 +32,34 @@ import {
 import { formatDate, formatRelativeTime } from "../../lib/utils/formatters";
 
 export default function AnnouncementsPage() {
+  const [page, setPage] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting, setDeleting] = useState(false);
 
   const {
-    data: announcementsData,
+    data: announcementsResponse,
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["platform", "announcements"],
-    queryFn: () => apiGetAnnouncements().then((r) => r.data || []),
+    queryKey: ["platform", "announcements", page],
+    queryFn: () =>
+      apiGetAnnouncements({
+        page,
+        limit: 10,
+      }).then((r) => r.data),
   });
 
-  const announcements = announcementsData || [];
+  const announcements = Array.isArray(announcementsResponse)
+    ? announcementsResponse
+    : announcementsResponse?.announcements || [];
+  const pagination = announcementsResponse?.pagination || {
+    total: announcements.length,
+    page: 1,
+    limit: 10,
+    totalPages: 1,
+  };
 
   const handleToggleActive = async (ann) => {
     try {
@@ -295,6 +309,18 @@ export default function AnnouncementsPage() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {pagination.totalPages > 1 && (
+        <div className="flex justify-end pt-2">
+          <Pagination
+            page={pagination.page}
+            total={pagination.total}
+            limit={pagination.limit || 10}
+            totalPages={pagination.totalPages}
+            onPageChange={setPage}
+          />
         </div>
       )}
 

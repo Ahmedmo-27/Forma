@@ -21,8 +21,11 @@ export const apiGetMe = (signal) =>
 // ==========================================
 // 2. Platform Operators & Users
 // ==========================================
-export const apiGetPlatformUsers = (signal) =>
-  platformClient.get("/users", { signal });
+export const apiGetPlatformUsers = (params, signal) =>
+  platformClient.get("/users", {
+    params: params instanceof AbortSignal ? undefined : params,
+    signal: params instanceof AbortSignal ? params : signal,
+  });
 
 export const apiCreatePlatformUser = (data, signal) =>
   platformClient.post("/users", data, { signal });
@@ -75,6 +78,9 @@ export const apiPurgeTenant = (id, data, signal) =>
 export const apiGetFeatures = (signal) =>
   platformClient.get("/features", { signal });
 
+export const apiGetRoles = (signal) =>
+  platformClient.get("/roles", { signal });
+
 export const apiCreateFeature = (data, signal) =>
   platformClient.post("/features", data, { signal });
 
@@ -115,8 +121,11 @@ export const apiTogglePriceSales = (id, signal) =>
   platformClient.post(`/prices/${id}/toggle-sales`, {}, { signal });
 export const apiTogglePlanPriceSales = apiTogglePriceSales;
 
-export const apiGetCoupons = (signal) =>
-  platformClient.get("/coupons", { signal });
+export const apiGetCoupons = (params, signal) =>
+  platformClient.get("/coupons", {
+    params: params instanceof AbortSignal ? undefined : params,
+    signal: params instanceof AbortSignal ? params : signal,
+  });
 
 export const apiCreateCoupon = (data, signal) =>
   platformClient.post("/coupons", data, { signal });
@@ -190,8 +199,11 @@ export const apiExportTenantData = (id, signal) =>
 // ==========================================
 // 9. Announcements
 // ==========================================
-export const apiGetAnnouncements = (signal) =>
-  platformClient.get("/announcements", { signal });
+export const apiGetAnnouncements = (params, signal) =>
+  platformClient.get("/announcements", {
+    params: params instanceof AbortSignal ? undefined : params,
+    signal: params instanceof AbortSignal ? params : signal,
+  });
 
 export const apiCreateAnnouncement = (data, signal) =>
   platformClient.post("/announcements", data, { signal });
