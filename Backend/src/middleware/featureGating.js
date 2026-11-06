@@ -3,11 +3,25 @@ const Plan = require("../models/Plan");
 const { getEffectiveFeatures, getEffectiveLimits } = require("../models/Tenant");
 const { runAsPlatform } = require("../context/tenantContext");
 
+function isPopulatedPlan(plan) {
+    return Boolean(plan && Array.isArray(plan.features));
+}
+
+async function loadTenantWithPlan(tenantId) {
+    return runAsPlatform(async () => {
+        return Tenant.findById(tenantId).populate("planId");
+    });
+}
+
 /**
  * Middleware that verifies the active tenant's subscription plan (and overrides)
  * includes the specified featureKey.
  * Runs BEFORE the RBAC authorizer.
  * Returns HTTP 403 with code FEATURE_NOT_IN_PLAN if forbidden.
+ *
+ * Auth attaches the tenant before this middleware, but it used to do so without
+ * populating planId and without setting req.plan. Checking features in that
+ * state treats every plan as having no features.
  *
  * @param {string} featureKey
  */
@@ -20,11 +34,8 @@ function requireFeature(featureKey) {
                 return next();
             }
 
-            // Retrieve tenant and plan (cached on req if previously loaded in request)
-            if (!req.tenant) {
-                const tenant = await runAsPlatform(async () => {
-                    return await Tenant.findById(tenantId).populate("planId");
-                });
+            if (!req.tenant || !isPopulatedPlan(req.plan)) {
+                const tenant = await loadTenantWithPlan(tenantId);
 
                 if (!tenant) {
                     const message = "Gym subscription not found.";
@@ -41,7 +52,7 @@ function requireFeature(featureKey) {
                 }
 
                 req.tenant = tenant;
-                req.plan = tenant.planId;
+                req.plan = isPopulatedPlan(tenant.planId) ? tenant.planId : null;
             }
 
             const effectiveFeatures = getEffectiveFeatures(req.tenant, req.plan);

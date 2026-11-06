@@ -9,7 +9,7 @@ export function UpgradeRequiredModal({ isOpen, onClose, error, onNavigateBilling
   const current = error?.details?.current ?? "--";
   const max = error?.details?.max ?? "--";
   const feature = error?.details?.feature || "this feature";
-  const requiredPlan = error?.details?.requiredPlan || "Gold";
+  const requiredPlan = error?.details?.requiredPlan || null;
 
   // Check user role from localStorage
   let isOwner = false;
@@ -24,7 +24,9 @@ export function UpgradeRequiredModal({ isOpen, onClose, error, onNavigateBilling
   const title = isLimit ? "Plan Limit Reached" : "Upgrade Required";
   const message = isLimit
     ? `You have reached your current plan limit of ${max} ${limitName} (currently using ${current}). Upgrade your plan to expand your gym's capacity.`
-    : `The ${feature} feature is not included in your current subscription. Upgrade to the ${requiredPlan} tier to unlock it.`;
+    : requiredPlan
+      ? `The ${feature} feature is not included in your current subscription. Upgrade to the ${requiredPlan} tier to unlock it.`
+      : `The ${feature} feature is not included in your current subscription.`;
 
   return (
     <ErrorModal

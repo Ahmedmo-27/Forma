@@ -1,9 +1,14 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import { requireFeature } from "./featureGating";
 import { enforceSubscriptionStatus } from "./tenantStatus";
 import { sanitizeTenantResponse } from "../controllers/tenantController";
+import Tenant from "../models/Tenant";
 
 describe("Phase 4: Feature Gating, Limits & Subscription State", () => {
+    afterEach(() => {
+        vi.restoreAllMocks();
+    });
+
     describe("requireFeature middleware", () => {
         it("allows request when feature is included in plan", async () => {
             const req = {
@@ -49,6 +54,39 @@ describe("Phase 4: Feature Gating, Limits & Subscription State", () => {
                     feature: "accounting",
                 })
             );
+        });
+
+        it("allows a platinum feature when auth attached the tenant without its plan", async () => {
+            const tenantDoc = {
+                billing: {
+                    cycle: "lifetime",
+                    lifetime: { entitlementPolicy: "follow_tier", featureSnapshot: [] },
+                },
+                featureOverrides: { add: [], remove: [] },
+                planId: {
+                    key: "platinum",
+                    name: "Platinum Plan",
+                    features: ["members", "exec_analytics"],
+                },
+            };
+            const populate = vi.fn().mockResolvedValue(tenantDoc);
+            vi.spyOn(Tenant, "findById").mockReturnValue({ populate });
+
+            const req = {
+                user: { tenantId: "tenant-leap" },
+                tenant: {
+                    featureOverrides: { add: [], remove: [] },
+                    billing: { cycle: "lifetime", lifetime: { entitlementPolicy: "follow_tier" } },
+                },
+            };
+            const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
+            const next = vi.fn();
+
+            await requireFeature("exec_analytics")(req, res, next);
+
+            expect(populate).toHaveBeenCalledWith("planId");
+            expect(next).toHaveBeenCalled();
+            expect(res.status).not.toHaveBeenCalled();
         });
 
         it("allows feature enabled via tenant featureOverrides.add", async () => {

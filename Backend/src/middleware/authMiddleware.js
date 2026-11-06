@@ -63,11 +63,18 @@ const protect = async (req, res, next) => {
         if (tenantId) {
             // Validate tenant status
             const tenant = await runAsPlatform(async () => {
-                return await Tenant.findById(tenantId);
+                const found = Tenant.findById(tenantId);
+                if (found && typeof found.populate === "function") {
+                    return found.populate("planId");
+                }
+                return found;
             });
 
             if (tenant) {
                 req.tenant = tenant;
+                req.plan = tenant.planId && Array.isArray(tenant.planId.features)
+                    ? tenant.planId
+                    : null;
                 if (tenant.status === "suspended" || tenant.status === "cancelled") {
                     return res.status(403).json({
                         code: "TENANT_SUSPENDED",

@@ -20382,3 +20382,22 @@
 {"ts":"2026-11-06T19:10:15.966Z","level":"warn","category":"auth","message":"Auth middleware: no token","env":"test","path":"/uploads/guessed.jpg","method":"GET","ip":"127.0.0.1"}
 {"ts":"2026-11-06T19:10:16.124Z","level":"warn","category":"platform","message":"Platform permission denied","env":"test","userId":"u-1","email":"support@leap.com","role":"support","requiredPermission":"billing.refunds","path":"/api/platform/billing/refunds","method":"POST"}
 {"ts":"2026-11-06T19:10:16.473Z","level":"info","category":"auth","message":"Password compare completed","env":"test","match":true,"needsRehash":false}
+{"ts":"2026-11-06T19:48:48.065Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-06T19:48:48.255Z","level":"info","category":"auth","message":"Login attempt","env":"test","requestId":"1793994528255-7qqedx","ip":"127.0.0.1","userAgent":null,"hasEmail":true,"hasJwtSecret":true,"apiBaseHint":null}
+{"ts":"2026-11-06T19:48:48.257Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-06T19:48:48.441Z","level":"info","category":"auth","message":"Password compare completed","env":"test","requestId":"1793994528255-7qqedx","userId":"6aee2f20c72ab715d8ae3c62","match":true,"needsRehash":false}
+{"ts":"2026-11-06T19:48:48.441Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-06T19:48:48.443Z","level":"info","category":"auth","message":"Login success","env":"test","requestId":"1793994528255-7qqedx","userId":"6aee2f20c72ab715d8ae3c62","role":"Sales","tenantSlug":"power-gym"}
+{"ts":"2026-11-06T19:48:48.446Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-06T19:48:48.446Z","level":"warn","category":"auth","message":"Tenant.findById(...).populate is not a function","env":"test","path":"/api/members","method":"GET","error":"TypeError","hasJwtSecret":true}
+{"ts":"2026-11-06T19:49:06.961Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-06T19:49:06.986Z","level":"warn","category":"auth","message":"invalid signature","env":"test","path":"/api/members","error":"JsonWebTokenError","hasJwtSecret":true}
+{"ts":"2026-11-06T19:49:07.153Z","level":"info","category":"auth","message":"Login attempt","env":"test","requestId":"1793994547153-t1c8w1","ip":"127.0.0.1","userAgent":null,"hasEmail":true,"hasJwtSecret":true,"apiBaseHint":null}
+{"ts":"2026-11-06T19:49:07.154Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-06T19:49:07.331Z","level":"info","category":"auth","message":"Password compare completed","env":"test","requestId":"1793994547153-t1c8w1","userId":"6aee2f32e364ea062fbd334f","match":true,"needsRehash":false}
+{"ts":"2026-11-06T19:49:07.332Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-06T19:49:07.333Z","level":"info","category":"auth","message":"Login success","env":"test","requestId":"1793994547153-t1c8w1","userId":"6aee2f32e364ea062fbd334f","role":"Sales","tenantSlug":"power-gym"}
+{"ts":"2026-11-06T19:49:07.335Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-06T19:49:07.396Z","level":"warn","category":"platform","message":"Platform permission denied","env":"test","userId":"u-1","email":"support@leap.com","role":"support","requiredPermission":"billing.refunds","path":"/api/platform/billing/refunds","method":"POST"}
+{"ts":"2026-11-06T19:49:07.747Z","level":"info","category":"auth","message":"Password compare completed","env":"test","match":true,"needsRehash":false}
+{"ts":"2026-11-06T19:49:59.509Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"system","reason":"unspecified"}
