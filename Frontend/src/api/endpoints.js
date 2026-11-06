@@ -142,7 +142,6 @@ export const refundPTSessions = (id, refund_amount, reason) =>
 // ── Multi-Tenant SaaS ─────────────────────────────────────────────────────────
 export const getTenantMe = () => api.get('/tenant/me', {
   params: { _: Date.now() },
-  headers: { 'x-cache-bypass': 'true' },
 });
 export const updateTenantMe = (data) => api.patch('/tenant/me', data);
 export const uploadTenantLogo = (formData) =>
