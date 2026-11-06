@@ -22,7 +22,7 @@ const userSchema = new mongoose.Schema({
 
     role: {
         type: String,
-        enum: ["Owner", "Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"],
+        enum: ["Owner", "General Manager", "Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"],
         default: "Receptionist"
     },
 
@@ -43,6 +43,12 @@ const userSchema = new mongoose.Schema({
     featureAccess: {
         grants: { type: [String], default: [] },
         revokes: { type: [String], default: [] },
+    },
+
+    // Extra areas added to, or taken off, the role checklist for this person.
+    accessOverrides: {
+        add: { type: [String], default: [] },
+        remove: { type: [String], default: [] },
     },
 }, { timestamps: true });
 

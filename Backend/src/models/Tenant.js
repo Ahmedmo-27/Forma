@@ -129,6 +129,11 @@ const tenantSchema = new mongoose.Schema(
             add: [{ type: String }],
             remove: [{ type: String }],
         },
+        // Saved area checklist per staff role. A missing role means "keep today's access".
+        roleAccess: {
+            type: mongoose.Schema.Types.Mixed,
+            default: undefined,
+        },
         limitOverrides: {
             maxMembers: { type: Number, default: null },
             maxStaff: { type: Number, default: null },

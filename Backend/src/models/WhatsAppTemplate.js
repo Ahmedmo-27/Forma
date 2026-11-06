@@ -9,6 +9,7 @@ const SENDABLE_ROLES = [
     "Accountant",
     "Coach",
     "Coach Manager",
+    "General Manager",
 ];
 
 const whatsAppTemplateSchema = new mongoose.Schema(

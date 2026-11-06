@@ -5,6 +5,8 @@ import { useAuth } from './AuthContext';
 const TenantContext = createContext(null);
 
 const DEFAULT_ACTIVITIES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
+const EMPTY_OBJECT = {};
+const EMPTY_LIST = [];
 
 export function TenantProvider({ children }) {
   const { user } = useAuth();
@@ -103,6 +105,11 @@ export function TenantProvider({ children }) {
     plan: tenant?.plan,
     limits: tenant?.effectiveLimits || {},
     usage: tenant?.usage || {},
+    roleAccess: tenant?.roleAccess || EMPTY_OBJECT,
+    accessCatalog: tenant?.accessCatalog || EMPTY_LIST,
+    checklistRoles: tenant?.checklistRoles || EMPTY_LIST,
+    roleDefaults: tenant?.roleDefaults || EMPTY_OBJECT,
+    effectiveAccess: tenant?.effectiveAccess || EMPTY_LIST,
   };
 
   return (

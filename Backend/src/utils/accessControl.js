@@ -1,4 +1,11 @@
 const { ACCESS_CATALOG, GROUP_ORDER, getFeature } = require("../config/accessCatalog");
+const {
+    featureArea,
+    defaultAreasFor,
+    resolveEffectiveAreas,
+    isLegacyAccess,
+    savedAreasFor,
+} = require("../config/roleAccess");
 
 const LEGACY_FEATURES = {
     canCommentOnMembers: ["comments", "coach_notes"],
@@ -34,11 +41,31 @@ function legacyRevokeSet(user) {
     return set;
 }
 
-function resolveEffectiveKeys(user) {
+function roleDefaults(role) {
+    return defaultAreasFor(role, (featureKey, roleName) => {
+        const feature = getFeature(featureKey);
+        return Boolean(feature && feature.defaultRoles.includes(roleName));
+    });
+}
+
+function areaContext(user, context) {
+    return {
+        role: user?.role,
+        roleAccess: context?.roleAccess || null,
+        accessOverrides: user?.accessOverrides || context?.accessOverrides || null,
+        planFeatures: context?.planFeatures || null,
+        defaultAreas: roleDefaults(user?.role),
+    };
+}
+
+function resolveEffectiveKeys(user, context, options = {}) {
     const role = user?.role;
     const { grants, revokes, empty } = storedLists(user);
     const revokeSet = new Set(revokes);
-    if (empty) {
+    // A save computes access from grants and revokes only, then rewrites the
+    // legacy ability flags. Reading those flags here would put a cleared
+    // restriction straight back.
+    if (empty && !options.ignoreLegacy) {
         for (const key of legacyRevokeSet(user)) revokeSet.add(key);
     }
     const grantSet = new Set(grants);
@@ -52,6 +79,57 @@ function resolveEffectiveKeys(user) {
         if (isDefault || granted) keys.add(feature.key);
     }
 
+    if (role === "General Manager") {
+        for (const feature of ACCESS_CATALOG) {
+            if (feature.key === "settings") continue;
+            if (revokeSet.has(feature.key)) continue;
+            keys.add(feature.key);
+        }
+    }
+
+    if (context && role !== "Owner") {
+        applyAreaFilter(keys, user, context, revokeSet);
+    }
+
+    return keys;
+}
+
+function applyAreaFilter(keys, user, context, revokeSet) {
+    const ctx = areaContext(user, context);
+    if (isLegacyAccess(ctx)) return;
+    const areas = new Set(resolveEffectiveAreas(ctx));
+    const defaults = new Set(ctx.defaultAreas);
+    for (const feature of ACCESS_CATALOG) {
+        const area = featureArea(feature.key);
+        if (!area) continue;
+        if (!areas.has(area)) {
+            keys.delete(feature.key);
+            continue;
+        }
+        const expand = user.role === "General Manager" || !defaults.has(area);
+        if (expand && feature.key !== "settings" && !revokeSet.has(feature.key)) {
+            keys.add(feature.key);
+        }
+    }
+}
+
+function effectiveAreas(user, context) {
+    return resolveEffectiveAreas(areaContext(user, context));
+}
+
+function areaGrantKeys(user, context) {
+    if (!user || !context || user.role === "Owner") return [];
+    const ctx = areaContext(user, context);
+    if (isLegacyAccess(ctx)) return [];
+    const areas = new Set(resolveEffectiveAreas(ctx));
+    const defaults = new Set(ctx.defaultAreas);
+    const keys = [];
+    for (const feature of ACCESS_CATALOG) {
+        if (feature.key === "settings") continue;
+        const area = featureArea(feature.key);
+        if (!area || !areas.has(area)) continue;
+        if (user.role === "General Manager" || !defaults.has(area)) keys.push(feature.key);
+    }
     return keys;
 }
 
@@ -99,7 +177,11 @@ function navExtrasFor(user) {
 function canEditTarget(actor, target) {
     if (!actor || !target) return false;
     if (actorId(actor) && actorId(actor) === actorId(target)) return false;
+    if (target.role === "Owner") return actor.role === "Owner";
     if (actor.role === "Owner") return true;
+    if (actor.role === "General Manager") {
+        return target.role !== "General Manager";
+    }
     if (actor.role === "Sales Manager") return ["Sales", "Receptionist"].includes(target.role);
     if (actor.role === "Coach Manager") return target.role === "Coach";
     return false;
@@ -108,6 +190,13 @@ function canEditTarget(actor, target) {
 function canEditFeature(actor, feature) {
     if (!actor || !feature) return false;
     if (actor.role === "Owner") return true;
+    if (actor.role === "General Manager") {
+        if (feature.key === "settings") return false;
+        const area = featureArea(feature.key);
+        if (!area) return false;
+        if (Array.isArray(actor.areas) && !actor.areas.includes(area)) return false;
+        return true;
+    }
     if (actor.role === "Sales Manager") return feature.domain === "sales";
     if (actor.role === "Coach Manager") return feature.domain === "coach";
     return false;
@@ -195,7 +284,7 @@ function featureKeyForAbility(role, abilityKey) {
 }
 
 function syncLegacyFields(user) {
-    const effective = resolveEffectiveKeys(user);
+    const effective = resolveEffectiveKeys(user, null, { ignoreLegacy: true });
     if (!user.abilities) user.abilities = {};
     user.abilities.canCommentOnMembers = effective.has("comments") || effective.has("coach_notes");
     user.abilities.canRequestAssignment = effective.has("request_assignment");
@@ -212,7 +301,10 @@ function syncLegacyFields(user) {
 
 function editableRolesFor(actorRole) {
     if (actorRole === "Owner") {
-        return ["Owner", "Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"];
+        return ["Owner", "General Manager", "Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"];
+    }
+    if (actorRole === "General Manager") {
+        return ["Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"];
     }
     if (actorRole === "Sales Manager") return ["Sales", "Receptionist"];
     if (actorRole === "Coach Manager") return ["Coach"];
@@ -252,6 +344,8 @@ function diffConfirmedFeatures(actor, target, requestedKeys) {
 
         const wants = requested.has(feature.key);
         if (wants && !isDefault) nextGrants.push(feature.key);
+        // A restored default must be stored, or an old ability flag keeps it off.
+        if (wants && isDefault && legacy.has(feature.key)) nextGrants.push(feature.key);
         if (!wants && isDefault) nextRevokes.push(feature.key);
     }
 
@@ -273,7 +367,7 @@ function memberListDecision(user) {
         if (isRevoked(user, "coach_members")) return "deny";
         return "scoped";
     }
-    if (role === "Owner" || role === "Accountant" || role === "Receptionist") {
+    if (role === "Owner" || role === "General Manager" || role === "Accountant" || role === "Receptionist") {
         if (isRevoked(user, "members")) return "deny";
         return "all";
     }
@@ -284,6 +378,10 @@ function memberListDecision(user) {
 
 module.exports = {
     resolveEffectiveKeys,
+    effectiveAreas,
+    areaGrantKeys,
+    roleDefaults,
+    savedAreasFor,
     hasAccess,
     isRevoked,
     hasExplicitGrant,

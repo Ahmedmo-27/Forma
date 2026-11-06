@@ -8,6 +8,8 @@ import {
   EmptyState, Table, fmtDate, Btn, Skeleton, Modal,
 } from '../../components/ui';
 import { getUserById, getSalesProfile, getCoachProfile, changeUserRole, resetUserPassword } from '../../api/endpoints';
+import { useAuth } from '../../context/AuthContext';
+import UserAreaAccess from '../../components/UserAreaAccess';
 
 const ALL_ROLES = [
   'Sales',
@@ -16,6 +18,7 @@ const ALL_ROLES = [
   'Coach Manager',
   'Accountant',
   'Receptionist',
+  'General Manager',
 ];
 
 // ── Role badge colour map ─────────────────────────────────────────────────────
@@ -26,11 +29,13 @@ const ROLE_COLOUR = {
   'Coach Manager':  { bg: '#fdf4ff', color: '#9333ea', border: '#e9d5ff' },
   'Accountant':     { bg: '#f0fdf4', color: '#0f766e', border: '#99f6e4' },
   'Receptionist': { bg: 'var(--slate-bg)', color: 'var(--slate)', border: 'var(--slate-bd)' },
+  'General Manager': { bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' },
 };
 
 export default function OwnerUserProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user: actor } = useAuth();
 
   const [profile, setProfile]   = useState(null);   // { user, stats, members }
   const [loading, setLoading]   = useState(true);
@@ -130,6 +135,12 @@ export default function OwnerUserProfile() {
     : ['all'];
 
   const roleColor = ROLE_COLOUR[user?.role] ?? { bg: 'var(--bg)', color: 'var(--t2)', border: 'var(--border)' };
+  const isGeneralManager = actor?.role === 'General Manager';
+  const canChangeRole = actor?.role === 'Owner'
+    || (isGeneralManager && user?.role !== 'Owner' && user?.role !== 'General Manager');
+  const assignableRoles = isGeneralManager
+    ? ALL_ROLES.filter((role) => role !== 'General Manager')
+    : ALL_ROLES;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -188,7 +199,7 @@ export default function OwnerUserProfile() {
                 </div>
 
                 {/* ── Change Role button + dropdown ────────────────── */}
-                <div ref={roleRef} style={{ position: 'relative', flexShrink: 0 }}>
+                {canChangeRole && <div ref={roleRef} style={{ position: 'relative', flexShrink: 0 }}>
                   <Btn
                     variant="outline"
                     size="sm"
@@ -220,7 +231,7 @@ export default function OwnerUserProfile() {
                       <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', padding: '6px 10px 4px' }}>
                         Select new role
                       </p>
-                      {ALL_ROLES.map(role => {
+                      {assignableRoles.map(role => {
                         const rc = ROLE_COLOUR[role] ?? {};
                         const isCurrent = role === user?.role;
                         return (
@@ -251,7 +262,7 @@ export default function OwnerUserProfile() {
                       })}
                     </div>
                   )}
-                </div>
+                </div>}
               </div>
 
               {/* ── Stats strip ─────────────────────────────────────── */}
@@ -289,6 +300,8 @@ export default function OwnerUserProfile() {
                 </div>
               )}
             </Card>
+
+            <UserAreaAccess target={user} />
 
             {/* ── Members tab (only for Sales & Coach roles) ──────── */}
             {(isSales || isCoach) && (

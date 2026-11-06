@@ -6,7 +6,7 @@ const {
     getRequests
 } = require("../controllers/coachRequestController");
 const { protect } = require("../middleware/authMiddleware");
-const { allowRoles, allowAnyFeature } = require("../middleware/accessMiddleware");
+const { allowRoles, allowAnyFeature, requireAccess } = require("../middleware/accessMiddleware");
 const { requireFeature } = require("../middleware/featureGating");
 const { cacheResponse } = require("../middleware/apiCache");
 const { autoInvalidate } = require("../utils/cacheInvalidator");
@@ -14,6 +14,7 @@ const { autoInvalidate } = require("../utils/cacheInvalidator");
 // All routes require authentication
 router.use(protect);
 router.use(requireFeature("pt_tracking"));
+router.use(requireAccess("coaching"));
 
 // Coach sees own requests; Coach Manager/Owner sees all
 router.get("/",           allowRoles("my_transfers", "Coach", "Coach Manager", "Owner"), cacheResponse({ ttlSeconds: 45, tags: ["coach-requests"] }), getRequests);

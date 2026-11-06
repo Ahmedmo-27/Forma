@@ -262,7 +262,7 @@ app.get(
         next();
     },
     protect,
-    authorize("Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant"),
+    authorize("Receptionist", "Owner", "General Manager", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant"),
     async (req, res) => {
         const safe = path.basename(req.params.filename);
         if (safe !== req.params.filename || safe.includes("..")) {

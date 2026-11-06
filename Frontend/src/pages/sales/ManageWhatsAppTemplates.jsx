@@ -14,7 +14,7 @@ import { composeWhatsAppTemplateMessage } from '../../utils/whatsapp';
 
 const PAGE_SIZE = 15;
 const ROLE_OPTIONS = [
-  'Owner', 'Sales Manager', 'Sales', 'Receptionist', 'Accountant',
+  'Owner', 'General Manager', 'Sales Manager', 'Sales', 'Receptionist', 'Accountant',
   'Coach', 'Coach Manager',
 ];
 

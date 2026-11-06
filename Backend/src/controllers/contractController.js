@@ -5,7 +5,7 @@ const { parsePagination, buildPagination } = require("../utils/pagination");
 const { isSameDay } = require("../utils/revenueUtils");
 const { resolveSubscriptionPackage } = require("../utils/packageSnapshot");
 
-const FINANCE_ROLES = ["Accountant", "Owner", "Sales Manager"];
+const FINANCE_ROLES = ["Accountant", "Owner", "General Manager", "Sales Manager"];
 
 const PACKAGE_FIELDS = "name duration activityType price freezeLimitDays invitationLimit renewalDiscountPercent hasException description";
 

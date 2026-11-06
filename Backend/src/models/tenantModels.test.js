@@ -8,6 +8,8 @@ import {
     createTenantSchema,
     tenantSettingsSchema,
 } from "../validation/schemas";
+import { resolveEffectiveKeys, effectiveAreas, canEditTarget } from "../utils/accessControl";
+import { canEditRoleChecklist } from "../config/roleAccess";
 
 describe("Phase 1: Core Models & Tenant Helpers", () => {
     describe("tenantCrypto", () => {
@@ -146,6 +148,67 @@ describe("Phase 1: Core Models & Tenant Helpers", () => {
             };
             const parsed = createTenantSchema.safeParse(validTenant);
             expect(parsed.success).toBe(true);
+        });
+
+        it("keeps a role on its defaults until a checklist is saved", () => {
+            const user = { role: "Sales", featureAccess: { grants: [], revokes: [] }, accessOverrides: { add: [], remove: [] } };
+            const keys = resolveEffectiveKeys(user, { roleAccess: {}, planFeatures: null });
+            expect(keys.has("sales_dashboard")).toBe(true);
+            expect(keys.has("check_in")).toBe(true);
+            expect(keys.has("settings")).toBe(false);
+        });
+
+        it("replaces a role's access when a checklist is saved", () => {
+            const user = { role: "Sales", featureAccess: { grants: [], revokes: [] }, accessOverrides: { add: [], remove: [] } };
+            const keys = resolveEffectiveKeys(user, { roleAccess: { Sales: ["sales"] }, planFeatures: null });
+            expect(keys.has("sales_dashboard")).toBe(true);
+            expect(keys.has("check_in")).toBe(false);
+            expect(keys.has("accounting_dashboard")).toBe(false);
+        });
+
+        it("applies per-user area add and remove on top of the role", () => {
+            const user = {
+                role: "Receptionist",
+                featureAccess: { grants: [], revokes: [] },
+                accessOverrides: { add: ["accounting"], remove: ["checkin"] },
+            };
+            const context = { roleAccess: {}, planFeatures: ["members", "checkin", "accounting", "packages"] };
+            const keys = resolveEffectiveKeys(user, context);
+            expect(keys.has("check_in")).toBe(false);
+            expect(keys.has("accounting_dashboard")).toBe(true);
+            expect(effectiveAreas(user, context)).toContain("accounting");
+            expect(effectiveAreas(user, context)).not.toContain("checkin");
+        });
+
+        it("drops an area the gym plan does not include", () => {
+            const user = { role: "General Manager", featureAccess: { grants: [], revokes: [] }, accessOverrides: { add: [], remove: [] } };
+            const areas = effectiveAreas(user, { roleAccess: {}, planFeatures: ["members", "checkin"] });
+            expect(areas).toContain("members");
+            expect(areas).toContain("staff");
+            expect(areas).not.toContain("accounting");
+        });
+
+        it("gives a general manager every area except settings, and only the owner can edit that checklist", () => {
+            const keys = resolveEffectiveKeys({ role: "General Manager", featureAccess: { grants: [], revokes: [] } });
+            expect(keys.has("owner_dashboard")).toBe(true);
+            expect(keys.has("accounting_dashboard")).toBe(true);
+            expect(keys.has("settings")).toBe(false);
+
+            const narrowed = resolveEffectiveKeys(
+                { role: "General Manager", featureAccess: { grants: [], revokes: [] }, accessOverrides: { add: [], remove: [] } },
+                { roleAccess: { "General Manager": ["members", "staff"] }, planFeatures: null },
+            );
+            expect(narrowed.has("members")).toBe(true);
+            expect(narrowed.has("accounting_dashboard")).toBe(false);
+            expect(narrowed.has("settings")).toBe(false);
+
+            expect(canEditRoleChecklist("Owner", "General Manager")).toBe(true);
+            expect(canEditRoleChecklist("General Manager", "General Manager")).toBe(false);
+            expect(canEditRoleChecklist("General Manager", "Sales")).toBe(true);
+            expect(canEditRoleChecklist("General Manager", "Owner")).toBe(false);
+            expect(canEditTarget({ id: "gm-1", role: "General Manager" }, { _id: "gm-2", role: "General Manager" })).toBe(false);
+            expect(canEditTarget({ id: "gm-1", role: "General Manager" }, { _id: "sales-1", role: "Sales" })).toBe(true);
+            expect(canEditTarget({ id: "owner-1", role: "Owner" }, { _id: "gm-2", role: "General Manager" })).toBe(true);
         });
 
         it("rejects invalid tenant slug containing uppercase or special chars", () => {

@@ -6,6 +6,16 @@ const Member = require("../models/Member");
 const User = require("../models/User");
 const Announcement = require("../models/Announcement");
 const { getEffectiveFeatures, getEffectiveLimits } = require("../models/Tenant");
+const {
+    AREAS,
+    CHECKLIST_ROLES,
+    canEditRoleChecklist,
+    normalizeAreas,
+    areasWithinActor,
+    plainRoleAccess,
+    savedAreasFor,
+} = require("../config/roleAccess");
+const { effectiveAreas, roleDefaults } = require("../utils/accessControl");
 const { runAsPlatform } = require("../context/tenantContext");
 const { encryptSecret } = require("../utils/tenantCrypto");
 const { writeAudit } = require("../utils/audit");
@@ -117,6 +127,22 @@ const getMyTenant = async (req, res) => {
         });
 
         response.announcements = announcements || [];
+
+        const accessContext = {
+            roleAccess: tenant.roleAccess || null,
+            planFeatures: response.effectiveFeatures,
+        };
+        const actor = {
+            role: req.user.role,
+            accessOverrides: req.user.accessOverrides,
+        };
+        response.roleAccess = plainRoleAccess(tenant.roleAccess) || {};
+        response.accessCatalog = AREAS;
+        response.checklistRoles = CHECKLIST_ROLES;
+        response.roleDefaults = Object.fromEntries(
+            CHECKLIST_ROLES.map((role) => [role, roleDefaults(role)])
+        );
+        response.effectiveAccess = effectiveAreas(actor, accessContext);
 
         res.json({ ...response, tenant: response });
     } catch (error) {
@@ -290,9 +316,66 @@ const uploadTenantLogo = async (req, res) => {
     }
 };
 
+const updateRoleAccess = async (req, res) => {
+    try {
+        const role = decodeURIComponent(req.params.role || "");
+        if (!canEditRoleChecklist(req.user.role, role)) {
+            return res.status(403).json({ message: "You cannot change this role's access" });
+        }
+
+        const parsed = normalizeAreas(req.body?.areas);
+        if (parsed.error) return res.status(400).json({ message: parsed.error });
+
+        const tenant = await runAsPlatform(async () => {
+            return await Tenant.findById(req.user.tenantId).populate("planId");
+        });
+        if (!tenant) return res.status(404).json({ message: "Tenant not found" });
+
+        let areas = parsed.areas;
+        if (req.user.role === "General Manager") {
+            const actorAreas = effectiveAreas(req.user, {
+                roleAccess: tenant.roleAccess || null,
+                planFeatures: getEffectiveFeatures(tenant, tenant.planId),
+            });
+            const previous = savedAreasFor(tenant.roleAccess, role) || roleDefaults(role);
+            const added = areas.filter((key) => !previous.includes(key));
+            const limited = areasWithinActor(added, actorAreas);
+            if (limited.error) return res.status(403).json({ message: limited.error });
+        }
+
+        const next = { ...(plainRoleAccess(tenant.roleAccess) || {}) };
+        next[role] = areas;
+        tenant.roleAccess = next;
+        tenant.markModified("roleAccess");
+        await runAsPlatform(async () => {
+            await tenant.save();
+        });
+
+        await writeAudit({
+            action: "role_access_updated",
+            actor: req.user.id,
+            actorRole: req.user.role,
+            targetType: "tenant",
+            targetId: tenant._id,
+            meta: { role, areas },
+            req,
+        });
+
+        res.json({
+            message: "Role access updated",
+            role,
+            areas,
+            roleAccess: next,
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 module.exports = {
     getMyTenant,
     updateMyTenantSettings,
     uploadTenantLogo,
+    updateRoleAccess,
     sanitizeTenantResponse,
 };

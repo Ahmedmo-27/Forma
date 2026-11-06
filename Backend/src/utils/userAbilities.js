@@ -1,4 +1,4 @@
-const { hasAccess, resolveEffectiveKeys, explicitGrantKeys, navExtrasFor } = require("./accessControl");
+const { hasAccess, resolveEffectiveKeys, explicitGrantKeys, navExtrasFor, areaGrantKeys, effectiveAreas } = require("./accessControl");
 
 function resolveAbilities(user) {
     const commentKey = user?.role === "Coach" || user?.role === "Coach Manager"
@@ -32,9 +32,19 @@ function formatUserResponse(user, options = {}) {
     }
 
     if (options.includeAccess) {
-        base.access = [...resolveEffectiveKeys(user)];
+        const context = options.accessContext || null;
+        base.access = [...resolveEffectiveKeys(user, context)];
         base.grants = explicitGrantKeys(user);
+        base.areaGrants = areaGrantKeys(user, context);
+        base.effectiveAreas = context ? effectiveAreas(user, context) : undefined;
         base.navExtras = navExtrasFor(user);
+    }
+
+    if (user.accessOverrides) {
+        base.accessOverrides = {
+            add: user.accessOverrides.add || [],
+            remove: user.accessOverrides.remove || [],
+        };
     }
 
     return base;

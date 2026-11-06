@@ -17,6 +17,7 @@ const GROUP_ORDER = [
 
 const ALL_STAFF = [
     "Owner",
+    "General Manager",
     "Receptionist",
     "Coach",
     "Coach Manager",
@@ -471,6 +472,26 @@ const ACCESS_CATALOG = [
         nav: { to: "/management/access", label: "Access" },
     },
 ];
+
+// General Manager follows the owner, plus coaching tools the owner does not
+// open by default. Gym settings stay owner-only.
+const GM_EXTRA = new Set([
+    "coach_dashboard",
+    "coach_members",
+    "coach_checkin",
+    "my_transfers",
+    "coach_notes",
+    "coach_team",
+    "coach_staff",
+    "coach_targets",
+]);
+for (const feature of ACCESS_CATALOG) {
+    if (feature.key === "settings") continue;
+    const include = feature.defaultRoles.includes("Owner") || GM_EXTRA.has(feature.key);
+    if (include && !feature.defaultRoles.includes("General Manager")) {
+        feature.defaultRoles.push("General Manager");
+    }
+}
 
 const BY_KEY = new Map(ACCESS_CATALOG.map((feature) => [feature.key, feature]));
 

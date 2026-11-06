@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
-const { allowRoles } = require("../middleware/accessMiddleware");
+const { allowRoles, requireAccess } = require("../middleware/accessMiddleware");
 const validate = require("../middleware/validate");
 const { requireFeature } = require("../middleware/featureGating");
 const { cacheResponse } = require("../middleware/apiCache");
@@ -11,6 +11,7 @@ const { createPackage, getAllPackages, updatePackage, deletePackage } = require(
 
 router.use(protect);
 router.use(requireFeature("packages"));
+router.use(requireAccess("packages"));
 
 router.get("/", cacheResponse({ ttlSeconds: 300, tags: ["packages"] }), getAllPackages);
 router.post("/", allowRoles("packages", "Owner", "Sales Manager"), validate(createPackageSchema), autoInvalidate(["packages"]), createPackage);

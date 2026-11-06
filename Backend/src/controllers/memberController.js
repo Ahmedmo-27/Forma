@@ -1553,7 +1553,7 @@ const deactivateAlert = async (req, res) => {
     }
 };
 
-// ─── Block Member (Sales Manager only) ────────────────────────────────────────//
+// ─── Block Member ─────────────────────────────────────────────────────────────//
 const blockMember = async (req, res) => {
     try {
         const identifier = req.params.memberId;
@@ -1593,7 +1593,7 @@ const blockMember = async (req, res) => {
     }
 };
 
-// ─── Unblock Member (Sales Manager only) ──────────────────────────────────────//
+// ─── Unblock Member ───────────────────────────────────────────────────────────//
 const unblockMember = async (req, res) => {
     try {
         const identifier = req.params.memberId;

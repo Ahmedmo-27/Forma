@@ -25,6 +25,7 @@ const ALL_ROLES = [
     "Accountant",
     "Sales",
     "Sales Manager",
+    "General Manager",
 ];
 
 const planSchema = new mongoose.Schema(

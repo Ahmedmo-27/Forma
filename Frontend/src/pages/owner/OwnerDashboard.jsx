@@ -255,6 +255,7 @@ export default function OwnerDashboard() {
                     { label: 'Revenue',           icon: '💰', to: '/sales/targets',                accent: 'var(--green)' },
                     { label: 'Pkg Requests',      icon: '🔔', to: '/accounting/package-requests',  accent: 'var(--amber)' },
                     { label: 'Check-In',          icon: '✅', to: '/checkin',                       accent: 'var(--green)' },
+                    { label: 'Role Access',       icon: '🛡️', to: '/owner/access',                 accent: 'var(--navy)' },
                   ].map(q => (
                     <button key={q.to} onClick={() => navigate(q.to)} style={{
                       background: 'var(--bg)', border: '1px solid var(--border)',

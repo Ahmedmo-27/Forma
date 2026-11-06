@@ -111,8 +111,8 @@ router.post("/:memberId/checkin", allowRoles("check_in", "Receptionist", "Owner"
 router.patch("/:memberId/alerts/:alertId/deactivate", protect, allowRoles("members", "Receptionist", "Sales", "Sales Manager", "Owner"), autoInvalidate(["members"]), deactivateAlert);
 router.patch("/:memberId/assign-sales", allowRoles("members", "Receptionist", "Owner", "Sales Manager", "Sales"), autoInvalidate(["members", "revenue"]), assignSalesman);
 router.patch("/:memberId/freeze", allowRoles("members", "Receptionist", "Owner", "Sales", "Sales Manager"), validate(freezeMemberSchema), autoInvalidate(["members"]), freezeMember);
-router.patch("/:memberId/block", protect, allowRoles("management", "Sales Manager"), autoInvalidate(["members"]), blockMember);
-router.patch("/:memberId/unblock", protect, allowRoles("management", "Sales Manager"), autoInvalidate(["members"]), unblockMember);
+router.patch("/:memberId/block", protect, allowRoles("management", "Owner", "Sales Manager", "Coach Manager", "General Manager"), autoInvalidate(["members"]), blockMember);
+router.patch("/:memberId/unblock", protect, allowRoles("management", "Owner", "Sales Manager", "Coach Manager", "General Manager"), autoInvalidate(["members"]), unblockMember);
 router.post("/:memberId/package", protect, allowRoles("package_approvals", "Accountant", "Owner"), requireFeature("packages"), validate(assignPackageSchema), autoInvalidate(["members", "revenue", "contracts"]), assignPackage);
 router.patch("/:memberId/national-id", protect, allowRoles("accounting_dashboard", "Accountant", "Owner"), uploadLimiter, uploadSingle("nationalIdFile"), autoInvalidate(["members"]), uploadNationalId);
 router.patch("/:memberId/photo", protect, allowRoles("members", "Accountant", "Owner", "Receptionist"), uploadLimiter, uploadSinglePhoto("photoFile"), autoInvalidate(["members"]), uploadProfilePhoto);
@@ -125,7 +125,7 @@ router.post("/PTcheckin", protect, allowRoles("coach_checkin", "Coach", "Coach M
 router.patch("/:memberId/assign-coach", protect, allowRoles("coach_transfer", "Coach Manager", "Owner"), autoInvalidate(["members"]), assignCoach);
 router.put("/:memberId/coach-rep", protect, allowRoles("coach_transfer", "Coach Manager", "Owner"), autoInvalidate(["members"]), switchCoach);
 router.post("/:memberId/couch-notes", protect, allowRoles("coach_notes", "Coach", "Coach Manager"), autoInvalidate(["members"]), addCouch_notes);
-router.get("/by/:memberId", allowRoles("member_profile", "Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Accountant"), cacheResponse({ ttlSeconds: 120, tags: ["members"] }), getMemberById);
+router.get("/by/:memberId", allowRoles("member_profile", "Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant", "General Manager"), cacheResponse({ ttlSeconds: 120, tags: ["members"] }), getMemberById);
 
 
 router.post("/:memberId/pt-sessions", protect, allowRoles("accounting_dashboard", "Owner", "Accountant"), requireFeature("pt_tracking"), autoInvalidate(["members", "revenue"]), addPT_sessions);

@@ -1,12 +1,18 @@
 const User = require("../models/User");
+const Tenant = require("../models/Tenant");
+const { getEffectiveFeatures } = require("../models/Tenant");
 const { writeAudit } = require("../utils/audit");
+const { runAsPlatform } = require("../context/tenantContext");
 const {
     canEditTarget,
     groupFeaturesFor,
     editableRolesFor,
     diffConfirmedFeatures,
     syncLegacyFields,
+    effectiveAreas,
+    roleDefaults,
 } = require("../utils/accessControl");
+const { normalizeAreas, areasWithinActor, AREAS } = require("../config/roleAccess");
 
 function escapeRegex(value) {
     return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -44,6 +50,7 @@ const searchUsersForAccess = async (req, res) => {
 
 const getUserAccess = async (req, res) => {
     try {
+        if (req.user.role === "General Manager") req.user.areas = await actorAreas(req);
         const user = await User.findById(req.params.id).select("name email role abilities canViewPhones featureAccess");
         if (!user) return res.status(404).json({ message: "User not found" });
         if (!canEditTarget(req.user, user)) {
@@ -61,6 +68,7 @@ const getUserAccess = async (req, res) => {
 
 const updateUserAccess = async (req, res) => {
     try {
+        if (req.user.role === "General Manager") req.user.areas = await actorAreas(req);
         const { features } = req.body || {};
         if (!Array.isArray(features) || features.some((key) => typeof key !== "string")) {
             return res.status(400).json({ message: "features must be an array of feature keys" });
@@ -100,8 +108,77 @@ const updateUserAccess = async (req, res) => {
     }
 };
 
+async function actorAreas(req) {
+    let tenant = req.tenant;
+    if (!tenant && req.user?.tenantId) {
+        tenant = await runAsPlatform(async () => {
+            return await Tenant.findById(req.user.tenantId).populate("planId");
+        });
+    }
+    const plan = tenant?.planId?.features ? tenant.planId : null;
+    return effectiveAreas(req.user, {
+        roleAccess: tenant?.roleAccess || null,
+        planFeatures: plan ? getEffectiveFeatures(tenant, plan) : null,
+    });
+}
+
+const updateUserAreaAccess = async (req, res) => {
+    try {
+        const parsed = normalizeAreas([...(req.body?.add || []), ...(req.body?.remove || [])]);
+        if (!Array.isArray(req.body?.add) || !Array.isArray(req.body?.remove)) {
+            return res.status(400).json({ message: "add and remove must be arrays of area keys" });
+        }
+        if (parsed.error) return res.status(400).json({ message: parsed.error });
+
+        const user = await User.findById(req.params.id);
+        if (!user) return res.status(404).json({ message: "User not found" });
+        if (!canEditTarget(req.user, user)) {
+            return res.status(403).json({ message: "You cannot edit this user's access" });
+        }
+        if (req.user.role === "General Manager" && (user.role === "Owner" || user.role === "General Manager")) {
+            return res.status(403).json({ message: "You cannot edit this user's access" });
+        }
+
+        const addParsed = normalizeAreas(req.body.add);
+        const removeParsed = normalizeAreas(req.body.remove);
+        if (addParsed.error) return res.status(400).json({ message: addParsed.error });
+        if (removeParsed.error) return res.status(400).json({ message: removeParsed.error });
+
+        if (req.user.role === "General Manager") {
+            const mine = await actorAreas(req);
+            const limited = areasWithinActor(addParsed.areas, mine);
+            if (limited.error) return res.status(403).json({ message: limited.error });
+        }
+
+        user.accessOverrides = { add: addParsed.areas, remove: removeParsed.areas };
+        user.markModified("accessOverrides");
+        await user.save();
+
+        await writeAudit({
+            action: "user_area_access_updated",
+            actor: req.user.id,
+            actorRole: req.user.role,
+            targetType: "user",
+            targetId: user._id,
+            meta: { add: addParsed.areas, remove: removeParsed.areas, role: user.role },
+            req,
+        });
+
+        res.json({
+            message: "Access updated",
+            user: { _id: user._id, role: user.role },
+            accessOverrides: user.accessOverrides,
+            defaults: roleDefaults(user.role),
+            catalog: AREAS,
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 module.exports = {
     searchUsersForAccess,
     getUserAccess,
     updateUserAccess,
+    updateUserAreaAccess,
 };

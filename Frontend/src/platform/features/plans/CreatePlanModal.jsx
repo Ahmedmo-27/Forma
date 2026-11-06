@@ -21,6 +21,7 @@ const DEFAULT_ROLES_FALLBACK = [
   { key: "Accountant", name: "Accountant", description: "Daily finances & invoices" },
   { key: "Sales", name: "Sales Rep", description: "Lead tracking & sales calls" },
   { key: "Sales Manager", name: "Sales Manager", description: "Lead assignment & sales funnels" },
+  { key: "General Manager", name: "General Manager", description: "Day-to-day operations. The owner sets their access." },
 ];
 
 export default function CreatePlanModal({

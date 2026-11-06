@@ -1,5 +1,6 @@
 const User = require("../models/User");
 const Tenant = require("../models/Tenant");
+const { getEffectiveFeatures } = require("../models/Tenant");
 const jwt = require("jsonwebtoken");
 const { formatUserResponse } = require("../utils/userAbilities");
 const logger = require("../utils/logger");
@@ -23,7 +24,18 @@ const {
 } = require("../utils/revenueUtils");
 const { resolveSubscriptionPackage } = require("../utils/packageSnapshot");
 
-const FINANCE_ROLES = ["Sales Manager", "Owner", "Accountant"];
+const FINANCE_ROLES = ["Sales Manager", "Owner", "General Manager", "Accountant"];
+const STAFF_CREATOR_ROLES = ["Sales Manager", "Owner", "Coach Manager", "General Manager"];
+const ASSIGNABLE_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"];
+
+function accessContextFor(tenant) {
+    if (!tenant) return null;
+    const plan = tenant.planId && Array.isArray(tenant.planId.features) ? tenant.planId : null;
+    return {
+        roleAccess: tenant.roleAccess || null,
+        planFeatures: plan ? getEffectiveFeatures(tenant, plan) : null,
+    };
+}
 const GENERIC_LOGIN_FAILURE = "Invalid email or password";
 
 function respondAfterLoginFailure(res, fail, req) {
@@ -278,7 +290,10 @@ const loginUser = async (req, res) => {
             tenantSlug: effectiveTenantSlug,
         });
 
-        const formattedUser = formatUserResponse(user, { includeAccess: true });
+        const formattedUser = formatUserResponse(user, {
+            includeAccess: true,
+            accessContext: accessContextFor(tenant),
+        });
         if (effectiveTenantSlug) {
             formattedUser.tenantSlug = effectiveTenantSlug;
         }
@@ -469,7 +484,7 @@ const getSalesManagerRevenue = async (req, res) => {
 
 const getSalesReps = async (req, res) => {
     try {
-        if (!["Sales Manager", "Owner"].includes(req.user.role)) {
+        if (!["Sales Manager", "Owner", "General Manager"].includes(req.user.role)) {
             return res.status(403).json({ message: "Not authorized" });
         }
 
@@ -487,7 +502,14 @@ const getMyProfile = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        const formatted = formatUserResponse(user, { includeAccess: true });
+        let accessContext = null;
+        if (req.user?.tenantId) {
+            const tenant = req.tenant || await runAsPlatform(async () => {
+                return await Tenant.findById(req.user.tenantId);
+            });
+            accessContext = accessContextFor(tenant);
+        }
+        const formatted = formatUserResponse(user, { includeAccess: true, accessContext });
         if (req.user?.tenantSlug) formatted.tenantSlug = req.user.tenantSlug;
         if (req.user?.tenantId) formatted.tenantId = req.user.tenantId;
 
@@ -603,8 +625,9 @@ const getSalesProfile = async (req, res) => {
 
 const updateSalesRepTarget = async (req, res) => {
     try {
-        if (req.user.role !== "Sales Manager") {
-            return res.status(403).json({ message: "Only sales managers can update representative targets" });
+        const targetEditors = ["Sales Manager", "Owner", "Accountant", "General Manager"];
+        if (!targetEditors.includes(req.user.role)) {
+            return res.status(403).json({ message: "You do not have access to this feature" });
         }
 
         const user = await User.findById(req.params.id);
@@ -636,7 +659,7 @@ const updateSalesRepTarget = async (req, res) => {
 
 const createStaffUser = async (req, res) => {
     try {
-        if (!["Sales Manager", "Owner","Coach Manager"].includes(req.user.role)) {
+        if (!STAFF_CREATOR_ROLES.includes(req.user.role)) {
             return res.status(403).json({ message: "Not authorized" });
         }
 
@@ -646,8 +669,13 @@ const createStaffUser = async (req, res) => {
             return res.status(400).json({ message: "name, email, password, mobile_number and role are required" });
         }
 
-        if (!["Sales", "Receptionist", "Accountant","Coach"].includes(role)) {
-            return res.status(400).json({ message: "Role must be Sales, Receptionist, Coach, or Accountant" });
+        const creatable = req.user.role === "Owner"
+            ? ["Sales", "Receptionist", "Accountant", "Coach", "Sales Manager", "Coach Manager", "General Manager"]
+            : req.user.role === "General Manager"
+                ? ["Sales", "Receptionist", "Accountant", "Coach", "Sales Manager", "Coach Manager"]
+                : ["Sales", "Receptionist", "Accountant", "Coach"];
+        if (!creatable.includes(role)) {
+            return res.status(400).json({ message: "You cannot create that role" });
         }
 
         const userExists = await User.findOne({ email: normalizeEmail(email) });
@@ -688,8 +716,14 @@ const createStaffUser = async (req, res) => {
 
 const updateSalesRepAbilities = async (req, res) => {
     try {
-        if (req.user.role !== "Sales Manager") {
+        if (!["Sales Manager", "Owner", "General Manager"].includes(req.user.role)) {
             return res.status(403).json({ message: "Only sales managers can update representative permissions" });
+        }
+        if (req.user.role === "General Manager") {
+            const targetRole = (await User.findById(req.params.id).select("role"))?.role;
+            if (targetRole === "Owner" || targetRole === "General Manager") {
+                return res.status(403).json({ message: "You cannot edit this user" });
+            }
         }
 
         const user = await User.findById(req.params.id);
@@ -990,8 +1024,16 @@ const change_Role = async (req,res)=>{
         return res.status(400).json({message: "user doesnt"});
     }
 
-    if(!["Owner", "Receptionist", "Coach","Coach Manager", "Accountant", "Sales", "Sales Manager"].includes(new_role)){
+    if(!ASSIGNABLE_ROLES.includes(new_role)){
         return res.status(400).json({message: "invalid type"});
+    }
+
+    if (req.user.role === "General Manager") {
+        if (user.role === "General Manager" || user.role === "Owner" || new_role === "General Manager" || new_role === "Owner") {
+            return res.status(403).json({ message: "Only the owner can change a General Manager" });
+        }
+    } else if (req.user.role !== "Owner") {
+        return res.status(403).json({ message: "Not authorized" });
     }
 
     user.role = new_role;
@@ -1003,8 +1045,14 @@ const change_Role = async (req,res)=>{
 
 const updateCoachRepAbilities = async (req, res) => {
     try {
-        if (req.user.role !== "Coach Manager") {
+        if (!["Coach Manager", "Owner", "General Manager"].includes(req.user.role)) {
             return res.status(403).json({ message: "Only coach managers can update coach permissions" });
+        }
+        if (req.user.role === "General Manager") {
+            const targetRole = (await User.findById(req.params.id).select("role"))?.role;
+            if (targetRole === "Owner" || targetRole === "General Manager") {
+                return res.status(403).json({ message: "You cannot edit this user" });
+            }
         }
  
         const user = await User.findById(req.params.id);
@@ -1041,13 +1089,16 @@ const updateCoachRepAbilities = async (req, res) => {
 
 const updateStaffMobile = async (req, res) => {
     try {
-        if (!["Sales Manager", "Owner"].includes(req.user.role)) {
+        if (!["Sales Manager", "Owner", "General Manager"].includes(req.user.role)) {
             return res.status(403).json({ message: "Only managers can update staff mobile numbers" });
         }
 
         const user = await User.findById(req.params.id);
         if (!user) {
             return res.status(404).json({ message: "User not found" });
+        }
+        if (req.user.role === "General Manager" && (user.role === "Owner" || user.role === "General Manager")) {
+            return res.status(403).json({ message: "You cannot edit this user" });
         }
 
         const { mobile_number } = req.body;
@@ -1089,8 +1140,14 @@ const getReceptionistTeam = async (req, res) => {
 
 const updatePhonePrivacy = async (req, res) => {
     try {
-        if (req.user.role !== "Sales Manager") {
+        if (!["Sales Manager", "Owner", "General Manager"].includes(req.user.role)) {
             return res.status(403).json({ message: "Only sales managers can update phone privacy settings" });
+        }
+        if (req.user.role === "General Manager") {
+            const targetRole = (await User.findById(req.params.id).select("role"))?.role;
+            if (targetRole === "Owner" || targetRole === "General Manager") {
+                return res.status(403).json({ message: "You cannot edit this user" });
+            }
         }
 
         const user = await User.findById(req.params.id);
@@ -1131,9 +1188,9 @@ const updatePhonePrivacy = async (req, res) => {
 
 const getTeamsPage = async (req, res) => {
     try {
-        if (req.user.role !== "Owner") {
+        if (!["Owner", "General Manager"].includes(req.user.role)) {
             return res.status(403).json({
-                message: "Only the owner can view this page"
+                message: "Only the owner or general manager can view this page"
             });
         }
 
@@ -1195,6 +1252,9 @@ const resetUserPassword = async (req, res) => {
         // Sales Manager can reset anyone except Owner
         if (req.user.role === "Sales Manager" && target.role === "Owner") {
             return res.status(403).json({ message: "Sales Manager cannot reset an Owner's password" });
+        }
+        if (req.user.role === "General Manager" && (target.role === "Owner" || target.role === "General Manager")) {
+            return res.status(403).json({ message: "You cannot edit this user" });
         }
 
         target.password = await hashPassword(newPassword);

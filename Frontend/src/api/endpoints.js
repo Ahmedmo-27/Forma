@@ -44,6 +44,8 @@ export const getUserById = (id) => api.get(`/users/${id}`);
 export const searchAccessUsers = (q) => api.get('/users/access/search', { params: { q } });
 export const getUserAccess = (id) => api.get(`/users/${id}/access`);
 export const updateUserAccess = (id, features) => api.put(`/users/${id}/access`, { features });
+export const updateUserAreaAccess = (id, add, remove) => api.patch(`/users/${id}/access`, { add, remove });
+export const updateRoleAccess = (role, areas) => api.put(`/tenant/access/${encodeURIComponent(role)}`, { areas });
 export const createStaffUser = (data) => api.post('/users/staff', data);
 
 // ── Notifications ─────────────────────────────────────────────────────────────

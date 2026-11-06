@@ -39,6 +39,7 @@ import OwnerDashboard     from './pages/owner/OwnerDashboard';
 import OwnerTeams         from './pages/owner/OwnerTeams';
 import OwnerUserProfile   from './pages/owner/OwnerUserProfile';
 import TenantSettings     from './pages/owner/TenantSettings';
+import RoleAccess         from './pages/owner/RoleAccess';
 import CheckIn            from './pages/CheckIn';
 import CallCenter         from './pages/sales/CallCenter';
 import Transfer           from './pages/sales/Transfer';
@@ -71,8 +72,10 @@ function PrivateRoute({ children, roles, feature, access }) {
     const allowed = needed.some((key) => user.access.includes(key));
     if (!allowed) return <Navigate to="/" replace />;
     const grants = Array.isArray(user.grants) ? user.grants : [];
-    const granted = needed.some((key) => grants.includes(key));
-    if (roles && !roles.includes(user.role) && !granted) return <Navigate to="/" replace />;
+    const areaGrants = Array.isArray(user.areaGrants) ? user.areaGrants : [];
+    const granted = needed.some((key) => grants.includes(key) || areaGrants.includes(key));
+    const managerWithAccess = user.role === 'General Manager' && allowed;
+    if (roles && !roles.includes(user.role) && !granted && !managerWithAccess) return <Navigate to="/" replace />;
   } else if (roles && !roles.includes(user.role)) {
     return <Navigate to="/" replace />;
   }
@@ -85,6 +88,7 @@ function PrivateRoute({ children, roles, feature, access }) {
 
 const ROLE_HOME = {
   Owner: { key: 'owner_dashboard', to: '/owner/dashboard' },
+  'General Manager': { key: 'owner_dashboard', to: '/owner/dashboard' },
   Sales: { key: 'sales_dashboard', to: '/sales/dashboard' },
   'Sales Manager': { key: 'sales_dashboard', to: '/sales/dashboard' },
   Coach: { key: 'coach_dashboard', to: '/coach/dashboard' },
@@ -137,7 +141,7 @@ function TenantAppRoutes() {
 
       {/* Member profile — roles must match Backend membersRoutes profileRoles */}
       <Route path="/members/:id" element={
-        <PrivateRoute roles={['Receptionist', 'Owner', 'Sales', 'Sales Manager', 'Coach', 'Coach Manager', 'Accountant']} access="member_profile">
+        <PrivateRoute roles={['Receptionist', 'Owner', 'Sales', 'Sales Manager', 'Coach', 'Coach Manager', 'Accountant', 'General Manager']} access="member_profile">
           <MemberProfile />
         </PrivateRoute>
       } />
@@ -305,17 +309,17 @@ function TenantAppRoutes() {
 
       {/* Owner routes */}
       <Route path="/owner/dashboard" element={
-        <PrivateRoute roles={['Owner']} access="owner_dashboard">
+        <PrivateRoute roles={['Owner', 'General Manager']} access="owner_dashboard">
           <OwnerDashboard />
         </PrivateRoute>
       } />
       <Route path="/owner/teams" element={
-        <PrivateRoute roles={['Owner']} access="teams_overview">
+        <PrivateRoute roles={['Owner', 'General Manager']} access="teams_overview">
           <OwnerTeams />
         </PrivateRoute>
       } />
       <Route path="/owner/teams/:id" element={
-        <PrivateRoute roles={['Owner']} access="teams_overview">
+        <PrivateRoute roles={['Owner', 'General Manager']} access="teams_overview">
           <OwnerUserProfile />
         </PrivateRoute>
       } />
@@ -324,15 +328,20 @@ function TenantAppRoutes() {
           <TenantSettings />
         </PrivateRoute>
       } />
+      <Route path="/owner/access" element={
+        <PrivateRoute roles={['Owner', 'General Manager']} access="access_control">
+          <RoleAccess />
+        </PrivateRoute>
+      } />
 
       {/* Management */}
       <Route path="/management" element={
-        <PrivateRoute roles={['Owner', 'Sales Manager', 'Coach Manager']} access="management">
+        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager', 'Coach Manager']} access="management">
           <Management />
         </PrivateRoute>
       } />
       <Route path="/management/access" element={
-        <PrivateRoute roles={['Owner', 'Sales Manager', 'Coach Manager']} access="access_control">
+        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager', 'Coach Manager']} access="access_control">
           <AccessControl />
         </PrivateRoute>
       } />

@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
-const { allowRoles } = require("../middleware/accessMiddleware");
+const { allowRoles, requireAccess } = require("../middleware/accessMiddleware");
 const validate = require("../middleware/validate");
 const { requireFeature } = require("../middleware/featureGating");
 const { cacheResponse } = require("../middleware/apiCache");
@@ -21,6 +21,7 @@ const {
 
 router.use(protect);
 router.use(requireFeature("whatsapp"));
+router.use(requireAccess("whatsapp"));
 
 router.get("/", cacheResponse({ ttlSeconds: 300, tags: ["whatsapp"] }), getTemplates);
 

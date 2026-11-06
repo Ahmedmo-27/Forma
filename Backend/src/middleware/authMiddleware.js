@@ -67,6 +67,7 @@ const protect = async (req, res, next) => {
             });
 
             if (tenant) {
+                req.tenant = tenant;
                 if (tenant.status === "suspended" || tenant.status === "cancelled") {
                     return res.status(403).json({
                         code: "TENANT_SUSPENDED",
@@ -87,6 +88,10 @@ const protect = async (req, res, next) => {
             featureAccess: {
                 grants: user.featureAccess?.grants || [],
                 revokes: user.featureAccess?.revokes || [],
+            },
+            accessOverrides: {
+                add: user.accessOverrides?.add || [],
+                remove: user.accessOverrides?.remove || [],
             },
             tenantId: tenantId ? String(tenantId) : null,
             tenantSlug,
