@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   Button,
@@ -11,6 +11,17 @@ import {
 import { apiCreateFeature, apiUpdateFeature } from "../../lib/api/endpoints";
 import { isValidProgrammaticKey } from "../../lib/utils/validation";
 
+export const FEATURE_CATEGORIES = [
+  { value: "core", label: "Core" },
+  { value: "members", label: "Members" },
+  { value: "sales", label: "Sales" },
+  { value: "coaching", label: "Coaching" },
+  { value: "finance", label: "Finance" },
+  { value: "communication", label: "Communication" },
+  { value: "analytics", label: "Analytics" },
+  { value: "integrations", label: "Integrations" },
+];
+
 export default function CreateFeatureModal({ open, onOpenChange, featureToEdit = null, onSaved }) {
   const isEdit = Boolean(featureToEdit);
   const [loading, setLoading] = useState(false);
@@ -22,6 +33,17 @@ export default function CreateFeatureModal({ open, onOpenChange, featureToEdit =
   const [category, setCategory] = useState(featureToEdit?.category || "core");
   const [isCore, setIsCore] = useState(featureToEdit?.isCore || false);
   const [isActive, setIsActive] = useState(featureToEdit ? featureToEdit.isActive : true);
+
+  useEffect(() => {
+    if (!open) return;
+    setKey(featureToEdit?.key || "");
+    setName(featureToEdit?.name || "");
+    setDescription(featureToEdit?.description || "");
+    setCategory(featureToEdit?.category || "core");
+    setIsCore(Boolean(featureToEdit?.isCore));
+    setIsActive(featureToEdit ? featureToEdit.isActive !== false : true);
+    setError(null);
+  }, [open, featureToEdit]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -105,7 +127,7 @@ export default function CreateFeatureModal({ open, onOpenChange, featureToEdit =
               Feature Key {!isEdit && <span className="text-[var(--platform-danger)]">*</span>}
             </label>
             <Input
-              placeholder="e.g. pos.receipt_thermal"
+              placeholder="e.g. receipt_thermal"
               value={key}
               disabled={isEdit}
               onChange={(e) => setKey(e.target.value)}
@@ -113,7 +135,7 @@ export default function CreateFeatureModal({ open, onOpenChange, featureToEdit =
               required={!isEdit}
             />
             <span className="text-[11px] text-[var(--platform-text-muted)] mt-1 block">
-              Lowercase dot-notated identifier.
+              Lowercase letters, numbers, dashes, or underscores.
             </span>
           </div>
 
@@ -122,12 +144,11 @@ export default function CreateFeatureModal({ open, onOpenChange, featureToEdit =
               Category
             </label>
             <Select value={category} onChange={(e) => setCategory(e.target.value)}>
-              <option value="core">Core Capabilities</option>
-              <option value="pos">Point of Sale (POS)</option>
-              <option value="crm">CRM & Members</option>
-              <option value="automation">WhatsApp & Automation</option>
-              <option value="analytics">Enterprise Analytics</option>
-              <option value="hardware">Access Control & Hardware</option>
+              {FEATURE_CATEGORIES.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
             </Select>
           </div>
         </div>

@@ -933,10 +933,11 @@ const addInvitation = async (req, res) => {
         let idFileName = null;
         if (req.file) {
             try {
-                await assertAllowedUpload(req.file.path);
-                idFileName = path.basename(req.file.filename || req.file.path);
+                await assertAllowedUpload(req.file);
+                await storageService.persistUpload(member.tenantId || req.user.tenantId, req.file);
+                idFileName = path.basename(req.file.filename);
             } catch (err) {
-                fs.unlink(req.file.path, () => {});
+                if (req.file?.path) fs.unlink(req.file.path, () => {});
                 return res.status(err.statusCode || 400).json({ message: err.message });
             }
         }
@@ -1394,10 +1395,11 @@ const uploadNationalId = async (req, res) => {
 
         let idFileName;
         try {
-            await assertAllowedUpload(req.file.path);
-            idFileName = path.basename(req.file.filename || req.file.path);
+            await assertAllowedUpload(req.file);
+            await storageService.persistUpload(member.tenantId || req.user.tenantId, req.file);
+            idFileName = path.basename(req.file.filename);
         } catch (err) {
-            fs.unlink(req.file.path, () => {});
+            if (req.file?.path) fs.unlink(req.file.path, () => {});
             return res.status(err.statusCode || 400).json({ message: err.message });
         }
 
@@ -1432,10 +1434,11 @@ const uploadProfilePhoto = async (req, res) => {
 
         let photoFileName;
         try {
-            await assertAllowedImage(req.file.path);
-            photoFileName = path.basename(req.file.filename || req.file.path);
+            await assertAllowedImage(req.file);
+            await storageService.persistUpload(member.tenantId || req.user.tenantId, req.file);
+            photoFileName = path.basename(req.file.filename);
         } catch (err) {
-            fs.unlink(req.file.path, () => {});
+            if (req.file?.path) fs.unlink(req.file.path, () => {});
             return res.status(err.statusCode || 400).json({ message: err.message });
         }
 

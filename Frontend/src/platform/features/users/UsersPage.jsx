@@ -37,7 +37,7 @@ import {
 import { formatDate, formatRelativeTime } from "../../lib/utils/formatters";
 
 export default function UsersPage() {
-  const currentRole = usePlatformRole();
+  const { role: currentRole } = usePlatformRole();
   const isSuperAdmin = currentRole === "super_admin";
 
   // Modals state
@@ -48,6 +48,7 @@ export default function UsersPage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   // Destructive Actions Targets
   const [resetMfaTarget, setResetMfaTarget] = useState(null);
@@ -60,13 +61,14 @@ export default function UsersPage() {
     isLoading,
     refetch,
   } = useQuery({
-    queryKey: ["platform", "users", page, search, roleFilter],
+    queryKey: ["platform", "users", page, search, roleFilter, statusFilter],
     queryFn: () =>
       apiGetPlatformUsers({
         page,
         limit: 15,
         search: search.trim() || undefined,
         role: roleFilter || undefined,
+        status: statusFilter || undefined,
       }).then((r) => r.data),
   });
 
@@ -81,7 +83,7 @@ export default function UsersPage() {
   };
 
   // Reset MFA
-  const handleResetMfaConfirm = async (reason) => {
+  const handleResetMfaConfirm = async ({ reason }) => {
     if (!resetMfaTarget) return;
     setExecuting(true);
     try {
@@ -108,7 +110,7 @@ export default function UsersPage() {
   };
 
   // Delete Operator
-  const handleDeleteConfirm = async (reason) => {
+  const handleDeleteConfirm = async ({ reason }) => {
     if (!deleteTarget) return;
     setExecuting(true);
     try {
@@ -176,9 +178,9 @@ export default function UsersPage() {
             <Users className="w-4 h-4 text-[var(--platform-accent)]" />
           </div>
           <div className="text-2xl font-bold font-mono text-[var(--platform-text-primary)]">
-            {users.length}
+            {pagination.total}
           </div>
-          <span className="text-[11px] text-[var(--platform-text-muted)]">Active team accounts</span>
+          <span className="text-[11px] text-[var(--platform-text-muted)]">Matching operator accounts</span>
         </div>
 
         <div className="p-4 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
@@ -189,7 +191,7 @@ export default function UsersPage() {
           <div className="text-2xl font-bold font-mono text-[var(--platform-danger)]">
             {users.filter((u) => u.role === "super_admin").length}
           </div>
-          <span className="text-[11px] text-[var(--platform-text-muted)]">Unrestricted authority</span>
+          <span className="text-[11px] text-[var(--platform-text-muted)]">On this page</span>
         </div>
 
         <div className="p-4 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
@@ -200,7 +202,7 @@ export default function UsersPage() {
           <div className="text-2xl font-bold font-mono text-[var(--platform-success)]">
             {users.filter((u) => u.mfa?.enabled).length} / {users.length}
           </div>
-          <span className="text-[11px] text-[var(--platform-text-muted)]">TOTP 2FA enforced</span>
+          <span className="text-[11px] text-[var(--platform-text-muted)]">On this page</span>
         </div>
 
         <div className="p-4 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
@@ -211,7 +213,7 @@ export default function UsersPage() {
           <div className="text-2xl font-bold font-mono text-[var(--platform-text-primary)]">
             {users.filter((u) => u.status === "active").length}
           </div>
-          <span className="text-[11px] text-[var(--platform-text-muted)]">Active login status</span>
+          <span className="text-[11px] text-[var(--platform-text-muted)]">On this page</span>
         </div>
       </div>
 
@@ -245,6 +247,19 @@ export default function UsersPage() {
             <option value="support">Support Agent</option>
             <option value="analyst">Data Analyst</option>
           </Select>
+
+          <Select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setPage(1);
+            }}
+            className="w-36"
+          >
+            <option value="">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="disabled">Disabled</option>
+          </Select>
         </div>
 
         <span className="text-xs text-[var(--platform-text-muted)] self-end sm:self-center">
@@ -275,6 +290,7 @@ export default function UsersPage() {
                 <th className="py-3 px-4 text-center">Account Status</th>
                 <th className="py-3 px-4 text-center">2FA / MFA</th>
                 <th className="py-3 px-4">Enrolled Date</th>
+                <th className="py-3 px-4">Last Sign-in</th>
                 <th className="py-3 px-4 text-right">Actions</th>
               </tr>
             </thead>
@@ -325,6 +341,9 @@ export default function UsersPage() {
 
                     <td className="py-3 px-4 text-[11px] text-[var(--platform-text-secondary)] whitespace-nowrap">
                       {formatDate(u.createdAt)}
+                    </td>
+                    <td className="py-3 px-4 text-[11px] text-[var(--platform-text-secondary)] whitespace-nowrap">
+                      {u.lastLoginAt ? formatRelativeTime(u.lastLoginAt) : "Never"}
                     </td>
 
                     <td className="py-3 px-4 text-right">

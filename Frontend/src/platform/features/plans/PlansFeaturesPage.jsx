@@ -23,7 +23,7 @@ import {
   platformToast,
 } from "../../ui";
 import { ConfirmDialog } from "../../shell/ConfirmDialog";
-import CreateFeatureModal from "./CreateFeatureModal";
+import CreateFeatureModal, { FEATURE_CATEGORIES } from "./CreateFeatureModal";
 import CreatePlanModal from "./CreatePlanModal";
 import PlanImpactModal from "./PlanImpactModal";
 import {
@@ -109,7 +109,7 @@ export default function PlansFeaturesPage() {
     return matchesCategory && matchesSearch;
   });
 
-  const handleArchiveConfirm = async (reason) => {
+  const handleArchiveConfirm = async ({ reason }) => {
     if (!archivePlanTarget) return;
     setArchiving(true);
     try {
@@ -829,12 +829,11 @@ export default function PlansFeaturesPage() {
                 className="w-48"
               >
                 <option value="all">All Categories</option>
-                <option value="core">Core Capabilities</option>
-                <option value="pos">Point of Sale (POS)</option>
-                <option value="crm">CRM & Members</option>
-                <option value="automation">WhatsApp & Automation</option>
-                <option value="analytics">Enterprise Analytics</option>
-                <option value="hardware">Access Control & Hardware</option>
+                {FEATURE_CATEGORIES.map((item) => (
+                  <option key={item.value} value={item.value}>
+                    {item.label}
+                  </option>
+                ))}
               </Select>
             </div>
 

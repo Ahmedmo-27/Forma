@@ -27,7 +27,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
     trialDays: 14,
     isLifetime: false,
     amountPaid: 0,
-    currency: "USD",
+    currency: "EGP",
   });
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
         trialDays: 14,
         isLifetime: false,
         amountPaid: 0,
-        currency: "USD",
+        currency: "EGP",
       });
 
       apiGetPlans()
@@ -272,9 +272,9 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
               plans.length > 0
                 ? plans.map((p) => ({ value: p.key, label: p.name }))
                 : [
-                    { value: "basic", label: "Basic Tier" },
-                    { value: "pro", label: "Pro Tier" },
-                    { value: "enterprise", label: "Enterprise Tier" },
+                    { value: "basic", label: "Basic" },
+                    { value: "gold", label: "Gold" },
+                    { value: "platinum", label: "Platinum" },
                   ]
             }
           />

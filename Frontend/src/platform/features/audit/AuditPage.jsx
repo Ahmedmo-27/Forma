@@ -119,12 +119,20 @@ export default function AuditPage() {
             className="w-48 text-xs"
           >
             <option value="">All Operation Actions</option>
-            <option value="platform_impersonation">platform_impersonation</option>
-            <option value="tenant_status_updated">tenant_status_updated</option>
-            <option value="tenant_created">tenant_created</option>
-            <option value="plan_updated">plan_updated</option>
-            <option value="price_change">price_change</option>
-            <option value="tag_updated">tag_updated</option>
+            <option value="platform_impersonation">Impersonation</option>
+            <option value="tenant_status_updated">Tenant status</option>
+            <option value="plan_updated">Plan updated</option>
+            <option value="staff_created">Staff or operator created</option>
+            <option value="sales_abilities_updated">Operator access updated</option>
+            <option value="lifetime_purchased">Lifetime purchased</option>
+            <option value="lifetime_upgraded">Lifetime upgraded</option>
+            <option value="lifetime_granted">Lifetime granted</option>
+            <option value="lifetime_revoked">Lifetime revoked</option>
+            <option value="lifetime_price_changed">Lifetime price changed</option>
+            <option value="entitlement_policy_updated">Entitlement policy</option>
+            <option value="package_assigned">Package assigned</option>
+            <option value="member_created">Member created</option>
+            <option value="member_frozen">Member frozen</option>
           </Select>
 
           <Select
@@ -138,8 +146,11 @@ export default function AuditPage() {
             <option value="">All Targets</option>
             <option value="tenant">Tenant</option>
             <option value="plan">Plan</option>
-            <option value="user">Platform User</option>
-            <option value="platform_setting">System Setting</option>
+            <option value="user">User</option>
+            <option value="member">Member</option>
+            <option value="package_exception">Package exception</option>
+            <option value="upload">Upload</option>
+            <option value="other">Other</option>
           </Select>
 
           {(actionFilter || targetTypeFilter || search) && (

@@ -1,4 +1,3 @@
-const fs = require("fs");
 const jwt = require("jsonwebtoken");
 const Tenant = require("../models/Tenant");
 const User = require("../models/User");
@@ -207,10 +206,7 @@ async function purgeTenant(req, res) {
 
             // Delete storage directory on disk
             try {
-                const tenantDir = storageService.getTenantDir(tenantId);
-                if (fs.existsSync(tenantDir)) {
-                    fs.rmSync(tenantDir, { recursive: true, force: true });
-                }
+                await storageService.deleteTenantStorage(tenantId);
             } catch (storageErr) {
                 logger.warn("platform", "Failed to clean disk storage during purge", { error: storageErr.message });
             }

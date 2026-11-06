@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   Button,
@@ -16,7 +16,7 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
   const [error, setError] = useState(null);
 
   const [tenantId, setTenantId] = useState("");
-  const [planKey, setPlanKey] = useState("pro");
+  const [planKey, setPlanKey] = useState("basic");
   const [cycle, setCycle] = useState("monthly");
   const [durationMonths, setDurationMonths] = useState(1);
   const [reason, setReason] = useState("");
@@ -34,7 +34,24 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
   });
 
   const tenants = tenantsData || [];
-  const plans = plansData || [];
+  const plans = Array.isArray(plansData) ? plansData : [];
+
+  useEffect(() => {
+    if (!open) return;
+    setTenantId("");
+    setCycle("monthly");
+    setDurationMonths(1);
+    setReason("");
+    setError(null);
+    setPlanKey(plans[0]?.key || "basic");
+  }, [open]);
+
+  useEffect(() => {
+    if (!plans.length) return;
+    if (!plans.some((plan) => plan.key === planKey)) {
+      setPlanKey(plans[0].key);
+    }
+  }, [plansData, planKey]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -1,6 +1,4 @@
 const crypto = require("crypto");
-const fs = require("fs");
-const path = require("path");
 const Tenant = require("../models/Tenant");
 const Plan = require("../models/Plan");
 const User = require("../models/User");
@@ -12,6 +10,8 @@ const { getEffectiveFeatures, getEffectiveLimits, getEffectiveRoles } = require(
 const { runAsPlatform } = require("../context/tenantContext");
 const storageService = require("../services/storageService");
 const { normalizeEmail, hashPassword } = require("../utils/passwordUtils");
+const passwordSetup = require("../services/passwordSetupService");
+const mailer = require("../services/mailer");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const logger = require("../utils/logger");
 
@@ -36,20 +36,13 @@ const RESERVED_SLUGS = new Set([
 ]);
 
 /**
- * Measure tenant disk usage in bytes cheaply from uploads/<tenantId>
+ * Measure tenant storage in bytes (local directory or R2 prefix).
  */
-function getTenantStorageBytes(tenantId) {
+async function getTenantStorageBytes(tenantId) {
     try {
-        const tenantDir = storageService.getTenantDir(tenantId);
-        if (!fs.existsSync(tenantDir)) return 0;
-        let total = 0;
-        const files = fs.readdirSync(tenantDir);
-        for (const file of files) {
-            const stats = fs.statSync(path.join(tenantDir, file));
-            if (stats.isFile()) total += stats.size;
-        }
-        return total;
-    } catch {
+        return await storageService.sumTenantBytes(tenantId);
+    } catch (err) {
+        logger.warn("platform", "Failed to measure tenant storage", { error: err.message });
         return 0;
     }
 }
@@ -133,7 +126,7 @@ async function getTenants(req, res) {
                     User.collection.countDocuments({ tenantId: t._id }),
                 ]);
 
-                const storageBytes = getTenantStorageBytes(t._id);
+                const storageBytes = await getTenantStorageBytes(t._id);
                 const effectiveLimits = getEffectiveLimits(t, t.planId);
 
                 // Calculate MRR contribution
@@ -223,7 +216,7 @@ async function getTenantDetail(req, res) {
             }),
         ]);
 
-        const storageBytes = getTenantStorageBytes(tenant._id);
+        const storageBytes = await getTenantStorageBytes(tenant._id);
         const effectiveFeatures = getEffectiveFeatures(tenant, tenant.planId);
         const effectiveRoles = getEffectiveRoles(tenant, tenant.planId);
         const effectiveLimits = getEffectiveLimits(tenant, tenant.planId);
@@ -383,8 +376,27 @@ async function onboardTenant(req, res) {
         tenant.ownerUserId = ownerUser._id;
         await tenant.save();
 
-        // Generate secure one-time invite token for password setup (72h validity)
-        const inviteToken = crypto.randomBytes(32).toString("hex");
+        // One-time invite token (72h). Raw token is emailed and returned once; only the hash is stored.
+        const issued = await passwordSetup.issueToken({
+            userId: ownerUser._id,
+            tenantId: tenant._id,
+            email: ownerUser.email,
+            purpose: "invite",
+            hours: passwordSetup.INVITE_HOURS,
+        });
+        const inviteToken = issued.token;
+        const inviteUrl = passwordSetup.relativeUrl(inviteToken, ownerUser.email);
+
+        try {
+            await mailer.sendInvite({
+                to: ownerUser.email,
+                name: ownerUser.name,
+                gymName: tenant.name,
+                setupUrl: passwordSetup.absoluteUrl(inviteToken, ownerUser.email),
+            });
+        } catch (mailErr) {
+            logger.warn("mail", "Owner invite email failed", { error: mailErr.message });
+        }
 
         // If lifetime, record initial BillingEvent
         if (isLifetime) {
@@ -439,8 +451,8 @@ async function onboardTenant(req, res) {
             },
             invite: {
                 inviteToken,
-                inviteUrl: `/auth/setup-password?token=${inviteToken}&email=${encodeURIComponent(ownerUser.email)}`,
-                expiresInHours: 72,
+                inviteUrl,
+                expiresInHours: issued.expiresInHours,
             },
         });
     } catch (err) {
@@ -544,8 +556,12 @@ async function updateTenantLifecycle(req, res) {
 
             case "change_overrides": {
                 if (payload.featureOverrides) {
-                    tenant.featureOverrides = payload.featureOverrides;
-                    afterState.featureOverrides = payload.featureOverrides;
+                    tenant.featureOverrides = {
+                        add: Array.isArray(payload.featureOverrides.add) ? payload.featureOverrides.add : [],
+                        remove: Array.isArray(payload.featureOverrides.remove) ? payload.featureOverrides.remove : [],
+                    };
+                    tenant.markModified("featureOverrides");
+                    afterState.featureOverrides = tenant.featureOverrides;
                 }
                 if (payload.roleOverrides) {
                     tenant.roleOverrides = payload.roleOverrides;

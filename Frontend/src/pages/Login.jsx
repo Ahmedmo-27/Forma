@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, Navigate } from 'react-router-dom';
+import { useNavigate, Navigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import usePageTitle from '../hooks/usePageTitle';
@@ -19,6 +19,7 @@ export default function Login() {
     if (user.role === 'Accountant') return <Navigate to="/accounting/dashboard" replace />;
     if (['Sales', 'Sales Manager'].includes(user.role)) return <Navigate to="/sales/dashboard" replace />;
     if (['Coach', 'Coach Manager'].includes(user.role)) return <Navigate to="/coach/dashboard" replace />;
+    if (user.role === 'Owner') return <Navigate to="/owner/dashboard" replace />;
     return <Navigate to="/members" replace />;
   }
 
@@ -44,6 +45,8 @@ export default function Login() {
         navigate('/sales/dashboard', { replace: true });
       } else if (['Coach', 'Coach Manager'].includes(user.role)) {
         navigate('/coach/dashboard', { replace: true });
+      } else if (user.role === 'Owner') {
+        navigate('/owner/dashboard', { replace: true });
       } else {
         navigate('/members', { replace: true });
       }
@@ -283,6 +286,12 @@ export default function Login() {
               </button>
             </div>
             {errors.password && <p style={{ margin: '5px 0 0', fontSize: 12, color: '#DC2626' }}>{errors.password}</p>}
+          </div>
+
+          <div style={{ textAlign: 'right', marginTop: -8 }}>
+            <Link to="/auth/forgot-password" style={{ fontSize: 13, color: '#44298C', fontWeight: 600 }}>
+              Forgot password?
+            </Link>
           </div>
 
           {/* Submit */}

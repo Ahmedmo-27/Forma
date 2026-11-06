@@ -36,11 +36,12 @@ async function createInvoiceForPayment({
     const invoiceNumber = await getNextInvoiceNumber();
 
     const sellerSetting = await PlatformSetting.findOne({ key: "seller_details" });
-    const sellerDetails = sellerSetting?.value || {
-        name: "Leap SaaS Platform Inc.",
-        taxId: "EG-TAX-10293847",
-        address: "Zamalek, Cairo, Egypt",
-        supportEmail: "billing@leapgym.com",
+    const storedSeller = sellerSetting?.value || {};
+    const sellerDetails = {
+        name: storedSeller.name || storedSeller.companyName || "Leap SaaS Platform Inc.",
+        taxId: storedSeller.taxId || "EG-TAX-10293847",
+        address: storedSeller.address || "Zamalek, Cairo, Egypt",
+        supportEmail: storedSeller.supportEmail || storedSeller.billingEmail || "billing@leapgym.com",
     };
 
     const invoice = await Invoice.create({

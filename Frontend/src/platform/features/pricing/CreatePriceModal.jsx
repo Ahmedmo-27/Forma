@@ -25,7 +25,7 @@ export default function CreatePriceModal({
   const [planId, setPlanId] = useState("");
   const [cycle, setCycle] = useState("monthly");
   const [amount, setAmount] = useState(49);
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState("EGP");
   const [maxLifetimeSeats, setMaxLifetimeSeats] = useState("");
   const [validUntil, setValidUntil] = useState("");
   const [isActive, setIsActive] = useState(true);
@@ -39,7 +39,7 @@ export default function CreatePriceModal({
       setPlanId(priceToEdit.planId?._id || priceToEdit.planId || "");
       setCycle(priceToEdit.cycle || "monthly");
       setAmount(priceToEdit.amount || 0);
-      setCurrency(priceToEdit.currency || "USD");
+      setCurrency(priceToEdit.currency || "EGP");
       setMaxLifetimeSeats(priceToEdit.maxLifetimeSeats ?? "");
       setValidUntil(
         priceToEdit.validUntil

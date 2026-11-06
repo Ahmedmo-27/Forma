@@ -1,5 +1,28 @@
 const crypto = require("crypto");
 
+function bankInstructions(paymentRef) {
+    const bankName = (process.env.PAYMENT_BANK_NAME || "").trim();
+    const accountName = (process.env.PAYMENT_ACCOUNT_NAME || "").trim();
+    const iban = (process.env.PAYMENT_IBAN || "").trim();
+    const swift = (process.env.PAYMENT_SWIFT || "").trim();
+    const missing = !bankName || !accountName || !iban;
+
+    if (missing && process.env.NODE_ENV === "production") {
+        const error = new Error("Bank transfer details are not configured");
+        error.statusCode = 503;
+        throw error;
+    }
+
+    return {
+        bankName: bankName || "Configure PAYMENT_BANK_NAME",
+        accountName: accountName || "Configure PAYMENT_ACCOUNT_NAME",
+        iban: iban || "Configure PAYMENT_IBAN",
+        swift,
+        referenceCode: paymentRef,
+        notice: "Include the referenceCode in your transfer remarks. Platform admin will approve once funds clear.",
+    };
+}
+
 /**
  * Payment Adapter Interface
  */
@@ -21,6 +44,7 @@ class ManualTransferAdapter extends BasePaymentAdapter {
     async initiatePayment({ tenant, plan, planPrice, amount, currency, actorId, metadata = {} }) {
         const randomHex = crypto.randomBytes(4).toString("hex").toUpperCase();
         const paymentRef = `MANUAL-${Date.now()}-${randomHex}`;
+        const instructions = bankInstructions(paymentRef);
 
         return {
             paymentRef,
@@ -28,14 +52,7 @@ class ManualTransferAdapter extends BasePaymentAdapter {
             status: "pending",
             amount,
             currency,
-            instructions: {
-                bankName: "National Bank of Egypt",
-                accountName: "Leap Gym SaaS Platform",
-                iban: "EG380000000000000000000000000",
-                swift: "NBEGEGCX",
-                referenceCode: paymentRef,
-                notice: "Include the referenceCode in your transfer remarks. Platform admin will approve once funds clear.",
-            },
+            instructions,
             metadata: {
                 ...metadata,
                 tenantId: tenant._id ? tenant._id.toString() : tenant.id,

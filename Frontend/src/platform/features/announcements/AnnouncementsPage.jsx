@@ -90,15 +90,28 @@ export default function AnnouncementsPage() {
 
   const getSeverityBadge = (type) => {
     switch (type) {
-      case "critical":
-        return <Badge variant="danger" size="xs">Critical Alert</Badge>;
+      case "maintenance":
+        return <Badge variant="warning" size="xs">Maintenance</Badge>;
       case "warning":
         return <Badge variant="warning" size="xs">Warning</Badge>;
-      case "success":
-        return <Badge variant="success" size="xs">Release</Badge>;
+      case "feature":
+        return <Badge variant="success" size="xs">Feature</Badge>;
       default:
         return <Badge variant="info" size="xs">Info</Badge>;
     }
+  };
+
+  const audienceLabel = (target) => {
+    if (!target || target.type === "all") return "All gyms";
+    if (target.type === "plan") {
+      const keys = target.targetPlanKeys || [];
+      return keys.length ? `Plans: ${keys.join(", ")}` : "Plans";
+    }
+    if (target.type === "tenant") {
+      const count = (target.targetTenantIds || []).length;
+      return count === 1 ? "1 gym" : `${count} gyms`;
+    }
+    return target.type;
   };
 
   return (
@@ -158,13 +171,13 @@ export default function AnnouncementsPage() {
 
         <div className="p-4 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
           <div className="flex items-center justify-between text-xs text-[var(--platform-text-muted)] mb-1">
-            <span>Critical Incidents</span>
+            <span>Maintenance Notices</span>
             <AlertTriangle className="w-4 h-4 text-[var(--platform-danger)]" />
           </div>
           <div className="text-2xl font-bold font-mono text-[var(--platform-danger)]">
-            {announcements.filter((a) => a.type === "critical" && a.isActive).length}
+            {announcements.filter((a) => a.type === "maintenance" && a.isActive).length}
           </div>
-          <span className="text-[11px] text-[var(--platform-text-muted)]">High priority notices</span>
+          <span className="text-[11px] text-[var(--platform-text-muted)]">Active maintenance broadcasts</span>
         </div>
 
         <div className="p-4 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
@@ -237,8 +250,8 @@ export default function AnnouncementsPage() {
                   </td>
 
                   <td className="py-3 px-4">
-                    <Badge variant="neutral" size="xs" className="capitalize">
-                      {ann.target?.type || "all"}
+                    <Badge variant="neutral" size="xs">
+                      {audienceLabel(ann.target)}
                     </Badge>
                   </td>
 

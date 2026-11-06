@@ -33,7 +33,7 @@ import { formatDate, formatRelativeTime } from "../../lib/utils/formatters";
 
 export default function SupportPage() {
   const { user, impersonationSession, startImpersonation, exitImpersonation } = usePlatformAuth();
-  const role = usePlatformRole();
+  const { role } = usePlatformRole();
   const isSuperAdmin = role === "super_admin";
 
   // Form State for Impersonation

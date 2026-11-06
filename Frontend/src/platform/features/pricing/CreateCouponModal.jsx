@@ -24,7 +24,7 @@ export default function CreateCouponModal({
   const [code, setCode] = useState("");
   const [type, setType] = useState("percentage");
   const [discountValue, setDiscountValue] = useState(20);
-  const [currency, setCurrency] = useState("USD");
+  const [currency, setCurrency] = useState("EGP");
   const [maxRedemptions, setMaxRedemptions] = useState("");
   const [expiresAt, setExpiresAt] = useState("");
   const [isActive, setIsActive] = useState(true);
@@ -144,7 +144,7 @@ export default function CreateCouponModal({
             </label>
             <Select value={type} onChange={(e) => setType(e.target.value)}>
               <option value="percentage">Percentage Off (%)</option>
-              <option value="fixed_amount">Fixed Amount Off ($)</option>
+              <option value="fixed">Fixed Amount Off</option>
             </Select>
           </div>
         </div>
@@ -165,7 +165,7 @@ export default function CreateCouponModal({
             />
           </div>
 
-          {type === "fixed_amount" && (
+          {type === "fixed" && (
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
                 Currency

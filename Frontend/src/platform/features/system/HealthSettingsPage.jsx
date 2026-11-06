@@ -47,15 +47,17 @@ export default function HealthSettingsPage() {
   const [togglingMaintenance, setTogglingMaintenance] = useState(false);
 
   // Editable Settings States
-  // 1. Seller Details
-  const [companyName, setCompanyName] = useState("");
+  // 1. Seller Details — field names match Invoice.sellerDetails
+  const [sellerName, setSellerName] = useState("");
   const [taxId, setTaxId] = useState("");
-  const [billingEmail, setBillingEmail] = useState("");
+  const [supportEmail, setSupportEmail] = useState("");
   const [address, setAddress] = useState("");
+  const [sellerSaved, setSellerSaved] = useState(true);
   const [savingSeller, setSavingSeller] = useState(false);
 
   // 2. Dunning Schedule
   const [gracePeriodDays, setGracePeriodDays] = useState(3);
+  const [reminderDays, setReminderDays] = useState("3, 1");
   const [savingDunning, setSavingDunning] = useState(false);
 
   // Query System Health
@@ -77,14 +79,24 @@ export default function HealthSettingsPage() {
   // Sync settings when data arrives
   useEffect(() => {
     if (healthData?.settings) {
-      if (healthData.settings.sellerDetails) {
-        setCompanyName(healthData.settings.sellerDetails.companyName || "");
-        setTaxId(healthData.settings.sellerDetails.taxId || "");
-        setBillingEmail(healthData.settings.sellerDetails.billingEmail || "");
-        setAddress(healthData.settings.sellerDetails.address || "");
+      const seller = healthData.settings.sellerDetails;
+      if (seller) {
+        setSellerName(seller.name || seller.companyName || "");
+        setTaxId(seller.taxId || "");
+        setSupportEmail(seller.supportEmail || seller.billingEmail || "");
+        setAddress(seller.address || "");
+        setSellerSaved(true);
+      } else {
+        setSellerName("Leap SaaS Platform Inc.");
+        setTaxId("EG-TAX-10293847");
+        setSupportEmail("billing@leapgym.com");
+        setAddress("Zamalek, Cairo, Egypt");
+        setSellerSaved(false);
       }
       if (healthData.settings.dunningSchedule) {
         setGracePeriodDays(healthData.settings.dunningSchedule.gracePeriodDays ?? 3);
+        const days = healthData.settings.dunningSchedule.reminderDays;
+        setReminderDays(Array.isArray(days) && days.length ? days.join(", ") : "3, 1");
       }
     }
   }, [healthData]);
@@ -113,12 +125,16 @@ export default function HealthSettingsPage() {
   // Handle Save Seller Details
   const handleSaveSeller = async (e) => {
     e.preventDefault();
-    const emailTrim = billingEmail.trim();
-    if (emailTrim && !isValidEmail(emailTrim)) {
+    const emailTrim = supportEmail.trim();
+    if (!sellerName.trim()) {
+      platformToast.error("Legal company name is required");
+      return;
+    }
+    if (!emailTrim || !isValidEmail(emailTrim)) {
       platformToast.error("Please enter a valid billing email address");
       return;
     }
-    if (companyName.trim().length > 120) {
+    if (sellerName.trim().length > 120) {
       platformToast.error("Company name must not exceed 120 characters");
       return;
     }
@@ -135,9 +151,9 @@ export default function HealthSettingsPage() {
     try {
       await apiUpdateSystemSetting("seller_details", {
         value: {
-          companyName: companyName.trim(),
+          name: sellerName.trim(),
           taxId: taxId.trim(),
-          billingEmail: emailTrim,
+          supportEmail: emailTrim,
           address: address.trim(),
         },
         description: "Official seller & VAT tax invoicing identity",
@@ -158,13 +174,21 @@ export default function HealthSettingsPage() {
       platformToast.error("Grace period days must be a whole number of at least 0");
       return;
     }
+    const parsedReminders = String(reminderDays)
+      .split(",")
+      .map((part) => Number(part.trim()))
+      .filter((value) => Number.isInteger(value) && value >= 0);
+    if (!parsedReminders.length) {
+      platformToast.error("Reminder days must be whole numbers, separated by commas");
+      return;
+    }
 
     setSavingDunning(true);
     try {
       await apiUpdateSystemSetting("dunning_schedule", {
         value: {
           gracePeriodDays: Number(gracePeriodDays),
-          reminderDays: [3, 1],
+          reminderDays: parsedReminders,
         },
         description: "Automated dunning schedule and grace period policy",
       });
@@ -349,15 +373,20 @@ export default function HealthSettingsPage() {
               onSubmit={handleSaveSeller}
               className="p-5 rounded-xl border border-[var(--platform-border-subtle)] bg-[var(--platform-surface-raised)] space-y-4 max-w-2xl"
             >
+              {!sellerSaved && (
+                <Callout variant="warning">
+                  Seller identity is not saved yet. Invoices currently fall back to these defaults until you save them.
+                </Callout>
+              )}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
                     Legal Company Name <span className="text-[var(--platform-danger)]">*</span>
                   </label>
                   <Input
-                    placeholder="e.g. Flame Gym Technologies LLC"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="e.g. Leap SaaS Platform Inc."
+                    value={sellerName}
+                    onChange={(e) => setSellerName(e.target.value)}
                     required
                   />
                 </div>
@@ -381,9 +410,9 @@ export default function HealthSettingsPage() {
                 </label>
                 <Input
                   type="email"
-                  placeholder="billing@gymflame.com"
-                  value={billingEmail}
-                  onChange={(e) => setBillingEmail(e.target.value)}
+                  placeholder="billing@leapgym.com"
+                  value={supportEmail}
+                  onChange={(e) => setSupportEmail(e.target.value)}
                   required
                 />
               </div>
@@ -432,13 +461,18 @@ export default function HealthSettingsPage() {
                 </span>
               </div>
 
-              <div className="p-3 rounded-lg border border-[var(--platform-border-subtle)] bg-[var(--platform-canvas)] space-y-1 text-xs text-[var(--platform-text-secondary)]">
-                <span className="font-semibold text-[var(--platform-text-primary)]">
-                  Automated Dunning Retries:
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
+                  Reminder Days Before Suspension
+                </label>
+                <Input
+                  value={reminderDays}
+                  onChange={(e) => setReminderDays(e.target.value)}
+                  placeholder="3, 1"
+                />
+                <span className="text-[11px] text-[var(--platform-text-muted)] mt-1 block">
+                  Comma-separated days. Example: 3, 1 sends reminders three days and one day before the grace period ends.
                 </span>
-                <p className="text-[11px] text-[var(--platform-text-muted)]">
-                  Payment attempts are executed at Day 3 and Day 1 before grace period expiration.
-                </p>
               </div>
 
               <div className="pt-2 flex justify-end">
@@ -467,7 +501,21 @@ export default function HealthSettingsPage() {
         requireReason={false}
         loading={togglingMaintenance}
         onConfirm={handleToggleMaintenance}
-      />
+      >
+        {!maintenance.enabled && (
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
+              Public Notice
+            </label>
+            <Textarea
+              rows={3}
+              value={maintenanceMessage}
+              onChange={(e) => setMaintenanceMessage(e.target.value)}
+              placeholder="Scheduled system upgrades in progress."
+            />
+          </div>
+        )}
+      </ConfirmDialog>
     </div>
   );
 }

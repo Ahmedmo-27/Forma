@@ -116,7 +116,9 @@ export default function LedgerPage() {
           >
             <option value="">All Event Types</option>
             <option value="purchase">Purchase / Activation</option>
+            <option value="upgrade">Upgrade</option>
             <option value="refund">Refund / Credit</option>
+            <option value="revoke">Revoke</option>
             <option value="manual_grant">Complimentary Grant</option>
             <option value="price_change">Price Rule Modification</option>
           </Select>

@@ -130,7 +130,7 @@ async function getCostInsights(req, res) {
 
             const consumers = await Promise.all(
                 tenants.map(async (t) => {
-                    const storageBytes = getTenantStorageBytes(t._id);
+                    const storageBytes = await getTenantStorageBytes(t._id);
                     const whatsappMonthly = await AuditLog.countDocuments({
                         tenantId: t._id,
                         action: "whatsapp_template_sent",

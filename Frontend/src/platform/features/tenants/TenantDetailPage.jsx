@@ -34,6 +34,7 @@ import { Checkbox } from "../../ui/Checkbox";
 import { Skeleton } from "../../ui/Skeleton";
 import { ConfirmDialog } from "../../shell/ConfirmDialog";
 import TenantOverridesModal from "./TenantOverridesModal";
+import TenantFeatureEditor from "./TenantFeatureEditor";
 import { usePermission } from "../../lib/auth/PermissionContext";
 import { usePlatformAuth } from "../../lib/auth/AuthContext";
 import { formatCurrency, formatDate, formatBytes } from "../../lib/utils/formatters";
@@ -428,6 +429,7 @@ export default function TenantDetailPage() {
       <Tabs value={activeTab} onChange={setActiveTab}>
         <TabsList>
           <TabTrigger value="overview">Overview & Limits</TabTrigger>
+          <TabTrigger value="features">Features</TabTrigger>
           <TabTrigger value="notes" badge={notes.length}>
             Internal Notes
           </TabTrigger>
@@ -491,16 +493,26 @@ export default function TenantDetailPage() {
                   </div>
                 </div>
 
-                {canLifecycle && (
+                <div className="flex items-center gap-2">
                   <Button
                     size="xs"
                     variant="outline"
-                    onClick={() => setOverridesModalOpen(true)}
+                    onClick={() => setActiveTab("features")}
                   >
-                    <Sliders className="w-3.5 h-3.5 mr-1" />
-                    Customize Entitlements
+                    <Sparkles className="w-3.5 h-3.5 mr-1" />
+                    Edit features
                   </Button>
-                )}
+                  {canLifecycle && (
+                    <Button
+                      size="xs"
+                      variant="outline"
+                      onClick={() => setOverridesModalOpen(true)}
+                    >
+                      <Sliders className="w-3.5 h-3.5 mr-1" />
+                      Roles & limits
+                    </Button>
+                  )}
+                </div>
               </div>
 
               {/* Overrides Callout if present */}
@@ -586,6 +598,10 @@ export default function TenantDetailPage() {
               </div>
             </div>
           </div>
+        </TabContent>
+
+        <TabContent value="features">
+          <TenantFeatureEditor tenant={tenant} onSaved={refetch} />
         </TabContent>
 
         {/* TAB 2: INTERNAL NOTES */}

@@ -33,8 +33,8 @@ function TabItem({ item }) {
         <span
           style={{
             display: 'inline-flex', alignItems: 'center',
-            padding: '6px 18px', borderRadius: 7,
-            fontSize: 13, fontWeight: isActive ? 700 : 500,
+            padding: '10px 22px', borderRadius: 8,
+            fontSize: 14, fontWeight: isActive ? 700 : 500,
             color: isActive ? '#fff' : 'rgba(255,255,255,0.62)',
             background: isActive ? 'linear-gradient(135deg,#5B38BA,#6D47CC)' : 'rgba(0,0,0,0.22)',
             border: `1px solid ${isActive ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.08)'}`,
@@ -187,21 +187,21 @@ export default function Layout({ children }) {
         background: NAVBAR_BG,
         boxShadow: '0 2px 12px rgba(0,0,0,0.45)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, height: 72, padding: '0 24px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, height: 96, padding: '0 28px' }}>
 
           {/* Logo */}
-          <div onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexShrink: 0, marginRight: 8 }}>
+          <div onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', flexShrink: 0, marginRight: 12 }}>
             <div style={{
-              width: 42, height: 42, borderRadius: 11,
+              width: 68, height: 68, borderRadius: 16,
               background: 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
-              boxShadow: '0 3px 12px rgba(68,41,140,0.6)',
+              boxShadow: '0 4px 16px rgba(68,41,140,0.6)',
               overflow: 'hidden',
             }}>
-              <img key={logoUrl} src={logoUrl} alt={displayName} style={{ width: 34, height: 34, objectFit: 'contain' }} />
+              <img key={logoUrl} src={logoUrl} alt={displayName} style={{ width: 56, height: 56, objectFit: 'contain' }} />
             </div>
-            <span className="nav-logo-text" style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '2.5px', textTransform: 'uppercase' }}>{displayName}</span>
+            <span className="nav-logo-text" style={{ fontSize: 22, fontWeight: 900, color: '#fff', letterSpacing: '2.5px', textTransform: 'uppercase' }}>{displayName}</span>
           </div>
 
           {/* Search */}
@@ -227,11 +227,11 @@ export default function Layout({ children }) {
                 onMouseLeave={e => { if (!drop) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
               >
                 <div style={{
-                  width: 34, height: 34, borderRadius: '50%',
+                  width: 42, height: 42, borderRadius: '50%',
                   background: 'linear-gradient(135deg,#44298C,#5B38BA)',
                   border: '2px solid rgba(255,255,255,0.20)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 12, fontWeight: 800, color: '#fff', flexShrink: 0,
+                  fontSize: 14, fontWeight: 800, color: '#fff', flexShrink: 0,
                 }}>
                   {ini(user?.name)}
                 </div>
@@ -318,8 +318,8 @@ export default function Layout({ children }) {
       <div id="tab-nav-bar" style={{
         background: TAB_BG,
         borderTop: '1px solid rgba(255,255,255,0.06)',
-        padding: '0 24px 0 60px',
-        height: 48,
+        padding: '0 28px',
+        height: 64,
         display: 'flex', alignItems: 'center',
         gap: 6,
         overflowX: 'auto', scrollbarWidth: 'none',

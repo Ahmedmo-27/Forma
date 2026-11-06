@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   Button,
@@ -19,6 +19,16 @@ export default function CreatePlatformUserModal({ open, onOpenChange, onSaved })
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("support");
   const [reason, setReason] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setName("");
+    setEmail("");
+    setPassword("");
+    setRole("support");
+    setReason("");
+    setError(null);
+  }, [open]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

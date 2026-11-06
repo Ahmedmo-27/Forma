@@ -32,6 +32,15 @@ const loginSchema = z.object({
     password: z.string().min(1).max(200),
 });
 
+const setupPasswordSchema = z.object({
+    token: z.string().trim().min(20).max(200),
+    password: z.string().min(8).max(200),
+});
+
+const forgotPasswordSchema = z.object({
+    email: z.string().trim().email().max(200),
+});
+
 const createMemberSchema = z.object({
     name: z.string().trim().min(1).max(120),
     phones: z.string().trim().min(5).max(40),
@@ -312,6 +321,8 @@ const planPriceSchema = z.object({
 
 module.exports = {
     loginSchema,
+    setupPasswordSchema,
+    forgotPasswordSchema,
     createMemberSchema,
     freezeMemberSchema,
     addNoteSchema,

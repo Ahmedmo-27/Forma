@@ -7,6 +7,7 @@ export const Select = forwardRef(function Select(
     className = "",
     label,
     options = [],
+    children,
     error,
     helperText,
     required = false,
@@ -62,6 +63,7 @@ export const Select = forwardRef(function Select(
               </option>
             );
           })}
+          {children}
         </select>
 
         <div className="absolute right-2.5 pointer-events-none text-[var(--platform-text-muted)]">

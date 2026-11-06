@@ -106,7 +106,7 @@ export default function PaymentsInvoicesPage() {
   const pagination = invoicesResponse?.pagination || { total: 0, page: 1, limit: 15, totalPages: 1 };
 
   // Handle Approve Payment
-  const handleConfirmPayment = async (reason) => {
+  const handleConfirmPayment = async ({ reason }) => {
     if (!confirmPaymentTarget) return;
     setReviewing(true);
     try {
@@ -125,7 +125,7 @@ export default function PaymentsInvoicesPage() {
   };
 
   // Handle Reject Payment
-  const handleRejectPayment = async (reason) => {
+  const handleRejectPayment = async ({ reason }) => {
     if (!rejectPaymentTarget) return;
     setReviewing(true);
     try {

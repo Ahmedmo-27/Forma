@@ -120,7 +120,7 @@ export default function ProcessRefundModal({
 
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
-            Settlement Refund Amount ($) <span className="text-[var(--platform-danger)]">*</span>
+            Refund Amount <span className="text-[var(--platform-danger)]">*</span>
           </label>
           <Input
             type="number"

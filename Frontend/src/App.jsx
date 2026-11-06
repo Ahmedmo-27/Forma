@@ -8,6 +8,8 @@ import ErrorBoundary from './components/errors/ErrorBoundary';
 import GlobalErrorContainer from './components/errors/GlobalErrorContainer';
 
 import Login          from './pages/Login';
+import SetupPassword  from './pages/SetupPassword';
+import ForgotPassword from './pages/ForgotPassword';
 import Members        from './pages/Members';
 import MemberProfile  from './pages/member/MemberProfile';
 import SalesDashboard     from './pages/sales/SalesDashboard';
@@ -81,6 +83,8 @@ function TenantAppRoutes() {
     <Routes>
       <Route path="/"      element={<RootRedirect />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/auth/setup-password" element={<SetupPassword />} />
+      <Route path="/auth/forgot-password" element={<ForgotPassword />} />
 
       {/* Receptionist / Owner */}
       <Route path="/members" element={

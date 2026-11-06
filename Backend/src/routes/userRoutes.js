@@ -31,7 +31,8 @@ const {
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 const loginLimiter = require("../middleware/loginLimiter");
 const validate = require("../middleware/validate");
-const { loginSchema, createStaffSchema } = require("../validation/schemas");
+const { loginSchema, createStaffSchema, setupPasswordSchema, forgotPasswordSchema } = require("../validation/schemas");
+const { setupPassword, forgotPassword } = require("../controllers/passwordSetupController");
 const { enforceStaffLimit, enforceSubscriptionStatus } = require("../middleware/tenantStatus");
 const { requireFeature } = require("../middleware/featureGating");
 const { cacheResponse } = require("../middleware/apiCache");
@@ -39,6 +40,8 @@ const { autoInvalidate } = require("../utils/cacheInvalidator");
 
 // Public auth — rate limited + validated
 router.post("/login", loginLimiter, validate(loginSchema), loginUser);
+router.post("/setup-password", loginLimiter, validate(setupPasswordSchema), setupPassword);
+router.post("/forgot-password", loginLimiter, validate(forgotPasswordSchema), forgotPassword);
 
 router.use(protect);
 router.use(enforceSubscriptionStatus);
@@ -72,8 +75,8 @@ router.patch("/:id/mobile", protect, authorizeRoles("Sales Manager", "Owner"), a
 router.patch("/:id/reset-password", protect, authorizeRoles("Sales Manager", "Owner"), autoInvalidate(["users"]), resetUserPassword);
 router.get("/receptionist-team", protect, authorizeRoles("Sales Manager", "Owner", "Accountant"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getReceptionistTeam);
 router.get("/changerole/:id/:new_role", protect, authorizeRoles("Owner"), autoInvalidate(["users"]), change_Role);
-router.get("/:id", protect, authorizeRoles("Sales Manager", "Owner", "Accountant"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getUserById);
 router.get("/allTeams", protect, authorizeRoles("Owner"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getTeamsPage);
+router.get("/:id", protect, authorizeRoles("Sales Manager", "Owner", "Accountant"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getUserById);
 
 
 module.exports = router;

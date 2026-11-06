@@ -7,33 +7,43 @@ import { Input } from "../ui/Input";
 
 export function ConfirmDialog({
   isOpen,
+  open,
   onClose,
+  onOpenChange,
   onConfirm, // async ({ reason, typedSlug }) => void
   title = "Confirm Operation",
   description,
   impactSummary,
-  confirmLabel = "Confirm Action",
+  confirmLabel,
+  confirmText,
   variant = "danger", // "danger" | "warning" | "primary"
   requireReason = true,
   reasonPlaceholder = "Provide the audit justification for this governance action...",
   typedSlugMatch = null, // e.g. "titan-fitness" (if purge requires exact slug)
   loading = false,
+  children,
 }) {
   const [reason, setReason] = useState("");
   const [typedSlug, setTypedSlug] = useState("");
   const [error, setError] = useState("");
+  const visible = Boolean(isOpen ?? open);
 
   useEffect(() => {
-    if (isOpen) {
+    if (visible) {
       setReason("");
       setTypedSlug("");
       setError("");
     }
-  }, [isOpen]);
-
+  }, [visible]);
+  const label = confirmLabel || confirmText || "Confirm Action";
   const isSlugValid = !typedSlugMatch || typedSlug.trim().toLowerCase() === typedSlugMatch.toLowerCase();
   const isReasonValid = !requireReason || reason.trim().length >= 3;
   const canSubmit = isSlugValid && isReasonValid;
+
+  const requestClose = () => {
+    onClose?.();
+    onOpenChange?.(false);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -51,14 +61,14 @@ export function ConfirmDialog({
 
   return (
     <Dialog
-      isOpen={isOpen}
-      onClose={onClose}
+      isOpen={visible}
+      onClose={requestClose}
       title={title}
       description={description}
       size="md"
       footer={
         <>
-          <Button variant="ghost" disabled={loading} onClick={onClose}>
+          <Button variant="ghost" disabled={loading} onClick={requestClose}>
             Cancel
           </Button>
           <Button
@@ -67,7 +77,7 @@ export function ConfirmDialog({
             disabled={!canSubmit || loading}
             onClick={handleSubmit}
           >
-            {confirmLabel}
+            {label}
           </Button>
         </>
       }
@@ -103,6 +113,8 @@ export function ConfirmDialog({
             />
           </div>
         )}
+
+        {children}
 
         {/* Mandatory Reason Field */}
         {requireReason && (

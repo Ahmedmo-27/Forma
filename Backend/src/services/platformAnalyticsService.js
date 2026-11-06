@@ -110,7 +110,7 @@ async function computeDailySnapshot(date = new Date()) {
             }
 
             // Storage & Fair Use
-            const bytes = getTenantStorageBytes(t._id);
+            const bytes = await getTenantStorageBytes(t._id);
             totalStorageBytes += bytes;
 
             if (cycle === "lifetime") {

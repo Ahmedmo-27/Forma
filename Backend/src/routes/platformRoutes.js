@@ -144,7 +144,7 @@ router.patch("/features/:id", requirePlatformPermission(PERMISSIONS.FEATURES_MAN
 router.get("/plans", requirePlatformPermission(PERMISSIONS.TENANTS_READ), cacheResponse({ ttlSeconds: 600, scope: "platform", tags: ["platform:plans"] }), getPlans);
 router.post("/plans", requirePlatformPermission(PERMISSIONS.PLANS_MANAGE), autoInvalidate(["plans"], "platform"), createPlan);
 router.post("/plans/:id/impact-preview", requirePlatformPermission(PERMISSIONS.PLANS_MANAGE), getPlanImpactPreview);
-router.patch("/plans/:id", requirePlatformPermission(PERMISSIONS.PLANS_MANAGE), autoInvalidate(["plans"], "platform"), updatePlan);
+router.patch("/plans/:id", requirePlatformPermission(PERMISSIONS.PLANS_MANAGE), autoInvalidate(["plans", "tenants"], "platform"), updatePlan);
 router.post("/plans/:id/archive", requirePlatformPermission(PERMISSIONS.PLANS_MANAGE), autoInvalidate(["plans"], "platform"), archivePlan);
 
 // Pricing Tiers & Lifetime Seat Caps

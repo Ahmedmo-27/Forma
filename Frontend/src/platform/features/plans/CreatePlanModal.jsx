@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Dialog,
   Button,
@@ -44,7 +44,7 @@ export default function CreatePlanModal({
   const [visibility, setVisibility] = useState(planToEdit?.visibility || "public");
   const [priceMonthly, setPriceMonthly] = useState(planToEdit?.priceMonthly ?? 49);
   const [priceYearly, setPriceYearly] = useState(planToEdit?.priceYearly ?? 490);
-  const [currency, setCurrency] = useState(planToEdit?.currency || "USD");
+  const [currency, setCurrency] = useState(planToEdit?.currency || "EGP");
 
   // Limits
   const [maxMembers, setMaxMembers] = useState(planToEdit?.limits?.maxMembers ?? 500);
@@ -64,6 +64,29 @@ export default function CreatePlanModal({
   const [selectedRoles, setSelectedRoles] = useState(
     planToEdit?.allowedRoles ? [...planToEdit.allowedRoles] : ["Owner", "Receptionist", "Coach", "Coach Manager"]
   );
+
+  useEffect(() => {
+    if (!open) return;
+    setKey(planToEdit?.key || "");
+    setName(planToEdit?.name || "");
+    setDescription(planToEdit?.description || "");
+    setVisibility(planToEdit?.visibility || "public");
+    setPriceMonthly(planToEdit?.priceMonthly ?? 49);
+    setPriceYearly(planToEdit?.priceYearly ?? 490);
+    setCurrency(planToEdit?.currency || "EGP");
+    setMaxMembers(planToEdit?.limits?.maxMembers ?? 500);
+    setStaffLimit(planToEdit?.limits?.maxStaff ?? 10);
+    setBranchesLimit(planToEdit?.limits?.maxBranches ?? 1);
+    setStorageGb(planToEdit?.fairUseCaps?.storageGb ?? 25);
+    setWhatsappMonthly(planToEdit?.fairUseCaps?.whatsappMessagesMonthly ?? 2000);
+    setSelectedFeatures(planToEdit?.features ? [...planToEdit.features] : []);
+    setSelectedRoles(
+      planToEdit?.allowedRoles
+        ? [...planToEdit.allowedRoles]
+        : ["Owner", "Receptionist", "Coach", "Coach Manager"]
+    );
+    setError(null);
+  }, [open, planToEdit]);
 
   const toggleFeature = (featKey) => {
     setSelectedFeatures((prev) =>
@@ -241,7 +264,7 @@ export default function CreatePlanModal({
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs text-[var(--platform-text-secondary)] mb-1">
-                  Monthly ($)
+                  Monthly price
                 </label>
                 <Input
                   type="number"
@@ -254,7 +277,7 @@ export default function CreatePlanModal({
               </div>
               <div>
                 <label className="block text-xs text-[var(--platform-text-secondary)] mb-1">
-                  Yearly ($)
+                  Yearly price
                 </label>
                 <Input
                   type="number"

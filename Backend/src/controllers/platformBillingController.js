@@ -9,6 +9,8 @@ const invoiceService = require("../services/invoiceService");
 const { runAsPlatform } = require("../context/tenantContext");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const logger = require("../utils/logger");
+const User = require("../models/User");
+const mailer = require("../services/mailer");
 
 // ==========================================
 // 1. Manual Payments Inbox
@@ -116,6 +118,24 @@ async function confirmPayment(req, res) {
             payment.reviewedBy = req.platformUser.id;
             payment.reviewedAt = new Date();
             await payment.save();
+
+            try {
+                let ownerEmail = invoice.buyerDetails?.ownerEmail;
+                if (!ownerEmail && tenant.ownerUserId) {
+                    const ownerId = tenant.ownerUserId._id || tenant.ownerUserId;
+                    const owner = await User.findById(ownerId).select("email");
+                    ownerEmail = owner?.email;
+                }
+                if (ownerEmail) {
+                    await mailer.sendInvoiceEmail({
+                        to: ownerEmail,
+                        invoiceNumber: invoice.invoiceNumber,
+                        html: invoiceService.renderInvoiceHtml(invoice),
+                    });
+                }
+            } catch (mailErr) {
+                logger.warn("platform", "Invoice email failed", { error: mailErr.message });
+            }
 
             res.json({
                 message: "Payment confirmed and invoice issued successfully",

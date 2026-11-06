@@ -11,6 +11,8 @@ import {
     updateTenantLifecycle,
     bulkTenantActions,
 } from "../controllers/platformTenantController";
+import mailer from "../services/mailer";
+import PasswordSetupToken from "../models/PasswordSetupToken";
 
 describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
     const adminUser = {
@@ -97,6 +99,9 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
             vi.spyOn(Tenant, "create").mockResolvedValue(mockTenant);
             vi.spyOn(User, "create").mockResolvedValue(mockOwner);
             vi.spyOn(AuditLog, "create").mockResolvedValue({});
+            vi.spyOn(PasswordSetupToken, "updateMany").mockResolvedValue({});
+            vi.spyOn(PasswordSetupToken, "create").mockResolvedValue({});
+            vi.spyOn(mailer, "sendInvite").mockResolvedValue({ skipped: true });
 
             const req = {
                 body: {
@@ -132,6 +137,17 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
                     actor: adminUser.id,
                 })
             );
+            expect(PasswordSetupToken.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    userId: mockOwner._id,
+                    tenantId: mockTenant._id,
+                    email: mockOwner.email,
+                    purpose: "invite",
+                    tokenHash: expect.any(String),
+                })
+            );
+            const stored = PasswordSetupToken.create.mock.calls[0][0];
+            expect(stored.tokenHash).not.toBe(res.json.mock.calls[0][0].invite.inviteToken);
         });
     });
 

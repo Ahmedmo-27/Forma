@@ -10,6 +10,7 @@ export const Checkbox = forwardRef(function Checkbox(
     checked = false,
     indeterminate = false,
     onChange,
+    onCheckedChange,
     disabled = false,
     id,
     ...props
@@ -41,7 +42,12 @@ export const Checkbox = forwardRef(function Checkbox(
           type="checkbox"
           checked={checked}
           disabled={disabled}
-          onChange={(e) => !disabled && onChange?.(e.target.checked)}
+          onChange={(e) => {
+            if (disabled) return;
+            const next = e.target.checked;
+            onChange?.(next);
+            onCheckedChange?.(next);
+          }}
           className="sr-only"
           {...props}
         />
