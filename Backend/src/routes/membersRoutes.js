@@ -128,9 +128,9 @@ router.patch("/:memberId/freeze", ...freezeAccess, validate(freezeMemberSchema),
 router.patch("/:memberId/block", protect, authorize("Sales Manager"), autoInvalidate(["members"]), blockMember);
 router.patch("/:memberId/unblock", protect, authorize("Sales Manager"), autoInvalidate(["members"]), unblockMember);
 router.post("/:memberId/package", protect, authorize("Accountant", "Owner"), requireFeature("packages"), validate(assignPackageSchema), autoInvalidate(["members", "revenue", "contracts"]), assignPackage);
-router.patch("/:memberId/national-id", protect, authorize("Accountant"), uploadLimiter, uploadSingle("nationalIdFile"), autoInvalidate(["members"]), uploadNationalId);
-router.patch("/:memberId/photo", protect, authorize("Accountant"), uploadLimiter, uploadSinglePhoto("photoFile"), autoInvalidate(["members"]), uploadProfilePhoto);
-router.delete("/:memberId/photo", protect, authorize("Accountant"), uploadLimiter, autoInvalidate(["members"]), deleteProfilePhoto);
+router.patch("/:memberId/national-id", protect, authorize("Accountant", "Owner"), uploadLimiter, uploadSingle("nationalIdFile"), autoInvalidate(["members"]), uploadNationalId);
+router.patch("/:memberId/photo", protect, authorize("Accountant", "Owner", "Receptionist"), uploadLimiter, uploadSinglePhoto("photoFile"), autoInvalidate(["members"]), uploadProfilePhoto);
+router.delete("/:memberId/photo", protect, authorize("Accountant", "Owner", "Receptionist"), uploadLimiter, autoInvalidate(["members"]), deleteProfilePhoto);
 
 router.post("/PTcheckin", protect, authorizeRoles("Coach", "Coach Manager"), requireFeature("pt_tracking"), autoInvalidate(["members", "coach-transfers"]), sessionCheckIn_for_couch);
 

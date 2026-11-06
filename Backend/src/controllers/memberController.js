@@ -1,5 +1,6 @@
 const fs = require("fs");
 const path = require("path");
+const storageService = require("../services/storageService");
 const Member = require("../models/Member");
 const Package = require("../models/Package");
 const User = require("../models/User");
@@ -1377,8 +1378,8 @@ const assignPackage = async (req, res) => {
 // ─── Upload National ID (Accountant only) ─────────────────────────────────────
 const uploadNationalId = async (req, res) => {
     try {
-        if (req.user.role !== "Accountant") {
-            return res.status(403).json({ message: "Only accountants can upload national IDs" });
+        if (!["Accountant", "Owner"].includes(req.user.role)) {
+            return res.status(403).json({ message: "Only accountants and owners can upload national IDs" });
         }
 
         const identifier = req.params.memberId;
@@ -1400,6 +1401,10 @@ const uploadNationalId = async (req, res) => {
             return res.status(err.statusCode || 400).json({ message: err.message });
         }
 
+        if (member.nationalId) {
+            await storageService.deleteFile(member.tenantId || req.user.tenantId, member.nationalId);
+        }
+
         member.nationalId = idFileName;
         await member.save();
 
@@ -1411,8 +1416,8 @@ const uploadNationalId = async (req, res) => {
 
 const uploadProfilePhoto = async (req, res) => {
     try {
-        if (!["Receptionist", "Accountant"].includes(req.user.role)) {
-            return res.status(403).json({ message: "Only receptionists and accountants can upload profile photos" });
+        if (!["Receptionist", "Accountant", "Owner"].includes(req.user.role)) {
+            return res.status(403).json({ message: "Only receptionists, accountants, and owners can upload profile photos" });
         }
 
         const identifier = req.params.memberId;
@@ -1436,9 +1441,7 @@ const uploadProfilePhoto = async (req, res) => {
 
         // Remove previous photo file if present
         if (member.photo) {
-            const oldName = path.basename(member.photo);
-            const oldPath = path.join(__dirname, "../../uploads", oldName);
-            fs.unlink(oldPath, () => {});
+            await storageService.deleteFile(member.tenantId || req.user.tenantId, member.photo);
         }
 
         member.photo = photoFileName;
@@ -1463,6 +1466,10 @@ const uploadProfilePhoto = async (req, res) => {
 
 const deleteProfilePhoto = async (req, res) => {
     try {
+        if (!["Receptionist", "Accountant", "Owner"].includes(req.user.role)) {
+            return res.status(403).json({ message: "Only receptionists, accountants, and owners can delete profile photos" });
+        }
+
         const member = await findMemberByIdentifier(req.params.memberId);
         if (!member) {
             return res.status(404).json({ message: "Member not found" });
@@ -1475,8 +1482,7 @@ const deleteProfilePhoto = async (req, res) => {
         member.photo = null;
         await member.save();
 
-        const photoPath = path.join(__dirname, "../../uploads", photoName);
-        fs.unlink(photoPath, () => {});
+        await storageService.deleteFile(member.tenantId || req.user.tenantId, photoName);
 
         await writeAudit({
             action: "member_photo_deleted",

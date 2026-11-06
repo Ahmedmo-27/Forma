@@ -15,7 +15,8 @@
     "migrate:multitenant": "node src/scripts/migrateToMultitenant.js",
     "migrate:lifetime": "node src/scripts/migrateAddLifetimeBilling.js",
     "migrate:indexes": "node src/scripts/migrateIndexes.js",
-    "migrate:uploads": "node src/scripts/migrateUploads.js"
+    "migrate:uploads": "node src/scripts/migrateUploads.js",
+    "clean:photos": "node src/scripts/cleanMissingPhotos.js"
   },
   "keywords": [],
   "author": "",

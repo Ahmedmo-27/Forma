@@ -197,28 +197,17 @@ app.get(
             return res.status(400).json({ message: "Invalid filename" });
         }
 
-        // Check tenant directory first, fallback to root uploads for unmigrated legacy files
-        let filePath = req.user?.tenantId
-            ? path.resolve(storageService.getTenantDir(req.user.tenantId), safe)
-            : path.resolve(uploadsDir, safe);
-
-        if (!fs.existsSync(filePath)) {
-            // Fallback check in root uploadsDir
-            const fallbackPath = path.resolve(uploadsDir, safe);
-            if (fs.existsSync(fallbackPath) && path.dirname(fallbackPath) === uploadsDir) {
-                filePath = fallbackPath;
-            } else {
-                return res.status(404).json({ message: "File not found" });
-            }
-        }
-
         // Check if file is a tenant logo
         if (safe.startsWith("logo-") || (req.tenant?.settings?.branding?.logoKey && req.tenant.settings.branding.logoKey.includes(safe))) {
-            const mime = await detectMimeFromFile(filePath);
+            const logoResult = storageService.findFile(safe, [req.tenant?._id, req.user?.tenantId]);
+            if (!logoResult.found) {
+                return res.status(404).json({ message: "File not found" });
+            }
+            const mime = await detectMimeFromFile(logoResult.filePath);
             if (!mime) return res.status(404).json({ message: "File not found" });
             res.setHeader("Content-Type", mime);
             res.setHeader("X-Content-Type-Options", "nosniff");
-            return res.sendFile(filePath);
+            return res.sendFile(logoResult.filePath);
         }
 
         const member = await Member.findOne({
@@ -236,6 +225,20 @@ app.get(
             return res.status(404).json({ message: "File not found" });
         }
 
+        // Find file across tenant directory and legacy root uploads folder
+        const fileResult = storageService.findFile(safe, [member.tenantId, req.user?.tenantId]);
+        if (!fileResult.found) {
+            // Self-healing: if physical photo was wiped from local disk (e.g. Render restart),
+            // clean up the stale DB reference so future member list queries do not 404 repeatedly.
+            if (uploadType === "profile_photo" && member.photo === safe) {
+                try {
+                    await Member.updateOne({ _id: member._id }, { $set: { photo: null } });
+                } catch (_) {}
+            }
+            return res.status(404).json({ message: "File not found" });
+        }
+
+        const filePath = fileResult.filePath;
         const mime = await detectMimeFromFile(filePath);
         if (!mime || !MIME_TO_EXT[mime]?.some((ext) => safe.toLowerCase().endsWith(ext))) {
             return res.status(404).json({ message: "File not found" });

@@ -2,14 +2,32 @@ const path = require("path");
 const fs = require("fs");
 const fsPromises = require("fs").promises;
 
-const BASE_UPLOADS_DIR = path.resolve(__dirname, "../../uploads");
+const BASE_UPLOADS_DIR = process.env.UPLOADS_DIR
+    ? path.resolve(process.cwd(), process.env.UPLOADS_DIR)
+    : path.resolve(__dirname, "../../uploads");
 
 class StorageService {
     constructor(baseDir = BASE_UPLOADS_DIR) {
         this.baseDir = baseDir;
+        this.driver = (process.env.STORAGE_DRIVER || "local").toLowerCase();
+        this.r2Configured = Boolean(
+            process.env.R2_BUCKET_NAME ||
+            process.env.AWS_S3_BUCKET ||
+            (process.env.STORAGE_DRIVER === "r2")
+        );
+
         if (!fs.existsSync(this.baseDir)) {
-            fs.mkdirSync(this.baseDir, { recursive: true });
+            try {
+                fs.mkdirSync(this.baseDir, { recursive: true });
+            } catch (_) {}
         }
+    }
+
+    /**
+     * Active storage driver name ('local' | 'r2' | 's3').
+     */
+    getDriverName() {
+        return this.driver;
     }
 
     /**
@@ -49,12 +67,50 @@ class StorageService {
      */
     async exists(tenantId, filename) {
         try {
-            const filePath = this.resolvePath(tenantId, filename);
-            await fsPromises.access(filePath, fs.constants.F_OK);
-            return true;
+            const result = this.findFile(filename, [tenantId]);
+            return result.found;
         } catch {
             return false;
         }
+    }
+
+    /**
+     * Search for a file across tenant directory and legacy root uploads folder.
+     * @param {string} filename - Filename to locate
+     * @param {Array<string>|string} tenantCandidates - Candidate tenant ID(s)
+     * @returns {{ found: boolean, filePath: string | null, tenantId: string | null }}
+     */
+    findFile(filename, tenantCandidates = []) {
+        if (!filename) return { found: false, filePath: null, tenantId: null };
+        const safe = path.basename(filename);
+        if (safe !== filename || safe.includes("..")) {
+            return { found: false, filePath: null, tenantId: null };
+        }
+
+        const candidates = (Array.isArray(tenantCandidates) ? tenantCandidates : [tenantCandidates])
+            .filter(Boolean)
+            .map(String);
+
+        // 1. Check candidate tenant directories first
+        for (const tId of candidates) {
+            try {
+                const tenantDir = path.join(this.baseDir, tId);
+                const candidatePath = path.resolve(tenantDir, safe);
+                if (candidatePath.startsWith(tenantDir) && fs.existsSync(candidatePath)) {
+                    return { found: true, filePath: candidatePath, tenantId: tId };
+                }
+            } catch (_) {}
+        }
+
+        // 2. Check root uploadsDir for unmigrated flat legacy files
+        try {
+            const rootPath = path.resolve(this.baseDir, safe);
+            if (path.dirname(rootPath) === this.baseDir && fs.existsSync(rootPath)) {
+                return { found: true, filePath: rootPath, tenantId: null };
+            }
+        } catch (_) {}
+
+        return { found: false, filePath: null, tenantId: null };
     }
 
     /**
@@ -68,25 +124,41 @@ class StorageService {
     }
 
     /**
-     * Delete a tenant-scoped file.
+     * Delete a tenant-scoped file from tenant storage and legacy root directory.
      */
     async deleteFile(tenantId, filename) {
-        try {
-            const filePath = this.resolvePath(tenantId, filename);
-            await fsPromises.unlink(filePath);
-            return true;
-        } catch {
-            return false;
+        if (!filename) return false;
+        const safe = path.basename(filename);
+        let deleted = false;
+
+        // Delete from tenant dir
+        if (tenantId) {
+            try {
+                const filePath = this.resolvePath(tenantId, safe);
+                await fsPromises.unlink(filePath);
+                deleted = true;
+            } catch (_) {}
         }
+
+        // Also clean up root uploads directory if an unmigrated copy exists
+        try {
+            const rootPath = path.resolve(this.baseDir, safe);
+            if (path.dirname(rootPath) === this.baseDir && fs.existsSync(rootPath)) {
+                await fsPromises.unlink(rootPath);
+                deleted = true;
+            }
+        } catch (_) {}
+
+        return deleted;
     }
 
     /**
-     * Generate access URL (returns relative /uploads URL locally;
-     * ready for short-lived S3/R2 signed URLs).
+     * Generate access URL (returns relative /uploads URL for local storage;
+     * ready for short-lived S3/R2 signed URLs once R2 credentials are provided).
      */
     async getSignedUrl(tenantId, filename, _expiresInSeconds = 3600) {
         const safe = path.basename(filename);
-        return `/uploads/${safe}`;
+        return `/uploads/${encodeURIComponent(safe)}`;
     }
 }
 

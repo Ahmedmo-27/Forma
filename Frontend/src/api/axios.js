@@ -26,6 +26,7 @@ export async function fetchProtectedUploadBlobUrl(filename) {
   const name = String(filename).split(/[/\\]/).pop();
   const res = await api.get(`${apiOrigin}/uploads/${encodeURIComponent(name)}`, {
     responseType: "blob",
+    skipGlobalError: true,
   });
   return URL.createObjectURL(res.data);
 }
