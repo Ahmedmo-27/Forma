@@ -4,6 +4,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Input, Btn, Spinner } from '../../components/ui';
 import { createStaffUser } from '../../api/endpoints';
+import { isValidEmail, isValidPhone } from '../../lib/validation';
 
 const INIT = { name: '', email: '', mobile_number: '', password: '', role: 'Coach' };
 
@@ -17,10 +18,36 @@ export default function CoachStaff() {
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim()) e.name = 'Name is required';
-    if (!form.email.trim()) e.email = 'Email is required';
-    if (!form.mobile_number.trim()) e.mobile_number = 'Mobile number is required';
-    if (!form.password || form.password.length < 6) e.password = 'Password must be at least 6 characters';
+    const nameTrim = form.name.trim();
+    const emailTrim = form.email.trim();
+    const mobileTrim = form.mobile_number.trim();
+
+    if (!nameTrim) {
+      e.name = 'Name is required';
+    } else if (nameTrim.length > 120) {
+      e.name = 'Name must not exceed 120 characters';
+    }
+
+    if (!emailTrim) {
+      e.email = 'Email is required';
+    } else if (!isValidEmail(emailTrim)) {
+      e.email = 'Enter a valid email address';
+    }
+
+    if (!mobileTrim) {
+      e.mobile_number = 'Mobile number is required';
+    } else if (!isValidPhone(mobileTrim)) {
+      e.mobile_number = 'Enter a valid mobile phone number (5–40 characters)';
+    }
+
+    if (!form.password) {
+      e.password = 'Password is required';
+    } else if (form.password.length < 8) {
+      e.password = 'Password must be at least 8 characters';
+    } else if (form.password.length > 200) {
+      e.password = 'Password must not exceed 200 characters';
+    }
+
     setErrors(e);
     return !Object.keys(e).length;
   };

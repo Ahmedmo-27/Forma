@@ -14,10 +14,12 @@ export default function AlertsTab({ member, user, onRefresh }) {
   const inactiveAlerts = alerts.filter(a => !a?.active);
 
   const handleAdd = async () => {
-    if (!text.trim()) { toast.error('Alert text is required'); return; }
+    const trimmed = text.trim();
+    if (!trimmed) { toast.error('Alert text is required'); return; }
+    if (trimmed.length > 2000) { toast.error('Alert text must not exceed 2000 characters'); return; }
     setAdding(true);
     try {
-      await addAlert(member.systemId, text.trim());
+      await addAlert(member.systemId, trimmed);
       toast.success('Alert added');
       setText('');
       onRefresh();

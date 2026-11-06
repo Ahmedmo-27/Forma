@@ -127,8 +127,13 @@ export default function Transfer() {
 
   const handleQuickTransfer = async (e) => {
     e.preventDefault();
-    if (!quickId.trim()) {
+    const trimmedId = quickId.trim();
+    if (!trimmedId) {
       toast.error('Enter a member system ID');
+      return;
+    }
+    if (trimmedId.length > 40) {
+      toast.error('Invalid member system ID length');
       return;
     }
     if (!quickTo) {
@@ -137,7 +142,7 @@ export default function Transfer() {
     }
     setQuickLoading(true);
     try {
-      await switchSalesRep(quickId.trim(), quickTo);
+      await switchSalesRep(trimmedId, quickTo);
       toast.success('Member transferred successfully');
       setQuickId('');
       fetchMembers();

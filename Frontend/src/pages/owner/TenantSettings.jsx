@@ -9,6 +9,7 @@ import {
 } from '../../components/ui';
 import LifetimeCheckoutModal from '../../components/billing/LifetimeCheckoutModal';
 import LifetimeUpgradeModal from '../../components/billing/LifetimeUpgradeModal';
+import { isValidHexColor, validateFile } from '../../lib/validation';
 
 const KNOWN_ACTIVITIES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 
@@ -65,18 +66,43 @@ export default function TenantSettings() {
 
   const handleSaveSettings = async (e) => {
     e?.preventDefault();
+
+    if (displayName && displayName.trim().length > 120) {
+      toast.error('Gym display name must not exceed 120 characters');
+      return;
+    }
+
+    if (palette) {
+      for (const [key, color] of Object.entries(palette)) {
+        if (color && !isValidHexColor(color)) {
+          toast.error(`Invalid hex color format for ${key}: ${color}`);
+          return;
+        }
+      }
+    }
+
+    if (currency && currency.trim().length > 10) {
+      toast.error('Currency code must not exceed 10 characters');
+      return;
+    }
+
+    if (timezone && timezone.trim().length > 100) {
+      toast.error('Timezone must not exceed 100 characters');
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
         settings: {
           branding: {
-            displayName,
+            displayName: displayName.trim() || undefined,
             palette,
           },
           locale: {
-            currency,
-            timezone,
-            language,
+            currency: currency.trim() || 'EGP',
+            timezone: timezone.trim() || 'Africa/Cairo',
+            language: language.trim() || 'en',
           },
           enabledActivities: activities,
         },
@@ -84,11 +110,11 @@ export default function TenantSettings() {
 
       if (waPhoneId || waAccountId || waToken) {
         payload.settings.whatsapp = {
-          phoneNumberId: waPhoneId,
-          businessAccountId: waAccountId,
+          phoneNumberId: waPhoneId.trim() || undefined,
+          businessAccountId: waAccountId.trim() || undefined,
         };
         if (waToken) {
-          payload.settings.whatsapp.accessToken = waToken;
+          payload.settings.whatsapp.accessToken = waToken.trim();
         }
       }
 
@@ -107,6 +133,13 @@ export default function TenantSettings() {
   const handleLogoUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const check = validateFile(file, { maxSizeMB: 2, allowedMimePrefixes: ['image/'] });
+    if (!check.valid) {
+      toast.error(check.error);
+      e.target.value = '';
+      return;
+    }
 
     const fd = new FormData();
     fd.append('logo', file);

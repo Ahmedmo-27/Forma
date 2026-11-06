@@ -81,10 +81,17 @@ export default function CoachCheckin() {
   // Check-in
   const handleCheckIn = async () => {
     if (!member) return;
+    const payload = { memberId: String(member.systemId) };
+    if (isManager) {
+      const s = Number(sessions);
+      if (!s || s <= 0 || !Number.isInteger(s)) {
+        toast.error('Number of sessions must be a positive whole number');
+        return;
+      }
+      payload.numberOfSessions = s;
+    }
     setChecking(true); setResult(null);
     try {
-      const payload = { memberId: String(member.systemId) };
-      if (isManager) payload.numberOfSessions = Number(sessions);
       const res = await api.post('/members/PTcheckin', payload);
       setResult({ ok: true, msg: res.data.message });
       toast.success(res.data.message);

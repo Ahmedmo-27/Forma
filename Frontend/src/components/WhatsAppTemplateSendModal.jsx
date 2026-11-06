@@ -235,8 +235,13 @@ export default function WhatsAppTemplateSendModal({ open, onClose, phone, member
   };
 
   const handleSend = async () => {
-    if (!message.trim()) {
+    const trimmedMsg = message.trim();
+    if (!trimmedMsg) {
       toast.error('Please write or choose a message first');
+      return;
+    }
+    if (trimmedMsg.length > 4000) {
+      toast.error('Message content must not exceed 4000 characters');
       return;
     }
     if (selectedTemplate?.type === 'discounts') {
@@ -244,8 +249,9 @@ export default function WhatsAppTemplateSendModal({ open, onClose, phone, member
         toast.error('Choose which package the discount is for');
         return;
       }
-      if (!(Number(discountPercent) > 0)) {
-        toast.error('Enter the discount percentage');
+      const dp = Number(discountPercent);
+      if (isNaN(dp) || dp <= 0 || dp > 100) {
+        toast.error('Enter a valid discount percentage between 1 and 100');
         return;
       }
     }

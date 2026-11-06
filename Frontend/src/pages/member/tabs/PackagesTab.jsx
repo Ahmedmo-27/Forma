@@ -77,10 +77,12 @@ function PTSessionsContent({ member, user, onRefresh }) {
 
   const handleAdd = async () => {
     const num = Number(sessions);
-    if (!num || num <= 0) { toast.error('Enter a valid number of sessions'); return; }
+    if (!num || num <= 0 || !Number.isInteger(num)) { toast.error('Enter a valid whole number of sessions'); return; }
     const months = Number(durationMonths);
     if (!months || months <= 0) { toast.error('Enter a valid duration in months'); return; }
-    if (!startDate) { toast.error('Start date is required'); return; }
+    if (!startDate || isNaN(Date.parse(startDate))) { toast.error('Valid start date is required'); return; }
+    const paid = Number(pricePaid);
+    if (pricePaid !== '' && (isNaN(paid) || paid < 0)) { toast.error('Price paid must be a non-negative number'); return; }
     setLoading(true);
     try {
       await addPTSessions(member.systemId ?? member._id, {
@@ -103,6 +105,12 @@ function PTSessionsContent({ member, user, onRefresh }) {
   const handlePTRefund = async () => {
     const amount = Number(ptRefundAmount);
     if (!amount || amount <= 0) { toast.error('Enter a valid refund amount'); return; }
+    const lastPTSub = member.pt_subscriptions?.at(-1);
+    const maxRefund = (lastPTSub?.pricePaid ?? 0) - (lastPTSub?.refundAmount ?? 0);
+    if (amount > maxRefund) {
+      toast.error(`Refund amount cannot exceed maximum refundable (EGP ${maxRefund})`);
+      return;
+    }
     setPTRefunding(true);
     try {
       const res = await refundPTSessions(member._id, amount, ptRefundReason.trim() || undefined);
@@ -353,6 +361,12 @@ function PackagesContent({ member, user, onRefresh }) {
   const handleRefundPackage = async () => {
     const amount = Number(refundAmount);
     if (!amount || amount <= 0) { toast.error('Enter a valid refund amount'); return; }
+    const lastSub = member.subscriptions?.at(-1);
+    const maxRefund = (lastSub?.pricePaid ?? 0) - (lastSub?.refundAmount ?? 0);
+    if (amount > maxRefund) {
+      toast.error(`Refund amount cannot exceed maximum refundable (EGP ${maxRefund})`);
+      return;
+    }
     setRefunding(true);
     try {
       const res = await refundMember(member._id, amount, refundReason.trim() || undefined);
@@ -823,6 +837,23 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
 
   const handleSalesManagerSubmit = async () => {
     if (!form.basePackageId) { toast.error('Select a package.'); return; }
+    if (!form.name?.trim()) { toast.error('Package name is required.'); return; }
+    if (form.pricePaid === '' || form.pricePaid == null || isNaN(Number(form.pricePaid)) || Number(form.pricePaid) < 0) {
+      toast.error('Price paid must be a non-negative number.');
+      return;
+    }
+    if (form.discountPercent !== '' && (Number(form.discountPercent) < 0 || Number(form.discountPercent) > 100)) {
+      toast.error('Discount percent must be between 0 and 100.');
+      return;
+    }
+    if (form.startDate && isNaN(Date.parse(form.startDate))) {
+      toast.error('Invalid start date.');
+      return;
+    }
+    if (makeException && !form.reason?.trim()) {
+      toast.error('Please enter a reason for the exception.');
+      return;
+    }
 
     setLoading(true);
     try {
@@ -830,7 +861,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
         memberId: String(member.systemId ?? member._id),
         basePackageId: form.basePackageId,
         hasException: makeException,
-        name: form.name,
+        name: form.name.trim(),
         activityType: form.activityType,
         duration: form.duration,
         price: Number(form.price),
@@ -841,7 +872,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
         pricePaid: Number(form.pricePaid),
         discountPercent: Number(form.discountPercent) || 0,
         startDate: form.startDate || undefined,
-        reason: form.reason || null,
+        reason: form.reason?.trim() || null,
       });
       toast.success('Package request sent to accountant for approval.');
       onSuccess();
@@ -856,7 +887,18 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
     if (!form.basePackageId) { toast.error('Select a package.'); return; }
     if (!form.name?.trim()) { toast.error('Package name is required.'); return; }
     if (!form.duration) { toast.error('Duration is required.'); return; }
-    if (form.pricePaid === '' || form.pricePaid == null) { toast.error('Price paid is required.'); return; }
+    if (form.pricePaid === '' || form.pricePaid == null || isNaN(Number(form.pricePaid)) || Number(form.pricePaid) <= 0) {
+      toast.error('Price paid must be greater than zero.');
+      return;
+    }
+    if (form.discountPercent !== '' && (Number(form.discountPercent) < 0 || Number(form.discountPercent) > 100)) {
+      toast.error('Discount percent must be between 0 and 100.');
+      return;
+    }
+    if (form.startDate && isNaN(Date.parse(form.startDate))) {
+      toast.error('Invalid start date.');
+      return;
+    }
 
     setLoading(true);
     try {

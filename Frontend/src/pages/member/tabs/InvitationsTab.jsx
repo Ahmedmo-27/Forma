@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { Card, CardHeader, Btn, Input, Spinner, EmptyState, fmtDate, fmtDateTime } from '../../../components/ui';
 import { addInvitation } from '../../../api/endpoints';
 import { fetchProtectedUploadBlobUrl } from '../../../api/axios';
+import { isValidPhone, validateFile } from '../../../lib/validation';
 
 /** Open an authenticated upload in a new tab (Bearer required — public /uploads is disabled). */
 async function openProtectedUpload(filename) {
@@ -27,13 +28,27 @@ export default function InvitationsTab({ member, user, onRefresh }) {
   const canAdd    = ['Sales', 'Sales Manager', 'Receptionist', 'Owner'].includes(user?.role);
 
   const handleSubmit = async () => {
-    if (!name.trim()) { toast.error('Name is required.'); return; }
+    const trimmedName = name.trim();
+    if (!trimmedName) { toast.error('Name is required.'); return; }
+    if (trimmedName.length > 120) { toast.error('Name must not exceed 120 characters.'); return; }
+    const trimmedPhone = phone.trim();
+    if (trimmedPhone && !isValidPhone(trimmedPhone)) {
+      toast.error('Phone must be 5–40 characters and contain valid phone digits.');
+      return;
+    }
+    if (file) {
+      const fileCheck = validateFile(file, { maxSizeMB: 5, allowedMimePrefixes: ['image/'], allowedExtensions: ['.pdf'] });
+      if (!fileCheck.valid) {
+        toast.error(fileCheck.error);
+        return;
+      }
+    }
     if (remaining <= 0) { toast.error('No slots remaining.'); return; }
     setLoading(true);
     try {
       const fd = new FormData();
-      fd.append('invitedName', name.trim());
-      if (phone.trim()) fd.append('invitedPhone', phone.trim());
+      fd.append('invitedName', trimmedName);
+      if (trimmedPhone) fd.append('invitedPhone', trimmedPhone);
       if (file) fd.append('idFile', file);
       await addInvitation(member.systemId, fd);
       toast.success('Invitation recorded.'); setName(''); setPhone(''); setFile(null); onRefresh();
@@ -78,7 +93,19 @@ export default function InvitationsTab({ member, user, onRefresh }) {
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 5 }}>ID Photo / File <span style={{ fontWeight: 400, color: 'var(--t4)' }}>(optional, max 5MB)</span></label>
-                <input type="file" accept="image/*,.pdf" onChange={e => setFile(e.target.files[0] ?? null)}
+                <input type="file" accept="image/*,.pdf" onChange={e => {
+                  const selectedFile = e.target.files[0] ?? null;
+                  if (selectedFile) {
+                    const check = validateFile(selectedFile, { maxSizeMB: 5, allowedMimePrefixes: ['image/'], allowedExtensions: ['.pdf'] });
+                    if (!check.valid) {
+                      toast.error(check.error);
+                      e.target.value = '';
+                      setFile(null);
+                      return;
+                    }
+                  }
+                  setFile(selectedFile);
+                }}
                   style={{ width: '100%', padding: '7px 10px', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, color: 'var(--t2)', fontFamily: 'inherit' }} />
                 {file && <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 3 }}>Selected: {file.name} ({(file.size/1024).toFixed(0)} KB)</p>}
               </div>

@@ -426,14 +426,41 @@ function TemplateForm({ form, onChange, errors, packages }) {
 
 function validateForm(form) {
   const errs = {};
-  if (!form.name.trim()) errs.name = 'Please give this template a title';
+  const nameTrim = (form.name || '').trim();
+  if (!nameTrim) {
+    errs.name = 'Please give this template a title';
+  } else if (nameTrim.length > 120) {
+    errs.name = 'Title must not exceed 120 characters';
+  }
+
   const type = resolveType(form);
-  if (!type) errs[form.typeMode === 'custom' ? 'customType' : 'type'] = 'Please choose a type';
+  if (!type) {
+    errs[form.typeMode === 'custom' ? 'customType' : 'type'] = 'Please choose a type';
+  } else if (type.length > 60) {
+    errs[form.typeMode === 'custom' ? 'customType' : 'type'] = 'Type name must not exceed 60 characters';
+  }
+
   if (form.typeMode === 'custom' && !form.bodyText.trim() && !form.bodyTextAr.trim()) {
     errs.bodyText = 'Please write the message';
   }
-  if (form.typeMode === 'discounts' && !(Number(form.defaultDiscountPercent) > 0)) {
-    errs.defaultDiscountPercent = 'Enter a discount percentage (for example 50)';
+  if (form.introText && form.introText.trim().length > 2000) {
+    errs.introText = 'Intro text must not exceed 2000 characters';
+  }
+  if (form.bodyText && form.bodyText.trim().length > 4000) {
+    errs.bodyText = 'Body text must not exceed 4000 characters';
+  }
+  if (form.introTextAr && form.introTextAr.trim().length > 2000) {
+    errs.introTextAr = 'Arabic intro text must not exceed 2000 characters';
+  }
+  if (form.bodyTextAr && form.bodyTextAr.trim().length > 4000) {
+    errs.bodyTextAr = 'Arabic body text must not exceed 4000 characters';
+  }
+
+  if (form.typeMode === 'discounts') {
+    const d = Number(form.defaultDiscountPercent);
+    if (isNaN(d) || d <= 0 || d > 100) {
+      errs.defaultDiscountPercent = 'Enter a valid discount percentage between 1 and 100';
+    }
   }
   return errs;
 }

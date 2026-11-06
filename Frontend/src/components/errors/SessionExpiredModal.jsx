@@ -21,6 +21,10 @@ export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (!email || !email.trim()) {
+      setErrorMsg("Account email not found in session. Please log in again.");
+      return;
+    }
     if (!password) {
       setErrorMsg("Password is required.");
       return;

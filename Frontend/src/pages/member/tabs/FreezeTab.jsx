@@ -21,6 +21,10 @@ export default function FreezeTab({ member, user, onRefresh }) {
 
   const handleFreeze = async () => {
     if (!startDate || !endDate) { toast.error('Both dates required.'); return; }
+    if (isNaN(Date.parse(startDate)) || isNaN(Date.parse(endDate))) {
+      toast.error('Please enter valid dates.');
+      return;
+    }
     if (new Date(endDate) <= new Date(startDate)) { toast.error('End must be after start.'); return; }
     if (reqDays > remaining) { toast.error(`Only ${remaining} days remaining.`); return; }
     setLoading(true);

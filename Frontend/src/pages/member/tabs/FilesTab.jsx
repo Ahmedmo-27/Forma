@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { Card, CardHeader, Btn, Spinner, EmptyState } from '../../../components/ui';
 import { uploadNationalId } from '../../../api/endpoints';
 import { fetchProtectedUploadBlobUrl } from '../../../api/axios';
+import { validateFile } from '../../../lib/validation';
 
 export default function FilesTab({ member, user, onRefresh }) {
   const isAccountant = user?.role === 'Accountant';
@@ -43,6 +44,13 @@ export default function FilesTab({ member, user, onRefresh }) {
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    const check = validateFile(file, { maxSizeMB: 5, allowedMimePrefixes: ['image/'], allowedExtensions: ['.pdf'] });
+    if (!check.valid) {
+      toast.error(check.error);
+      if (fileRef.current) fileRef.current.value = '';
+      return;
+    }
 
     const formData = new FormData();
     formData.append('nationalIdFile', file);

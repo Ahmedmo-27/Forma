@@ -20,13 +20,15 @@ export default function CallCenterTab({ member, user, onRefresh }) {
     : ['Sales', 'Sales Manager', 'Owner'].includes(user?.role);
 
   const handleAdd = async () => {
-    if (!text.trim()) { toast.error('Note cannot be empty.'); return; }
+    const trimmed = text.trim();
+    if (!trimmed) { toast.error('Note cannot be empty.'); return; }
+    if (trimmed.length > 2000) { toast.error('Note cannot exceed 2000 characters.'); return; }
     setLoading(true);
     try {
       if (isCoachRole) {
-        await api.post(`/members/${member.systemId}/couch-notes`, { text: text.trim() });
+        await api.post(`/members/${member.systemId}/couch-notes`, { text: trimmed });
       } else {
-        await addNote(member.systemId, text.trim());
+        await addNote(member.systemId, trimmed);
       }
       toast.success('Note added.');
       setText('');

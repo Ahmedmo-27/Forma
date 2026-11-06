@@ -3,6 +3,7 @@ import toast from 'react-hot-toast';
 import { Modal, Input, Select, Btn, Spinner } from './ui';
 import { createMember, getSalesUsers, getCoachTeam } from '../api/endpoints';
 import { mapFieldErrors, focusFirstInvalidField } from '../lib/formErrors';
+import { isValidPhone, isDateInFuture } from '../lib/validation';
 
 export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesRep = null, initialPhone = '' }) {
   const init = { name: '', phones: initialPhone, gender: '', birthdate: '', source: '', assignedSales: '', coachId: '' };
@@ -33,8 +34,25 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
 
   const validate = () => {
     const e = {};
-    if (!form.name.trim())   e.name   = 'Name is required';
-    if (!form.phones.trim()) e.phones = 'Phone is required';
+    const nameTrim = form.name.trim();
+    const phoneTrim = form.phones.trim();
+
+    if (!nameTrim) {
+      e.name = 'Name is required';
+    } else if (nameTrim.length > 120) {
+      e.name = 'Name must not exceed 120 characters';
+    }
+
+    if (!phoneTrim) {
+      e.phones = 'Phone is required';
+    } else if (!isValidPhone(phoneTrim)) {
+      e.phones = 'Phone must be 5–40 characters and contain valid phone digits';
+    }
+
+    if (form.birthdate && isDateInFuture(form.birthdate)) {
+      e.birthdate = 'Birthdate cannot be in the future';
+    }
+
     setErrors(e); 
     return !Object.keys(e).length;
   };
@@ -86,7 +104,7 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
           <option value="male">Male</option>
           <option value="female">Female</option>
         </Select>
-        <Input label="Birthdate" type="date" value={form.birthdate} onChange={e => set('birthdate', e.target.value)} />
+        <Input label="Birthdate" type="date" value={form.birthdate} onChange={e => set('birthdate', e.target.value)} error={errors.birthdate} />
         <Select label="Source" value={form.source} onChange={e => set('source', e.target.value)}>
           <option value="">— Select —</option>
           {['Social media','Walk in','Word of mouth','referral','sales call','data entry','others'].map(s => 

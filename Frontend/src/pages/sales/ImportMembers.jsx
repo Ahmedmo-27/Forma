@@ -5,6 +5,7 @@ import Layout from '../../components/Layout';
 import { PageHeader, Card, Btn, Spinner, Badge, fmtDate } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { bulkImportMembers } from '../../api/endpoints';
+import { validateFile } from '../../lib/validation';
 
 export default function ImportMembers() {
   usePageTitle('Import Members');
@@ -18,8 +19,8 @@ export default function ImportMembers() {
 
   const handleFile = (f) => {
     if (!f) return;
-    const ok = /\.(xlsx|xls|csv)$/i.test(f.name);
-    if (!ok) { toast.error('Only .xlsx, .xls or .csv files are supported'); return; }
+    const check = validateFile(f, { maxSizeMB: 5, allowedExtensions: ['.xlsx', '.xls', '.csv'] });
+    if (!check.valid) { toast.error(check.error); return; }
     setFile(f);
     setResult(null);
   };
