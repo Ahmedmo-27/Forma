@@ -111,7 +111,8 @@ export default function Layout({ children }) {
   const showNotif       = ['Sales', 'Sales Manager', 'Accountant'].includes(user?.role);
 
   const logoKey = branding?.logoKey;
-  const logoUrl = logoKey ? `/uploads/${encodeURIComponent(logoKey)}` : '/leap-logo.svg';
+  const logoFile = logoKey ? String(logoKey).split(/[\/\\]/).pop() : null;
+  const logoUrl = logoFile ? `/uploads/${encodeURIComponent(logoFile)}` : '/leap-logo.svg';
   const displayName = branding?.displayName || tenant?.name || 'LEAP';
 
   useEffect(() => {

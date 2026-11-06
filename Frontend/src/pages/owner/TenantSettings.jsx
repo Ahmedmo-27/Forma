@@ -142,6 +142,7 @@ export default function TenantSettings() {
     }
 
     const fd = new FormData();
+    fd.append('logoFile', file);
     fd.append('logo', file);
     setUploadingLogo(true);
     try {
@@ -191,7 +192,8 @@ export default function TenantSettings() {
   }
 
   const logoKey = tenant?.settings?.branding?.logoKey;
-  const logoUrl = logoKey ? `/uploads/${encodeURIComponent(logoKey)}` : '/leap-logo.svg';
+  const logoFile = logoKey ? String(logoKey).split(/[\/\\]/).pop() : null;
+  const logoUrl = logoFile ? `/uploads/${encodeURIComponent(logoFile)}` : '/leap-logo.svg';
 
   const plan = tenant?.plan;
   const usage = tenant?.usage || {};

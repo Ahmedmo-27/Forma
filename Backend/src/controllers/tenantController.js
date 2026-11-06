@@ -1,3 +1,5 @@
+const path = require("path");
+const storageService = require("../services/storageService");
 const Tenant = require("../models/Tenant");
 const Member = require("../models/Member");
 const User = require("../models/User");
@@ -223,16 +225,20 @@ const uploadTenantLogo = async (req, res) => {
         }
 
         const filename = req.file.filename;
-        const logoKey = `${tenantId}/branding/${filename}`;
+        const oldLogoKey = tenant.settings?.branding?.logoKey;
+        if (oldLogoKey) {
+            const oldFilename = path.basename(oldLogoKey);
+            await storageService.deleteFile(tenantId, oldFilename);
+        }
 
-        tenant.settings.branding.logoKey = logoKey;
+        tenant.settings.branding.logoKey = filename;
         await runAsPlatform(async () => {
             await tenant.save();
         });
 
         res.json({
             message: "Logo uploaded successfully",
-            logoKey,
+            logoKey: filename,
             filename,
             url: `/uploads/${filename}`,
         });

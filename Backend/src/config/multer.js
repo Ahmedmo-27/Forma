@@ -28,9 +28,13 @@ const PHOTO_MIME = new Set([
 
 const FIELD_PREFIX = {
     photoFile: "photo-",
+    photo: "photo-",
     nationalIdFile: "nid-",
+    nationalId: "nid-",
     idFile: "inv-",
     logoFile: "logo-",
+    logo: "logo-",
+    file: "photo-",
 };
 
 function makeFilename(file, prefix = "") {
@@ -94,7 +98,22 @@ const uploadSingle = (fieldName) => (req, res, next) => {
     });
 };
 
+const uploadLogo = (req, res, next) => {
+    photoUpload.fields([
+        { name: "logoFile", maxCount: 1 },
+        { name: "logo", maxCount: 1 },
+        { name: "file", maxCount: 1 }
+    ])(req, res, (err) => {
+        if (err) return handleUploadError(err, res);
+        req.file = req.files?.logoFile?.[0] || req.files?.logo?.[0] || req.files?.file?.[0] || null;
+        next();
+    });
+};
+
 const uploadSinglePhoto = (fieldName) => (req, res, next) => {
+    if (fieldName === "logoFile" || fieldName === "logo") {
+        return uploadLogo(req, res, next);
+    }
     photoUpload.single(fieldName)(req, res, (err) => {
         if (err) return handleUploadError(err, res);
         next();
@@ -106,5 +125,6 @@ module.exports = {
     photoUpload,
     uploadSingle,
     uploadSinglePhoto,
+    uploadLogo,
     handleUploadError,
 };
