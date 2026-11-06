@@ -39,20 +39,44 @@ class StorageService {
         return process.env.R2_BUCKET_NAME || process.env.AWS_S3_BUCKET || "";
     }
 
+    /**
+     * R2 rejects the CRC32 headers that AWS SDK v3.729+ sends by default.
+     * Checksums are sent only when an operation requires them.
+     * The R2 endpoint is the account host; the bucket name is not part of the URL.
+     */
+    buildClientOptions() {
+        const accountId = process.env.R2_ACCOUNT_ID;
+        const r2 = this.driver === "r2";
+        return {
+            region: r2 ? "auto" : (process.env.AWS_REGION || "auto"),
+            endpoint: r2
+                ? `https://${accountId}.r2.cloudflarestorage.com`
+                : (process.env.AWS_S3_ENDPOINT || undefined),
+            credentials: {
+                accessKeyId: process.env.R2_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID || "",
+                secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY || "",
+            },
+            requestChecksumCalculation: "WHEN_REQUIRED",
+            responseChecksumValidation: "WHEN_REQUIRED",
+        };
+    }
+
+    assertConfigured() {
+        if (this.driver !== "r2") return;
+        const missing = [];
+        if (!process.env.R2_ACCOUNT_ID) missing.push("R2_ACCOUNT_ID");
+        if (!process.env.R2_BUCKET_NAME) missing.push("R2_BUCKET_NAME");
+        if (!process.env.R2_ACCESS_KEY_ID) missing.push("R2_ACCESS_KEY_ID");
+        if (!process.env.R2_SECRET_ACCESS_KEY) missing.push("R2_SECRET_ACCESS_KEY");
+        if (missing.length) {
+            throw new Error(`StorageService: STORAGE_DRIVER=r2 requires ${missing.join(", ")}`);
+        }
+    }
+
     getClient() {
         if (!s3Client) {
             const { S3Client } = loadS3();
-            const accountId = process.env.R2_ACCOUNT_ID;
-            const endpoint = process.env.AWS_S3_ENDPOINT
-                || (accountId ? `https://${accountId}.r2.cloudflarestorage.com` : undefined);
-            s3Client = new S3Client({
-                region: process.env.AWS_REGION || "auto",
-                endpoint,
-                credentials: {
-                    accessKeyId: process.env.R2_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID || "",
-                    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY || "",
-                },
-            });
+            s3Client = new S3Client(this.buildClientOptions());
         }
         return s3Client;
     }

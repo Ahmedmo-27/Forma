@@ -1,9 +1,18 @@
 const dotenv = require("dotenv");
 dotenv.config();
 
+const storageService = require("./src/services/storageService");
+const logger = require("./src/utils/logger");
+
+try {
+    storageService.assertConfigured();
+} catch (error) {
+    logger.error("storage", error.message);
+    process.exit(1);
+}
+
 const connectDB = require("./src/config/db");
 const app = require("./src/app");
-const logger = require("./src/utils/logger");
 const { BCRYPT_ROUNDS } = require("./src/utils/passwordUtils");
 const { startScheduledTasks } = require("./src/utils/scheduledTasks");
 
@@ -18,6 +27,8 @@ const server = app.listen(PORT, "0.0.0.0", () => {
         hasMongoUri: Boolean(process.env.MONGO_URI),
         bcryptRounds: BCRYPT_ROUNDS,
         logLevel: process.env.LOG_LEVEL || "info",
+        storageDriver: storageService.getDriverName(),
+        storageBucket: storageService.isRemote() ? storageService.bucketName() : undefined,
     });
 
     // Start background tasks (freeze auto-unfreeze, etc.)

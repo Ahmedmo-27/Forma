@@ -49,11 +49,15 @@ Manual bank transfer is the live payment method. Set `PAYMENT_BANK_NAME`, `PAYME
 
 ## File storage
 
-`STORAGE_DRIVER=local` (the default) writes to `Backend/uploads`. Use that for development.
+Persisted uploads go to Cloudflare R2 bucket `forma` on the account signed in as `forma.gms1@gmail.com`.
 
-Production on Render must set `STORAGE_DRIVER=r2`. The disk is wiped on restart. Set `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, and `R2_BUCKET_NAME`. Objects are stored as `{tenantId}/{filename}`. The API still authorizes `GET /uploads/:filename` and streams the object. Logos redirect to `R2_PUBLIC_URL` when that variable is set.
+Set `STORAGE_DRIVER=r2`, `R2_ACCOUNT_ID=f7cd61e729b00936ed5f88b6833f5aa8`, and `R2_BUCKET_NAME=forma`. The S3 endpoint is `https://f7cd61e729b00936ed5f88b6833f5aa8.r2.cloudflarestorage.com`. Create an R2 API token scoped to bucket `forma` with Object Read and Write, then set `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY`. The server exits on startup if any of those four values is missing. Leave `R2_PUBLIC_URL` empty.
 
-`npm run migrate:uploads` only moves an existing local `uploads/` tree into `uploads/{tenantId}/` on a machine that still has those files. Objects created after the R2 switch live in the bucket.
+Objects are stored as `{tenantId}/{filename}`. Profile photos, national IDs, invitation ID scans, and tenant logos are written through the storage service. The API still authorizes `GET /uploads/:filename` and streams the object. Logos redirect to `R2_PUBLIC_URL` only when that variable is a public bucket domain. Excel imports are parsed in memory and are not stored.
+
+`STORAGE_DRIVER=local` writes to `Backend/uploads` when R2 is not configured. `npm run migrate:uploads` only moves an existing local `uploads/` tree into `uploads/{tenantId}/` on a machine that still has those files.
+
+On the Render service `leap-backend`, `STORAGE_DRIVER=r2`, the account ID, and the bucket name come from `render.yaml`. Set `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY` in the Render dashboard. Do not commit them. Leave `R2_PUBLIC_URL` unset.
 
 ## Production
 
