@@ -110,6 +110,19 @@ class StorageService {
             }
         } catch (_) {}
 
+        // 3. Fallback: scan tenant subdirectories (e.g. for public assets like logos)
+        try {
+            const entries = fs.readdirSync(this.baseDir, { withFileTypes: true });
+            for (const entry of entries) {
+                if (entry.isDirectory()) {
+                    const candidatePath = path.resolve(this.baseDir, entry.name, safe);
+                    if (candidatePath.startsWith(path.join(this.baseDir, entry.name)) && fs.existsSync(candidatePath)) {
+                        return { found: true, filePath: candidatePath, tenantId: entry.name };
+                    }
+                }
+            }
+        } catch (_) {}
+
         return { found: false, filePath: null, tenantId: null };
     }
 

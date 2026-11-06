@@ -112,7 +112,7 @@ const getMyTenant = async (req, res) => {
 
         response.announcements = announcements || [];
 
-        res.json(response);
+        res.json({ ...response, tenant: response });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
@@ -241,6 +241,7 @@ const uploadTenantLogo = async (req, res) => {
             logoKey: filename,
             filename,
             url: `/uploads/${filename}`,
+            tenant: sanitizeTenantResponse(tenant, tenant.planId),
         });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });

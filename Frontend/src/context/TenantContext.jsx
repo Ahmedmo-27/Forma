@@ -44,11 +44,12 @@ export function TenantProvider({ children }) {
     }
     try {
       const res = await getTenantMe();
-      if (res.data?.tenant) {
-        setTenant(res.data.tenant);
-        applyBranding(res.data.tenant.settings?.branding);
-        if (res.data.tenant.slug) {
-          localStorage.setItem('ff_tenant_slug', res.data.tenant.slug);
+      const tenantData = res.data?.tenant || res.data;
+      if (tenantData && (tenantData.id || tenantData._id || tenantData.name)) {
+        setTenant(tenantData);
+        applyBranding(tenantData.settings?.branding);
+        if (tenantData.slug) {
+          localStorage.setItem('ff_tenant_slug', tenantData.slug);
         }
       }
     } catch (err) {

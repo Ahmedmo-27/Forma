@@ -1,3 +1,4 @@
+import { apiOrigin } from '../api/axios';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
@@ -112,7 +113,7 @@ export default function Layout({ children }) {
 
   const logoKey = branding?.logoKey;
   const logoFile = logoKey ? String(logoKey).split(/[\/\\]/).pop() : null;
-  const logoUrl = logoFile ? `/uploads/${encodeURIComponent(logoFile)}` : '/leap-logo.svg';
+  const logoUrl = logoFile ? `${apiOrigin}/uploads/${encodeURIComponent(logoFile)}` : '/leap-logo.svg';
   const displayName = branding?.displayName || tenant?.name || 'LEAP';
 
   useEffect(() => {

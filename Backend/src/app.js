@@ -189,25 +189,34 @@ function canAccessMemberUpload(user, member, type) {
 app.get(
     "/uploads/:filename",
     uploadReadLimiter,
-    protect,
-    authorize("Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant"),
-    async (req, res) => {
+    async (req, res, next) => {
         const safe = path.basename(req.params.filename);
         if (safe !== req.params.filename || safe.includes("..")) {
             return res.status(400).json({ message: "Invalid filename" });
         }
 
-        // Check if file is a tenant logo
-        if (safe.startsWith("logo-") || (req.tenant?.settings?.branding?.logoKey && req.tenant.settings.branding.logoKey.includes(safe))) {
-            const logoResult = storageService.findFile(safe, [req.tenant?._id, req.user?.tenantId]);
+        // Publicly serve tenant logos (workspace branding rendered by browser <img> tags without bearer token)
+        if (safe.startsWith("logo-")) {
+            const logoResult = storageService.findFile(safe);
             if (!logoResult.found) {
                 return res.status(404).json({ message: "File not found" });
             }
             const mime = await detectMimeFromFile(logoResult.filePath);
             if (!mime) return res.status(404).json({ message: "File not found" });
             res.setHeader("Content-Type", mime);
+            res.setHeader("Cache-Control", "public, max-age=86400");
             res.setHeader("X-Content-Type-Options", "nosniff");
             return res.sendFile(logoResult.filePath);
+        }
+
+        next();
+    },
+    protect,
+    authorize("Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant"),
+    async (req, res) => {
+        const safe = path.basename(req.params.filename);
+        if (safe !== req.params.filename || safe.includes("..")) {
+            return res.status(400).json({ message: "Invalid filename" });
         }
 
         const member = await Member.findOne({

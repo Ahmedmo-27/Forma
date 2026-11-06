@@ -1,3 +1,4 @@
+import { apiOrigin } from '../../api/axios';
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
@@ -193,7 +194,7 @@ export default function TenantSettings() {
 
   const logoKey = tenant?.settings?.branding?.logoKey;
   const logoFile = logoKey ? String(logoKey).split(/[\/\\]/).pop() : null;
-  const logoUrl = logoFile ? `/uploads/${encodeURIComponent(logoFile)}` : '/leap-logo.svg';
+  const logoUrl = logoFile ? `${apiOrigin}/uploads/${encodeURIComponent(logoFile)}` : '/leap-logo.svg';
 
   const plan = tenant?.plan;
   const usage = tenant?.usage || {};
