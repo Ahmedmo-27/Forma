@@ -193,13 +193,13 @@ export default function Layout({ children }) {
           <div onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', flexShrink: 0, marginRight: 12 }}>
             <div style={{
               width: 68, height: 68, borderRadius: 16,
-              background: 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
               flexShrink: 0,
+              padding: 0,
+              lineHeight: 0,
               boxShadow: '0 4px 16px rgba(68,41,140,0.6)',
               overflow: 'hidden',
             }}>
-              <img key={logoUrl} src={logoUrl} alt={displayName} style={{ width: 56, height: 56, objectFit: 'contain' }} />
+              <img key={logoUrl} src={logoUrl} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
             <span className="nav-logo-text" style={{ fontSize: 22, fontWeight: 900, color: '#fff', letterSpacing: '2.5px', textTransform: 'uppercase' }}>{displayName}</span>
           </div>

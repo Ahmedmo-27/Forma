@@ -240,7 +240,7 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
     <div className="space-y-4">
       <Callout variant="info" className="text-xs">
         Check a feature to include it on that plan. Gyms on the plan receive it, unless that gym has turned the feature off.
-        The last column adds or removes a feature for <strong>{tenant.name}</strong> only.
+        The column beside each feature adds or removes it for <strong>{tenant.name}</strong> only.
       </Callout>
 
       {error && <Callout variant="danger">{error}</Callout>}
@@ -275,12 +275,20 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
         </div>
       </div>
 
-      <div className="overflow-auto max-h-[640px] rounded-xl border border-[var(--platform-border-subtle)] bg-[var(--platform-surface)]">
+      <div className="w-full min-w-0 max-w-full overflow-auto max-h-[640px] rounded-xl border border-[var(--platform-border-subtle)] bg-[var(--platform-surface)]">
         <table className="w-full border-collapse text-left text-xs">
           <thead className="sticky top-0 z-20">
             <tr className="border-b border-[var(--platform-border-subtle)] bg-[var(--platform-canvas)]">
-              <th className="sticky left-0 z-30 min-w-[240px] bg-[var(--platform-canvas)] px-4 py-3 font-semibold text-[var(--platform-text-primary)] shadow-[1px_0_0_0_var(--platform-border-subtle)]">
+              <th className="sticky left-0 z-30 min-w-[240px] w-[240px] bg-[var(--platform-canvas)] px-4 py-3 font-semibold text-[var(--platform-text-primary)] shadow-[1px_0_0_0_var(--platform-border-subtle)]">
                 Feature
+              </th>
+              <th className="sticky left-[240px] z-30 min-w-[180px] border-l border-[var(--platform-border-subtle)] bg-[var(--platform-canvas)] px-3 py-3 text-center font-semibold text-[var(--platform-text-primary)] shadow-[1px_0_0_0_var(--platform-border-subtle)]">
+                <div className="flex flex-col items-center gap-1">
+                  <span>{tenant.name}</span>
+                  <Badge variant={gymDirty ? "warning" : "neutral"} size="xs">
+                    {gymDirty ? "Unsaved gym changes" : "This gym only"}
+                  </Badge>
+                </div>
               </th>
               {visiblePlans.map((plan) => {
                 const isCurrent = planKey(plan) === currentPlanId;
@@ -310,14 +318,6 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
                   </th>
                 );
               })}
-              <th className="min-w-[180px] border-l border-[var(--platform-border-subtle)] bg-[var(--platform-canvas)] px-3 py-3 text-center font-semibold text-[var(--platform-text-primary)]">
-                <div className="flex flex-col items-center gap-1">
-                  <span>{tenant.name}</span>
-                  <Badge variant={gymDirty ? "warning" : "neutral"} size="xs">
-                    {gymDirty ? "Unsaved gym changes" : "This gym only"}
-                  </Badge>
-                </div>
-              </th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--platform-border-subtle)]">
@@ -357,7 +357,7 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
 
                 return (
                   <tr key={feature.key} className="hover:bg-[var(--platform-surface-subtle)]/60">
-                    <td className="sticky left-0 z-10 bg-[var(--platform-surface)] px-4 py-3 shadow-[1px_0_0_0_var(--platform-border-subtle)]">
+                    <td className="sticky left-0 z-10 w-[240px] min-w-[240px] bg-[var(--platform-surface)] px-4 py-3 shadow-[1px_0_0_0_var(--platform-border-subtle)]">
                       <div className="font-medium text-[var(--platform-text-primary)]">{feature.name}</div>
                       <div className="mt-0.5 font-mono text-[10px] text-[var(--platform-text-muted)]">
                         {feature.key}
@@ -373,32 +373,7 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
                         )}
                       </div>
                     </td>
-                    {visiblePlans.map((plan) => {
-                      const id = planKey(plan);
-                      const savedOn = (plan.features || []).includes(feature.key);
-                      const draftOn = (draftFeatures[id] || []).includes(feature.key);
-                      const isCurrent = id === currentPlanId;
-                      return (
-                        <td
-                          key={id}
-                          className={`border-l px-3 py-3 text-center ${
-                            isCurrent
-                              ? "border-[var(--platform-accent)]/30 bg-[var(--platform-accent)]/5"
-                              : "border-[var(--platform-border-subtle)]"
-                          } ${draftOn !== savedOn ? "ring-1 ring-inset ring-[var(--platform-warning)]/50" : ""}`}
-                        >
-                          <div className="flex justify-center">
-                            <Checkbox
-                              checked={draftOn}
-                              disabled={!canManagePlans || (inactive && !draftOn)}
-                              onChange={() => togglePlanFeature(plan, feature.key)}
-                              aria-label={`${draftOn ? "Remove" : "Include"} ${feature.name} on ${plan.name}`}
-                            />
-                          </div>
-                        </td>
-                      );
-                    })}
-                    <td className="border-l border-[var(--platform-border-subtle)] px-3 py-3">
+                    <td className="sticky left-[240px] z-10 border-l border-[var(--platform-border-subtle)] bg-[var(--platform-surface)] px-3 py-3 shadow-[1px_0_0_0_var(--platform-border-subtle)]">
                       <div className="flex flex-col items-center gap-1.5 text-center">
                         <span
                           className={`inline-flex items-center gap-1 text-[11px] font-medium ${
@@ -436,6 +411,31 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
                         </Button>
                       </div>
                     </td>
+                    {visiblePlans.map((plan) => {
+                      const id = planKey(plan);
+                      const savedOn = (plan.features || []).includes(feature.key);
+                      const draftOn = (draftFeatures[id] || []).includes(feature.key);
+                      const isCurrent = id === currentPlanId;
+                      return (
+                        <td
+                          key={id}
+                          className={`border-l px-3 py-3 text-center ${
+                            isCurrent
+                              ? "border-[var(--platform-accent)]/30 bg-[var(--platform-accent)]/5"
+                              : "border-[var(--platform-border-subtle)]"
+                          } ${draftOn !== savedOn ? "ring-1 ring-inset ring-[var(--platform-warning)]/50" : ""}`}
+                        >
+                          <div className="flex justify-center">
+                            <Checkbox
+                              checked={draftOn}
+                              disabled={!canManagePlans || (inactive && !draftOn)}
+                              onChange={() => togglePlanFeature(plan, feature.key)}
+                              aria-label={`${draftOn ? "Remove" : "Include"} ${feature.name} on ${plan.name}`}
+                            />
+                          </div>
+                        </td>
+                      );
+                    })}
                   </tr>
                 );
               })

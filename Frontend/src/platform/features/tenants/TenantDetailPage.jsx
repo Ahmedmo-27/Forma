@@ -476,7 +476,7 @@ export default function TenantDetailPage() {
 
             {/* Right: Plan Entitlements & Feature Customizer */}
             <div className="p-5 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] space-y-4">
-              <div className="flex items-center justify-between pb-2 border-b border-[var(--platform-border-subtle)]">
+              <div className="flex flex-wrap items-start justify-between gap-2 pb-2 border-b border-[var(--platform-border-subtle)]">
                 <div>
                   <h3 className="text-sm font-semibold text-[var(--platform-text-primary)]">
                     Plan Entitlements & Features
