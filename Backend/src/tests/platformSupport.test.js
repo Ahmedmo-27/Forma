@@ -205,7 +205,7 @@ describe("Phase 6: Support, Impersonation & Operations Tools", () => {
             );
         });
 
-        it("purges all collections, cleans disk files, and writes surviving tombstone audit record", async () => {
+        it("purges all collections, deletes stored objects, and writes surviving tombstone audit record", async () => {
             const tenantId = new mongoose.Types.ObjectId();
             const mockTenant = {
                 _id: tenantId,
@@ -224,7 +224,7 @@ describe("Phase 6: Support, Impersonation & Operations Tools", () => {
             vi.spyOn(PackageExceptionRequest, "deleteMany").mockResolvedValue({ deletedCount: 0 });
             vi.spyOn(ProfileView, "deleteMany").mockResolvedValue({ deletedCount: 0 });
             vi.spyOn(Tenant, "findByIdAndDelete").mockResolvedValue(mockTenant);
-            vi.spyOn(storageService, "getTenantDir").mockReturnValue("nonexistent-dir-for-test");
+            vi.spyOn(storageService, "deleteTenantStorage").mockResolvedValue();
 
             const req = {
                 params: { id: tenantId.toString() },

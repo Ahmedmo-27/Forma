@@ -204,11 +204,10 @@ async function purgeTenant(req, res) {
                 ProfileView.deleteMany({ tenantId }),
             ]);
 
-            // Delete storage directory on disk
             try {
                 await storageService.deleteTenantStorage(tenantId);
             } catch (storageErr) {
-                logger.warn("platform", "Failed to clean disk storage during purge", { error: storageErr.message });
+                logger.warn("platform", "Failed to delete tenant objects from R2 during purge", { error: storageErr.message });
             }
 
             // Delete Tenant document

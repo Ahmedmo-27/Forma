@@ -20,7 +20,7 @@ const sanitizeRequest = require("./middleware/sanitize");
 const { protect } = require("./middleware/authMiddleware");
 const authorize = require("./middleware/roleMiddleware");
 const { writeAudit } = require("./utils/audit");
-const { detectMimeFromFile, detectMimeFromBuffer, MIME_TO_EXT } = require("./utils/fileMagic");
+const { detectMimeFromBuffer, MIME_TO_EXT } = require("./utils/fileMagic");
 const { AppError } = require("./utils/errors");
 const coachRequestRoutes = require("./routes/coachRequestRoutes");
 const tenantRoutes = require("./routes/tenantRoutes");
@@ -229,34 +229,21 @@ app.get(
 
         // Publicly serve tenant logos (workspace branding rendered by browser <img> tags without bearer token)
         if (safe.startsWith("logo-")) {
-            if (storageService.isRemote()) {
-                try {
-                    const tenant = await runAsPlatform(() =>
-                        Tenant.findOne({ "settings.branding.logoKey": safe }).select("_id")
-                    );
-                    if (!tenant) return res.status(404).json({ message: "File not found" });
-                    const sent = await sendRemoteObject(res, tenant._id, safe, {
-                        filename: safe,
-                        cache: "public, max-age=86400",
-                        allowPublicRedirect: true,
-                    });
-                    if (!sent) return res.status(404).json({ message: "File not found" });
-                    return;
-                } catch (err) {
-                    return next(err);
-                }
+            try {
+                const tenant = await runAsPlatform(() =>
+                    Tenant.findOne({ "settings.branding.logoKey": safe }).select("_id")
+                );
+                if (!tenant) return res.status(404).json({ message: "File not found" });
+                const sent = await sendRemoteObject(res, tenant._id, safe, {
+                    filename: safe,
+                    cache: "public, max-age=86400",
+                    allowPublicRedirect: true,
+                });
+                if (!sent) return res.status(404).json({ message: "File not found" });
+                return;
+            } catch (err) {
+                return next(err);
             }
-
-            const logoResult = storageService.findFile(safe);
-            if (!logoResult.found) {
-                return res.status(404).json({ message: "File not found" });
-            }
-            const mime = await detectMimeFromFile(logoResult.filePath);
-            if (!mime) return res.status(404).json({ message: "File not found" });
-            res.setHeader("Content-Type", mime);
-            res.setHeader("Cache-Control", "public, max-age=86400");
-            res.setHeader("X-Content-Type-Options", "nosniff");
-            return res.sendFile(logoResult.filePath);
         }
 
         next();
@@ -284,25 +271,11 @@ app.get(
             return res.status(404).json({ message: "File not found" });
         }
 
-        if (storageService.isRemote()) {
-            try {
-                const sent = await sendRemoteObject(res, member.tenantId, safe, {
-                    filename: safe,
-                });
-                if (!sent) {
-                    if (uploadType === "profile_photo" && member.photo === safe) {
-                        try {
-                            await Member.updateOne({ _id: member._id }, { $set: { photo: null } });
-                        } catch (_) {}
-                    }
-                    return res.status(404).json({ message: "File not found" });
-                }
-            } catch (err) {
-                return res.status(500).json({ message: "Unable to read stored file" });
-            }
-        } else {
-            const fileResult = storageService.findFile(safe, [member.tenantId, req.user?.tenantId]);
-            if (!fileResult.found) {
+        try {
+            const sent = await sendRemoteObject(res, member.tenantId, safe, {
+                filename: safe,
+            });
+            if (!sent) {
                 if (uploadType === "profile_photo" && member.photo === safe) {
                     try {
                         await Member.updateOne({ _id: member._id }, { $set: { photo: null } });
@@ -310,18 +283,8 @@ app.get(
                 }
                 return res.status(404).json({ message: "File not found" });
             }
-
-            const filePath = fileResult.filePath;
-            const mime = await detectMimeFromFile(filePath);
-            if (!mime || !MIME_TO_EXT[mime]?.some((ext) => safe.toLowerCase().endsWith(ext))) {
-                return res.status(404).json({ message: "File not found" });
-            }
-
-            const headerName = safe.replace(/["\r\n]/g, "");
-            res.setHeader("Content-Type", mime);
-            res.setHeader("Content-Disposition", `${mime === "application/pdf" ? "attachment" : "inline"}; filename="${headerName}"`);
-            res.setHeader("X-Content-Type-Options", "nosniff");
-            res.sendFile(filePath);
+        } catch (err) {
+            return res.status(500).json({ message: "Unable to read stored file" });
         }
 
         await writeAudit({

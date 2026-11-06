@@ -28,7 +28,7 @@ const server = app.listen(PORT, "0.0.0.0", () => {
         bcryptRounds: BCRYPT_ROUNDS,
         logLevel: process.env.LOG_LEVEL || "info",
         storageDriver: storageService.getDriverName(),
-        storageBucket: storageService.isRemote() ? storageService.bucketName() : undefined,
+        storageBucket: storageService.bucketName(),
     });
 
     // Start background tasks (freeze auto-unfreeze, etc.)

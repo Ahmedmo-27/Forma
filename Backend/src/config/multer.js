@@ -1,11 +1,6 @@
 const multer  = require("multer");
 const path    = require("path");
-const fs      = require("fs");
 const crypto  = require("crypto");
-const storageService = require("../services/storageService");
-
-const uploadDir = path.join(__dirname, "../../uploads");
-if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const ALLOWED_EXT = new Set([".jpeg", ".jpg", ".png", ".gif", ".webp", ".pdf"]);
 const ALLOWED_MIME = new Set([
@@ -44,27 +39,13 @@ function makeFilename(file, prefix = "") {
     return `${prefix}${unique}${safeExt}`;
 }
 
-const useRemoteStorage = ["r2", "s3"].includes((process.env.STORAGE_DRIVER || "local").toLowerCase());
-
 function stampFilename(file) {
     if (!file || file.filename) return;
     const prefix = FIELD_PREFIX[file.fieldname] || "";
     file.filename = makeFilename(file, prefix);
 }
 
-const storage = useRemoteStorage
-    ? multer.memoryStorage()
-    : multer.diskStorage({
-        destination: (req, _file, cb) => {
-            const tenantId = req.user?.tenantId;
-            const targetDir = tenantId ? storageService.getTenantDir(tenantId) : uploadDir;
-            cb(null, targetDir);
-        },
-        filename: (_req, file, cb) => {
-            const prefix = FIELD_PREFIX[file.fieldname] || "";
-            cb(null, makeFilename(file, prefix));
-        }
-    });
+const storage = multer.memoryStorage();
 
 const fileFilter = (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();

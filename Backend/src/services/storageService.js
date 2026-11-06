@@ -1,11 +1,5 @@
 const path = require("path");
-const fs = require("fs");
-const fsPromises = require("fs").promises;
 const { detectMimeFromBuffer } = require("../utils/fileMagic");
-
-const BASE_UPLOADS_DIR = process.env.UPLOADS_DIR
-    ? path.resolve(process.cwd(), process.env.UPLOADS_DIR)
-    : path.resolve(__dirname, "../../uploads");
 
 let s3Client = null;
 
@@ -16,19 +10,12 @@ function loadS3() {
 }
 
 class StorageService {
-    constructor(baseDir = BASE_UPLOADS_DIR) {
-        this.baseDir = baseDir;
-        this.driver = (process.env.STORAGE_DRIVER || "local").toLowerCase();
-
-        if (!this.isRemote() && !fs.existsSync(this.baseDir)) {
-            try {
-                fs.mkdirSync(this.baseDir, { recursive: true });
-            } catch (_) {}
-        }
+    constructor() {
+        this.driver = "r2";
     }
 
     isRemote() {
-        return this.driver === "r2" || this.driver === "s3";
+        return true;
     }
 
     getDriverName() {
@@ -36,25 +23,22 @@ class StorageService {
     }
 
     bucketName() {
-        return process.env.R2_BUCKET_NAME || process.env.AWS_S3_BUCKET || "";
+        return process.env.R2_BUCKET_NAME || "";
     }
 
     /**
      * R2 rejects the CRC32 headers that AWS SDK v3.729+ sends by default.
      * Checksums are sent only when an operation requires them.
-     * The R2 endpoint is the account host; the bucket name is not part of the URL.
+     * The endpoint is the account host; the bucket name is not part of the URL.
      */
     buildClientOptions() {
         const accountId = process.env.R2_ACCOUNT_ID;
-        const r2 = this.driver === "r2";
         return {
-            region: r2 ? "auto" : (process.env.AWS_REGION || "auto"),
-            endpoint: r2
-                ? `https://${accountId}.r2.cloudflarestorage.com`
-                : (process.env.AWS_S3_ENDPOINT || undefined),
+            region: "auto",
+            endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
             credentials: {
-                accessKeyId: process.env.R2_ACCESS_KEY_ID || process.env.AWS_ACCESS_KEY_ID || "",
-                secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || process.env.AWS_SECRET_ACCESS_KEY || "",
+                accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
+                secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
             },
             requestChecksumCalculation: "WHEN_REQUIRED",
             responseChecksumValidation: "WHEN_REQUIRED",
@@ -62,14 +46,13 @@ class StorageService {
     }
 
     assertConfigured() {
-        if (this.driver !== "r2") return;
         const missing = [];
         if (!process.env.R2_ACCOUNT_ID) missing.push("R2_ACCOUNT_ID");
         if (!process.env.R2_BUCKET_NAME) missing.push("R2_BUCKET_NAME");
         if (!process.env.R2_ACCESS_KEY_ID) missing.push("R2_ACCESS_KEY_ID");
         if (!process.env.R2_SECRET_ACCESS_KEY) missing.push("R2_SECRET_ACCESS_KEY");
         if (missing.length) {
-            throw new Error(`StorageService: STORAGE_DRIVER=r2 requires ${missing.join(", ")}`);
+            throw new Error(`StorageService: Cloudflare R2 requires ${missing.join(", ")}`);
         }
     }
 
@@ -89,115 +72,34 @@ class StorageService {
         return `${tenantId}/${safe}`;
     }
 
-    getTenantDir(tenantId) {
-        if (!tenantId) {
-            throw new Error("StorageService: tenantId is required to resolve tenant storage directory");
-        }
-        const tenantDir = path.join(this.baseDir, String(tenantId));
-        if (!this.isRemote() && !fs.existsSync(tenantDir)) {
-            fs.mkdirSync(tenantDir, { recursive: true });
-        }
-        return tenantDir;
-    }
-
-    resolvePath(tenantId, filename) {
-        const safeFilename = path.basename(filename);
-        const tenantDir = this.getTenantDir(tenantId);
-        const fullPath = path.resolve(tenantDir, safeFilename);
-
-        if (!fullPath.startsWith(tenantDir)) {
-            throw new Error("StorageService: Access denied — path traversal attempt detected");
-        }
-
-        return fullPath;
-    }
-
     async exists(tenantId, filename) {
-        if (this.isRemote()) {
-            const { HeadObjectCommand } = loadS3();
-            try {
-                await this.getClient().send(new HeadObjectCommand({
-                    Bucket: this.bucketName(),
-                    Key: this.objectKey(tenantId, filename),
-                }));
-                return true;
-            } catch {
-                return false;
-            }
-        }
+        const { HeadObjectCommand } = loadS3();
         try {
-            const result = this.findFile(filename, [tenantId]);
-            return result.found;
+            await this.getClient().send(new HeadObjectCommand({
+                Bucket: this.bucketName(),
+                Key: this.objectKey(tenantId, filename),
+            }));
+            return true;
         } catch {
             return false;
         }
     }
 
-    findFile(filename, tenantCandidates = []) {
-        if (!filename) return { found: false, filePath: null, tenantId: null };
-        const safe = path.basename(filename);
-        if (safe !== filename || safe.includes("..")) {
-            return { found: false, filePath: null, tenantId: null };
-        }
-
-        const candidates = (Array.isArray(tenantCandidates) ? tenantCandidates : [tenantCandidates])
-            .filter(Boolean)
-            .map(String);
-
-        for (const tId of candidates) {
-            try {
-                const tenantDir = path.join(this.baseDir, tId);
-                const candidatePath = path.resolve(tenantDir, safe);
-                if (candidatePath.startsWith(tenantDir) && fs.existsSync(candidatePath)) {
-                    return { found: true, filePath: candidatePath, tenantId: tId };
-                }
-            } catch (_) {}
-        }
-
-        try {
-            const rootPath = path.resolve(this.baseDir, safe);
-            if (path.dirname(rootPath) === this.baseDir && fs.existsSync(rootPath)) {
-                return { found: true, filePath: rootPath, tenantId: null };
-            }
-        } catch (_) {}
-
-        try {
-            const entries = fs.readdirSync(this.baseDir, { withFileTypes: true });
-            for (const entry of entries) {
-                if (entry.isDirectory()) {
-                    const candidatePath = path.resolve(this.baseDir, entry.name, safe);
-                    if (candidatePath.startsWith(path.join(this.baseDir, entry.name)) && fs.existsSync(candidatePath)) {
-                        return { found: true, filePath: candidatePath, tenantId: entry.name };
-                    }
-                }
-            }
-        } catch (_) {}
-
-        return { found: false, filePath: null, tenantId: null };
-    }
-
     async saveFile(tenantId, filename, buffer) {
         const safe = path.basename(filename);
-        if (this.isRemote()) {
-            const { PutObjectCommand } = loadS3();
-            const mime = detectMimeFromBuffer(buffer) || "application/octet-stream";
-            await this.getClient().send(new PutObjectCommand({
-                Bucket: this.bucketName(),
-                Key: this.objectKey(tenantId, safe),
-                Body: buffer,
-                ContentType: mime,
-            }));
-            return `${tenantId}/${safe}`;
-        }
-
-        const filePath = this.resolvePath(tenantId, safe);
-        await fsPromises.writeFile(filePath, buffer);
+        const { PutObjectCommand } = loadS3();
+        const mime = detectMimeFromBuffer(buffer) || "application/octet-stream";
+        await this.getClient().send(new PutObjectCommand({
+            Bucket: this.bucketName(),
+            Key: this.objectKey(tenantId, safe),
+            Body: buffer,
+            ContentType: mime,
+        }));
         return `${tenantId}/${safe}`;
     }
 
     /**
-     * After magic-byte checks: local uploads are already on disk.
-     * Remote uploads are held in memory until this writes them to the bucket.
+     * Magic-byte checks run first. The upload is held in memory until this writes it to R2.
      */
     async persistUpload(tenantId, file) {
         if (!file) return null;
@@ -205,58 +107,31 @@ class StorageService {
         if (!filename) {
             throw new Error("StorageService: upload is missing a filename");
         }
-        if (Buffer.isBuffer(file.buffer)) {
-            await this.saveFile(tenantId, filename, file.buffer);
-        } else if (file.path && this.isRemote()) {
-            const buffer = await fsPromises.readFile(file.path);
-            await this.saveFile(tenantId, filename, buffer);
-        } else if (this.isRemote()) {
-            const err = new Error("StorageService: remote upload is missing a file buffer");
+        if (!Buffer.isBuffer(file.buffer)) {
+            const err = new Error("StorageService: upload is missing a file buffer");
             err.statusCode = 500;
             throw err;
         }
+        await this.saveFile(tenantId, filename, file.buffer);
         return filename;
     }
 
     async deleteFile(tenantId, filename) {
-        if (!filename) return false;
+        if (!filename || !tenantId) return false;
         const safe = path.basename(filename);
-        let deleted = false;
-
-        if (this.isRemote() && tenantId) {
-            const { DeleteObjectCommand } = loadS3();
-            try {
-                await this.getClient().send(new DeleteObjectCommand({
-                    Bucket: this.bucketName(),
-                    Key: this.objectKey(tenantId, safe),
-                }));
-                return true;
-            } catch {
-                return false;
-            }
-        }
-
-        if (tenantId) {
-            try {
-                const filePath = this.resolvePath(tenantId, safe);
-                await fsPromises.unlink(filePath);
-                deleted = true;
-            } catch (_) {}
-        }
-
+        const { DeleteObjectCommand } = loadS3();
         try {
-            const rootPath = path.resolve(this.baseDir, safe);
-            if (path.dirname(rootPath) === this.baseDir && fs.existsSync(rootPath)) {
-                await fsPromises.unlink(rootPath);
-                deleted = true;
-            }
-        } catch (_) {}
-
-        return deleted;
+            await this.getClient().send(new DeleteObjectCommand({
+                Bucket: this.bucketName(),
+                Key: this.objectKey(tenantId, safe),
+            }));
+            return true;
+        } catch {
+            return false;
+        }
     }
 
     async readObject(tenantId, filename) {
-        if (!this.isRemote()) return null;
         const { GetObjectCommand } = loadS3();
         try {
             const out = await this.getClient().send(new GetObjectCommand({
@@ -274,10 +149,6 @@ class StorageService {
 
     async getSignedUrl(tenantId, filename, expiresInSeconds = 3600) {
         const safe = path.basename(filename);
-        if (!this.isRemote()) {
-            return `/uploads/${encodeURIComponent(safe)}`;
-        }
-
         const publicBase = (process.env.R2_PUBLIC_URL || "").replace(/\/+$/, "");
         if (publicBase && String(safe).startsWith("logo-")) {
             return `${publicBase}/${tenantId}/${encodeURIComponent(safe)}`;
@@ -296,61 +167,41 @@ class StorageService {
 
     async sumTenantBytes(tenantId) {
         if (!tenantId) return 0;
-        if (this.isRemote()) {
-            const { ListObjectsV2Command } = loadS3();
-            let total = 0;
-            let continuationToken;
-            do {
-                const out = await this.getClient().send(new ListObjectsV2Command({
-                    Bucket: this.bucketName(),
-                    Prefix: `${tenantId}/`,
-                    ContinuationToken: continuationToken,
-                }));
-                for (const item of out.Contents || []) {
-                    total += item.Size || 0;
-                }
-                continuationToken = out.IsTruncated ? out.NextContinuationToken : undefined;
-            } while (continuationToken);
-            return total;
-        }
-
-        const tenantDir = path.join(this.baseDir, String(tenantId));
-        if (!fs.existsSync(tenantDir)) return 0;
+        const { ListObjectsV2Command } = loadS3();
         let total = 0;
-        const files = fs.readdirSync(tenantDir);
-        for (const file of files) {
-            const stats = fs.statSync(path.join(tenantDir, file));
-            if (stats.isFile()) total += stats.size;
-        }
+        let continuationToken;
+        do {
+            const out = await this.getClient().send(new ListObjectsV2Command({
+                Bucket: this.bucketName(),
+                Prefix: `${tenantId}/`,
+                ContinuationToken: continuationToken,
+            }));
+            for (const item of out.Contents || []) {
+                total += item.Size || 0;
+            }
+            continuationToken = out.IsTruncated ? out.NextContinuationToken : undefined;
+        } while (continuationToken);
         return total;
     }
 
     async deleteTenantStorage(tenantId) {
-        if (!tenantId) return;
-        if (this.isRemote()) {
-            const { ListObjectsV2Command, DeleteObjectCommand } = loadS3();
-            let continuationToken;
-            do {
-                const out = await this.getClient().send(new ListObjectsV2Command({
+        if (!tenantId || !this.bucketName()) return;
+        const { ListObjectsV2Command, DeleteObjectCommand } = loadS3();
+        let continuationToken;
+        do {
+            const out = await this.getClient().send(new ListObjectsV2Command({
+                Bucket: this.bucketName(),
+                Prefix: `${tenantId}/`,
+                ContinuationToken: continuationToken,
+            }));
+            for (const item of out.Contents || []) {
+                await this.getClient().send(new DeleteObjectCommand({
                     Bucket: this.bucketName(),
-                    Prefix: `${tenantId}/`,
-                    ContinuationToken: continuationToken,
+                    Key: item.Key,
                 }));
-                for (const item of out.Contents || []) {
-                    await this.getClient().send(new DeleteObjectCommand({
-                        Bucket: this.bucketName(),
-                        Key: item.Key,
-                    }));
-                }
-                continuationToken = out.IsTruncated ? out.NextContinuationToken : undefined;
-            } while (continuationToken);
-            return;
-        }
-
-        const tenantDir = this.getTenantDir(tenantId);
-        if (fs.existsSync(tenantDir)) {
-            fs.rmSync(tenantDir, { recursive: true, force: true });
-        }
+            }
+            continuationToken = out.IsTruncated ? out.NextContinuationToken : undefined;
+        } while (continuationToken);
     }
 }
 

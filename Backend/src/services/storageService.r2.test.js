@@ -51,7 +51,7 @@ describe("R2 storage configuration", () => {
         const service = new StorageService(path.join(os.tmpdir(), "leap-r2-missing"));
 
         expect(() => service.assertConfigured()).toThrow(
-            "StorageService: STORAGE_DRIVER=r2 requires R2_ACCOUNT_ID, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY"
+            "StorageService: Cloudflare R2 requires R2_ACCOUNT_ID, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY"
         );
     });
 
@@ -71,12 +71,16 @@ describe("R2 storage configuration", () => {
         expect(options.credentials.secretAccessKey).toBe("test-secret-key");
     });
 
-    it("does not require R2 settings for local storage", () => {
+    it("still requires R2 when STORAGE_DRIVER is local", () => {
         process.env.STORAGE_DRIVER = "local";
+        delete process.env.R2_ACCOUNT_ID;
+        delete process.env.R2_BUCKET_NAME;
         delete process.env.R2_ACCESS_KEY_ID;
+        delete process.env.R2_SECRET_ACCESS_KEY;
 
-        const service = new StorageService(path.join(os.tmpdir(), "leap-r2-local"));
-        expect(() => service.assertConfigured()).not.toThrow();
+        const service = new StorageService();
+        expect(service.getDriverName()).toBe("r2");
+        expect(() => service.assertConfigured()).toThrow(/R2_ACCESS_KEY_ID/);
     });
 });
 

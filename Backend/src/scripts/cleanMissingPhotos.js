@@ -2,7 +2,7 @@
  * Maintenance Script: Clean Missing Photos
  *
  * Scans all members in the database. If a member references a profile photo
- * that is not found on disk, sets `photo = null` to prevent continuous 404
+ * that is not in the R2 bucket, sets `photo = null` to prevent continuous 404
  * requests in client browsers.
  *
  * Usage:
@@ -34,12 +34,12 @@ async function cleanMissingPhotos() {
         let preservedCount = 0;
 
         for (const member of membersWithPhotos) {
-            const result = storageService.findFile(member.photo, [member.tenantId]);
-            if (result.found) {
+            const found = await storageService.exists(member.tenantId, member.photo);
+            if (found) {
                 preservedCount++;
             } else {
                 missingCount++;
-                console.log(`  [MISSING] Member ${member.name} (${member._id}): '${member.photo}' not found on disk.`);
+                console.log(`  [MISSING] Member ${member.name} (${member._id}): '${member.photo}' not found in R2.`);
                 if (!isDryRun) {
                     await Member.updateOne({ _id: member._id }, { $set: { photo: null } });
                 }
@@ -47,8 +47,8 @@ async function cleanMissingPhotos() {
         }
 
         console.log("\nSummary:");
-        console.log(`  - Preserved (files on disk): ${preservedCount}`);
-        console.log(`  - Cleaned up (missing on disk): ${missingCount}`);
+        console.log(`  - Preserved (objects in R2): ${preservedCount}`);
+        console.log(`  - Cleaned up (missing in R2): ${missingCount}`);
     });
 
     await mongoose.disconnect();
