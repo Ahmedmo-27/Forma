@@ -96,6 +96,11 @@ const {
 } = require("../controllers/platformSystemController");
 
 const {
+    getBackendLogs,
+    getFrontendLogs,
+} = require("../controllers/platformLogsController");
+
+const {
     createPlanSchema,
     updatePlanSchema,
     createTenantSchema,
@@ -211,6 +216,8 @@ router.get("/audit", requirePlatformPermission(PERMISSIONS.AUDIT_VIEW), getPlatf
 
 // System Health & Maintenance
 router.get("/system/health", requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH), cacheResponse({ ttlSeconds: 30, scope: "platform", tags: ["platform:system"] }), getSystemHealth);
+router.get("/system/logs/backend", requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH), getBackendLogs);
+router.get("/system/logs/frontend", requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH), getFrontendLogs);
 router.post("/system/maintenance", requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH), autoInvalidate(["system"], "platform"), toggleMaintenanceMode);
 router.patch("/system/settings/:key", requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH), autoInvalidate(["system"], "platform"), updatePlatformSetting);
 

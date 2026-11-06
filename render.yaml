@@ -1,0 +1,66 @@
+services:
+  - type: web
+    name: leap-backend
+    runtime: node
+    plan: free
+    rootDir: Backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: STORAGE_DRIVER
+        value: r2
+      - key: MONGO_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: PLATFORM_JWT_SECRET
+        sync: false
+      - key: TENANT_SECRET_KEY
+        sync: false
+      - key: FRONTEND_ORIGIN
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: MAIL_FROM
+        sync: false
+      - key: PAYMENT_PROVIDER_NAME
+        value: manual_transfer
+      - key: PAYMENT_BANK_NAME
+        sync: false
+      - key: PAYMENT_ACCOUNT_NAME
+        sync: false
+      - key: PAYMENT_IBAN
+        sync: false
+      - key: PAYMENT_SWIFT
+        sync: false
+      - key: R2_ACCOUNT_ID
+        sync: false
+      - key: R2_ACCESS_KEY_ID
+        sync: false
+      - key: R2_SECRET_ACCESS_KEY
+        sync: false
+      - key: R2_BUCKET_NAME
+        sync: false
+      - key: R2_PUBLIC_URL
+        sync: false
+      - key: RENDER_API_KEY
+        sync: false
+      - key: RENDER_OWNER_ID
+        sync: false
+      - key: RENDER_SERVICE_ID
+        sync: false
+      - key: VERCEL_TOKEN
+        sync: false
+      - key: VERCEL_PROJECT_ID
+        sync: false
+      - key: VERCEL_TEAM_ID
+        sync: false

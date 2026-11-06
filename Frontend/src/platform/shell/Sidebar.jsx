@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Users,
   HeartPulse,
+  ScrollText,
   LogOut,
   Palette,
   ChevronLeft,
@@ -84,6 +85,7 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
       items: [
         { label: "Operators & Roles", path: "/platform/users", icon: Users, permitted: canManageUsers },
         { label: "System Health", path: "/platform/health", icon: HeartPulse, permitted: canHealth },
+        { label: "Runtime Logs", path: "/platform/logs", icon: ScrollText, permitted: canHealth },
         { label: "Design System", path: "/platform/_design", icon: Palette, permitted: import.meta.env.DEV },
       ],
     },

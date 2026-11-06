@@ -223,6 +223,12 @@ export const apiGetAuditLogs = (params, signal) =>
 export const apiGetSystemHealth = (signal) =>
   platformClient.get("/system/health", { signal });
 
+export const apiGetBackendLogs = (params, signal) =>
+  platformClient.get("/system/logs/backend", { params, signal, skipGlobalError: true });
+
+export const apiGetFrontendLogs = (params, signal) =>
+  platformClient.get("/system/logs/frontend", { params, signal, skipGlobalError: true });
+
 export const apiToggleMaintenanceMode = (data, signal) =>
   platformClient.post("/system/maintenance", data, { signal });
 

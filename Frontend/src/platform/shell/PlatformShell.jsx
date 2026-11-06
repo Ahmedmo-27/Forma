@@ -61,6 +61,7 @@ export function PlatformShell() {
         audit: "Audit Trail",
         users: "Operators & Roles",
         health: "System Health",
+        logs: "Runtime Logs",
         _design: "Design System",
       };
 

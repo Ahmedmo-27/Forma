@@ -19,6 +19,7 @@ import AnnouncementsPage from "../features/announcements/AnnouncementsPage";
 import AuditPage from "../features/audit/AuditPage";
 import UsersPage from "../features/users/UsersPage";
 import HealthSettingsPage from "../features/system/HealthSettingsPage";
+import LogsPage from "../features/system/LogsPage";
 import DesignSystemPage from "../features/design-system/DesignSystemPage";
 
 function ProtectedShellRoute() {
@@ -68,6 +69,7 @@ export default function PlatformConsoleApp() {
                 <Route path="audit" element={<AuditPage />} />
                 <Route path="users" element={<UsersPage />} />
                 <Route path="health" element={<HealthSettingsPage />} />
+                <Route path="logs" element={<LogsPage />} />
 
                 <Route path="*" element={<Navigate to="dashboard" replace />} />
               </Route>

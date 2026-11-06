@@ -14,6 +14,7 @@ import {
   ShieldCheck,
   Users,
   HeartPulse,
+  ScrollText,
   Plus,
   ArrowRight,
   Command,
@@ -105,6 +106,7 @@ export function CommandPalette({ isOpen, onClose }) {
     { label: "Security & Operations Audit Trail", path: "/platform/audit", icon: ShieldCheck, permitted: canAudit },
     { label: "Platform Users & Roles", path: "/platform/users", icon: Users, permitted: canManageUsers },
     { label: "System Health & Settings", path: "/platform/health", icon: HeartPulse, permitted: canHealth },
+    { label: "Runtime Logs", path: "/platform/logs", icon: ScrollText, permitted: canHealth },
   ].filter((item) => item.permitted);
 
   const filteredNav = navItems.filter((item) =>
