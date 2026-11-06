@@ -1,7 +1,7 @@
 const Tenant = require("../models/Tenant");
 const Member = require("../models/Member");
 const User = require("../models/User");
-const { getEffectiveLimits } = require("../models/Tenant");
+const { getEffectiveLimits, getEffectiveRoles } = require("../models/Tenant");
 const { runAsPlatform } = require("../context/tenantContext");
 
 /**
@@ -160,7 +160,7 @@ async function enforceStaffLimit(req, res, next) {
 
         // 1. Role validation against allowedRoles
         const requestedRole = req.body?.role;
-        const allowedRoles = req.plan?.allowedRoles || [];
+        const allowedRoles = getEffectiveRoles(req.tenant, req.plan);
         if (requestedRole && allowedRoles.length > 0 && !allowedRoles.includes(requestedRole)) {
             const message = `The '${requestedRole}' role is not permitted under your current ${req.plan?.name || "subscription"} plan.`;
             return res.status(403).json({

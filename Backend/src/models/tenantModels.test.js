@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import mongoose from "mongoose";
 import Plan from "./Plan";
-import Tenant, { getEffectiveFeatures, getEffectiveLimits } from "./Tenant";
+import Tenant, { getEffectiveFeatures, getEffectiveLimits, getEffectiveRoles } from "./Tenant";
 import { encryptSecret, decryptSecret } from "../utils/tenantCrypto";
 import {
     createPlanSchema,
@@ -57,6 +57,33 @@ describe("Phase 1: Core Models & Tenant Helpers", () => {
             const plan = { features: ["members", "checkin"] };
             const effective = getEffectiveFeatures({}, plan);
             expect(effective).toEqual(["members", "checkin"]);
+        });
+    });
+
+    describe("getEffectiveRoles", () => {
+        it("combines plan allowedRoles with tenant roleOverrides (add/remove)", () => {
+            const plan = {
+                allowedRoles: ["Owner", "Receptionist", "Coach"],
+            };
+            const tenant = {
+                roleOverrides: {
+                    add: ["Sales", "Accountant"],
+                    remove: ["Coach"],
+                },
+            };
+
+            const effective = getEffectiveRoles(tenant, plan);
+            expect(effective).toContain("Owner");
+            expect(effective).toContain("Receptionist");
+            expect(effective).toContain("Sales");
+            expect(effective).toContain("Accountant");
+            expect(effective).not.toContain("Coach");
+        });
+
+        it("returns plan allowedRoles when no roleOverrides exist", () => {
+            const plan = { allowedRoles: ["Owner", "Receptionist"] };
+            const effective = getEffectiveRoles({}, plan);
+            expect(effective).toEqual(["Owner", "Receptionist"]);
         });
     });
 

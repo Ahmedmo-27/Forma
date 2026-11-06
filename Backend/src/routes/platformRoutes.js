@@ -39,6 +39,7 @@ const {
 } = require("../controllers/platformTenantController");
 const {
     getFeatures,
+    getRoles,
     createFeature,
     updateFeature,
     getPlans,
@@ -131,6 +132,7 @@ router.post("/users/:id/revoke-sessions", requirePlatformPermission(PERMISSIONS.
 // Features & Plans Management (Phase 3)
 // ==========================================
 router.get("/features", requirePlatformPermission(PERMISSIONS.TENANTS_READ), cacheResponse({ ttlSeconds: 600, scope: "platform", tags: ["platform:plans"] }), getFeatures);
+router.get("/roles", requirePlatformPermission(PERMISSIONS.TENANTS_READ), cacheResponse({ ttlSeconds: 600, scope: "platform", tags: ["platform:plans"] }), getRoles);
 router.post("/features", requirePlatformPermission(PERMISSIONS.FEATURES_MANAGE), autoInvalidate(["plans"], "platform"), createFeature);
 router.patch("/features/:id", requirePlatformPermission(PERMISSIONS.FEATURES_MANAGE), autoInvalidate(["plans"], "platform"), updateFeature);
 

@@ -10,6 +10,7 @@ import {
     getPlanImpactPreview,
     archivePlan,
     updatePlanPrice,
+    getRoles,
 } from "../controllers/platformPlanController";
 
 describe("Phase 3: Plans, Features & Pricing Management", () => {
@@ -223,6 +224,28 @@ describe("Phase 3: Plans, Features & Pricing Management", () => {
             atomicSpy.mockResolvedValueOnce(null);
             const res2 = await Coupon.redeemAtomic("LAUNCH50");
             expect(res2).toBeNull();
+        });
+    });
+
+    describe("Roles Catalog & Entitlements Management", () => {
+        it("returns all standard system roles with categories and descriptions", async () => {
+            const req = {};
+            const res = {
+                json: vi.fn(),
+                status: vi.fn().mockReturnThis(),
+            };
+
+            await getRoles(req, res);
+
+            expect(res.json).toHaveBeenCalled();
+            const roles = res.json.mock.calls[0][0];
+            expect(Array.isArray(roles)).toBe(true);
+            const roleKeys = roles.map((r) => r.key);
+            expect(roleKeys).toContain("Owner");
+            expect(roleKeys).toContain("Receptionist");
+            expect(roleKeys).toContain("Coach");
+            expect(roleKeys).toContain("Sales");
+            expect(roleKeys).toContain("Accountant");
         });
     });
 });

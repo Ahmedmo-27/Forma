@@ -124,6 +124,10 @@ const tenantSchema = new mongoose.Schema(
             add: [{ type: String }],
             remove: [{ type: String }],
         },
+        roleOverrides: {
+            add: [{ type: String }],
+            remove: [{ type: String }],
+        },
         limitOverrides: {
             maxMembers: { type: Number, default: null },
             maxStaff: { type: Number, default: null },
@@ -227,6 +231,20 @@ function getEffectiveFeatures(tenant, plan) {
 }
 
 /**
+ * Returns effective allowed roles applying roleOverrides over plan.allowedRoles
+ */
+function getEffectiveRoles(tenant, plan) {
+    const baseRoles = new Set(plan?.allowedRoles || []);
+    const add = tenant?.roleOverrides?.add || [];
+    const remove = new Set(tenant?.roleOverrides?.remove || []);
+
+    add.forEach((r) => baseRoles.add(r));
+    remove.forEach((r) => baseRoles.delete(r));
+
+    return Array.from(baseRoles);
+}
+
+/**
  * Returns effective limits applying limitOverrides over plan.limits
  */
 function getEffectiveLimits(tenant, plan) {
@@ -246,4 +264,5 @@ try {
     module.exports = mongoose.model("Tenant", tenantSchema);
 }
 module.exports.getEffectiveFeatures = getEffectiveFeatures;
+module.exports.getEffectiveRoles = getEffectiveRoles;
 module.exports.getEffectiveLimits = getEffectiveLimits;

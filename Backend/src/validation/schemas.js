@@ -243,6 +243,10 @@ const createTenantSchema = z.object({
         add: z.array(z.string()).optional(),
         remove: z.array(z.string()).optional(),
     }).optional(),
+    roleOverrides: z.object({
+        add: z.array(z.string()).optional(),
+        remove: z.array(z.string()).optional(),
+    }).optional(),
     limitOverrides: z.object({
         maxMembers: z.coerce.number().nullable().optional(),
         maxStaff: z.coerce.number().nullable().optional(),

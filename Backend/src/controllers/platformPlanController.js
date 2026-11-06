@@ -5,16 +5,111 @@ const Coupon = require("../models/Coupon");
 const Tenant = require("../models/Tenant");
 const BillingEvent = require("../models/BillingEvent");
 const AuditLog = require("../models/AuditLog");
+const { parsePagination, buildPagination } = require("../utils/pagination");
 const logger = require("../utils/logger");
 
+const DEFAULT_FEATURES = [
+    { key: "members", name: "Members Management", category: "members", description: "Full membership directory, profiles, barcodes, and statuses", isCore: true },
+    { key: "checkin", name: "Access & Check-in", category: "core", description: "Front desk barcode scanning, access gates, and attendance tracking", isCore: true },
+    { key: "packages", name: "Packages & Subscriptions", category: "finance", description: "Gym membership packages, durations, session tracking, and renewals", isCore: true },
+    { key: "pt_tracking", name: "Personal Training (PT)", category: "coaching", description: "PT assignment, coach session balances, and coach commissions", isCore: false },
+    { key: "audit", name: "Audit Trail", category: "core", description: "Action logging, operator activity history, and security changes", isCore: true },
+    { key: "accounting", name: "Ledger & Accounting", category: "finance", description: "Income, expense transactions, cash drawer tracking, and financial statements", isCore: false },
+    { key: "exception_approvals", name: "Exception Approvals", category: "finance", description: "Discount, freeze, refund, and package exception approval workflows", isCore: false },
+    { key: "sales_crm", name: "Sales Pipeline & CRM", category: "sales", description: "Lead tracking, pipeline stages, sales rep assignment, and conversion reports", isCore: false },
+    { key: "whatsapp", name: "WhatsApp Automation", category: "communication", description: "Automated WhatsApp notifications, payment receipts, and expiring reminders", isCore: false },
+    { key: "excel_import", name: "Excel Import & Export", category: "integrations", description: "Bulk member import from spreadsheet and CSV financial export", isCore: false },
+    { key: "exec_analytics", name: "Executive Analytics", category: "analytics", description: "Churn analytics, revenue forecasting, retention cohorts, and attendance heatmaps", isCore: false },
+    { key: "funnels", name: "Sales Conversion Funnels", category: "analytics", description: "Lead-to-member conversion tracking, drop-off analysis, and marketing ROI", isCore: false },
+    { key: "business_intelligence", name: "Business Intelligence", category: "analytics", description: "Custom KPI dashboards, executive summaries, and multi-branch rollups", isCore: false },
+];
+
+const SYSTEM_ROLES = [
+    {
+        key: "Owner",
+        name: "Gym Owner",
+        description: "Full administrative access to gym operations, financial reports, settings, and staff management.",
+        defaultTier: "basic",
+        category: "Management",
+    },
+    {
+        key: "Receptionist",
+        name: "Front Desk Receptionist",
+        description: "Handles member check-ins, barcode scans, daily visitor inquiries, and basic renewals.",
+        defaultTier: "basic",
+        category: "Operations",
+    },
+    {
+        key: "Coach",
+        name: "Fitness Coach / Trainer",
+        description: "Views assigned trainees, logs private sessions, and records member training progress.",
+        defaultTier: "basic",
+        category: "Coaching",
+    },
+    {
+        key: "Coach Manager",
+        name: "Head Coach / Fitness Manager",
+        description: "Oversees fitness coaches, assigns personal trainers, and manages class schedules.",
+        defaultTier: "basic",
+        category: "Coaching",
+    },
+    {
+        key: "Accountant",
+        name: "Gym Accountant / Cashier",
+        description: "Manages daily cash drawer, payment vouchers, ledger expenses, and tax/invoice reconciliation.",
+        defaultTier: "gold",
+        category: "Finance",
+    },
+    {
+        key: "Sales",
+        name: "Sales Representative",
+        description: "Manages inbound leads, calls prospects, books gym tours, and logs sale opportunities.",
+        defaultTier: "gold",
+        category: "Sales",
+    },
+    {
+        key: "Sales Manager",
+        name: "Commercial / Sales Manager",
+        description: "Sets sales quotas, reassigns leads across sales reps, and reviews pipeline conversion funnels.",
+        defaultTier: "gold",
+        category: "Sales",
+    },
+];
+
 // ==========================================
-// 1. Feature Catalog Management
+// 1. Feature Catalog & Roles Management
 // ==========================================
+
+async function ensureDefaultFeatures() {
+    try {
+        const count = await Feature.countDocuments();
+        if (count === 0) {
+            for (const item of DEFAULT_FEATURES) {
+                await Feature.findOneAndUpdate(
+                    { key: item.key },
+                    { $setOnInsert: item },
+                    { upsert: true }
+                );
+            }
+        }
+    } catch (_) {
+        // Non-blocking in case of race condition
+    }
+}
 
 async function getFeatures(_req, res) {
     try {
+        await ensureDefaultFeatures();
         const features = await Feature.find().sort({ category: 1, name: 1 });
         res.json(features);
+    } catch (err) {
+        res.status(500).json({ message: "Server error", error: err.message });
+    }
+}
+
+async function getRoles(_req, res) {
+    try {
+        res.json(SYSTEM_ROLES);
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
     }
@@ -313,10 +408,28 @@ async function togglePlanPriceSales(req, res) {
 // 4. Coupons & Promotions Management
 // ==========================================
 
-async function getCoupons(_req, res) {
+async function getCoupons(req, res) {
     try {
-        const coupons = await Coupon.find().sort({ createdAt: -1 });
-        res.json(coupons);
+        const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 20 });
+        const { isActive, search } = req.query || {};
+
+        const filter = {};
+        if (isActive !== undefined && isActive !== "") {
+            filter.isActive = isActive === "true" || isActive === true;
+        }
+        if (search && search.trim()) {
+            filter.code = new RegExp(search.trim(), "i");
+        }
+
+        const [coupons, total] = await Promise.all([
+            Coupon.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+            Coupon.countDocuments(filter),
+        ]);
+
+        res.json({
+            coupons,
+            pagination: buildPagination(page, limit, total),
+        });
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
     }
@@ -375,6 +488,9 @@ async function deleteCoupon(req, res) {
 
 module.exports = {
     getFeatures,
+    getRoles,
+    SYSTEM_ROLES,
+    DEFAULT_FEATURES,
     createFeature,
     updateFeature,
     getPlans,

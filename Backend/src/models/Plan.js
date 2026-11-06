@@ -59,11 +59,9 @@ const planSchema = new mongoose.Schema(
         },
         features: [{
             type: String,
-            enum: ALL_FEATURES,
         }],
         allowedRoles: [{
             type: String,
-            enum: ALL_ROLES,
         }],
         limits: {
             maxMembers: { type: Number, default: 500 },
