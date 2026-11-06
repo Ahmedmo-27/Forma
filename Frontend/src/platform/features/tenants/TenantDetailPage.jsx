@@ -1,24 +1,16 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
-  Building2,
   ExternalLink,
-  ShieldAlert,
   Ban,
   CheckCircle,
   Download,
   Trash2,
   Pin,
-  Plus,
   X,
-  CreditCard,
-  FileText,
-  Activity,
-  User,
   Sliders,
-  Check,
   Sparkles,
 } from "lucide-react";
 import {
@@ -30,7 +22,6 @@ import {
   apiPurgeTenant,
   apiCreateImpersonationSession,
   apiExportTenantData,
-  apiGetPlans,
 } from "../../lib/api/endpoints";
 import { Button } from "../../ui/Button";
 import { Badge, StatusPill } from "../../ui/Badge";
@@ -38,10 +29,8 @@ import { CopyChip } from "../../ui/CopyChip";
 import { UsageMeter } from "../../ui/UsageMeter";
 import { Tabs, TabsList, TabTrigger, TabContent } from "../../ui/Tabs";
 import { Input } from "../../ui/Input";
-import { Select } from "../../ui/Select";
 import { Textarea } from "../../ui/Textarea";
 import { Checkbox } from "../../ui/Checkbox";
-import { Callout } from "../../ui/Callout";
 import { Skeleton } from "../../ui/Skeleton";
 import { ConfirmDialog } from "../../shell/ConfirmDialog";
 import TenantOverridesModal from "./TenantOverridesModal";
@@ -96,16 +85,19 @@ export default function TenantDetailPage() {
 
   const tenant = data?.tenant;
   const usage = data?.usage || {};
+  const effectiveLimits = data?.effectiveLimits || tenant?.effectiveLimits || {};
   const effectiveFeatures = Array.isArray(data?.effectiveFeatures)
     ? data.effectiveFeatures
     : (Array.isArray(tenant?.effectiveFeatures) ? tenant.effectiveFeatures : Object.keys(data?.effectiveFeatures || {}));
   const effectiveRoles = Array.isArray(data?.effectiveRoles)
     ? data.effectiveRoles
     : (Array.isArray(tenant?.effectiveRoles) ? tenant.effectiveRoles : (tenant?.planId?.allowedRoles || tenant?.plan?.allowedRoles || []));
+  const memberCount = usage.memberCount ?? usage.members ?? 0;
+  const staffCount = usage.staffCount ?? usage.staff ?? 0;
   const notes = data?.notes || [];
   const recentAudit = data?.recentAudit || [];
   const recentLedger = data?.recentLedger || [];
-  const invoices = data?.invoices || [];
+  const invoices = data?.invoices || recentLedger;
 
   // Add Note Handler
   const handleAddNote = async (e) => {
@@ -388,7 +380,7 @@ export default function TenantDetailPage() {
             Active Plan
           </div>
           <div className="text-base font-bold text-[var(--platform-text-primary)] capitalize">
-            {tenant.planId?.name || "Basic Tier"}
+            {tenant.plan?.name || tenant.planId?.name || "Basic Tier"}
           </div>
           <div className="text-[11px] platform-mono text-[var(--platform-text-muted)]">
             {isLifetime ? "Lifetime License" : `Renews ${formatDate(tenant.currentPeriodEnd)}`}
@@ -400,10 +392,10 @@ export default function TenantDetailPage() {
             Member Capacity
           </div>
           <div className="text-base font-bold platform-mono text-[var(--platform-text-primary)]">
-            {usage.memberCount || 0} / {effectiveLimits.maxMembers || 500}
+            {memberCount} / {effectiveLimits.maxMembers || 500}
           </div>
           <div className="text-[11px] text-[var(--platform-text-muted)]">
-            {Math.round(((usage.memberCount || 0) / (effectiveLimits.maxMembers || 500)) * 100)}% utilized
+            {Math.round((memberCount / (effectiveLimits.maxMembers || 500)) * 100)}% utilized
           </div>
         </div>
 
@@ -461,13 +453,13 @@ export default function TenantDetailPage() {
               <div className="space-y-4">
                 <UsageMeter
                   label="Member Capacity Limit"
-                  current={usage.memberCount || 0}
+                  current={memberCount}
                   max={effectiveLimits.maxMembers || 500}
                   unit="members"
                 />
                 <UsageMeter
                   label="Staff / Operator Seats"
-                  current={usage.staffCount || 0}
+                  current={staffCount}
                   max={effectiveLimits.maxStaff || 10}
                   unit="staff"
                 />
@@ -763,14 +755,14 @@ export default function TenantDetailPage() {
                       invoices.map((inv) => (
                         <tr key={inv._id} className="hover:bg-[var(--platform-surface-subtle)]/50">
                           <td className="py-3 px-4 platform-mono font-semibold">
-                            {inv.invoiceNumber || inv._id}
+                            {inv.invoiceNumber || inv.externalRef || inv._id}
                           </td>
                           <td className="py-3 px-4 capitalize">{inv.cycle || "Monthly"}</td>
                           <td className="py-3 px-4 platform-mono font-bold">
                             {formatCurrency(inv.amount, inv.currency || "USD")}
                           </td>
                           <td className="py-3 px-4">
-                            <StatusPill status={inv.status} />
+                            <StatusPill status={inv.status || inv.type || "active"} />
                           </td>
                           <td className="py-3 px-4 platform-mono text-[var(--platform-text-muted)]">
                             {formatDate(inv.createdAt)}
