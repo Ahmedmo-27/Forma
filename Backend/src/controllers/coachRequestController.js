@@ -1,7 +1,6 @@
 const CoachRepRequest = require("../models/CoachRepRequest");
 const Member = require("../models/Member");
-const User = require("../models/User");
-const { resolveAbilities } = require("../utils/userAbilities");
+const { hasAccess } = require("../utils/accessControl");
 const { buildMemberFilter, findMemberByIdentifier } = require("../utils/memberLookup");
 const { notifyMemberAssigned } = require("../utils/notificationService");
 
@@ -24,15 +23,13 @@ const createRequest = async (req, res) => {
 
         const resolvedMemberId = member._id;
 
-        const coachUser = await User.findById(req.user.id);
-        const abilities = resolveAbilities(coachUser);
         const isTakeover = Boolean(member.current_couch);
 
-        if (isTakeover && !abilities.canRequestTakeover) {
+        if (isTakeover && !hasAccess(req.user, "request_takeover")) {
             return res.status(403).json({ message: "You are not allowed to request replacing another representative" });
         }
 
-        if (!isTakeover && !abilities.canRequestAssignment) {
+        if (!isTakeover && !hasAccess(req.user, "request_assignment")) {
             return res.status(403).json({ message: "You are not allowed to request acquiring new members" });
         }
 

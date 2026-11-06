@@ -5,6 +5,7 @@ import usePageTitle from '../hooks/usePageTitle';
 import Layout from '../components/Layout';
 import { Badge, Avatar, Spinner, fmtDate, EmptyState } from '../components/ui';
 import { checkInMember, getMemberProfile, getTodayCheckIns } from '../api/endpoints';
+import { subscribeLiveEvents } from '../api/live';
 
 // ── small stat pill ───────────────────────────────────────────────────────────
 function StatPill({ label, value, color = 'var(--t1)' }) {
@@ -29,15 +30,132 @@ export default function CheckIn() {
   const [history,    setHistory]    = useState([]);
   const [histLoad,   setHistLoad]   = useState(true);
   const [alertPopup, setAlertPopup] = useState(null);
+  const [live,       setLive]       = useState('connecting');
+  const [freshIds,   setFreshIds]   = useState(() => new Set());
+  const historyRef = useRef([]);
+  const memberRef  = useRef(null);
+  const seenRef    = useRef(new Set());
+  const readyRef   = useRef(false);
+  const liveRef    = useRef('connecting');
+
+  const announce = useCallback((key, message, icon) => {
+    if (!key || !message || seenRef.current.has(key)) return;
+    seenRef.current.add(key);
+    toast(message, { icon: icon || '🔔' });
+  }, []);
+
+  const applyHistory = useCallback((next, { notify }) => {
+    const prev = historyRef.current;
+    if (notify && readyRef.current) {
+      const prevByMember = new Map();
+      prev.forEach((entry) => {
+        const id = String(entry.member?.systemId ?? '');
+        if (!prevByMember.has(id)) prevByMember.set(id, entry);
+      });
+      const known = new Set(prev.map((entry) => String(entry._id)));
+      const arrived = [];
+      next.forEach((entry) => {
+        const id = String(entry._id);
+        const systemId = String(entry.member?.systemId ?? '');
+        if (!known.has(id)) {
+          announce(`in:${id}`, `${entry.member?.name || 'A member'} checked in`, '✅');
+          arrived.push(id);
+          return;
+        }
+        const before = prevByMember.get(systemId);
+        if (!before) return;
+        if (before.member?.status !== entry.member?.status) {
+          announce(
+            `status:${systemId}:${entry.member?.status}`,
+            `${entry.member?.name || 'A member'} is now ${entry.member?.status}`,
+            '🔄',
+          );
+        }
+        const beforePkg = before.member?.package?.name || '';
+        const nextPkg = entry.member?.package?.name || '';
+        if (beforePkg !== nextPkg) {
+          announce(
+            `pkg:${systemId}:${nextPkg}`,
+            `${entry.member?.name || 'A member'}'s package is now ${nextPkg || 'none'}`,
+            '📦',
+          );
+        }
+      });
+      if (arrived.length) {
+        setFreshIds(new Set(arrived));
+        setTimeout(() => setFreshIds(new Set()), 6000);
+      }
+    }
+    historyRef.current = next;
+    setHistory(next);
+  }, [announce]);
+
+  const refreshBoard = useCallback(async ({ notify = false, memberId = null } = {}) => {
+    let next = null;
+    const prev = historyRef.current;
+    try {
+      const r = await getTodayCheckIns();
+      next = r.data.checkIns ?? [];
+      applyHistory(next, { notify });
+    } catch { /* keep the list already on screen */ }
+
+    const openId = memberRef.current?.systemId;
+    const targeted = memberId && String(memberId) === String(openId);
+    const rowChanged = next && openId && next.some((entry) => {
+      if (String(entry.member?.systemId) !== String(openId)) return false;
+      const before = prev.find((item) => String(item.member?.systemId) === String(openId));
+      if (!before) return true;
+      return before.member?.status !== entry.member?.status
+        || (before.member?.package?.name || '') !== (entry.member?.package?.name || '');
+    });
+    if (!openId || (!targeted && !rowChanged)) return;
+    try {
+      const profile = await getMemberProfile(openId);
+      if (String(memberRef.current?.systemId) === String(openId)) {
+        setMember(profile.data.member);
+      }
+    } catch { /* the card stays as it was */ }
+  }, [applyHistory]);
 
   const loadHistory = useCallback(async () => {
     setHistLoad(true);
-    try { const r = await getTodayCheckIns(); setHistory(r.data.checkIns ?? []); }
-    catch { /* silent */ }
-    finally { setHistLoad(false); }
-  }, []);
+    try { await refreshBoard({ notify: false }); }
+    finally {
+      readyRef.current = true;
+      setHistLoad(false);
+    }
+  }, [refreshBoard]);
 
   useEffect(() => { loadHistory(); }, [loadHistory]);
+  useEffect(() => { memberRef.current = member; }, [member]);
+
+  useEffect(() => {
+    const stop = subscribeLiveEvents((event) => {
+      if (!event || event.type === 'ready') return;
+      if (event.type === 'check-in' && event.checkInId) {
+        announce(`in:${event.checkInId}`, event.message, '✅');
+      } else if (event.type === 'member') {
+        announce(
+          `status:${event.systemId}:${event.status}:${event.packageName || ''}`,
+          event.message,
+          '🔄',
+        );
+      } else if (event.type === 'package') {
+        announce(`catalog:${event.packageId}:${event.packageName}`, event.message, '📦');
+      }
+      refreshBoard({
+        notify: false,
+        memberId: event.systemId || null,
+      });
+    }, (status) => {
+      liveRef.current = status;
+      setLive(status);
+    });
+    const poll = setInterval(() => {
+      refreshBoard({ notify: liveRef.current !== 'live' });
+    }, 4000);
+    return () => { stop(); clearInterval(poll); };
+  }, [announce, refreshBoard]);
 
   const handleSearch = async (e) => {
     e.preventDefault();
@@ -61,10 +179,9 @@ export default function CheckIn() {
     try {
       const r = await checkInMember(member.systemId);
       setResult({ ok: true, msg: r.data.message });
-      toast.success(r.data.message);
       const u = await getMemberProfile(member.systemId);
       setMember(u.data.member);
-      loadHistory();
+      refreshBoard({ notify: false, memberId: member.systemId });
     } catch (err) {
       const msg = err.normalized?.message || err.response?.data?.message || 'Check-in failed.';
       setResult({ ok: false, msg });
@@ -325,7 +442,13 @@ export default function CheckIn() {
               {/* Header */}
               <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg)' }}>
                 <div>
-                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', margin: 0 }}>Today's Activity</h3>
+                  <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    Today's Activity
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: live === 'live' ? 'var(--green)' : 'var(--amber)' }}>
+                      <span style={{ width: 7, height: 7, borderRadius: '50%', background: live === 'live' ? '#22c55e' : '#f59e0b', boxShadow: live === 'live' ? '0 0 0 3px rgba(34,197,94,0.18)' : 'none' }} />
+                      {live === 'live' ? 'Live' : 'Reconnecting'}
+                    </span>
+                  </h3>
                   <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>{today}</p>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -355,10 +478,11 @@ export default function CheckIn() {
                         display: 'flex', alignItems: 'center', gap: 12,
                         padding: '12px 22px', cursor: 'pointer',
                         borderBottom: i < history.length - 1 ? '1px solid var(--border)' : 'none',
-                        transition: 'background 0.1s',
+                        background: freshIds.has(String(entry._id)) ? 'rgba(34,197,94,0.10)' : 'transparent',
+                        transition: 'background 0.3s',
                       }}
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                      onMouseLeave={e => { e.currentTarget.style.background = freshIds.has(String(entry._id)) ? 'rgba(34,197,94,0.10)' : 'transparent'; }}
                     >
                       {/* Serial number */}
                       <div style={{

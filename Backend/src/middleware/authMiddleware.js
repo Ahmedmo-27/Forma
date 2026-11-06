@@ -83,6 +83,11 @@ const protect = async (req, res, next) => {
             name: user.name,
             email: user.email,
             canViewPhones: user.canViewPhones,
+            abilities: user.abilities || {},
+            featureAccess: {
+                grants: user.featureAccess?.grants || [],
+                revokes: user.featureAccess?.revokes || [],
+            },
             tenantId: tenantId ? String(tenantId) : null,
             tenantSlug,
             isImpersonation: Boolean(decoded.isImpersonation),

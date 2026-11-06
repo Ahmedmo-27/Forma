@@ -1,8 +1,7 @@
 const WhatsAppTemplate = require("../models/WhatsAppTemplate");
-const User = require("../models/User");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const { writeAudit } = require("../utils/audit");
-const { resolveAbilities } = require("../utils/userAbilities");
+const { hasAccess, hasExplicitGrant } = require("../utils/accessControl");
 
 const MANAGER_ROLES = new Set(["Owner", "Sales Manager", "Accountant", "Coach Manager"]);
 
@@ -144,16 +143,13 @@ const getTemplates = async (req, res) => {
         // Keep starter copy in sync for all callers (send modal + manage page)
         await ensureStarterTemplates(req.user.id);
 
-        if (req.user.role === "Sales") {
-            const salesUser = await User.findById(req.user.id);
-            if (!resolveAbilities(salesUser).canSendWhatsAppTemplates) {
-                const { page, limit } = parsePagination(req.query, { defaultLimit: 50 });
-                return res.status(200).json({
-                    count: 0,
-                    templates: [],
-                    pagination: buildPagination(page, limit, 0),
-                });
-            }
+        if ((req.user.role === "Sales" || hasExplicitGrant(req.user, "whatsapp_send")) && !hasAccess(req.user, "whatsapp_send")) {
+            const { page, limit } = parsePagination(req.query, { defaultLimit: 50 });
+            return res.status(200).json({
+                count: 0,
+                templates: [],
+                pagination: buildPagination(page, limit, 0),
+            });
         }
 
         const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 50 });
@@ -262,11 +258,8 @@ const deleteTemplate = async (req, res) => {
 
 const logTemplateSend = async (req, res) => {
     try {
-        if (req.user.role === "Sales") {
-            const salesUser = await User.findById(req.user.id);
-            if (!resolveAbilities(salesUser).canSendWhatsAppTemplates) {
-                return res.status(403).json({ message: "You are not allowed to send WhatsApp template messages" });
-            }
+        if ((req.user.role === "Sales" || hasExplicitGrant(req.user, "whatsapp_send")) && !hasAccess(req.user, "whatsapp_send")) {
+            return res.status(403).json({ message: "You are not allowed to send WhatsApp template messages" });
         }
 
         const { memberId, memberName, templateId } = req.body;

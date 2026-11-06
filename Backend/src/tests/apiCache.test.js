@@ -162,7 +162,7 @@ describe("API Caching Architecture", () => {
             // Controller finishes and sends payload
             res.send(JSON.stringify({ count: 42 }));
             expect(res.getHeader("etag")).toBeDefined();
-            expect(res.getHeader("cache-control")).toContain("max-age=60");
+            expect(res.getHeader("cache-control")).toContain("no-store");
 
             // Second request: cache HIT
             const res2 = createMockRes();

@@ -37,6 +37,15 @@ function buildMemberListFilter({ status, search, assignedSales, unassigned, subs
     return filter;
 }
 
+/** Status-tab counts must stay global. The active tab only filters the rows. */
+function statsFilterFromListFilter(filter = {}) {
+    const statsFilter = { ...filter };
+    delete statsFilter.status;
+    delete statsFilter.isBlocked;
+    delete statsFilter["subscriptions.createdAt"];
+    return statsFilter;
+}
+
 async function getMemberStatusStats(Member, baseFilter = {}) {
     const [groups, blockedCount] = await Promise.all([
         Member.aggregate([
@@ -56,4 +65,4 @@ async function getMemberStatusStats(Member, baseFilter = {}) {
     return stats;
 }
 
-module.exports = { buildMemberListFilter, getMemberStatusStats };
+module.exports = { buildMemberListFilter, statsFilterFromListFilter, getMemberStatusStats };

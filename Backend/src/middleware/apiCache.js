@@ -65,6 +65,7 @@ function resolveTags(rawTags, req) {
  * @param {number} [options.ttlSeconds=60] Time-to-live in seconds
  * @param {string[]|Function} [options.tags=[]] Invalidation tags
  * @param {"tenant"|"user"|"platform"|"public"} [options.scope="tenant"]
+ * @param {boolean} [options.browserCache=false] Opt in to Cache-Control max-age. Default is no-store.
  * @param {Function} [options.condition] Optional filter function: (req) => boolean
  */
 function cacheResponse(options = {}) {
@@ -72,9 +73,12 @@ function cacheResponse(options = {}) {
     const rawTags = options.tags || [];
     const scope = options.scope || "auto";
     const condition = options.condition;
-    const cacheControl = options.browserCache === false
-        ? "private, no-store"
-        : `private, max-age=${ttlSeconds}`;
+    // Never let the browser reuse list responses. Server memory cache still
+    // applies; a saved package or new member would otherwise stay invisible
+    // until max-age expired (members 60s, packages 5min).
+    const cacheControl = options.browserCache === true
+        ? `private, max-age=${ttlSeconds}`
+        : "private, no-store";
 
     return (req, res, next) => {
         // Only GET requests are cacheable

@@ -1,5 +1,6 @@
 const Package = require("../models/Package");
 const { parsePagination, buildPagination } = require("../utils/pagination");
+const { publishLive } = require("../utils/liveEvents");
 
 // Create catalog package (Sales Manager / Owner)
 const createPackage = async (req, res) => {
@@ -59,15 +60,41 @@ const getAllPackages = async (req, res) => {
     }
 };
 
+const PACKAGE_UPDATE_FIELDS = [
+    "name",
+    "activityType",
+    "duration",
+    "price",
+    "freezeLimitDays",
+    "invitationLimit",
+    "renewalDiscountPercent",
+    "description",
+    "isActive",
+];
+
 // Update package
 const updatePackage = async (req, res) => {
     try {
+        const update = {};
+        for (const key of PACKAGE_UPDATE_FIELDS) {
+            if (req.body[key] !== undefined) update[key] = req.body[key];
+        }
+        if (!Object.keys(update).length) {
+            return res.status(400).json({ message: "No changes to save" });
+        }
+
         const pkg = await Package.findByIdAndUpdate(
             req.params.id,
-            req.body,
-            { new: true, runValidators: true }
+            { $set: update },
+            { returnDocument: "after", runValidators: true }
         );
         if (!pkg) return res.status(404).json({ message: "Package not found" });
+        publishLive(req.user.tenantId, {
+            type: "package",
+            message: `Package ${pkg.name} was updated`,
+            packageId: pkg._id,
+            packageName: pkg.name,
+        });
         res.status(200).json({ message: "Package updated", package: pkg });
     } catch (error) {
         res.status(500).json({ message: error.message });

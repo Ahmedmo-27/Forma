@@ -1,3 +1,5 @@
+const { hasAccess, hasExplicitGrant, isRevoked } = require("./accessControl");
+
 /**
  * Server-side PII redaction for Sales reps viewing members they do not own.
  * Must be applied in every response path that returns member PII — not only the UI.
@@ -23,15 +25,16 @@ function getCoachId(memberObj) {
 function redactMemberForViewer(memberObj, user) {
     if (!memberObj || !user) return memberObj;
 
-    if (user.role === "Sales" || user.role === "Receptionist") {
-        if (user.canViewPhones === false) {
-            return {
-                ...memberObj,
-                phones: "hidden",
-                nationalId: null,
-            };
-        }
+    if (isRevoked(user, "view_phones") || ((user.role === "Sales" || user.role === "Receptionist") && !hasAccess(user, "view_phones"))) {
+        return {
+            ...memberObj,
+            phones: "hidden",
+            nationalId: null,
+        };
     }
+
+    // An extra grant lets this person see phone numbers past the assignment rules.
+    if (hasExplicitGrant(user, "view_phones")) return memberObj;
 
     if (user.role === "Sales") {
         if (isAssignedToRep(memberObj, user.id)) return memberObj;

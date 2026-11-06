@@ -28,6 +28,11 @@ describe("pagination utils", () => {
             expect(result.limit).toBe(50);
         });
 
+        it("keeps large list requests instead of clipping them to one page", () => {
+            const result = parsePagination({ limit: "10000" });
+            expect(result).toEqual({ page: 1, limit: 5000, skip: 0, all: true });
+        });
+
         it("handles all=true by returning allLimit and all=true flag", () => {
             const result = parsePagination({ all: "true" }, { allLimit: 1000 });
             expect(result).toEqual({ page: 1, limit: 1000, skip: 0, all: true });

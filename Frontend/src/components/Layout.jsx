@@ -9,13 +9,13 @@ import NotificationBell from './NotificationBell';
 import { updateMyProfile } from '../api/endpoints';
 
 const NAV = {
-  Receptionist:  [{ to: '/checkin', label: 'Check In' }, { to: '/members', label: 'Members' }, { to: '/contacts', label: 'Contacts' }],
-  Sales:         [{ to: '/sales/dashboard', label: 'Dashboard' }, { to: '/sales/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/sales/my-callcenter', label: 'Call Center' }, { to: '/contacts', label: 'Contacts' }],
-  'Sales Manager': [{ to: '/sales/dashboard', label: 'Dashboard' }, { to: '/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/management', label: 'Management' }, { to: '/sales/callcenter', label: 'Call Center' }, { to: '/contacts', label: 'Contacts' }],
-  Owner:         [{ to: '/owner/dashboard', label: 'Dashboard' }, { to: '/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/management', label: 'Management' }, { to: '/sales/callcenter', label: 'Call Center' }, { to: '/contacts', label: 'Contacts' }, { to: '/owner/settings', label: 'Settings' }],
-  Accountant:    [{ to: '/accounting/dashboard', label: 'Dashboard' }, { to: '/members', label: 'Members' }, { to: '/checkin', label: 'Check In' }, { to: '/accounting/contract-history', label: 'Contracts' }, { to: '/sales/targets', label: 'Targets' }, { to: '/accounting/package-requests', label: 'Requests' }, { to: '/contacts', label: 'Contacts' }],
-  Coach:           [{ to: '/coach/dashboard', label: 'Dashboard' }, { to: '/coach/members', label: 'Members' }, { to: '/coach/checkin', label: 'Check In' }, { to: '/coach/my-transfers', label: 'Transfers' }, { to: '/contacts', label: 'Contacts' }],
-  'Coach Manager': [{ to: '/coach/dashboard', label: 'Dashboard' }, { to: '/coach/members', label: 'Members' }, { to: '/coach/checkin', label: 'Check In' }, { to: '/reports', label: 'Reports' }, { to: '/management', label: 'Management' }, { to: '/contacts', label: 'Contacts' }],
+  Receptionist:  [{ to: '/checkin', label: 'Check In', access: 'check_in' }, { to: '/members', label: 'Members', access: 'members' }, { to: '/contacts', label: 'Contacts' }],
+  Sales:         [{ to: '/sales/dashboard', label: 'Dashboard', access: 'sales_dashboard' }, { to: '/sales/members', label: 'Members', access: 'sales_members' }, { to: '/checkin', label: 'Check In', access: 'check_in' }, { to: '/reports', label: 'Reports', access: 'reports' }, { to: '/sales/my-callcenter', label: 'Call Center', access: 'my_call_center' }, { to: '/contacts', label: 'Contacts' }],
+  'Sales Manager': [{ to: '/sales/dashboard', label: 'Dashboard', access: 'sales_dashboard' }, { to: '/members', label: 'Members', access: 'members' }, { to: '/checkin', label: 'Check In', access: 'check_in' }, { to: '/reports', label: 'Reports', access: 'reports' }, { to: '/management', label: 'Management', access: 'management' }, { to: '/sales/callcenter', label: 'Call Center', access: 'manager_call_center' }, { to: '/contacts', label: 'Contacts' }],
+  Owner:         [{ to: '/owner/dashboard', label: 'Dashboard', access: 'owner_dashboard' }, { to: '/members', label: 'Members', access: 'members' }, { to: '/checkin', label: 'Check In', access: 'check_in' }, { to: '/reports', label: 'Reports', access: 'reports' }, { to: '/management', label: 'Management', access: 'management' }, { to: '/sales/callcenter', label: 'Call Center', access: 'manager_call_center' }, { to: '/contacts', label: 'Contacts' }, { to: '/owner/settings', label: 'Settings', access: 'settings' }],
+  Accountant:    [{ to: '/accounting/dashboard', label: 'Dashboard', access: 'accounting_dashboard' }, { to: '/members', label: 'Members', access: 'members' }, { to: '/checkin', label: 'Check In', access: 'check_in' }, { to: '/accounting/contract-history', label: 'Contracts', access: 'contracts' }, { to: '/sales/targets', label: 'Targets', access: 'targets' }, { to: '/accounting/package-requests', label: 'Requests', access: 'package_approvals' }, { to: '/contacts', label: 'Contacts' }],
+  Coach:           [{ to: '/coach/dashboard', label: 'Dashboard', access: 'coach_dashboard' }, { to: '/coach/members', label: 'Members', access: 'coach_members' }, { to: '/coach/checkin', label: 'Check In', access: 'coach_checkin' }, { to: '/coach/my-transfers', label: 'Transfers', access: 'my_transfers' }, { to: '/contacts', label: 'Contacts' }],
+  'Coach Manager': [{ to: '/coach/dashboard', label: 'Dashboard', access: 'coach_dashboard' }, { to: '/coach/members', label: 'Members', access: 'coach_members' }, { to: '/coach/checkin', label: 'Check In', access: 'coach_checkin' }, { to: '/reports', label: 'Reports', access: 'reports' }, { to: '/management', label: 'Management', access: 'management' }, { to: '/contacts', label: 'Contacts' }],
 };
 
 const NAVBAR_BG = '#1E1535';   /* deep violet-dark — complements the logo */
@@ -100,14 +100,24 @@ export default function Layout({ children }) {
 
   const rawItems        = NAV[user?.role] ?? NAV.Receptionist;
   const items           = useMemo(() => {
-    return rawItems.filter(item => {
+    const keys = Array.isArray(user?.access) ? user.access : null;
+    const visible = rawItems.filter(item => {
+      if (keys && item.access && !keys.includes(item.access)) return false;
       if (item.to.startsWith('/accounting') && !hasFeature('accounting') && !hasFeature('exception_approvals')) return false;
       if (item.to === '/sales/targets' && !hasFeature('accounting')) return false;
       if ((item.to === '/sales/callcenter' || item.to === '/sales/my-callcenter') && !hasFeature('sales_crm')) return false;
       if (item.to === '/reports' && !hasFeature('exec_analytics') && !hasFeature('sales_crm')) return false;
       return true;
     });
-  }, [rawItems, hasFeature]);
+    const seen = new Set(visible.map(item => item.to));
+    const extras = Array.isArray(user?.navExtras) ? user.navExtras : [];
+    for (const extra of extras) {
+      if (!extra?.to || seen.has(extra.to)) continue;
+      seen.add(extra.to);
+      visible.push({ to: extra.to, label: extra.label || 'Feature', access: extra.key });
+    }
+    return visible;
+  }, [rawItems, hasFeature, user?.access, user?.navExtras]);
 
   const showNotif       = ['Sales', 'Sales Manager', 'Accountant'].includes(user?.role);
 

@@ -11,6 +11,7 @@ const {
     clearLoginFailures,
 } = require("../middleware/loginLockout");
 const { writeAudit } = require("../utils/audit");
+const { setFeatureEnabled, featureKeyForAbility } = require("../utils/accessControl");
 const {
     monthKey,
     dayKey,
@@ -277,7 +278,7 @@ const loginUser = async (req, res) => {
             tenantSlug: effectiveTenantSlug,
         });
 
-        const formattedUser = formatUserResponse(user);
+        const formattedUser = formatUserResponse(user, { includeAccess: true });
         if (effectiveTenantSlug) {
             formattedUser.tenantSlug = effectiveTenantSlug;
         }
@@ -486,7 +487,7 @@ const getMyProfile = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        const formatted = formatUserResponse(user);
+        const formatted = formatUserResponse(user, { includeAccess: true });
         if (req.user?.tenantSlug) formatted.tenantSlug = req.user.tenantSlug;
         if (req.user?.tenantId) formatted.tenantId = req.user.tenantId;
 
@@ -708,9 +709,13 @@ const updateSalesRepAbilities = async (req, res) => {
         const allowedKeys = ["canCommentOnMembers", "canRequestAssignment", "canRequestTakeover", "canSendWhatsAppTemplates"];
         for (const key of allowedKeys) {
             if (abilities[key] !== undefined) {
-                user.abilities[key] = Boolean(abilities[key]);
+                const enabled = Boolean(abilities[key]);
+                user.abilities[key] = enabled;
+                const featureKey = featureKeyForAbility(user.role, key);
+                if (featureKey) setFeatureEnabled(user, featureKey, enabled);
             }
         }
+        user.markModified("abilities");
 
         await user.save();
 
@@ -1019,10 +1024,14 @@ const updateCoachRepAbilities = async (req, res) => {
         const allowedKeys = ["canCommentOnMembers", "canRequestAssignment", "canRequestTakeover"];
         for (const key of allowedKeys) {
             if (abilities[key] !== undefined) {
-                user.abilities[key] = Boolean(abilities[key]);
+                const enabled = Boolean(abilities[key]);
+                user.abilities[key] = enabled;
+                const featureKey = featureKeyForAbility(user.role, key);
+                if (featureKey) setFeatureEnabled(user, featureKey, enabled);
             }
         }
- 
+        user.markModified("abilities");
+
         await user.save();
         res.json({ message: "Coach abilities updated", user: formatUserResponse(user) });
     } catch (error) {
@@ -1100,6 +1109,7 @@ const updatePhonePrivacy = async (req, res) => {
 
         const previousValue = user.canViewPhones ?? true;
         user.canViewPhones = canViewPhones;
+        setFeatureEnabled(user, "view_phones", canViewPhones);
         await user.save();
 
         await writeAudit({
@@ -1239,7 +1249,7 @@ const updateMyProfile = async (req, res) => {
             passwordChanged: Boolean(newPassword),
         });
 
-        res.json({ message: "Profile updated successfully", user: formatUserResponse(user) });
+        res.json({ message: "Profile updated successfully", user: formatUserResponse(user, { includeAccess: true }) });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }

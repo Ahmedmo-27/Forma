@@ -14,6 +14,7 @@ function normalizeApiBaseURL(url) {
 
 const rawApiURL = import.meta.env.BACKEND_ORIGIN || import.meta.env.VITE_API_URL;
 const apiBaseURL = normalizeApiBaseURL(rawApiURL);
+export { apiBaseURL };
 
 /** Server origin without /api — use for authenticated /uploads downloads. */
 export const apiOrigin = apiBaseURL?.replace(/\/api$/, "") ?? "";

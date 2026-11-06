@@ -25,14 +25,19 @@ export default function SalesMembers() {
   const [showAdd,  setShowAdd]  = useState(false);
   const debouncedSearch = useDebounce(search, 300);
 
-  const fetchMembers = useCallback(async () => {
+  const fetchMembers = useCallback(async (override = {}) => {
+    const status = override.status ?? filter;
+    const pageNum = override.page ?? page;
+    const search = override.search ?? debouncedSearch;
     setLoading(true);
     try {
       const res = await getAllMembers({
-        page,
+        page: pageNum,
         limit: PAGE_SIZE,
-        status: filter,
-        search: debouncedSearch || undefined,
+        status,
+        search: search || undefined,
+        sortBy: 'createdAt',
+        sortDir: -1,
       });
       setMembers(res.data.members ?? []);
       setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
@@ -112,7 +117,13 @@ export default function SalesMembers() {
       <AddMemberModal
         open={showAdd}
         onClose={() => setShowAdd(false)}
-        onSuccess={() => { setShowAdd(false); fetchMembers(); }}
+        onSuccess={() => {
+          setShowAdd(false);
+          setFilter('all');
+          setSearch('');
+          setPage(1);
+          fetchMembers({ status: 'all', page: 1, search: '' });
+        }}
         defaultSalesRep={user?._id}
       />
     </Layout>

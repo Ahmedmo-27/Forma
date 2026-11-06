@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
-const authorize = require("../middleware/roleMiddleware");
+const { allowRoles } = require("../middleware/accessMiddleware");
 const validate = require("../middleware/validate");
 const { requireFeature } = require("../middleware/featureGating");
 const { cacheResponse } = require("../middleware/apiCache");
@@ -32,21 +32,21 @@ router.post(
 
 router.post(
     "/",
-    authorize("Owner", "Sales Manager", "Accountant", "Coach Manager"),
+    allowRoles("whatsapp_templates", "Owner", "Sales Manager", "Accountant", "Coach Manager"),
     validate(createWhatsAppTemplateSchema),
     autoInvalidate(["whatsapp"]),
     createTemplate
 );
 router.patch(
     "/:id",
-    authorize("Owner", "Sales Manager", "Accountant", "Coach Manager"),
+    allowRoles("whatsapp_templates", "Owner", "Sales Manager", "Accountant", "Coach Manager"),
     validate(updateWhatsAppTemplateSchema),
     autoInvalidate(["whatsapp"]),
     updateTemplate
 );
 router.delete(
     "/:id",
-    authorize("Owner", "Sales Manager", "Accountant", "Coach Manager"),
+    allowRoles("whatsapp_templates", "Owner", "Sales Manager", "Accountant", "Coach Manager"),
     autoInvalidate(["whatsapp"]),
     deleteTemplate
 );

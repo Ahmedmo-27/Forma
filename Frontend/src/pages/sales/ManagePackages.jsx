@@ -52,10 +52,11 @@ export default function ManagePackages() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleting,     setDeleting]     = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (override = {}) => {
+    const pageNum = override.page ?? page;
     setLoading(true);
     try {
-      const res = await getPackages({ page, limit: PAGE_SIZE });
+      const res = await getPackages({ page: pageNum, limit: PAGE_SIZE });
       setPackages(res.data.packages ?? []);
       setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
     } catch { toast.error('Failed to load packages'); }
@@ -102,10 +103,14 @@ export default function ManagePackages() {
     if (Object.keys(errs).length) { setEditErrors(errs); return; }
     setEditing(true);
     try {
-      await updatePackage(editTarget._id, packageFormToPayload(editForm));
+      const res = await updatePackage(editTarget._id, packageFormToPayload(editForm));
+      const updated = res.data?.package;
       toast.success('Package updated');
       setEditTarget(null);
-      load();
+      await load();
+      if (updated?._id) {
+        setPackages((prev) => prev.map((pkg) => (pkg._id === updated._id ? { ...pkg, ...updated } : pkg)));
+      }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update package');
     } finally { setEditing(false); }

@@ -99,6 +99,20 @@ export default function GlobalSearch() {
     }
   }, [phoneQuery, idQuery, activeField, doSearch, loadCache]);
 
+  // Drop the shared member list when someone is added, then re-filter.
+  useEffect(() => {
+    const refresh = () => {
+      _sharedCache = null;
+      _sharedFetchPromise = null;
+      clearTimeout(_cacheInvalidateTimer);
+      const field = activeField;
+      const q = (field === 'phone' ? phoneQuery : idQuery).trim();
+      loadCache().then(() => { if (q) doSearch(q, field); });
+    };
+    window.addEventListener('members-changed', refresh);
+    return () => window.removeEventListener('members-changed', refresh);
+  }, [activeField, phoneQuery, idQuery, loadCache, doSearch]);
+
   // Close on outside click
   useEffect(() => {
     const h = e => {

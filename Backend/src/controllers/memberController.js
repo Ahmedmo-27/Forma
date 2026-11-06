@@ -5,12 +5,12 @@ const Member = require("../models/Member");
 const Package = require("../models/Package");
 const User = require("../models/User");
 const ProfileView = require("../models/ProfileView");
-const { resolveAbilities } = require("../utils/userAbilities");
+const { hasAccess, hasExplicitGrant } = require("../utils/accessControl");
 const { attachCurrentPackage } = require("../utils/revenueUtils");
 const { findMemberByIdentifier, buildMemberFilter } = require("../utils/memberLookup");
 const { notifyMemberAssigned } = require("../utils/notificationService");
 const { parsePagination, buildPagination } = require("../utils/pagination");
-const { buildMemberListFilter, getMemberStatusStats } = require("../utils/memberFilters");
+const { buildMemberListFilter, statsFilterFromListFilter, getMemberStatusStats } = require("../utils/memberFilters");
 const { isAssignedToRep, redactMemberForViewer } = require("../utils/memberPrivacy");
 const { assertAllowedUpload, assertAllowedImage } = require("../utils/fileMagic");
 const { writeAudit } = require("../utils/audit");
@@ -19,6 +19,7 @@ const { sanitizePlainText } = require("../utils/sanitizeText");
 const { validateNoOverlappingSubscription } = require("../utils/subscriptionUtils");
 const { buildPackageSnapshot, resolveSubscriptionPackage } = require("../utils/packageSnapshot");
 const { generateBarcode } = require("../utils/barcodeHelper");
+const { publishLive } = require("../utils/liveEvents");
 const mongoose = require("mongoose");
 
 // ─── Helper: get purchased package terms from last subscription ───────────────
@@ -185,6 +186,20 @@ async function createMemberRecord(personData, maxAttempts = 5) {
 // ─── 2. Get All Members ───────────────────────────────────────────────────────
 const MEMBER_LIST_SELECT = "systemId memberId barcode name phones photo status isMember gender source assignedSales createdBy current_couch couch_subscription_status subscriptions freezeDaysUsed invitationsUsed isBlocked createdAt";
 const MEMBER_SEARCH_SELECT = "systemId memberId name phones photo status subscriptions assignedSales";
+const MEMBER_SORT_FIELDS = new Set(["createdAt", "systemId", "name"]);
+
+function memberListSort(query = {}) {
+    const large = parseInt(query.limit, 10) >= 1000 || query.all === "true" || query.all === true;
+    const sortField = MEMBER_SORT_FIELDS.has(query.sortBy)
+        ? query.sortBy
+        : (query.source || large ? "createdAt" : "systemId");
+    const sortDir = query.sortDir !== undefined
+        ? (parseInt(query.sortDir, 10) === -1 ? -1 : 1)
+        : (query.source || large ? -1 : 1);
+    return sortField === "createdAt"
+        ? { createdAt: sortDir, _id: sortDir }
+        : { [sortField]: sortDir, _id: sortDir };
+}
 
 const getAllMembers = async (req, res) => {
     try {
@@ -196,17 +211,7 @@ const getAllMembers = async (req, res) => {
         const isGlobalSearch = parseInt(req.query.limit, 10) >= 1000;
 
         const { page, limit, skip } = parsePagination(req.query);
-
-        // Optional sort — default oldest-first (systemId), pass sortBy=createdAt&sortDir=-1 for newest-first
-        // When filtering by source (e.g. imported members), default to newest-first
-        const sortField = req.query.sortBy || (req.query.source ? "createdAt" : "systemId");
-        const sortDir   = req.query.sortDir !== undefined
-            ? (parseInt(req.query.sortDir, 10) === -1 ? -1 : 1)
-            : (req.query.source ? -1 : 1);
-        // Add _id as tiebreaker so pagination is stable when createdAt values are equal
-        const sortObj   = sortField === "createdAt"
-            ? { createdAt: sortDir, _id: sortDir }
-            : { [sortField]: sortDir };
+        const sortObj = memberListSort(req.query);
 
         const filter = buildMemberListFilter({
             status:         req.query.status,
@@ -221,8 +226,7 @@ const getAllMembers = async (req, res) => {
             filter.source = req.query.source;
         }
 
-        const statsFilter = { ...filter };
-        delete statsFilter["subscriptions.createdAt"];
+        const statsFilter = statsFilterFromListFilter(filter);
 
         if (isGlobalSearch) {
             const members = await Member.find(filter)
@@ -445,6 +449,17 @@ const checkInMember = async (req, res) => {
         await member.save();
 
         const entry = member.userlog[member.userlog.length - 1];
+        const currentSub = member.subscriptions?.at(-1);
+        const pkgName = currentSub?.packageSnapshot?.name || currentSub?.package?.name || null;
+        publishLive(req.user.tenantId, {
+            type: "check-in",
+            message: `${member.name} checked in${pkgName ? ` · ${pkgName}` : ""}`,
+            checkInId: entry._id,
+            systemId: member.systemId,
+            memberName: member.name,
+            status: member.status,
+            packageName: pkgName,
+        });
         res.status(201).json({ message: "Check-in recorded", checkIn: entry, status: member.status });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -553,6 +568,14 @@ const freezeMember = async (req, res) => {
 
         await member.save();
 
+        publishLive(req.user.tenantId, {
+            type: "member",
+            message: `${member.name} is now ${member.status}`,
+            systemId: member.systemId,
+            memberName: member.name,
+            status: member.status,
+        });
+
         await writeAudit({
             action: "member_frozen",
             actor: req.user.id,
@@ -627,8 +650,7 @@ const getMembers = async (req, res) => {
             subscribedToday: req.query.subscribedToday,
         });
 
-        const statsFilter = { ...filter };
-        delete statsFilter["subscriptions.createdAt"];
+        const statsFilter = statsFilterFromListFilter(filter);
 
         const [total, members] = await Promise.all([
             Member.countDocuments(filter),
@@ -637,7 +659,7 @@ const getMembers = async (req, res) => {
                 .populate("assignedSales", "name email")
                 .populate("current_couch", "name role")
                 .populate("subscriptions.package", "name price duration activityType")
-                .sort({ systemId: 1 })
+                .sort(memberListSort(req.query))
                 .skip(skip)
                 .limit(limit)
                 .lean(),
@@ -693,12 +715,8 @@ const addNote = async (req, res) => {
             return res.status(400).json({ message: "Note text is required" });
         }
 
-        if (req.user.role === "Sales") {
-            const salesUser = await User.findById(req.user.id);
-            const abilities = resolveAbilities(salesUser);
-            if (!abilities.canCommentOnMembers) {
-                return res.status(403).json({ message: "You are not allowed to comment on members" });
-            }
+        if ((req.user.role === "Sales" || hasExplicitGrant(req.user, "comments")) && !hasAccess(req.user, "comments")) {
+            return res.status(403).json({ message: "You are not allowed to comment on members" });
         }
 
         const identifier = req.params.memberId || req.params.id;
@@ -1360,6 +1378,15 @@ const assignPackage = async (req, res) => {
 
         await member.save();
 
+        publishLive(req.user.tenantId, {
+            type: "member",
+            message: `${member.name} is now on ${name.trim()} · ${member.status}`,
+            systemId: member.systemId,
+            memberName: member.name,
+            status: member.status,
+            packageName: name.trim(),
+        });
+
         await writeAudit({
             action: "package_assigned",
             actor: req.user.id,
@@ -1553,6 +1580,13 @@ const blockMember = async (req, res) => {
         });
 
         await member.save();
+        publishLive(req.user.tenantId, {
+            type: "member",
+            message: `${member.name} was blocked`,
+            systemId: member.systemId,
+            memberName: member.name,
+            status: "blocked",
+        });
         res.json({ message: "Member blocked", member });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -1585,6 +1619,13 @@ const unblockMember = async (req, res) => {
         });
 
         await member.save();
+        publishLive(req.user.tenantId, {
+            type: "member",
+            message: `${member.name} was unblocked`,
+            systemId: member.systemId,
+            memberName: member.name,
+            status: member.status,
+        });
         res.json({ message: "Member unblocked", member });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -1701,12 +1742,8 @@ const addCouch_notes = async (req, res) => {
             return res.status(400).json({ message: "Note text is required" });
         }
 
-        if (req.user.role === "Coach") {
-            const coachUser = await User.findById(req.user.id);
-            const abilities = resolveAbilities(coachUser);
-            if (!abilities.canCommentOnMembers) {
-                return res.status(403).json({ message: "You are not allowed to comment on members" });
-            }
+        if (!hasAccess(req.user, "coach_notes")) {
+            return res.status(403).json({ message: "You are not allowed to comment on members" });
         }
 
         const identifier = req.params.memberId || req.params.id;

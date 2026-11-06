@@ -105,9 +105,12 @@ export default function Management() {
         )}
 
         {/* ── Admin (Owner only) ───────────────────────────────── */}
-        {user?.role === 'Owner' && (
-          <Section title="Admin" sub="Owner-only management tools">
-            <MgmtCard icon="🏢" title="Teams Overview" sub="All teams at a glance"           to="/owner/teams"  iconBg="#F5F3FF" />
+        {(user?.role === 'Owner' || isManager || isCoachMgr) && (
+          <Section title="Admin" sub={user?.role === 'Owner' ? 'Owner tools and staff access' : 'Staff access for your team'}>
+            {user?.role === 'Owner' && (
+              <MgmtCard icon="🏢" title="Teams Overview" sub="All teams at a glance"           to="/owner/teams"  iconBg="#F5F3FF" />
+            )}
+            <MgmtCard icon="🛡️" title="Access Control" sub="Grant or remove features for a staff member" to="/management/access" iconBg="#F5F3FF" />
           </Section>
         )}
 

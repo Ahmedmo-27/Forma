@@ -1,13 +1,18 @@
+const { hasAccess, resolveEffectiveKeys, explicitGrantKeys, navExtrasFor } = require("./accessControl");
+
 function resolveAbilities(user) {
+    const commentKey = user?.role === "Coach" || user?.role === "Coach Manager"
+        ? "coach_notes"
+        : "comments";
     return {
-        canCommentOnMembers: user.abilities?.canCommentOnMembers !== false,
-        canRequestAssignment: user.abilities?.canRequestAssignment !== false,
-        canRequestTakeover: user.abilities?.canRequestTakeover !== false,
-        canSendWhatsAppTemplates: user.abilities?.canSendWhatsAppTemplates !== false,
+        canCommentOnMembers: hasAccess(user, commentKey),
+        canRequestAssignment: hasAccess(user, "request_assignment"),
+        canRequestTakeover: hasAccess(user, "request_takeover"),
+        canSendWhatsAppTemplates: hasAccess(user, "whatsapp_send"),
     };
 }
 
-function formatUserResponse(user) {
+function formatUserResponse(user, options = {}) {
     const base = {
         _id: user._id,
         name: user.name,
@@ -18,13 +23,18 @@ function formatUserResponse(user) {
         createdAt: user.createdAt,
     };
 
-    if (user.role === "Sales") {
+    if (user.role === "Sales" || user.role === "Coach" || user.role === "Coach Manager") {
         base.abilities = resolveAbilities(user);
     }
 
-    // Phone privacy toggle applies to Sales and Receptionist roles
     if (user.role === "Sales" || user.role === "Receptionist") {
-        base.canViewPhones = user.canViewPhones ?? true;
+        base.canViewPhones = hasAccess(user, "view_phones");
+    }
+
+    if (options.includeAccess) {
+        base.access = [...resolveEffectiveKeys(user)];
+        base.grants = explicitGrantKeys(user);
+        base.navExtras = navExtrasFor(user);
     }
 
     return base;

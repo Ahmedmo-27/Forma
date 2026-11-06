@@ -20,22 +20,27 @@ export default function Members() {
   const [filter, setFilter]     = useState('all');
   const [search, setSearch]     = useState('');
   const [page, setPage]         = useState(1);
-  const [sortNewest, setSortNewest] = useState(false);
+  const [sortNewest, setSortNewest] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
   const [stats, setStats]       = useState({ total: 0, active: 0, frozen: 0, expired: 0, guest: 0 });
   const [showAdd, setShowAdd]   = useState(false);
   const debouncedSearch = useDebounce(search, 300);
   const canAdd = ['Receptionist', 'Owner', 'Sales Manager'].includes(user?.role);
 
-  const fetchMembers = useCallback(async () => {
+  const fetchMembers = useCallback(async (override = {}) => {
+    const status = override.status ?? filter;
+    const pageNum = override.page ?? page;
+    const search = override.search ?? debouncedSearch;
+    const newest = override.sortNewest ?? sortNewest;
     setLoading(true);
     try {
       const res = await getAllMembers({
-        page,
+        page: pageNum,
         limit: PAGE_SIZE,
-        status: filter,
-        search: debouncedSearch || undefined,
-        ...(sortNewest && { sortBy: 'createdAt', sortDir: -1 }),
+        status,
+        search: search || undefined,
+        sortBy: 'createdAt',
+        sortDir: newest ? -1 : 1,
       });
       setMembers(res.data.members ?? []);
       setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
@@ -90,7 +95,7 @@ export default function Members() {
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
               <path d="M3 8l4-4 4 4M7 4v16M21 16l-4 4-4-4M17 20V4"/>
             </svg>
-            {sortNewest ? 'Newest First' : 'Sort: Default'}
+            {sortNewest ? 'Newest First' : 'Oldest First'}
           </button>
         </div>
 
@@ -145,7 +150,20 @@ export default function Members() {
         </Card>
       </div>
 
-      {canAdd && <AddMemberModal open={showAdd} onClose={() => setShowAdd(false)} onSuccess={() => { setShowAdd(false); fetchMembers(); }} />}
+      {canAdd && (
+        <AddMemberModal
+          open={showAdd}
+          onClose={() => setShowAdd(false)}
+          onSuccess={() => {
+            setShowAdd(false);
+            setFilter('all');
+            setSearch('');
+            setSortNewest(true);
+            setPage(1);
+            fetchMembers({ status: 'all', page: 1, search: '', sortNewest: true });
+          }}
+        />
+      )}
     </Layout>
   );
 }

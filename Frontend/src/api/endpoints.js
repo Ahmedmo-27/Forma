@@ -41,6 +41,9 @@ export const updateStaffMobile = (id, mobile_number) =>
   api.patch(`/users/${id}/mobile`, { mobile_number });
 export const getReceptionistTeam = () => api.get('/users/receptionist-team');
 export const getUserById = (id) => api.get(`/users/${id}`);
+export const searchAccessUsers = (q) => api.get('/users/access/search', { params: { q } });
+export const getUserAccess = (id) => api.get(`/users/${id}/access`);
+export const updateUserAccess = (id, features) => api.put(`/users/${id}/access`, { features });
 export const createStaffUser = (data) => api.post('/users/staff', data);
 
 // ── Notifications ─────────────────────────────────────────────────────────────
@@ -51,7 +54,9 @@ export const markAllNotificationsRead = () => api.patch('/notifications/read-all
 
 // ── Members ───────────────────────────────────────────────────────────────────
 export const getAllMembers     = (params) => api.get('/members', { params });
-export const searchAllMembers  = ()       => api.get('/members/all', { params: { limit: 10000 } });
+export const searchAllMembers  = () => api.get('/members/all', {
+  params: { limit: 10000, sortBy: 'createdAt', sortDir: -1 },
+});
 export const getAllNotes       = (params) => api.get('/members/all-notes', { params });
 export const bulkImportMembers = (formData) => api.post('/members/bulk-import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
 export const getMemberProfile  = (id)       => api.get(`/members/${id}`);

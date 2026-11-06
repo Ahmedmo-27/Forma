@@ -36,7 +36,14 @@ const userSchema = new mongoose.Schema({
         canRequestAssignment: { type: Boolean, default: true },
         canRequestTakeover: { type: Boolean, default: true },
         canSendWhatsAppTemplates: { type: Boolean, default: true },
-    }
+    },
+
+    // Difference from the role's default features. Empty means "use role defaults"
+    // plus any legacy ability flags that were turned off.
+    featureAccess: {
+        grants: { type: [String], default: [] },
+        revokes: { type: [String], default: [] },
+    },
 }, { timestamps: true });
 
 userSchema.plugin(tenantPlugin);

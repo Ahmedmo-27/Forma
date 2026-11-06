@@ -1,7 +1,7 @@
 const SalesRepRequest = require("../models/SalesRepRequest");
 const Member = require("../models/Member");
 const User = require("../models/User");
-const { resolveAbilities } = require("../utils/userAbilities");
+const { hasAccess } = require("../utils/accessControl");
 const { buildMemberFilter, findMemberByIdentifier } = require("../utils/memberLookup");
 const { notifyMemberAssigned, notifySalesRepRequestPending } = require("../utils/notificationService");
 const { parsePagination, buildPagination } = require("../utils/pagination");
@@ -25,15 +25,13 @@ const createRequest = async (req, res) => {
 
         const resolvedMemberId = member._id;
 
-        const salesUser = await User.findById(req.user.id);
-        const abilities = resolveAbilities(salesUser);
         const isTakeover = Boolean(member.assignedSales);
 
-        if (isTakeover && !abilities.canRequestTakeover) {
+        if (isTakeover && !hasAccess(req.user, "request_takeover")) {
             return res.status(403).json({ message: "You are not allowed to request replacing another representative" });
         }
 
-        if (!isTakeover && !abilities.canRequestAssignment) {
+        if (!isTakeover && !hasAccess(req.user, "request_assignment")) {
             return res.status(403).json({ message: "You are not allowed to request acquiring new members" });
         }
 
@@ -63,7 +61,7 @@ const createRequest = async (req, res) => {
                         member,
                         actorId: req.user.id,
                         requestId: newRequest._id,
-                        salesRepName: salesUser?.name,
+                        salesRepName: req.user.name,
                         isTakeover,
                     })
                 )

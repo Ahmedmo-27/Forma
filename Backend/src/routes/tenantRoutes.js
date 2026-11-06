@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
-const authorize = require("../middleware/roleMiddleware");
+const { allowRoles } = require("../middleware/accessMiddleware");
 const validate = require("../middleware/validate");
 const { tenantSettingsSchema } = require("../validation/schemas");
 const { uploadSinglePhoto } = require("../config/multer");
@@ -22,9 +22,9 @@ router.use(protect);
 router.get("/me", cacheResponse({ ttlSeconds: 60, tags: ["tenant"], browserCache: false }), getMyTenant);
 
 // PATCH /api/tenant/me — Owner only
-router.patch("/me", authorize("Owner"), validate(tenantSettingsSchema), autoInvalidate(["tenant"]), updateMyTenantSettings);
+router.patch("/me", allowRoles("settings", "Owner"), validate(tenantSettingsSchema), autoInvalidate(["tenant"]), updateMyTenantSettings);
 
 // POST /api/tenant/me/logo — Owner only
-router.post("/me/logo", authorize("Owner"), uploadSinglePhoto("logoFile"), autoInvalidate(["tenant"]), uploadTenantLogo);
+router.post("/me/logo", allowRoles("settings", "Owner"), uploadSinglePhoto("logoFile"), autoInvalidate(["tenant"]), uploadTenantLogo);
 
 module.exports = router;

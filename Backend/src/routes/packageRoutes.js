@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
-const authorize = require("../middleware/roleMiddleware");
+const { allowRoles } = require("../middleware/accessMiddleware");
 const validate = require("../middleware/validate");
 const { requireFeature } = require("../middleware/featureGating");
 const { cacheResponse } = require("../middleware/apiCache");
@@ -13,8 +13,8 @@ router.use(protect);
 router.use(requireFeature("packages"));
 
 router.get("/", cacheResponse({ ttlSeconds: 300, tags: ["packages"] }), getAllPackages);
-router.post("/", authorize("Owner", "Sales Manager"), validate(createPackageSchema), autoInvalidate(["packages"]), createPackage);
-router.patch("/:id", authorize("Owner", "Sales Manager"), validate(updatePackageSchema), autoInvalidate(["packages"]), updatePackage);
-router.delete("/:id", authorize("Owner", "Sales Manager"), autoInvalidate(["packages"]), deletePackage);
+router.post("/", allowRoles("packages", "Owner", "Sales Manager"), validate(createPackageSchema), autoInvalidate(["packages"]), createPackage);
+router.patch("/:id", allowRoles("packages", "Owner", "Sales Manager"), validate(updatePackageSchema), autoInvalidate(["packages"]), updatePackage);
+router.delete("/:id", allowRoles("packages", "Owner", "Sales Manager"), autoInvalidate(["packages"]), deletePackage);
 
 module.exports = router;

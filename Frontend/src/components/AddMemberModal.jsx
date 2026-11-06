@@ -72,7 +72,8 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
       });
       toast.success('Member added!');
       setForm({ name: '', phones: '', gender: '', birthdate: '', source: '', assignedSales: '', coachId: '' }); 
-      setErrors({}); 
+      setErrors({});
+      window.dispatchEvent(new CustomEvent('members-changed'));
       onSuccess(res.data?.member?.systemId);
     } catch (e) { 
       if (e.normalized?.code === "VALIDATION_FAILED" && e.normalized.fieldErrors) {
