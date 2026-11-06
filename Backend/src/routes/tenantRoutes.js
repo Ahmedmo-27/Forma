@@ -19,7 +19,7 @@ router.use("/billing", tenantBillingRoutes);
 router.use(protect);
 
 // GET /api/tenant/me — accessible to all authenticated staff
-router.get("/me", cacheResponse({ ttlSeconds: 300, tags: ["tenant"] }), getMyTenant);
+router.get("/me", cacheResponse({ ttlSeconds: 60, tags: ["tenant"], browserCache: false }), getMyTenant);
 
 // PATCH /api/tenant/me — Owner only
 router.patch("/me", authorize("Owner"), validate(tenantSettingsSchema), autoInvalidate(["tenant"]), updateMyTenantSettings);

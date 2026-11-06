@@ -199,7 +199,7 @@ export default function Layout({ children }) {
               boxShadow: '0 3px 12px rgba(68,41,140,0.6)',
               overflow: 'hidden',
             }}>
-              <img src={logoUrl} alt={displayName} style={{ width: 34, height: 34, objectFit: 'contain' }} />
+              <img key={logoUrl} src={logoUrl} alt={displayName} style={{ width: 34, height: 34, objectFit: 'contain' }} />
             </div>
             <span className="nav-logo-text" style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '2.5px', textTransform: 'uppercase' }}>{displayName}</span>
           </div>

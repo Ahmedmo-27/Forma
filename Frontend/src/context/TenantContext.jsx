@@ -36,6 +36,28 @@ export function TenantProvider({ children }) {
     }
   }, []);
 
+  const applyTenant = useCallback((tenantData) => {
+    if (!tenantData || !(tenantData.id || tenantData._id || tenantData.name)) return;
+    setTenant((prev) => {
+      const next = { ...(prev || {}), ...tenantData };
+      if (prev?.settings || tenantData.settings) {
+        next.settings = {
+          ...(prev?.settings || {}),
+          ...(tenantData.settings || {}),
+          branding: {
+            ...(prev?.settings?.branding || {}),
+            ...(tenantData.settings?.branding || {}),
+          },
+        };
+      }
+      return next;
+    });
+    applyBranding(tenantData.settings?.branding);
+    if (tenantData.slug) {
+      localStorage.setItem('ff_tenant_slug', tenantData.slug);
+    }
+  }, [applyBranding]);
+
   const fetchTenant = useCallback(async () => {
     if (!user) {
       setTenant(null);
@@ -44,20 +66,13 @@ export function TenantProvider({ children }) {
     }
     try {
       const res = await getTenantMe();
-      const tenantData = res.data?.tenant || res.data;
-      if (tenantData && (tenantData.id || tenantData._id || tenantData.name)) {
-        setTenant(tenantData);
-        applyBranding(tenantData.settings?.branding);
-        if (tenantData.slug) {
-          localStorage.setItem('ff_tenant_slug', tenantData.slug);
-        }
-      }
+      applyTenant(res.data?.tenant || res.data);
     } catch (err) {
       console.warn('[TenantContext] Failed to load tenant details', err.message);
     } finally {
       setLoading(false);
     }
-  }, [user, applyBranding]);
+  }, [user, applyTenant]);
 
   useEffect(() => {
     fetchTenant();
@@ -79,6 +94,7 @@ export function TenantProvider({ children }) {
     tenant,
     loading,
     refreshTenant: fetchTenant,
+    applyTenant,
     hasFeature,
     enabledActivities,
     currency,

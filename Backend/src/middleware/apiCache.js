@@ -72,6 +72,9 @@ function cacheResponse(options = {}) {
     const rawTags = options.tags || [];
     const scope = options.scope || "auto";
     const condition = options.condition;
+    const cacheControl = options.browserCache === false
+        ? "private, no-store"
+        : `private, max-age=${ttlSeconds}`;
 
     return (req, res, next) => {
         // Only GET requests are cacheable
@@ -102,13 +105,13 @@ function cacheResponse(options = {}) {
             const clientEtag = req.headers["if-none-match"];
             if (clientEtag && clientEtag === cached.etag) {
                 res.setHeader("ETag", cached.etag);
-                res.setHeader("Cache-Control", `private, max-age=${ttlSeconds}`);
+                res.setHeader("Cache-Control", cacheControl);
                 res.setHeader("X-Cache", "HIT");
                 return res.status(304).end();
             }
 
             res.setHeader("ETag", cached.etag);
-            res.setHeader("Cache-Control", `private, max-age=${ttlSeconds}`);
+            res.setHeader("Cache-Control", cacheControl);
             res.setHeader("X-Cache", "HIT");
             res.setHeader("Content-Type", cached.contentType || "application/json");
 
@@ -138,7 +141,7 @@ function cacheResponse(options = {}) {
                     });
 
                     res.setHeader("ETag", etag);
-                    res.setHeader("Cache-Control", `private, max-age=${ttlSeconds}`);
+                    res.setHeader("Cache-Control", cacheControl);
                 } catch {
                     // Caching errors should never fail the HTTP response
                 }

@@ -16,7 +16,7 @@ const KNOWN_ACTIVITIES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calist
 
 export default function TenantSettings() {
   usePageTitle('Gym Settings');
-  const { tenant, refreshTenant, loading: tenantLoading } = useTenant();
+  const { tenant, refreshTenant, applyTenant, loading: tenantLoading } = useTenant();
 
   const [activeTab, setActiveTab] = useState('branding');
   const [saving, setSaving] = useState(false);
@@ -144,10 +144,11 @@ export default function TenantSettings() {
 
     const fd = new FormData();
     fd.append('logoFile', file);
-    fd.append('logo', file);
     setUploadingLogo(true);
     try {
-      await uploadTenantLogo(fd);
+      const res = await uploadTenantLogo(fd);
+      const nextTenant = res.data?.tenant;
+      if (nextTenant) applyTenant(nextTenant);
       toast.success('Logo uploaded successfully!');
       await refreshTenant();
     } catch (err) {
@@ -155,6 +156,7 @@ export default function TenantSettings() {
         toast.error(err.normalized?.message || err.response?.data?.message || 'Failed to upload logo');
       }
     } finally {
+      e.target.value = '';
       setUploadingLogo(false);
     }
   };
@@ -256,15 +258,15 @@ export default function TenantSettings() {
                   overflow: 'hidden', flexShrink: 0,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                 }}>
-                  <img src={logoUrl} alt="Logo" style={{ maxWidth: '80%', maxHeight: '80%', objectFit: 'contain' }} />
+                  <img key={logoUrl} src={logoUrl} alt="Logo" style={{ maxWidth: '80%', maxHeight: '80%', objectFit: 'contain' }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-                    Upload New Logo (PNG, SVG, JPG, WebP)
+                    Upload New Logo (PNG, JPG, or WebP)
                   </label>
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
                     onChange={handleLogoUpload}
                     disabled={uploadingLogo}
                     style={{ fontSize: 13 }}

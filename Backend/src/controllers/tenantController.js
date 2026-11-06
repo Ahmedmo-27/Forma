@@ -1,4 +1,5 @@
 const path = require("path");
+const fs = require("fs");
 const storageService = require("../services/storageService");
 const Tenant = require("../models/Tenant");
 const Member = require("../models/Member");
@@ -8,6 +9,7 @@ const { getEffectiveFeatures, getEffectiveLimits } = require("../models/Tenant")
 const { runAsPlatform } = require("../context/tenantContext");
 const { encryptSecret } = require("../utils/tenantCrypto");
 const { writeAudit } = require("../utils/audit");
+const { assertAllowedImage } = require("../utils/fileMagic");
 
 function sanitizeTenantResponse(tenant, plan, usage = {}) {
     const effectiveFeatures = getEffectiveFeatures(tenant, plan);
@@ -136,10 +138,17 @@ const updateMyTenantSettings = async (req, res) => {
         const { branding, locale, enabledActivities, whatsapp, featureConfig } = req.body;
 
         if (branding) {
-            tenant.settings.branding = {
-                ...tenant.settings.branding.toObject(),
+            const currentBranding = tenant.settings?.branding?.toObject?.()
+                || tenant.settings?.branding
+                || {};
+            const nextBranding = {
+                ...currentBranding,
                 ...branding,
             };
+            if (branding.logoKey === undefined) {
+                nextBranding.logoKey = currentBranding.logoKey ?? null;
+            }
+            tenant.settings.branding = nextBranding;
         }
 
         if (locale) {
@@ -225,16 +234,32 @@ const uploadTenantLogo = async (req, res) => {
         }
 
         const filename = req.file.filename;
-        const oldLogoKey = tenant.settings?.branding?.logoKey;
-        if (oldLogoKey) {
-            const oldFilename = path.basename(oldLogoKey);
-            await storageService.deleteFile(tenantId, oldFilename);
+        try {
+            await assertAllowedImage(req.file);
+            await storageService.persistUpload(tenantId, req.file);
+        } catch (err) {
+            if (req.file?.path) fs.unlink(req.file.path, () => {});
+            return res.status(err.statusCode || 400).json({ message: err.message });
         }
 
+        const oldLogoKey = tenant.settings?.branding?.logoKey || null;
+        const oldFilename = oldLogoKey ? path.basename(oldLogoKey) : null;
+
+        if (!tenant.settings) tenant.settings = {};
+        if (!tenant.settings.branding) tenant.settings.branding = {};
         tenant.settings.branding.logoKey = filename;
+        tenant.markModified("settings.branding");
+
         await runAsPlatform(async () => {
-            await tenant.save();
+            await Tenant.updateOne(
+                { _id: tenant._id },
+                { $set: { "settings.branding.logoKey": filename } }
+            );
         });
+
+        if (oldFilename && oldFilename !== filename) {
+            await storageService.deleteFile(tenantId, oldFilename);
+        }
 
         res.json({
             message: "Logo uploaded successfully",
