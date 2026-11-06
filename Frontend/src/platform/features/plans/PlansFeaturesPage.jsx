@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   apiGetPlans,
   apiGetFeatures,
+  apiGetRoles,
   apiArchivePlan,
   apiUpdateFeature,
 } from "../../lib/api/endpoints";
@@ -78,8 +79,21 @@ export default function PlansFeaturesPage() {
     queryFn: () => apiGetFeatures().then((r) => r.data),
   });
 
+  const {
+    data: rolesData,
+    isLoading: rolesLoading,
+  } = useQuery({
+    queryKey: ["platform", "roles"],
+    queryFn: () => apiGetRoles().then((r) => r.data).catch(() => []),
+  });
+
   const plans = plansData || [];
   const features = featuresData || [];
+  const roles = rolesData || [];
+
+  // Matrix Filter state
+  const [matrixFilter, setMatrixFilter] = useState("all");
+  const [matrixSearch, setMatrixSearch] = useState("");
 
   // Filter features
   const [featureCategory, setFeatureCategory] = useState("all");
@@ -220,8 +234,14 @@ export default function PlansFeaturesPage() {
           <TabTrigger value="plans">
             Subscription Plans ({plans.length})
           </TabTrigger>
+          <TabTrigger value="matrix">
+            Entitlements Matrix
+          </TabTrigger>
           <TabTrigger value="features">
             Feature Catalog ({features.length})
+          </TabTrigger>
+          <TabTrigger value="roles">
+            Staff Roles & Permissions ({roles.length})
           </TabTrigger>
         </TabsList>
 
@@ -411,6 +431,386 @@ export default function PlansFeaturesPage() {
         </TabContent>
 
         {/* =========================================================================
+            Tab 2: Entitlements Matrix (Side-by-side comparison of Features & Roles)
+           ========================================================================= */}
+        <TabContent value="matrix" className="space-y-4 mt-4">
+          {/* Matrix Header Filters & Actions */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              <Input
+                placeholder="Filter capabilities, roles, or limits..."
+                value={matrixSearch}
+                onChange={(e) => setMatrixSearch(e.target.value)}
+                className="w-full sm:w-72"
+              />
+              <Select
+                value={matrixFilter}
+                onChange={(e) => setMatrixFilter(e.target.value)}
+                className="w-44 text-xs"
+              >
+                <option value="all">All Entitlements</option>
+                <option value="features">Features Only</option>
+                <option value="roles">Staff Roles Only</option>
+                <option value="limits">Capacity Limits Only</option>
+              </Select>
+            </div>
+
+            <div className="text-xs text-[var(--platform-text-muted)] flex items-center gap-2">
+              <span>Showing comparison across {plans.length} commercial tiers</span>
+            </div>
+          </div>
+
+          <Callout variant="info" className="text-xs">
+            <strong>Entitlements Matrix:</strong> This matrix provides a global view of what each subscription plan includes. To edit any plan's features, roles, or limits, click <em>Edit Plan</em> on the column header. To customize a specific gym (such as adding a Gold feature to a Basic gym), open that gym from the Gyms & Tenants section.
+          </Callout>
+
+          {/* Matrix Table */}
+          <div className="overflow-x-auto rounded-xl border border-[var(--platform-border-subtle)] bg-[var(--platform-surface-raised)] shadow-xs">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="border-b border-[var(--platform-border-subtle)] bg-[var(--platform-canvas)]">
+                  <th className="py-4 px-4 font-semibold text-[var(--platform-text-primary)] w-72 min-w-[260px] sticky left-0 bg-[var(--platform-canvas)] z-10 shadow-[1px_0_0_0_var(--platform-border-subtle)]">
+                    Capability / Entitlement
+                  </th>
+                  <th className="py-4 px-3 font-semibold text-[var(--platform-text-muted)] w-28 text-center">
+                    Category
+                  </th>
+                  {plans.map((p) => (
+                    <th
+                      key={p._id}
+                      className="py-4 px-4 font-semibold text-[var(--platform-text-primary)] min-w-[170px] text-center border-l border-[var(--platform-border-subtle)]"
+                    >
+                      <div className="flex flex-col items-center gap-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-bold text-sm">{p.name}</span>
+                          <Badge
+                            variant={
+                              p.visibility === "public"
+                                ? "success"
+                                : p.visibility === "hidden"
+                                ? "warning"
+                                : "neutral"
+                            }
+                            size="xs"
+                          >
+                            {p.visibility}
+                          </Badge>
+                        </div>
+                        <span className="font-mono text-xs text-[var(--platform-text-secondary)]">
+                          {formatCurrency(p.priceMonthly, p.currency || "USD")}/mo
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="xs"
+                          className="mt-1 h-6 text-[11px] text-[var(--platform-accent)] hover:bg-[var(--platform-surface)]"
+                          onClick={() => {
+                            setPlanToEdit(p);
+                            setPlanModalOpen(true);
+                          }}
+                        >
+                          <Edit2 className="w-3 h-3 mr-1" />
+                          Edit Plan
+                        </Button>
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[var(--platform-border-subtle)]">
+                {/* ── SECTION 1: PLATFORM FEATURES ── */}
+                {(matrixFilter === "all" || matrixFilter === "features") && (
+                  <>
+                    <tr className="bg-[var(--platform-surface)]/70 font-bold text-[11px] uppercase tracking-wider text-[var(--platform-text-muted)]">
+                      <td
+                        colSpan={2 + plans.length}
+                        className="py-2.5 px-4 sticky left-0 bg-[var(--platform-surface)]/70"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Layers className="w-3.5 h-3.5 text-[var(--platform-info)]" />
+                          <span>Platform Features & System Modules ({features.length})</span>
+                        </div>
+                      </td>
+                    </tr>
+                    {features
+                      .filter(
+                        (f) =>
+                          !matrixSearch ||
+                          f.name.toLowerCase().includes(matrixSearch.toLowerCase()) ||
+                          f.key.toLowerCase().includes(matrixSearch.toLowerCase())
+                      )
+                      .map((feat) => (
+                        <tr
+                          key={feat._id || feat.key}
+                          className="hover:bg-[var(--platform-surface)]/40 transition-colors"
+                        >
+                          <td className="py-3 px-4 sticky left-0 bg-[var(--platform-surface-raised)] z-10 shadow-[1px_0_0_0_var(--platform-border-subtle)]">
+                            <div className="flex items-start gap-2">
+                              <div>
+                                <div className="flex items-center gap-1.5 font-medium text-[var(--platform-text-primary)]">
+                                  <span>{feat.name}</span>
+                                  {feat.isCore && (
+                                    <Badge variant="info" size="xs">
+                                      Core
+                                    </Badge>
+                                  )}
+                                </div>
+                                <span className="text-[10px] font-mono text-[var(--platform-text-muted)] block">
+                                  {feat.key}
+                                </span>
+                                {feat.description && (
+                                  <span className="text-[10px] text-[var(--platform-text-muted)] line-clamp-1 mt-0.5">
+                                    {feat.description}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <Badge variant="neutral" size="xs" className="capitalize">
+                              {feat.category || "core"}
+                            </Badge>
+                          </td>
+                          {plans.map((p) => {
+                            const isIncluded = (p.features || []).includes(feat.key);
+                            return (
+                              <td
+                                key={p._id}
+                                className="py-3 px-4 text-center border-l border-[var(--platform-border-subtle)]"
+                              >
+                                {isIncluded ? (
+                                  <Badge
+                                    variant="success"
+                                    size="xs"
+                                    className="gap-1 inline-flex items-center font-medium"
+                                  >
+                                    <Check className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+                                    Included
+                                  </Badge>
+                                ) : (
+                                  <span className="text-[var(--platform-text-muted)] font-mono text-xs">
+                                    —
+                                  </span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                  </>
+                )}
+
+                {/* ── SECTION 2: STAFF ROLES & PERMISSIONS ── */}
+                {(matrixFilter === "all" || matrixFilter === "roles") && (
+                  <>
+                    <tr className="bg-[var(--platform-surface)]/70 font-bold text-[11px] uppercase tracking-wider text-[var(--platform-text-muted)]">
+                      <td
+                        colSpan={2 + plans.length}
+                        className="py-2.5 px-4 sticky left-0 bg-[var(--platform-surface)]/70"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Users className="w-3.5 h-3.5 text-[var(--platform-accent)]" />
+                          <span>Allowed Staff Roles & Accounts ({roles.length})</span>
+                        </div>
+                      </td>
+                    </tr>
+                    {roles
+                      .filter(
+                        (r) =>
+                          !matrixSearch ||
+                          r.name.toLowerCase().includes(matrixSearch.toLowerCase()) ||
+                          r.key.toLowerCase().includes(matrixSearch.toLowerCase())
+                      )
+                      .map((role) => (
+                        <tr
+                          key={role.key}
+                          className="hover:bg-[var(--platform-surface)]/40 transition-colors"
+                        >
+                          <td className="py-3 px-4 sticky left-0 bg-[var(--platform-surface-raised)] z-10 shadow-[1px_0_0_0_var(--platform-border-subtle)]">
+                            <div>
+                              <div className="font-medium text-[var(--platform-text-primary)]">
+                                {role.name}
+                              </div>
+                              <span className="text-[10px] font-mono text-[var(--platform-text-muted)] block">
+                                {role.key}
+                              </span>
+                              {role.description && (
+                                <span className="text-[10px] text-[var(--platform-text-muted)] line-clamp-1 mt-0.5">
+                                  {role.description}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="py-3 px-3 text-center">
+                            <Badge variant="accent" size="xs">
+                              {role.category || "Staff"}
+                            </Badge>
+                          </td>
+                          {plans.map((p) => {
+                            const isAllowed = (p.allowedRoles || []).includes(role.key);
+                            return (
+                              <td
+                                key={p._id}
+                                className="py-3 px-4 text-center border-l border-[var(--platform-border-subtle)]"
+                              >
+                                {isAllowed ? (
+                                  <Badge
+                                    variant="info"
+                                    size="xs"
+                                    className="gap-1 inline-flex items-center font-medium"
+                                  >
+                                    <Check className="w-3 h-3 text-blue-600 dark:text-blue-400" />
+                                    Permitted
+                                  </Badge>
+                                ) : (
+                                  <span className="text-[var(--platform-text-muted)] font-mono text-xs">
+                                    —
+                                  </span>
+                                )}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      ))}
+                  </>
+                )}
+
+                {/* ── SECTION 3: OPERATIONAL LIMITS & QUOTAS ── */}
+                {(matrixFilter === "all" || matrixFilter === "limits") && (
+                  <>
+                    <tr className="bg-[var(--platform-surface)]/70 font-bold text-[11px] uppercase tracking-wider text-[var(--platform-text-muted)]">
+                      <td
+                        colSpan={2 + plans.length}
+                        className="py-2.5 px-4 sticky left-0 bg-[var(--platform-surface)]/70"
+                      >
+                        <div className="flex items-center gap-2">
+                          <Activity className="w-3.5 h-3.5 text-[var(--platform-warning)]" />
+                          <span>Operational Limits & Fair-Use Quotas</span>
+                        </div>
+                      </td>
+                    </tr>
+                    <tr className="hover:bg-[var(--platform-surface)]/40 transition-colors">
+                      <td className="py-3 px-4 sticky left-0 bg-[var(--platform-surface-raised)] z-10 shadow-[1px_0_0_0_var(--platform-border-subtle)]">
+                        <span className="font-medium text-[var(--platform-text-primary)]">
+                          Max Active Members
+                        </span>
+                        <span className="text-[10px] text-[var(--platform-text-muted)] block">
+                          Hard member ceiling before upgrade required
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <Badge variant="neutral" size="xs">
+                          Limit
+                        </Badge>
+                      </td>
+                      {plans.map((p) => (
+                        <td
+                          key={p._id}
+                          className="py-3 px-4 text-center border-l border-[var(--platform-border-subtle)] font-mono font-semibold text-xs"
+                        >
+                          {p.limits?.maxMembers || "∞"} members
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="hover:bg-[var(--platform-surface)]/40 transition-colors">
+                      <td className="py-3 px-4 sticky left-0 bg-[var(--platform-surface-raised)] z-10 shadow-[1px_0_0_0_var(--platform-border-subtle)]">
+                        <span className="font-medium text-[var(--platform-text-primary)]">
+                          Max Staff Logins
+                        </span>
+                        <span className="text-[10px] text-[var(--platform-text-muted)] block">
+                          Active staff operator seats
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <Badge variant="neutral" size="xs">
+                          Limit
+                        </Badge>
+                      </td>
+                      {plans.map((p) => (
+                        <td
+                          key={p._id}
+                          className="py-3 px-4 text-center border-l border-[var(--platform-border-subtle)] font-mono font-semibold text-xs"
+                        >
+                          {p.limits?.maxStaff || "∞"} seats
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="hover:bg-[var(--platform-surface)]/40 transition-colors">
+                      <td className="py-3 px-4 sticky left-0 bg-[var(--platform-surface-raised)] z-10 shadow-[1px_0_0_0_var(--platform-border-subtle)]">
+                        <span className="font-medium text-[var(--platform-text-primary)]">
+                          Max Branch Locations
+                        </span>
+                        <span className="text-[10px] text-[var(--platform-text-muted)] block">
+                          Supported physical gym facilities
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <Badge variant="neutral" size="xs">
+                          Limit
+                        </Badge>
+                      </td>
+                      {plans.map((p) => (
+                        <td
+                          key={p._id}
+                          className="py-3 px-4 text-center border-l border-[var(--platform-border-subtle)] font-mono font-semibold text-xs"
+                        >
+                          {p.limits?.maxBranches || 1} branch
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="hover:bg-[var(--platform-surface)]/40 transition-colors">
+                      <td className="py-3 px-4 sticky left-0 bg-[var(--platform-surface-raised)] z-10 shadow-[1px_0_0_0_var(--platform-border-subtle)]">
+                        <span className="font-medium text-[var(--platform-text-primary)]">
+                          Cloud Storage Allowance
+                        </span>
+                        <span className="text-[10px] text-[var(--platform-text-muted)] block">
+                          Member profile photos & contract scans
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <Badge variant="neutral" size="xs">
+                          Quota
+                        </Badge>
+                      </td>
+                      {plans.map((p) => (
+                        <td
+                          key={p._id}
+                          className="py-3 px-4 text-center border-l border-[var(--platform-border-subtle)] font-mono font-semibold text-xs"
+                        >
+                          {p.fairUseCaps?.storageGb || 25} GB
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="hover:bg-[var(--platform-surface)]/40 transition-colors">
+                      <td className="py-3 px-4 sticky left-0 bg-[var(--platform-surface-raised)] z-10 shadow-[1px_0_0_0_var(--platform-border-subtle)]">
+                        <span className="font-medium text-[var(--platform-text-primary)]">
+                          WhatsApp Messages / Month
+                        </span>
+                        <span className="text-[10px] text-[var(--platform-text-muted)] block">
+                          Automated WhatsApp notifications quota
+                        </span>
+                      </td>
+                      <td className="py-3 px-3 text-center">
+                        <Badge variant="neutral" size="xs">
+                          Quota
+                        </Badge>
+                      </td>
+                      {plans.map((p) => (
+                        <td
+                          key={p._id}
+                          className="py-3 px-4 text-center border-l border-[var(--platform-border-subtle)] font-mono font-semibold text-xs"
+                        >
+                          {p.fairUseCaps?.whatsappMessagesMonthly || 0} msgs
+                        </td>
+                      ))}
+                    </tr>
+                  </>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </TabContent>
+
+        {/* =========================================================================
             Tab 2: Feature Flags Catalog
            ========================================================================= */}
         <TabContent value="features" className="space-y-4 mt-4">
@@ -546,6 +946,71 @@ export default function PlansFeaturesPage() {
             </div>
           )}
         </TabContent>
+
+        {/* =========================================================================
+            Tab 4: Staff Roles & Permissions Catalog
+           ========================================================================= */}
+        <TabContent value="roles" className="space-y-4 mt-4">
+          <div className="p-4 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
+            <h3 className="text-sm font-semibold text-[var(--platform-text-primary)]">
+              Staff Roles & RBAC Matrix
+            </h3>
+            <p className="text-xs text-[var(--platform-text-muted)] mt-1">
+              Platform roles define the operational personas gyms can provision. Each plan limits which roles a gym can invite.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {roles.map((r) => {
+              const permittingPlans = plans.filter((p) => (p.allowedRoles || []).includes(r.key));
+              return (
+                <div
+                  key={r.key}
+                  className="p-4 rounded-xl border border-[var(--platform-border-subtle)] bg-[var(--platform-surface-raised)] space-y-3 flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <div>
+                        <span className="font-semibold text-sm text-[var(--platform-text-primary)]">
+                          {r.name}
+                        </span>
+                        <div className="mt-0.5">
+                          <CopyChip text={r.key} label={r.key} />
+                        </div>
+                      </div>
+                      <Badge variant="accent" size="xs">
+                        {r.category || "Staff"}
+                      </Badge>
+                    </div>
+
+                    <p className="text-xs text-[var(--platform-text-secondary)] leading-relaxed mt-2 min-h-[36px]">
+                      {r.description || "Operational gym operator role."}
+                    </p>
+                  </div>
+
+                  <div className="pt-3 border-t border-[var(--platform-border-subtle)] space-y-1.5">
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] block">
+                      Permitted in Tiers:
+                    </span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {permittingPlans.length === 0 ? (
+                        <span className="text-[11px] text-[var(--platform-text-muted)]">
+                          No plans currently allow this role
+                        </span>
+                      ) : (
+                        permittingPlans.map((p) => (
+                          <Badge key={p._id} variant="neutral" size="xs">
+                            {p.name}
+                          </Badge>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </TabContent>
       </Tabs>
 
       {/* Modals */}
@@ -561,6 +1026,7 @@ export default function PlansFeaturesPage() {
         onOpenChange={setPlanModalOpen}
         planToEdit={planToEdit}
         availableFeatures={features}
+        availableRoles={roles}
         onSaved={refetchPlans}
       />
 

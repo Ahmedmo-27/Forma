@@ -19,6 +19,7 @@ import {
   User,
   Sliders,
   Check,
+  Sparkles,
 } from "lucide-react";
 import {
   apiGetTenantDetail,
@@ -43,6 +44,7 @@ import { Checkbox } from "../../ui/Checkbox";
 import { Callout } from "../../ui/Callout";
 import { Skeleton } from "../../ui/Skeleton";
 import { ConfirmDialog } from "../../shell/ConfirmDialog";
+import TenantOverridesModal from "./TenantOverridesModal";
 import { usePermission } from "../../lib/auth/PermissionContext";
 import { usePlatformAuth } from "../../lib/auth/AuthContext";
 import { formatCurrency, formatDate, formatBytes } from "../../lib/utils/formatters";
@@ -68,15 +70,7 @@ export default function TenantDetailPage() {
   });
   const [purgeModal, setPurgeModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
-
-  // Edit Overrides form
-  const [overrideForm, setOverrideForm] = useState({
-    maxMembers: "",
-    maxStaff: "",
-    features: {},
-    reason: "",
-  });
-  const [savingOverrides, setSavingOverrides] = useState(false);
+  const [overridesModalOpen, setOverridesModalOpen] = useState(false);
 
   // Permissions
   const canLifecycle = usePermission("tenants.lifecycle");
@@ -102,8 +96,12 @@ export default function TenantDetailPage() {
 
   const tenant = data?.tenant;
   const usage = data?.usage || {};
-  const effectiveFeatures = data?.effectiveFeatures || {};
-  const effectiveLimits = data?.effectiveLimits || {};
+  const effectiveFeatures = Array.isArray(data?.effectiveFeatures)
+    ? data.effectiveFeatures
+    : (Array.isArray(tenant?.effectiveFeatures) ? tenant.effectiveFeatures : Object.keys(data?.effectiveFeatures || {}));
+  const effectiveRoles = Array.isArray(data?.effectiveRoles)
+    ? data.effectiveRoles
+    : (Array.isArray(tenant?.effectiveRoles) ? tenant.effectiveRoles : (tenant?.planId?.allowedRoles || tenant?.plan?.allowedRoles || []));
   const notes = data?.notes || [];
   const recentAudit = data?.recentAudit || [];
   const recentLedger = data?.recentLedger || [];
@@ -482,31 +480,117 @@ export default function TenantDetailPage() {
               </div>
             </div>
 
-            {/* Right: Effective Feature Flags Matrix */}
+            {/* Right: Plan Entitlements & Feature Customizer */}
             <div className="p-5 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] space-y-4">
               <div className="flex items-center justify-between pb-2 border-b border-[var(--platform-border-subtle)]">
-                <h3 className="text-sm font-semibold text-[var(--platform-text-primary)]">
-                  Active Feature Flags
-                </h3>
-                <span className="text-[11px] platform-mono text-[var(--platform-text-muted)]">
-                  Tier: {tenant.planId?.name || "Basic"}
-                </span>
+                <div>
+                  <h3 className="text-sm font-semibold text-[var(--platform-text-primary)]">
+                    Plan Entitlements & Features
+                  </h3>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-[11px] text-[var(--platform-text-muted)]">
+                      Tier: <strong>{tenant.plan?.name || tenant.planId?.name || "Basic"}</strong>
+                    </span>
+                    {(tenant.featureOverrides?.add?.length > 0 || tenant.roleOverrides?.add?.length > 0) && (
+                      <Badge variant="accent" size="xs">
+                        Custom Overrides Active
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+
+                {canLifecycle && (
+                  <Button
+                    size="xs"
+                    variant="outline"
+                    onClick={() => setOverridesModalOpen(true)}
+                  >
+                    <Sliders className="w-3.5 h-3.5 mr-1" />
+                    Customize Entitlements
+                  </Button>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                {Object.entries(effectiveFeatures).map(([featKey, isEnabled]) => (
-                  <div
-                    key={featKey}
-                    className="flex items-center justify-between p-2 rounded-[var(--platform-radius-sm)] bg-[var(--platform-surface-subtle)] border border-[var(--platform-border-subtle)]"
-                  >
-                    <span className="platform-mono text-[11px] text-[var(--platform-text-secondary)]">
-                      {featKey}
-                    </span>
-                    <Badge variant={isEnabled ? "success" : "neutral"} size="sm">
-                      {isEnabled ? "Enabled" : "Off"}
-                    </Badge>
+              {/* Overrides Callout if present */}
+              {(tenant.featureOverrides?.add?.length > 0 || tenant.featureOverrides?.remove?.length > 0) && (
+                <div className="p-2.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-xs text-blue-600 dark:text-blue-400 space-y-1">
+                  <div className="font-semibold flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Custom Entitlements Granted</span>
                   </div>
-                ))}
+                  {tenant.featureOverrides?.add?.length > 0 && (
+                    <div className="text-[11px]">
+                      Added features: <span className="font-mono">{tenant.featureOverrides.add.join(", ")}</span>
+                    </div>
+                  )}
+                  {tenant.featureOverrides?.remove?.length > 0 && (
+                    <div className="text-[11px]">
+                      Revoked features: <span className="font-mono">{tenant.featureOverrides.remove.join(", ")}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Features Matrix Grid */}
+              <div className="space-y-2">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] block">
+                  Active Features ({effectiveFeatures.length})
+                </span>
+                <div className="grid grid-cols-2 gap-2 text-xs max-h-52 overflow-y-auto pr-1">
+                  {effectiveFeatures.length === 0 ? (
+                    <span className="text-xs text-[var(--platform-text-muted)] col-span-2">
+                      No active features enabled.
+                    </span>
+                  ) : (
+                    effectiveFeatures.map((featKey) => {
+                      const isCustomAdded = (tenant.featureOverrides?.add || []).includes(featKey);
+                      return (
+                        <div
+                          key={featKey}
+                          className={`flex items-center justify-between p-2 rounded-[var(--platform-radius-sm)] border ${
+                            isCustomAdded
+                              ? "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300"
+                              : "bg-[var(--platform-surface-subtle)] border-[var(--platform-border-subtle)]"
+                          }`}
+                        >
+                          <span className="platform-mono text-[11px]">
+                            {featKey}
+                          </span>
+                          <Badge variant={isCustomAdded ? "accent" : "success"} size="xs">
+                            {isCustomAdded ? "Custom (+)" : "Included"}
+                          </Badge>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              {/* Allowed Roles Grid */}
+              <div className="space-y-2 pt-2 border-t border-[var(--platform-border-subtle)]">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] block">
+                  Permitted Staff Roles ({effectiveRoles.length})
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {effectiveRoles.length === 0 ? (
+                    <span className="text-xs text-[var(--platform-text-muted)]">
+                      No permitted staff roles configured.
+                    </span>
+                  ) : (
+                    effectiveRoles.map((roleKey) => {
+                      const isCustomAdded = (tenant.roleOverrides?.add || []).includes(roleKey);
+                      return (
+                        <Badge
+                          key={roleKey}
+                          variant={isCustomAdded ? "accent" : "neutral"}
+                          size="xs"
+                        >
+                          {roleKey} {isCustomAdded && "(+)"}
+                        </Badge>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
           </div>
@@ -768,6 +852,15 @@ export default function TenantDetailPage() {
         typedSlugMatch={tenant.slug}
         loading={actionLoading}
       />
+      {/* Tenant Entitlements Customizer Modal */}
+      {tenant && (
+        <TenantOverridesModal
+          open={overridesModalOpen}
+          onOpenChange={setOverridesModalOpen}
+          tenant={tenant}
+          onSaved={refetch}
+        />
+      )}
     </div>
   );
 }

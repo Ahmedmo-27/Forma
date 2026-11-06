@@ -11,14 +11,27 @@ import {
 } from "../../ui";
 import { apiCreatePlan, apiUpdatePlan } from "../../lib/api/endpoints";
 import PlanImpactModal from "./PlanImpactModal";
+import { isValidProgrammaticKey, isNonNegativeNumber, isPositiveInteger } from "../../lib/utils/validation";
+
+const DEFAULT_ROLES_FALLBACK = [
+  { key: "Owner", name: "Gym Owner", description: "Full operational & admin control" },
+  { key: "Receptionist", name: "Receptionist", description: "Front desk & member check-ins" },
+  { key: "Coach", name: "Fitness Coach", description: "Private training & session logs" },
+  { key: "Coach Manager", name: "Head Coach", description: "Trainer management & schedules" },
+  { key: "Accountant", name: "Accountant", description: "Daily finances & invoices" },
+  { key: "Sales", name: "Sales Rep", description: "Lead tracking & sales calls" },
+  { key: "Sales Manager", name: "Sales Manager", description: "Lead assignment & sales funnels" },
+];
 
 export default function CreatePlanModal({
   open,
   onOpenChange,
   planToEdit = null,
   availableFeatures = [],
+  availableRoles = [],
   onSaved,
 }) {
+  const rolesList = availableRoles && availableRoles.length > 0 ? availableRoles : DEFAULT_ROLES_FALLBACK;
   const isEdit = Boolean(planToEdit);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -44,9 +57,12 @@ export default function CreatePlanModal({
     planToEdit?.fairUseCaps?.whatsappMessagesMonthly ?? 2000
   );
 
-  // Selected Features
+  // Selected Features & Roles
   const [selectedFeatures, setSelectedFeatures] = useState(
     planToEdit?.features ? [...planToEdit.features] : []
+  );
+  const [selectedRoles, setSelectedRoles] = useState(
+    planToEdit?.allowedRoles ? [...planToEdit.allowedRoles] : ["Owner", "Receptionist", "Coach", "Coach Manager"]
   );
 
   const toggleFeature = (featKey) => {
@@ -55,14 +71,37 @@ export default function CreatePlanModal({
     );
   };
 
+  const toggleRole = (roleKey) => {
+    setSelectedRoles((prev) =>
+      prev.includes(roleKey) ? prev.filter((r) => r !== roleKey) : [...prev, roleKey]
+    );
+  };
+
   const handlePreSave = (e) => {
     e.preventDefault();
-    if (!name.trim()) {
+    const nameTrim = name.trim();
+    if (!nameTrim) {
       setError("Plan display name is required");
       return;
     }
-    if (!isEdit && !key.trim()) {
-      setError("Programmatic plan key is required");
+    if (nameTrim.length > 100) {
+      setError("Plan display name must not exceed 100 characters");
+      return;
+    }
+    if (!isEdit && !isValidProgrammaticKey(key)) {
+      setError("Programmatic plan key must be 2–60 characters (letters, numbers, dashes, underscores)");
+      return;
+    }
+    if (!isNonNegativeNumber(priceMonthly) || !isNonNegativeNumber(priceYearly)) {
+      setError("Monthly and yearly prices must be valid non-negative numbers");
+      return;
+    }
+    if (!isPositiveInteger(maxMembers) || !isPositiveInteger(maxStaff) || !isPositiveInteger(maxBranches)) {
+      setError("Limits (max members, max staff, max branches) must be whole numbers greater than or equal to 1");
+      return;
+    }
+    if (!isNonNegativeNumber(storageGb) || !isNonNegativeNumber(whatsappMonthly)) {
+      setError("Fair use caps must be valid non-negative numbers");
       return;
     }
 
@@ -86,6 +125,7 @@ export default function CreatePlanModal({
       currency,
       visibility,
       features: selectedFeatures,
+      allowedRoles: selectedRoles,
       limits: {
         maxMembers: Number(maxMembers),
         maxStaff: Number(maxStaff),
@@ -368,6 +408,70 @@ export default function CreatePlanModal({
                       </div>
                       <span className="text-[10px] font-mono text-[var(--platform-text-muted)] block truncate">
                         {feat.key}
+                      </span>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Allowed Staff Roles Checklist */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)]">
+                Allowed Staff Roles ({selectedRoles.length} permitted)
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setSelectedRoles(rolesList.map((r) => r.key))}
+                >
+                  Select All
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="xs"
+                  onClick={() => setSelectedRoles([])}
+                >
+                  Deselect All
+                </Button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2.5 max-h-48 overflow-y-auto p-3 rounded-lg border border-[var(--platform-border-subtle)] bg-[var(--platform-surface-raised)]">
+              {rolesList.map((role) => {
+                const checked = selectedRoles.includes(role.key);
+                return (
+                  <label
+                    key={role.key}
+                    className={`flex items-start gap-2.5 p-2 rounded cursor-pointer border transition-colors ${
+                      checked
+                        ? "bg-[var(--platform-surface)] border-[var(--platform-accent)]"
+                        : "border-transparent hover:bg-[var(--platform-surface)]"
+                    }`}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      onCheckedChange={() => toggleRole(role.key)}
+                      className="mt-0.5"
+                    />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-medium text-[var(--platform-text-primary)]">
+                          {role.name || role.key}
+                        </span>
+                        {role.category && (
+                          <Badge variant="neutral" size="xs">
+                            {role.category}
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-[10px] text-[var(--platform-text-muted)] block truncate">
+                        {role.description || role.key}
                       </span>
                     </div>
                   </label>
