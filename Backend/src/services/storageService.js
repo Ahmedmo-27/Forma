@@ -183,8 +183,13 @@ class StorageService {
         }
         if (Buffer.isBuffer(file.buffer)) {
             await this.saveFile(tenantId, filename, file.buffer);
+        } else if (file.path && this.isRemote()) {
+            const buffer = await fsPromises.readFile(file.path);
+            await this.saveFile(tenantId, filename, buffer);
         } else if (this.isRemote()) {
-            throw new Error("StorageService: remote upload is missing a file buffer");
+            const err = new Error("StorageService: remote upload is missing a file buffer");
+            err.statusCode = 500;
+            throw err;
         }
         return filename;
     }

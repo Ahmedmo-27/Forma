@@ -262,11 +262,11 @@ export default function TenantSettings() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-                    Upload New Logo (PNG, JPG, or WebP)
+                    Upload New Logo (PNG, JPG, WebP, or SVG)
                   </label>
                   <input
                     type="file"
-                    accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
                     onChange={handleLogoUpload}
                     disabled={uploadingLogo}
                     style={{ fontSize: 13 }}

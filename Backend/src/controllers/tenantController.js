@@ -9,7 +9,7 @@ const { getEffectiveFeatures, getEffectiveLimits } = require("../models/Tenant")
 const { runAsPlatform } = require("../context/tenantContext");
 const { encryptSecret } = require("../utils/tenantCrypto");
 const { writeAudit } = require("../utils/audit");
-const { assertAllowedImage } = require("../utils/fileMagic");
+const { assertAllowedLogo, MIME_TO_EXT } = require("../utils/fileMagic");
 
 function sanitizeTenantResponse(tenant, plan, usage = {}) {
     const effectiveFeatures = getEffectiveFeatures(tenant, plan);
@@ -233,13 +233,25 @@ const uploadTenantLogo = async (req, res) => {
             return res.status(404).json({ message: "Tenant not found" });
         }
 
-        const filename = req.file.filename;
+        let filename = req.file.filename;
         try {
-            await assertAllowedImage(req.file);
+            const mime = await assertAllowedLogo(req.file);
+            const exts = MIME_TO_EXT[mime] || [];
+            if (exts.length && !exts.some((ext) => filename.toLowerCase().endsWith(ext))) {
+                const nextName = `${filename.replace(/\.[^.]+$/, "")}${exts[0]}`;
+                if (req.file.path) {
+                    const nextPath = path.join(path.dirname(req.file.path), nextName);
+                    await fs.promises.rename(req.file.path, nextPath);
+                    req.file.path = nextPath;
+                }
+                req.file.filename = nextName;
+                filename = nextName;
+            }
             await storageService.persistUpload(tenantId, req.file);
         } catch (err) {
             if (req.file?.path) fs.unlink(req.file.path, () => {});
-            return res.status(err.statusCode || 400).json({ message: err.message });
+            const status = err.statusCode || 500;
+            return res.status(status).json({ message: err.message || "Logo upload failed" });
         }
 
         const oldLogoKey = tenant.settings?.branding?.logoKey || null;

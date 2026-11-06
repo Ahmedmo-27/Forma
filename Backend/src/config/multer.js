@@ -44,17 +44,27 @@ function makeFilename(file, prefix = "") {
     return `${prefix}${unique}${safeExt}`;
 }
 
-const storage = multer.diskStorage({
-    destination: (req, _file, cb) => {
-        const tenantId = req.user?.tenantId;
-        const targetDir = tenantId ? storageService.getTenantDir(tenantId) : uploadDir;
-        cb(null, targetDir);
-    },
-    filename: (_req, file, cb) => {
-        const prefix = FIELD_PREFIX[file.fieldname] || "";
-        cb(null, makeFilename(file, prefix));
-    }
-});
+const useRemoteStorage = ["r2", "s3"].includes((process.env.STORAGE_DRIVER || "local").toLowerCase());
+
+function stampFilename(file) {
+    if (!file || file.filename) return;
+    const prefix = FIELD_PREFIX[file.fieldname] || "";
+    file.filename = makeFilename(file, prefix);
+}
+
+const storage = useRemoteStorage
+    ? multer.memoryStorage()
+    : multer.diskStorage({
+        destination: (req, _file, cb) => {
+            const tenantId = req.user?.tenantId;
+            const targetDir = tenantId ? storageService.getTenantDir(tenantId) : uploadDir;
+            cb(null, targetDir);
+        },
+        filename: (_req, file, cb) => {
+            const prefix = FIELD_PREFIX[file.fieldname] || "";
+            cb(null, makeFilename(file, prefix));
+        }
+    });
 
 const fileFilter = (_req, file, cb) => {
     const ext = path.extname(file.originalname).toLowerCase();
@@ -72,6 +82,17 @@ const photoFileFilter = (_req, file, cb) => {
     cb(new Error("Profile photo must be jpeg, png, or webp"));
 };
 
+const LOGO_EXT = new Set([".jpeg", ".jpg", ".png", ".webp", ".svg"]);
+
+const logoFileFilter = (_req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const mime = String(file.mimetype || "").toLowerCase();
+    if (LOGO_EXT.has(ext) || mime.startsWith("image/") || mime === "text/xml" || mime === "application/xml") {
+        return cb(null, true);
+    }
+    cb(new Error("Logo must be a png, jpeg, webp, or svg image"));
+};
+
 const upload = multer({
     storage,
     fileFilter,
@@ -84,6 +105,12 @@ const photoUpload = multer({
     limits: { fileSize: 2 * 1024 * 1024 } // 2 MB max for profile photos
 });
 
+const logoUpload = multer({
+    storage,
+    fileFilter: logoFileFilter,
+    limits: { fileSize: 2 * 1024 * 1024 }
+});
+
 function handleUploadError(err, res) {
     if (err.name === "MulterError" && err.code === "LIMIT_FILE_SIZE") {
         return res.status(413).json({ message: "File too large. Maximum size is 5 MB." });
@@ -94,17 +121,22 @@ function handleUploadError(err, res) {
 const uploadSingle = (fieldName) => (req, res, next) => {
     upload.single(fieldName)(req, res, (err) => {
         if (err) return handleUploadError(err, res);
+        stampFilename(req.file);
         next();
     });
 };
 
 const uploadLogo = (req, res, next) => {
-    photoUpload.fields([
+    logoUpload.fields([
         { name: "logoFile", maxCount: 1 },
         { name: "logo", maxCount: 1 },
         { name: "file", maxCount: 1 }
     ])(req, res, (err) => {
         if (err) return handleUploadError(err, res);
+        const files = req.files || {};
+        for (const group of Object.values(files)) {
+            (group || []).forEach(stampFilename);
+        }
         req.file = req.files?.logoFile?.[0] || req.files?.logo?.[0] || req.files?.file?.[0] || null;
         next();
     });
@@ -116,6 +148,7 @@ const uploadSinglePhoto = (fieldName) => (req, res, next) => {
     }
     photoUpload.single(fieldName)(req, res, (err) => {
         if (err) return handleUploadError(err, res);
+        stampFilename(req.file);
         next();
     });
 };
