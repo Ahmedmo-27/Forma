@@ -30,8 +30,10 @@ export const platformToast = {
           <CheckCircle2 className="w-4 h-4 text-[var(--platform-success)] shrink-0 mt-0.5" />
           <div className="flex-1 text-xs">{message}</div>
           <button
+            type="button"
             onClick={() => toast.dismiss(t.id)}
-            className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)]"
+            aria-label="Dismiss notification"
+            className="inline-flex items-center justify-center min-w-6 min-h-6 text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] rounded"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -47,8 +49,10 @@ export const platformToast = {
           <AlertCircle className="w-4 h-4 text-[var(--platform-danger)] shrink-0 mt-0.5" />
           <div className="flex-1 text-xs">{message}</div>
           <button
+            type="button"
             onClick={() => toast.dismiss(t.id)}
-            className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)]"
+            aria-label="Dismiss notification"
+            className="inline-flex items-center justify-center min-w-6 min-h-6 text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] rounded"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -64,8 +68,10 @@ export const platformToast = {
           <AlertTriangle className="w-4 h-4 text-[var(--platform-warning)] shrink-0 mt-0.5" />
           <div className="flex-1 text-xs">{message}</div>
           <button
+            type="button"
             onClick={() => toast.dismiss(t.id)}
-            className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)]"
+            aria-label="Dismiss notification"
+            className="inline-flex items-center justify-center min-w-6 min-h-6 text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] rounded"
           >
             <X className="w-3.5 h-3.5" />
           </button>
@@ -81,8 +87,10 @@ export const platformToast = {
           <Info className="w-4 h-4 text-[var(--platform-info)] shrink-0 mt-0.5" />
           <div className="flex-1 text-xs">{message}</div>
           <button
+            type="button"
             onClick={() => toast.dismiss(t.id)}
-            className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)]"
+            aria-label="Dismiss notification"
+            className="inline-flex items-center justify-center min-w-6 min-h-6 text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] rounded"
           >
             <X className="w-3.5 h-3.5" />
           </button>

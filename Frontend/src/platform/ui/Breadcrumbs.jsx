@@ -20,8 +20,9 @@ export function Breadcrumbs({ items = [], className = "" }) {
               {isLast || !item.href ? (
                 <span
                   aria-current={isLast ? "page" : undefined}
+                  title={item.label}
                   className={cn(
-                    "font-medium",
+                    "font-medium truncate max-w-[9rem] sm:max-w-xs",
                     isLast
                       ? "text-[var(--platform-text-primary)]"
                       : "text-[var(--platform-text-secondary)]"
@@ -32,7 +33,8 @@ export function Breadcrumbs({ items = [], className = "" }) {
               ) : (
                 <Link
                   to={item.href}
-                  className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] transition-colors"
+                  title={item.label}
+                  className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] transition-colors truncate max-w-[9rem] sm:max-w-xs"
                 >
                   {item.label}
                 </Link>

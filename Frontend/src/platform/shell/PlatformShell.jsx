@@ -6,11 +6,24 @@ import { ImpersonationBanner } from "./ImpersonationBanner";
 import { MaintenanceBanner } from "./MaintenanceBanner";
 import { CommandPalette } from "./CommandPalette";
 import { PlatformToaster } from "../ui/Toast";
-import { usePlatformAuth } from "../lib/auth/AuthContext";
 import { apiGetSystemHealth } from "../lib/api/endpoints";
+import { PageMetaProvider } from "./PageMetaContext";
+import { usePageMeta } from "../lib/pageMeta";
+
+function looksLikeRecordId(segment) {
+  return /^[a-f0-9]{16,}$/i.test(segment) || segment.length > 20;
+}
 
 export function PlatformShell() {
-  const { user } = usePlatformAuth();
+  return (
+    <PageMetaProvider>
+      <PlatformShellFrame />
+    </PageMetaProvider>
+  );
+}
+
+function PlatformShellFrame() {
+  const { detailLabel } = usePageMeta();
   const location = useLocation();
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
@@ -19,6 +32,15 @@ export function PlatformShell() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [systemHealth, setSystemHealth] = useState(null);
+
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 768px)");
+    const closeMobileNav = () => {
+      if (desktop.matches) setIsMobileOpen(false);
+    };
+    desktop.addEventListener("change", closeMobileNav);
+    return () => desktop.removeEventListener("change", closeMobileNav);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -71,8 +93,9 @@ export function PlatformShell() {
       });
 
       if (parts.length > 2) {
+        const segment = decodeURIComponent(parts[2]);
         crumbs.push({
-          label: parts[2],
+          label: detailLabel || (looksLikeRecordId(segment) ? "Details" : segment),
           href: undefined,
         });
       }
@@ -105,9 +128,10 @@ export function PlatformShell() {
             onOpenMobile={() => setIsMobileOpen(true)}
             onOpenCommandPalette={() => setIsCommandPaletteOpen(true)}
             breadcrumbs={getBreadcrumbs()}
+            systemHealth={systemHealth}
           />
 
-          <main className="flex-1 min-w-0 px-6 lg:px-8 py-6 lg:py-8 max-w-screen-2xl w-full mx-auto">
+          <main className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-6 lg:py-8 max-w-screen-2xl w-full mx-auto">
             <Outlet />
           </main>
         </div>

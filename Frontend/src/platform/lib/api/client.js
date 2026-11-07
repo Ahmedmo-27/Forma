@@ -34,6 +34,11 @@ platformClient.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     config.headers["X-Request-Id"] = `req_${crypto.randomUUID().slice(0, 8)}`;
+    // Callers sometimes pass a body or options object in the signal slot.
+    // Axios requires a real AbortSignal and throws if addEventListener is missing.
+    if (config.signal != null && typeof config.signal.addEventListener !== "function") {
+      delete config.signal;
+    }
     return config;
   },
   (error) => Promise.reject(normalizeApiError(error))

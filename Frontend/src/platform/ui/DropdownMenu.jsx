@@ -176,7 +176,7 @@ export function DropdownMenu({
                 return (
                   <div
                     key={`hdr-${idx}`}
-                    className="px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] select-none truncate"
+                    className="px-2.5 py-1.5 text-xs font-medium text-[var(--platform-text-muted)] select-none truncate"
                   >
                     {item.label}
                   </div>
@@ -199,7 +199,7 @@ export function DropdownMenu({
                   }}
                   onMouseEnter={() => setHighlightedIndex(actionCounter)}
                   className={cn(
-                    "w-full flex items-center justify-between px-2.5 py-1.5 rounded-[var(--platform-radius-sm)] text-xs text-left transition-colors cursor-pointer outline-none select-none",
+                    "w-full flex items-center justify-between min-h-9 px-2.5 py-2 rounded-[var(--platform-radius-sm)] text-xs text-left transition-colors cursor-pointer outline-none select-none",
                     item.danger
                       ? "text-[var(--platform-danger)] hover:bg-[var(--platform-danger-subtle)]"
                       : "text-[var(--platform-text-secondary)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)]",

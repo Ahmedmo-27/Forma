@@ -23,7 +23,7 @@ export function Badge({
   }[variant] || "bg-[var(--platform-surface-subtle)] text-[var(--platform-text-secondary)]";
 
   const sizeClasses = {
-    sm: "px-1.5 py-0.2 text-[10px] tracking-wide uppercase font-semibold",
+    sm: "px-1.5 py-0.5 text-[11px] tracking-wide uppercase font-semibold whitespace-nowrap",
     md: "px-2 py-0.5 text-xs font-medium",
   }[size] || "px-2 py-0.5 text-xs";
 

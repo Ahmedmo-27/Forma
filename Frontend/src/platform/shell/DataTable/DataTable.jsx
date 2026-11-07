@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import {
   Search,
   SlidersHorizontal,
@@ -40,6 +40,7 @@ export function DataTable({
   emptyDescription = "There are no entries matching your current filters.",
   className = "",
 }) {
+  const searchId = useId();
   const [visibleColumns, setVisibleColumns] = useState(() =>
     columns.reduce((acc, col) => ({ ...acc, [col.key]: true }), {})
   );
@@ -92,25 +93,31 @@ export function DataTable({
         <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
           {/* Search Box */}
           {onSearch && (
-            <div className="relative flex-1 min-w-[180px] max-w-sm">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--platform-text-muted)] pointer-events-none" />
+            <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-md">
+              <label htmlFor={searchId} className="text-xs font-medium text-[var(--platform-text-secondary)] shrink-0">
+                Search
+              </label>
+              <div className="relative flex-1">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--platform-text-muted)] pointer-events-none" aria-hidden="true" />
               <input
-                type="text"
+                id={searchId}
+                type="search"
                 value={searchValue}
                 onChange={(e) => onSearch(e.target.value)}
                 placeholder={searchPlaceholder}
-                className="w-full h-8 pl-8 pr-7 text-xs rounded-[var(--platform-radius-md)] bg-[var(--platform-surface)] border border-[var(--platform-border-strong)] text-[var(--platform-text-primary)] placeholder-[var(--platform-text-muted)] outline-none focus:border-[var(--platform-accent)]"
+                className="w-full h-9 pl-8 pr-8 text-xs rounded-[var(--platform-radius-md)] bg-[var(--platform-surface)] border border-[var(--platform-border-strong)] text-[var(--platform-text-primary)] placeholder-[var(--platform-text-muted)] outline-none focus:border-[var(--platform-accent)]"
               />
               {searchValue && (
                 <button
                   type="button"
                   onClick={() => onSearch("")}
                   aria-label="Clear search"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] cursor-pointer p-0.5 rounded"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 inline-flex items-center justify-center min-w-6 min-h-6 text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] cursor-pointer rounded"
                 >
-                  <X className="w-3 h-3" />
+                  <X className="w-3.5 h-3.5" />
                 </button>
               )}
+              </div>
             </div>
           )}
 
@@ -119,8 +126,9 @@ export function DataTable({
             <div key={filter.key} className="flex items-center">
               <select
                 value={filter.value || ""}
+                aria-label={filter.label}
                 onChange={(e) => filter.onChange(e.target.value)}
-                className="h-8 px-2 text-xs rounded-[var(--platform-radius-md)] bg-[var(--platform-surface)] border border-[var(--platform-border-strong)] text-[var(--platform-text-primary)] outline-none cursor-pointer"
+                className="h-9 px-2 text-xs rounded-[var(--platform-radius-md)] bg-[var(--platform-surface)] border border-[var(--platform-border-strong)] text-[var(--platform-text-primary)] outline-none cursor-pointer"
               >
                 <option value="">{filter.label}: All</option>
                 {filter.options.map((opt) => (
@@ -197,14 +205,15 @@ export function DataTable({
       {/* Main Table */}
       <div className="overflow-x-auto overflow-y-hidden">
         <table className="w-full text-left border-collapse" style={{ fontSize: "var(--platform-table-font-size)" }}>
-          <thead className="sticky top-0 z-10 bg-[var(--platform-surface-subtle)] text-[var(--platform-text-muted)] uppercase text-[10px] font-bold tracking-wider border-b border-[var(--platform-border)] select-none">
+          <thead className="sticky top-0 z-10 bg-[var(--platform-surface-subtle)] text-[var(--platform-text-muted)] uppercase text-[11px] font-bold tracking-wider border-b border-[var(--platform-border)] select-none">
             <tr>
               {onSelectChange && (
-                <th className="w-8 py-2.5 px-3">
+                <th scope="col" className="w-10 py-2.5 px-3">
                   <Checkbox
                     checked={isAllSelected}
                     indeterminate={isPartiallySelected}
                     onChange={handleSelectAll}
+                    aria-label="Select all rows on this page"
                   />
                 </th>
               )}
@@ -214,6 +223,7 @@ export function DataTable({
                 return (
                   <th
                     key={col.key}
+                    scope="col"
                     style={{ width: col.width }}
                     onClick={() => col.sortable && handleColumnSort(col.key)}
                     onKeyDown={(e) => {
@@ -279,6 +289,7 @@ export function DataTable({
                         <Checkbox
                           checked={isSelected}
                           onChange={(checked) => handleSelectRow(rowId, checked)}
+                          aria-label={`Select row ${rIdx + 1}`}
                         />
                       </td>
                     )}

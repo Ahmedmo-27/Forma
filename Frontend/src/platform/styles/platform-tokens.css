@@ -15,10 +15,10 @@
   --platform-border-subtle: #f1f5f9;    /* slate-100 */
   --platform-border-strong: #cbd5e1;    /* slate-300 */
 
-  /* Text Ramps */
+  /* Text Ramps — muted stays at or above 4.5:1 on canvas and white */
   --platform-text-primary: #0f172a;     /* slate-900 */
   --platform-text-secondary: #475569;   /* slate-600 */
-  --platform-text-muted: #64748b;       /* slate-500 */
+  --platform-text-muted: #526277;
 
   /* Restrained Brand Accent: Precision Cobalt */
   --platform-accent: #2563eb;           /* blue-600 */
@@ -35,6 +35,17 @@
   --platform-danger-subtle: #fef2f2;    /* rose-50 */
   --platform-info: #0284c7;             /* sky-600 */
   --platform-info-subtle: #f0f9ff;      /* sky-50 */
+
+  /* Aliases used by status callouts and toggle pills */
+  --platform-success-surface: var(--platform-success-subtle);
+  --platform-success-border: color-mix(in srgb, var(--platform-success) 35%, transparent);
+  --platform-warning-surface: var(--platform-warning-subtle);
+  --platform-warning-border: color-mix(in srgb, var(--platform-warning) 35%, transparent);
+  --platform-danger-surface: var(--platform-danger-subtle);
+  --platform-danger-border: color-mix(in srgb, var(--platform-danger) 35%, transparent);
+  --platform-info-surface: var(--platform-info-subtle);
+  --platform-info-border: color-mix(in srgb, var(--platform-info) 35%, transparent);
+  --platform-neutral-surface: var(--platform-surface-subtle);
 
   /* Radii */
   --platform-radius-sm: 4px;
@@ -73,8 +84,8 @@
   --platform-border-strong: #3f3f46;    /* zinc-700 */
 
   --platform-text-primary: #f8fafc;     /* slate-50 */
-  --platform-text-secondary: #94a3b8;   /* slate-400 */
-  --platform-text-muted: #71717a;       /* zinc-500 */
+  --platform-text-secondary: #cbd5e1;   /* slate-300 — secondary body text needs 4.5:1 */
+  --platform-text-muted: #a1a1aa;       /* zinc-400 — ~7:1 on the dark canvas */
 
   --platform-accent: #3b82f6;           /* blue-500 */
   --platform-accent-hover: #60a5fa;     /* blue-400 */

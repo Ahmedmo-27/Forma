@@ -35,7 +35,7 @@ export const Checkbox = forwardRef(function Checkbox(
         disabled && "opacity-50 cursor-not-allowed"
       )}
     >
-      <div className="relative flex items-center justify-center mt-0.5">
+      <div className="relative flex items-center justify-center min-w-6 min-h-6">
         <input
           ref={resolvedRef}
           id={inputId}

@@ -25,6 +25,7 @@ import { usePermission } from "../lib/auth/PermissionContext";
 import { apiGetTenants } from "../lib/api/endpoints";
 import { Kbd } from "../ui/Kbd";
 import { cn } from "../lib/utils/cn";
+import { modifierKeyLabel } from "../lib/utils/shortcut";
 
 export function CommandPalette({ isOpen, onClose }) {
   const navigate = useNavigate();
@@ -35,6 +36,7 @@ export function CommandPalette({ isOpen, onClose }) {
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   const inputRef = useRef(null);
+  const modKey = modifierKeyLabel();
 
   // Permission hooks
   const canReadTenants = usePermission("tenants.read");
@@ -181,7 +183,7 @@ export function CommandPalette({ isOpen, onClose }) {
             <div className="flex items-center justify-between py-1">
               <span className="text-[var(--platform-text-secondary)]">Open Command Palette</span>
               <div className="flex gap-1">
-                <Kbd>Cmd</Kbd>
+                <Kbd>{modKey}</Kbd>
                 <Kbd>K</Kbd>
               </div>
             </div>
@@ -216,23 +218,32 @@ export function CommandPalette({ isOpen, onClose }) {
         {/* Search Input Bar */}
         <div className="flex items-center gap-3 px-4 py-3 border-b border-[var(--platform-border-subtle)]">
           <Search className="w-4 h-4 text-[var(--platform-text-muted)] shrink-0" />
+          <label htmlFor="platform-command-search" className="sr-only">
+            Search commands and gyms
+          </label>
           <input
+            id="platform-command-search"
             ref={inputRef}
             type="text"
+            role="combobox"
+            aria-expanded="true"
+            aria-controls="platform-command-results"
+            aria-activedescendant={allItems[selectedIndex] ? `platform-command-option-${selectedIndex}` : undefined}
+            aria-label="Search commands and gyms"
             value={query}
             onChange={(e) => {
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
             onKeyDown={handleKeyDown}
-            placeholder="Type a command, jump to a page, or search gyms by name/slug..."
-            className="w-full bg-transparent text-xs text-[var(--platform-text-primary)] placeholder-[var(--platform-text-muted)] outline-none"
+            placeholder="Search commands or gyms"
+            className="w-full bg-transparent text-sm text-[var(--platform-text-primary)] placeholder-[var(--platform-text-muted)] outline-none"
           />
           <Kbd>Esc</Kbd>
         </div>
 
         {/* Results List */}
-        <div className="max-h-80 overflow-y-auto p-2 space-y-1">
+        <div id="platform-command-results" role="listbox" aria-label="Commands" className="max-h-80 overflow-y-auto p-2 space-y-1">
           {allItems.length === 0 ? (
             <div className="py-8 text-center text-xs text-[var(--platform-text-muted)]">
               No matching actions or subscribers.
@@ -243,12 +254,16 @@ export function CommandPalette({ isOpen, onClose }) {
               const Icon = item.icon;
 
               return (
-                <div
+                <button
+                  id={`platform-command-option-${index}`}
                   key={`${item.type}-${item.path || index}`}
+                  type="button"
+                  role="option"
+                  aria-selected={isSelected}
                   onClick={() => handleSelect(item)}
                   onMouseEnter={() => setSelectedIndex(index)}
                   className={cn(
-                    "flex items-center justify-between px-3 py-2 rounded-[var(--platform-radius-md)] text-xs cursor-pointer select-none transition-colors",
+                    "w-full flex items-center justify-between min-h-10 px-3 py-2 rounded-[var(--platform-radius-md)] text-xs cursor-pointer select-none transition-colors text-left",
                     isSelected
                       ? "bg-[var(--platform-surface-subtle)] text-[var(--platform-text-primary)]"
                       : "text-[var(--platform-text-secondary)]"
@@ -278,14 +293,14 @@ export function CommandPalette({ isOpen, onClose }) {
                       <ArrowRight className="w-3.5 h-3.5 text-[var(--platform-accent)]" />
                     )}
                   </div>
-                </div>
+                </button>
               );
             })
           )}
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--platform-border-subtle)] bg-[var(--platform-surface-subtle)]/50 text-[10px] text-[var(--platform-text-muted)]">
+        <div className="flex items-center justify-between px-4 py-2 border-t border-[var(--platform-border-subtle)] bg-[var(--platform-surface-subtle)]/50 text-[11px] text-[var(--platform-text-muted)]">
           <div className="flex items-center gap-3">
             <span>
               <Kbd>↑</Kbd> <Kbd>↓</Kbd> Navigate

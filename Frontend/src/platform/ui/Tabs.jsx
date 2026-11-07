@@ -28,14 +28,16 @@ export function Tabs({
 
 export function TabsList({ children, className = "" }) {
   return (
-    <div
-      role="tablist"
-      className={cn(
-        "inline-flex items-center gap-1 p-1 rounded-[var(--platform-radius-md)] bg-[var(--platform-surface-subtle)] border border-[var(--platform-border-subtle)]",
-        className
-      )}
-    >
-      {children}
+    <div className="w-full max-w-full overflow-x-auto">
+      <div
+        role="tablist"
+        className={cn(
+          "inline-flex w-max min-w-full items-center gap-1 p-1 rounded-[var(--platform-radius-md)] bg-[var(--platform-surface-subtle)] border border-[var(--platform-border-subtle)]",
+          className
+        )}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -51,7 +53,7 @@ export function TabTrigger({ value, children, icon: Icon, badge, className = "" 
       aria-selected={isActive}
       onClick={() => setActiveTab(value)}
       className={cn(
-        "inline-flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-[var(--platform-radius-sm)] transition-all cursor-pointer select-none",
+        "inline-flex items-center gap-2 shrink-0 whitespace-nowrap min-h-9 px-3 py-1.5 text-xs font-medium rounded-[var(--platform-radius-sm)] transition-colors cursor-pointer select-none",
         isActive
           ? "bg-[var(--platform-surface)] text-[var(--platform-text-primary)] font-semibold shadow-xs border border-[var(--platform-border-subtle)]"
           : "text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface)]/50",
@@ -63,7 +65,7 @@ export function TabTrigger({ value, children, icon: Icon, badge, className = "" 
       {badge !== undefined && (
         <span
           className={cn(
-            "px-1.5 py-0.2 text-[10px] platform-mono rounded-full",
+            "px-1.5 py-0.5 text-[11px] platform-mono rounded-full whitespace-nowrap",
             isActive
               ? "bg-[var(--platform-accent-subtle)] text-[var(--platform-accent)]"
               : "bg-[var(--platform-surface-subtle)] text-[var(--platform-text-muted)]"

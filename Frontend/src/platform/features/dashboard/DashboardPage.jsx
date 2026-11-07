@@ -8,10 +8,7 @@ import {
   RefreshCw,
   ChevronRight,
   AlertTriangle,
-  Building2,
-  Users,
   Zap,
-  CheckCircle2,
 } from "lucide-react";
 import {
   apiGetAnalyticsOverview,
@@ -24,8 +21,21 @@ import { Button } from "../../ui/Button";
 import { Badge, StatusPill } from "../../ui/Badge";
 import { Skeleton } from "../../ui/Skeleton";
 import { UsageMeter } from "../../ui/UsageMeter";
+import { ErrorState } from "../../ui/ErrorState";
 import { formatCurrency, formatNumber } from "../../lib/utils/formatters";
 import { platformToast } from "../../ui/Toast";
+
+function formatGrowth(value) {
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  const rounded = Math.round(value * 10) / 10;
+  const sign = rounded > 0 ? "+" : "";
+  return `${sign}${rounded}%`;
+}
+
+function growthTone(value) {
+  if (typeof value !== "number" || !Number.isFinite(value) || value === 0) return "neutral";
+  return value > 0 ? "positive" : "negative";
+}
 
 export default function DashboardPage() {
   const [overview, setOverview] = useState(null);
@@ -33,6 +43,7 @@ export default function DashboardPage() {
   const [prices, setPrices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadError, setLoadError] = useState("");
 
   const loadData = useCallback(async () => {
     try {
@@ -45,14 +56,23 @@ export default function DashboardPage() {
 
       if (overviewRes.status === "fulfilled") {
         setOverview(overviewRes.value.data);
+        setLoadError("");
+      } else {
+        setOverview(null);
+        setLoadError("Dashboard metrics could not be loaded. Figures below are hidden until a snapshot succeeds.");
       }
       if (healthRes.status === "fulfilled") {
         setHealthDetails(healthRes.value.data);
+      } else {
+        setHealthDetails(null);
       }
       if (pricesRes.status === "fulfilled") {
         setPrices(pricesRes.value.data || []);
+      } else {
+        setPrices([]);
       }
     } catch {
+      setLoadError("Dashboard metrics could not be loaded.");
       platformToast.error("Failed to load dashboard metrics");
     } finally {
       setLoading(false);
@@ -148,7 +168,10 @@ export default function DashboardPage() {
             <h1 className="text-xl font-bold tracking-tight text-[var(--platform-text-primary)]">
               Executive Overview
             </h1>
-            <StatusPill status="operational" label="Live Ledger Synced" pulse />
+            <StatusPill
+              status={overview ? "operational" : "warning"}
+              label={overview ? "Snapshot loaded" : "Metrics unavailable"}
+            />
           </div>
           <p className="text-xs text-[var(--platform-text-muted)] mt-1.5 leading-relaxed">
             Consolidated subscription revenue, gym capacity telemetry, and platform operational health.
@@ -169,15 +192,19 @@ export default function DashboardPage() {
         </div>
       </div>
 
+      {loadError && (
+        <ErrorState title="Metrics unavailable" message={loadError} onRetry={loadData} />
+      )}
+
       {/* ── 2. KPI Cards Strip with Balanced Breathing Room ── */}
+      {overview && (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <KpiCard
           title="Monthly Recurring (MRR)"
           value={formatCurrency(revenue.mrr)}
           subtext="Recurring subscribers"
-          delta={growth.mrrGrowth ? `${growth.mrrGrowth >= 0 ? "+" : ""}${growth.mrrGrowth}%` : "+4.2%"}
-          deltaType="positive"
-          sparklineData={[revenue.mrr * 0.85, revenue.mrr * 0.9, revenue.mrr * 0.94, revenue.mrr]}
+          delta={formatGrowth(growth.mrrGrowth)}
+          deltaType={growthTone(growth.mrrGrowth)}
           howCalculated={definitions.mrr || "Sum of all normalized monthly recurring subscriptions."}
           icon={DollarSign}
         />
@@ -186,9 +213,8 @@ export default function DashboardPage() {
           title="Annual Run Rate (ARR)"
           value={formatCurrency(revenue.arr)}
           subtext="MRR × 12 annualized"
-          delta={growth.arrGrowth ? `${growth.arrGrowth >= 0 ? "+" : ""}${growth.arrGrowth}%` : "+8.1%"}
-          deltaType="positive"
-          sparklineData={[revenue.arr * 0.82, revenue.arr * 0.88, revenue.arr * 0.92, revenue.arr]}
+          delta={formatGrowth(growth.arrGrowth)}
+          deltaType={growthTone(growth.arrGrowth)}
           howCalculated={definitions.arr || "MRR annualized across active monthly and yearly contracts."}
           icon={TrendingUp}
         />
@@ -198,10 +224,6 @@ export default function DashboardPage() {
           value={formatCurrency(revenue.lifetimeRevenueTotal || revenue.lifetimeRecognized)}
           subtext="One-time capital collected"
           deltaType="neutral"
-          sparklineData={[
-            (revenue.lifetimeRevenueTotal || 100) * 0.9,
-            revenue.lifetimeRevenueTotal || 100,
-          ]}
           howCalculated={
             definitions.lifetimeRevenue ||
             "Total non-recurring upfront fees collected from lifetime pass gym purchases."
@@ -212,10 +234,8 @@ export default function DashboardPage() {
         <KpiCard
           title="Net Settled Revenue"
           value={formatCurrency(revenue.netRevenue)}
-          subtext={`-${formatCurrency(revenue.refundsTotal || 0)} refunds`}
-          delta={revenue.netRevenue > 0 ? "+6.5%" : undefined}
-          deltaType={revenue.refundsTotal > 0 ? "negative" : "positive"}
-          sparklineData={[revenue.netRevenue * 0.88, revenue.netRevenue * 0.92, revenue.netRevenue * 0.97, revenue.netRevenue]}
+          subtext={`${formatCurrency(revenue.refundsTotal || 0)} refunded`}
+          deltaType="neutral"
           howCalculated={
             definitions.netRevenue ||
             "Total gross cash received minus processed tenant refunds and dispute reversals."
@@ -223,11 +243,13 @@ export default function DashboardPage() {
           icon={ShieldCheck}
         />
       </div>
+      )}
 
       {/* ── 3. Detailed Analytics Grids with 24px Gaps ── */}
+      {overview && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch">
         {/* ── Card 1: Subscriber Distribution & Operational Lifecycle ── */}
-        <div className="p-6 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs flex flex-col justify-between space-y-6 platform-card-interactive">
+        <div className="p-6 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs flex flex-col justify-between space-y-6 platform-card">
           <div className="space-y-5">
             {/* Header */}
             <div className="flex items-center justify-between pb-3.5 border-b border-[var(--platform-border-subtle)]">
@@ -278,7 +300,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="h-1.5 w-full rounded-full bg-[var(--platform-surface-subtle)] overflow-hidden">
                   <div
-                    className="h-full rounded-full bg-sky-500 transition-all duration-300"
+                    className="h-full rounded-full bg-[var(--platform-info)] transition-all duration-300"
                     style={{ width: `${yearlyPercent}%` }}
                   />
                 </div>
@@ -365,7 +387,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Card 2: Health & Proactive Telemetry ── */}
-        <div className="p-6 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs flex flex-col justify-between space-y-6 platform-card-interactive">
+        <div className="p-6 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs flex flex-col justify-between space-y-6 platform-card">
           <div className="space-y-5">
             {/* Header */}
             <div className="flex items-center justify-between pb-3.5 border-b border-[var(--platform-border-subtle)]">
@@ -377,8 +399,8 @@ export default function DashboardPage() {
                   Churn prevention & capacity expansion
                 </p>
               </div>
-              <Badge variant="accent" size="sm">
-                Live Telemetry
+              <Badge variant={healthDetails ? "neutral" : "warning"} size="sm">
+                {healthDetails ? "Latest snapshot" : "Unavailable"}
               </Badge>
             </div>
 
@@ -386,7 +408,7 @@ export default function DashboardPage() {
             <div className="p-3.5 rounded-[var(--platform-radius-md)] bg-[var(--platform-surface-subtle)] border border-[var(--platform-border-subtle)] space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-[var(--platform-text-primary)] flex items-center gap-1.5">
-                  <Zap className="w-3.5 h-3.5 text-blue-500" />
+                  <Zap className="w-3.5 h-3.5 text-[var(--platform-accent)]" />
                   <span>Capacity Upsell Candidates</span>
                 </span>
                 <span className="platform-mono text-xs font-bold text-[var(--platform-accent)]">
@@ -399,14 +421,18 @@ export default function DashboardPage() {
               {upsellCandidates.length > 0 && (
                 <div className="pt-2 border-t border-[var(--platform-border-subtle)] space-y-1.5">
                   {upsellCandidates.slice(0, 2).map((gym) => (
-                    <div key={gym.id} className="flex items-center justify-between text-xs">
-                      <span className="text-[var(--platform-text-secondary)] truncate max-w-[140px] font-medium">
+                    <Link
+                      key={gym.id}
+                      to={`/platform/tenants/${gym.id}`}
+                      className="flex items-center justify-between gap-2 text-xs min-h-8 rounded-[var(--platform-radius-sm)] hover:text-[var(--platform-accent)]"
+                    >
+                      <span className="text-[var(--platform-text-secondary)] truncate font-medium">
                         {gym.name}
                       </span>
-                      <span className="platform-mono text-[11px] font-semibold text-[var(--platform-accent)]">
+                      <span className="platform-mono text-[11px] font-semibold text-[var(--platform-accent)] shrink-0">
                         {gym.capacityPercent}% capacity
                       </span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -416,7 +442,7 @@ export default function DashboardPage() {
             <div className="p-3.5 rounded-[var(--platform-radius-md)] bg-[var(--platform-surface-subtle)] border border-[var(--platform-border-subtle)] space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-[var(--platform-text-primary)] flex items-center gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5 text-rose-500" />
+                  <AlertTriangle className="w-3.5 h-3.5 text-[var(--platform-danger)]" />
                   <span>Inactive Churn Risks</span>
                 </span>
                 <span className="platform-mono text-xs font-bold text-[var(--platform-danger)]">
@@ -429,14 +455,18 @@ export default function DashboardPage() {
               {churnRisks.length > 0 && (
                 <div className="pt-2 border-t border-[var(--platform-border-subtle)] space-y-1.5">
                   {churnRisks.slice(0, 2).map((gym) => (
-                    <div key={gym.id} className="flex items-center justify-between text-xs">
-                      <span className="text-[var(--platform-text-secondary)] truncate max-w-[140px] font-medium">
+                    <Link
+                      key={gym.id}
+                      to={`/platform/tenants/${gym.id}`}
+                      className="flex items-center justify-between gap-2 text-xs min-h-8 rounded-[var(--platform-radius-sm)] hover:text-[var(--platform-danger)]"
+                    >
+                      <span className="text-[var(--platform-text-secondary)] truncate font-medium">
                         {gym.name}
                       </span>
-                      <span className="platform-mono text-[11px] font-semibold text-[var(--platform-danger)]">
+                      <span className="platform-mono text-[11px] font-semibold text-[var(--platform-danger)] shrink-0">
                         {gym.daysInactive}d inactive
                       </span>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               )}
@@ -446,14 +476,14 @@ export default function DashboardPage() {
             <div className="p-3.5 rounded-[var(--platform-radius-md)] bg-[var(--platform-surface-subtle)] border border-[var(--platform-border-subtle)] space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-[var(--platform-text-primary)]">
-                  Expiring Trials (7 Days)
+                  Trials in progress
                 </span>
                 <span className="platform-mono text-xs font-bold text-[var(--platform-warning)]">
                   {formatNumber(growth.trialTenants || 0)}
                 </span>
               </div>
               <p className="text-[11px] text-[var(--platform-text-muted)] leading-relaxed">
-                Approaching trial expiration requiring account executive outreach.
+                Gyms that are still on a trial and have not converted yet.
               </p>
             </div>
           </div>
@@ -470,7 +500,7 @@ export default function DashboardPage() {
         </div>
 
         {/* ── Card 3: Lifetime Seat Quotas & Platform Governance ── */}
-        <div className="p-6 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs flex flex-col justify-between space-y-6 platform-card-interactive">
+        <div className="p-6 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs flex flex-col justify-between space-y-6 platform-card">
           <div className="space-y-5">
             {/* Header */}
             <div className="flex items-center justify-between pb-3.5 border-b border-[var(--platform-border-subtle)]">
@@ -506,10 +536,20 @@ export default function DashboardPage() {
                   );
                 })
               ) : (
-                <div className="space-y-4">
-                  <UsageMeter label="BASIC TIER" current={0} max={100} unit="seats" />
-                  <UsageMeter label="GOLD TIER" current={0} max={50} unit="seats" />
-                  <UsageMeter label="PLATINUM TIER" current={0} max={25} unit="seats" />
+                <div className="rounded-[var(--platform-radius-md)] border border-dashed border-[var(--platform-border)] px-4 py-6 text-center space-y-2">
+                  <p className="text-xs font-medium text-[var(--platform-text-primary)]">
+                    No lifetime prices published
+                  </p>
+                  <p className="text-[11px] text-[var(--platform-text-muted)] leading-relaxed">
+                    Seat caps appear here after a lifetime tier is created. Sample tiers are not shown.
+                  </p>
+                  <Link
+                    to="/platform/pricing-coupons"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-[var(--platform-accent)] hover:underline min-h-8"
+                  >
+                    Manage pricing
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
                 </div>
               )}
             </div>
@@ -532,12 +572,13 @@ export default function DashboardPage() {
               <span>View Financial Ledger</span>
               <ChevronRight className="w-3.5 h-3.5" />
             </Link>
-            <span className="text-[10px] platform-mono text-[var(--platform-text-muted)] uppercase">
-              Audit Verified
+            <span className="text-[11px] text-[var(--platform-text-muted)]">
+              From ledger snapshots
             </span>
           </div>
         </div>
       </div>
+      )}
     </div>
   );
 }

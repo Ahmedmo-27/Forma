@@ -217,7 +217,7 @@ export default function TenantsListPage() {
     {
       key: "status",
       header: "Status",
-      render: (t) => <StatusPill status={t.status} pulse={t.status === "active"} />,
+      render: (t) => <StatusPill status={t.status} />,
     },
     {
       key: "owner",
@@ -240,19 +240,23 @@ export default function TenantsListPage() {
       align: "right",
       render: (t) => {
         const current = t.usage?.members || 0;
-        const max = t.usage?.maxMembers || 500;
-        const ratio = Math.round((current / max) * 100);
+        const max = Number(t.usage?.maxMembers);
+        const hasCap = Number.isFinite(max) && max > 0;
+        const ratio = hasCap ? Math.round((current / max) * 100) : null;
         return (
           <div className="text-right platform-mono">
             <div className="font-semibold text-[var(--platform-text-primary)]">
-              {current.toLocaleString()} / {max.toLocaleString()}
+              {current.toLocaleString()}
+              {hasCap ? ` / ${max.toLocaleString()}` : ""}
             </div>
             <div
-              className={`text-[10px] ${
-                ratio >= 80 ? "text-[var(--platform-warning)] font-bold" : "text-[var(--platform-text-muted)]"
+              className={`text-[11px] ${
+                ratio !== null && ratio >= 80
+                  ? "text-[var(--platform-warning)] font-bold"
+                  : "text-[var(--platform-text-muted)]"
               }`}
             >
-              {ratio}% utilized
+              {ratio === null ? "No member cap" : `${ratio}% utilized`}
             </div>
           </div>
         );

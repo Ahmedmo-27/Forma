@@ -60,7 +60,7 @@ export default function UsagePage() {
   const handleRecompute = async () => {
     setRecomputing(true);
     try {
-      await apiTriggerSnapshotCompute({});
+      await apiTriggerSnapshotCompute();
       platformToast.success("Infrastructure telemetry snapshot recomputed");
       refetchCost();
     } catch (err) {

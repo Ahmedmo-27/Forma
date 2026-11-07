@@ -22,8 +22,8 @@ export const Button = forwardRef(function Button(
     "inline-flex items-center justify-center font-medium transition-all duration-150 select-none cursor-pointer outline-none disabled:cursor-not-allowed disabled:opacity-50 disabled:pointer-events-none focus-visible:ring-2 focus-visible:ring-[var(--platform-accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--platform-surface)]";
 
   const sizeClasses = {
-    xs: "h-6 px-2 text-[11px] rounded-[var(--platform-radius-sm)] gap-1.5",
-    sm: "h-7 px-2.5 text-xs rounded-[var(--platform-radius-md)] gap-1.5",
+    xs: "h-8 px-2.5 text-xs rounded-[var(--platform-radius-sm)] gap-1.5",
+    sm: "h-8 px-3 text-xs rounded-[var(--platform-radius-md)] gap-1.5",
     md: "h-9 px-3.5 text-xs rounded-[var(--platform-radius-md)] gap-2",
     lg: "h-10 px-4 text-sm rounded-[var(--platform-radius-md)] gap-2.5",
   }[size] || "h-9 px-3.5 text-xs";

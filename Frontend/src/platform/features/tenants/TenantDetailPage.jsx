@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useDetailCrumb } from "../../lib/pageMeta";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -86,6 +87,7 @@ export default function TenantDetailPage() {
   });
 
   const tenant = data?.tenant;
+  useDetailCrumb(tenant?.name);
   const usage = data?.usage || {};
   const effectiveLimits = data?.effectiveLimits || tenant?.effectiveLimits || {};
   const effectiveFeatures = Array.isArray(data?.effectiveFeatures)
@@ -298,7 +300,7 @@ export default function TenantDetailPage() {
               {tenant.name}
             </h1>
             <CopyChip value={tenant.slug} prefix="/" />
-            <StatusPill status={tenant.status} pulse={tenant.status === "active"} />
+            <StatusPill status={tenant.status} />
             <Badge variant={isLifetime ? "success" : "neutral"} size="sm">
               {cycle}
             </Badge>

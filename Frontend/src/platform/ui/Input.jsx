@@ -56,7 +56,7 @@ export const Input = forwardRef(function Input(
             "disabled:opacity-50 disabled:bg-[var(--platform-surface-subtle)] disabled:cursor-not-allowed",
             error && "border-[var(--platform-danger)] focus:border-[var(--platform-danger)] focus:ring-[var(--platform-danger)]/20",
             LeftIcon && "pl-8",
-            (RightIcon || rightElement) && "pr-8",
+            (RightIcon || rightElement) && "pr-11",
             isMono && "platform-mono text-[11px]",
             className
           )}

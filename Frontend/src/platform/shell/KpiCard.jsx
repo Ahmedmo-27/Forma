@@ -60,7 +60,7 @@ export function KpiCard({
   return (
     <div
       className={cn(
-        "p-4 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs text-left space-y-2 select-none platform-card-interactive hover:border-[var(--platform-border-strong)] transition-all duration-150",
+        "p-4 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs text-left space-y-2 platform-card",
         className
       )}
     >
@@ -77,7 +77,7 @@ export function KpiCard({
             trigger={
               <button
                 type="button"
-                className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] cursor-pointer p-0.5 rounded"
+                className="inline-flex items-center justify-center min-w-6 min-h-6 text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] cursor-pointer rounded"
                 title="How this metric is computed"
                 aria-label={`How ${title} is calculated`}
               >

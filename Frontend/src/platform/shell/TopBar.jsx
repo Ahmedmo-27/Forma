@@ -1,38 +1,63 @@
-import { useState } from "react";
-import {
-  Menu,
-  Search,
-  Sun,
-  Moon,
-  Laptop,
-  Layers,
-  LogOut,
-  User,
-  Shield,
-  HelpCircle,
-} from "lucide-react";
+import { Menu, Search, Sun, Moon, Laptop, LogOut } from "lucide-react";
 import { usePlatformAuth } from "../lib/auth/AuthContext";
 import { usePlatformTheme } from "../lib/theme/ThemeContext";
 import { DropdownMenu } from "../ui/DropdownMenu";
 import { Kbd } from "../ui/Kbd";
-import { Badge } from "../ui/Badge";
 import { Avatar } from "../ui/Avatar";
 import { Breadcrumbs } from "../ui/Breadcrumbs";
-import { cn } from "../lib/utils/cn";
+import { modifierKeyLabel } from "../lib/utils/shortcut";
 
-export function TopBar({ onOpenMobile, onOpenCommandPalette, breadcrumbs = [] }) {
+const iconButtonClass =
+  "inline-flex items-center justify-center min-w-8 min-h-8 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)] transition-colors cursor-pointer";
+
+function themeCycle(theme) {
+  if (theme === "system") return "light";
+  if (theme === "light") return "dark";
+  return "system";
+}
+
+function themeLabel(theme) {
+  if (theme === "system") return "System";
+  if (theme === "dark") return "Dark";
+  return "Light";
+}
+
+export function TopBar({ onOpenMobile, onOpenCommandPalette, breadcrumbs = [], systemHealth }) {
   const { user, logout } = usePlatformAuth();
-  const { theme, setTheme, density, toggleDensity, resolvedTheme } = usePlatformTheme();
+  const { theme, setTheme, density, toggleDensity } = usePlatformTheme();
+  const modKey = modifierKeyLabel();
+
+  const maintenanceOn = Boolean(systemHealth?.maintenance?.enabled);
+  const databaseStatus = systemHealth?.database?.status;
+  const databaseDown =
+    typeof databaseStatus === "string" &&
+    /down|error|disconnected|fail/i.test(databaseStatus);
+
+  let statusLabel = "Checking status";
+  let statusClass = "bg-[var(--platform-text-muted)]";
+  if (!systemHealth) {
+    statusLabel = "Status unavailable";
+  } else if (maintenanceOn) {
+    statusLabel = "Maintenance";
+    statusClass = "bg-[var(--platform-warning)]";
+  } else if (databaseDown) {
+    statusLabel = "Database issue";
+    statusClass = "bg-[var(--platform-danger)]";
+  } else if (databaseStatus) {
+    statusLabel = "Operational";
+    statusClass = "bg-[var(--platform-success)]";
+  }
+
+  const nextTheme = themeCycle(theme);
 
   return (
-    <header className="sticky top-0 z-30 h-12 px-4 flex items-center justify-between gap-4 bg-[var(--platform-surface)]/95 backdrop-blur-md border-b border-[var(--platform-border)] select-none">
-      {/* Left: Mobile Toggle & Breadcrumbs */}
-      <div className="flex items-center gap-3 min-w-0">
+    <header className="sticky top-0 z-30 min-h-14 px-3 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 bg-[var(--platform-surface)]/95 backdrop-blur-md border-b border-[var(--platform-border)]">
+      <div className="flex items-center gap-2 min-w-0">
         <button
           type="button"
           onClick={onOpenMobile}
           aria-label="Open navigation menu"
-          className="md:hidden p-1.5 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-secondary)] hover:bg-[var(--platform-surface-subtle)]"
+          className={`md:hidden ${iconButtonClass}`}
         >
           <Menu className="w-4 h-4" />
         </button>
@@ -42,70 +67,68 @@ export function TopBar({ onOpenMobile, onOpenCommandPalette, breadcrumbs = [] })
         </div>
       </div>
 
-      {/* Right Actions */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-        {/* Command Palette Trigger */}
+      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         <button
           type="button"
           onClick={onOpenCommandPalette}
-          aria-label="Search console (Cmd+K)"
-          className="flex items-center gap-2 px-2.5 py-1 text-xs rounded-[var(--platform-radius-md)] bg-[var(--platform-surface-subtle)] text-[var(--platform-text-muted)] border border-[var(--platform-border)] hover:border-[var(--platform-border-strong)] hover:text-[var(--platform-text-primary)] transition-all cursor-pointer shadow-2xs"
+          aria-label={`Search console (${modKey}+K)`}
+          className="flex items-center gap-2 h-8 px-2.5 text-xs rounded-[var(--platform-radius-md)] bg-[var(--platform-surface-subtle)] text-[var(--platform-text-secondary)] border border-[var(--platform-border)] hover:border-[var(--platform-border-strong)] hover:text-[var(--platform-text-primary)] transition-colors cursor-pointer"
         >
-          <Search className="w-3.5 h-3.5" />
-          <span className="hidden sm:inline">Search console...</span>
-          <div className="hidden sm:flex items-center gap-0.5 ml-1">
-            <Kbd>Cmd</Kbd>
+          <Search className="w-3.5 h-3.5" aria-hidden="true" />
+          <span className="hidden sm:inline">Search console</span>
+          <span className="hidden sm:flex items-center gap-0.5">
+            <Kbd>{modKey}</Kbd>
             <Kbd>K</Kbd>
-          </div>
+          </span>
         </button>
 
-        {/* Live Operational Indicator */}
-        <div className="hidden sm:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[var(--platform-surface-subtle)] border border-[var(--platform-border)] text-[10px] font-medium text-[var(--platform-text-secondary)]">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Production</span>
+        <div
+          className="hidden sm:flex items-center gap-1.5 h-8 px-2.5 rounded-full bg-[var(--platform-surface-subtle)] border border-[var(--platform-border)] text-[11px] font-medium text-[var(--platform-text-secondary)]"
+          role="status"
+        >
+          <span className={`w-1.5 h-1.5 rounded-full ${statusClass}`} aria-hidden="true" />
+          <span>{statusLabel}</span>
         </div>
 
-        {/* Density Mode Toggle */}
         <button
           type="button"
           onClick={toggleDensity}
-          title={`Switch to ${density === "comfortable" ? "compact" : "comfortable"} density`}
-          aria-label={`Switch to ${density === "comfortable" ? "compact" : "comfortable"} density`}
-          className="p-1.5 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)] transition-colors cursor-pointer"
+          aria-label={`Density is ${density}. Switch to ${density === "comfortable" ? "compact" : "comfortable"} density.`}
+          className={iconButtonClass}
         >
-          <Layers className="w-3.5 h-3.5" />
+          <span className="text-[11px] font-semibold tracking-wide">
+            {density === "comfortable" ? "Comfort" : "Compact"}
+          </span>
         </button>
 
-        {/* Theme Toggle */}
         <button
           type="button"
-          onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-          title={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} mode`}
-          aria-label={`Switch to ${resolvedTheme === "dark" ? "light" : "dark"} mode`}
-          className="p-1.5 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)] transition-colors cursor-pointer"
+          onClick={() => setTheme(nextTheme)}
+          aria-label={`Theme is ${themeLabel(theme)}. Switch to ${themeLabel(nextTheme)}.`}
+          className={iconButtonClass}
         >
-          {resolvedTheme === "dark" ? (
-            <Sun className="w-3.5 h-3.5 text-amber-400" />
+          {theme === "dark" ? (
+            <Moon className="w-4 h-4" />
+          ) : theme === "light" ? (
+            <Sun className="w-4 h-4" />
           ) : (
-            <Moon className="w-3.5 h-3.5" />
+            <Laptop className="w-4 h-4" />
           )}
         </button>
 
-        {/* User Dropdown */}
         <DropdownMenu
           trigger={
             <button
               type="button"
-              aria-label="Operator user profile menu"
-              className="flex items-center gap-2 cursor-pointer rounded-full p-0.5 hover:ring-2 hover:ring-[var(--platform-accent)]/20 transition-all outline-none focus-visible:ring-2 focus-visible:ring-[var(--platform-accent)]"
+              aria-label="Operator account menu"
+              className="inline-flex items-center justify-center min-w-8 min-h-8 rounded-full cursor-pointer hover:ring-2 hover:ring-[var(--platform-accent)]/30 transition-all outline-none focus-visible:ring-2 focus-visible:ring-[var(--platform-accent)]"
             >
-              <Avatar name={user?.name || "Super Admin"} size="sm" />
+              <Avatar name={user?.name || "Operator"} size="sm" />
             </button>
           }
           items={[
-            { header: true, label: user?.email || "Super Admin" },
-            { label: "My Operator Profile", icon: User },
-            { label: "Security & MFA", icon: Shield },
+            { header: true, label: user?.name || "Platform operator" },
+            { header: true, label: user?.email || "Signed in" },
             { divider: true },
             { label: "Sign out", icon: LogOut, danger: true, onClick: logout },
           ]}

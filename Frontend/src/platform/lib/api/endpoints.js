@@ -191,7 +191,9 @@ export const apiGetCostInsights = (signal) =>
   platformClient.get("/analytics/cost-insights", { signal });
 
 export const apiComputeSnapshotNow = (signal) =>
-  platformClient.post("/analytics/snapshots/compute", {}, { signal });
+  platformClient.post("/analytics/snapshots/compute", {}, {
+    signal: signal instanceof AbortSignal ? signal : undefined,
+  });
 export const apiTriggerSnapshotCompute = apiComputeSnapshotNow;
 
 export const apiExportAnalyticsCsvUrl = "/api/platform/analytics/export";

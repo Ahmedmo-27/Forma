@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail, KeyRound, Shield, AlertCircle } from "lucide-react";
 import { usePlatformAuth } from "../../lib/auth/AuthContext";
@@ -20,6 +20,10 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const emailRef = useRef(null);
+  const passwordRef = useRef(null);
 
   // MFA Challenge State
   const [tempToken, setTempToken] = useState("");
@@ -34,16 +38,20 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
     const trimmedEmail = email.trim();
-    if (!trimmedEmail) {
-      setError("Email address is required");
+    const nextEmailError = !trimmedEmail
+      ? "Email address is required"
+      : !isValidEmail(trimmedEmail)
+        ? "Enter a valid email address"
+        : "";
+    const nextPasswordError = !password ? "Password is required" : "";
+    setEmailError(nextEmailError);
+    setPasswordError(nextPasswordError);
+    if (nextEmailError) {
+      emailRef.current?.focus();
       return;
     }
-    if (!isValidEmail(trimmedEmail)) {
-      setError("Please enter a valid email address");
-      return;
-    }
-    if (!password) {
-      setError("Password is required");
+    if (nextPasswordError) {
+      passwordRef.current?.focus();
       return;
     }
 
@@ -160,33 +168,45 @@ export default function LoginPage() {
         {step === "login" && (
           <form onSubmit={handleLogin} className="space-y-4">
             <Input
+              ref={emailRef}
               label="Operator Email"
               type="email"
               required
+              autoComplete="username"
               leftIcon={Mail}
               placeholder="operator@leap.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              error={emailError}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                if (emailError) setEmailError("");
+              }}
               disabled={loading}
             />
 
             <Input
+              ref={passwordRef}
               label="Master Password"
               type={showPassword ? "text" : "password"}
               required
+              autoComplete="current-password"
               leftIcon={Lock}
-              placeholder="••••••••••••"
+              placeholder="Enter your password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              error={passwordError}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                if (passwordError) setPasswordError("");
+              }}
               disabled={loading}
               rightElement={
                 <button
                   type="button"
                   onClick={() => setShowPassword((p) => !p)}
                   aria-label={showPassword ? "Hide password" : "Show password"}
-                  className="text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] p-1 rounded cursor-pointer transition-colors"
+                  className="inline-flex items-center justify-center min-w-8 min-h-8 text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] rounded cursor-pointer transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               }
             />
@@ -216,8 +236,10 @@ export default function LoginPage() {
               label={isRecoveryCode ? "Recovery Code" : "6-Digit Authentication Code"}
               isMono
               required
+              autoComplete="one-time-code"
+              inputMode={isRecoveryCode ? "text" : "numeric"}
               leftIcon={Shield}
-              placeholder={isRecoveryCode ? "a1b2c3d4" : "000000"}
+              placeholder={isRecoveryCode ? "Recovery code" : "6-digit code"}
               value={mfaCode}
               onChange={(e) => setMfaCode(e.target.value)}
               maxLength={isRecoveryCode ? 16 : 6}
@@ -303,7 +325,7 @@ export default function LoginPage() {
         )}
 
         {/* Security Notice Footer */}
-        <div className="pt-4 border-t border-[var(--platform-border-subtle)] text-center text-[10px] text-[var(--platform-text-muted)] flex items-center justify-center gap-1.5">
+        <div className="pt-4 border-t border-[var(--platform-border-subtle)] text-center text-[11px] text-[var(--platform-text-muted)] flex items-center justify-center gap-1.5">
           <Shield className="w-3 h-3 text-[var(--platform-success)]" />
           <span>SOC2 Type II • Zero Tenant Boundary Enforced</span>
         </div>

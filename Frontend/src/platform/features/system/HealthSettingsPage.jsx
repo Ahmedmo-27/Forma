@@ -250,7 +250,15 @@ export default function HealthSettingsPage() {
         <div className="p-4 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
           <div className="flex items-center justify-between text-xs text-[var(--platform-text-muted)] mb-1">
             <span>MongoDB Cluster</span>
-            <Database className="w-4 h-4 text-[var(--platform-success)]" />
+            <Database
+              className={`w-4 h-4 ${
+                /connected|healthy|ok/i.test(database.status || "")
+                  ? "text-[var(--platform-success)]"
+                  : /down|error|disconnected|fail/i.test(database.status || "")
+                    ? "text-[var(--platform-danger)]"
+                    : "text-[var(--platform-text-muted)]"
+              }`}
+            />
           </div>
           <div className="text-2xl font-bold font-mono text-[var(--platform-text-primary)] capitalize">
             {database.status}
