@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { Card, CardHeader, Btn, Spinner, EmptyState } from '../../../components/ui';
 import { uploadNationalId } from '../../../api/endpoints';
 import { fetchProtectedUploadBlobUrl } from '../../../api/axios';
-import { validateFile } from '../../../lib/validation';
+import { validateFile, DOCUMENT_EXTENSIONS, DOCUMENT_ACCEPT, UPLOAD_INTAKE_MB } from '../../../lib/validation';
 
 export default function FilesTab({ member, user, onRefresh }) {
   const isAccountant = user?.role === 'Accountant';
@@ -45,7 +45,7 @@ export default function FilesTab({ member, user, onRefresh }) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const check = validateFile(file, { maxSizeMB: 5, allowedMimePrefixes: ['image/'], allowedExtensions: ['.pdf'] });
+    const check = validateFile(file, { maxSizeMB: UPLOAD_INTAKE_MB, allowedExtensions: DOCUMENT_EXTENSIONS });
     if (!check.valid) {
       toast.error(check.error);
       if (fileRef.current) fileRef.current.value = '';
@@ -79,7 +79,7 @@ export default function FilesTab({ member, user, onRefresh }) {
               <input
                 ref={fileRef}
                 type="file"
-                accept="image/*,.pdf"
+                accept={DOCUMENT_ACCEPT}
                 onChange={handleUpload}
                 style={{ display: 'none' }}
               />

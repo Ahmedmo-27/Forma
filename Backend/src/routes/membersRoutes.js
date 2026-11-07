@@ -4,7 +4,7 @@ const { protect }   = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/accessMiddleware");
 const { memberListDecision } = require("../utils/accessControl");
 const uploadLimiter = require("../middleware/uploadLimiter");
-const { uploadSingle, uploadSinglePhoto } = require("../config/multer");
+const { uploadSingle, uploadSinglePhoto, uploadSpreadsheet } = require("../config/multer");
 const validate  = require("../middleware/validate");
 const { requireFeature } = require("../middleware/featureGating");
 const { enforceMemberLimit, enforceSubscriptionStatus } = require("../middleware/tenantStatus");
@@ -61,21 +61,7 @@ router.use(requireFeature("members"));
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 router.post("/", allowRoles("members", "Receptionist", "Owner", "Sales Manager", "Sales"), enforceMemberLimit, validate(createMemberSchema), autoInvalidate(["members", "revenue"]), createMember);
-router.post("/bulk-import", allowRoles("import_members", "Sales Manager", "Owner"), requireFeature("excel_import"), autoInvalidate(["members", "revenue"]), (req, res, next) => {
-    const multer = require("multer");
-    const upload = multer({
-        storage: multer.memoryStorage(),
-        limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-        fileFilter: (req, file, cb) => {
-            const ok = /\.(xlsx|xls|csv)$/i.test(file.originalname);
-            cb(ok ? null : new Error("Only .xlsx, .xls or .csv files allowed"), ok);
-        },
-    }).single("file");
-    upload(req, res, (err) => {
-        if (err) return res.status(400).json({ message: err.message });
-        next();
-    });
-}, bulkImportMembers);
+router.post("/bulk-import", allowRoles("import_members", "Sales Manager", "Owner"), requireFeature("excel_import"), autoInvalidate(["members", "revenue"]), uploadSpreadsheet, bulkImportMembers);
 
 router.post("/bulk-transfer-sales", protect, allowRoles("transfer", "Sales Manager", "Owner"), autoInvalidate(["members", "revenue"]), bulkTransferSalesReps);
 router.post("/bulk-transfer-coach", protect, allowRoles("coach_transfer", "Coach Manager", "Owner"), autoInvalidate(["members", "coach-transfers"]), bulkTransferCoach);

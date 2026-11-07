@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import { Card, CardHeader, Btn, Input, Spinner, EmptyState, fmtDate, fmtDateTime } from '../../../components/ui';
 import { addInvitation } from '../../../api/endpoints';
 import { fetchProtectedUploadBlobUrl } from '../../../api/axios';
-import { isValidPhone, validateFile } from '../../../lib/validation';
+import { isValidPhone, validateFile, DOCUMENT_EXTENSIONS, DOCUMENT_ACCEPT, UPLOAD_INTAKE_MB } from '../../../lib/validation';
 
 /** Open an authenticated upload in a new tab (Bearer required — public /uploads is disabled). */
 async function openProtectedUpload(filename) {
@@ -37,7 +37,7 @@ export default function InvitationsTab({ member, user, onRefresh }) {
       return;
     }
     if (file) {
-      const fileCheck = validateFile(file, { maxSizeMB: 5, allowedMimePrefixes: ['image/'], allowedExtensions: ['.pdf'] });
+      const fileCheck = validateFile(file, { maxSizeMB: UPLOAD_INTAKE_MB, allowedExtensions: DOCUMENT_EXTENSIONS });
       if (!fileCheck.valid) {
         toast.error(fileCheck.error);
         return;
@@ -92,11 +92,11 @@ export default function InvitationsTab({ member, user, onRefresh }) {
                 <Input label="Phone"          value={phone} onChange={e => setPhone(e.target.value)} placeholder="Optional" />
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 5 }}>ID Photo / File <span style={{ fontWeight: 400, color: 'var(--t4)' }}>(optional, max 5MB)</span></label>
-                <input type="file" accept="image/*,.pdf" onChange={e => {
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 5 }}>ID Photo / File <span style={{ fontWeight: 400, color: 'var(--t4)' }}>(optional, image or PDF, up to 15 MB)</span></label>
+                <input type="file" accept={DOCUMENT_ACCEPT} onChange={e => {
                   const selectedFile = e.target.files[0] ?? null;
                   if (selectedFile) {
-                    const check = validateFile(selectedFile, { maxSizeMB: 5, allowedMimePrefixes: ['image/'], allowedExtensions: ['.pdf'] });
+                    const check = validateFile(selectedFile, { maxSizeMB: UPLOAD_INTAKE_MB, allowedExtensions: DOCUMENT_EXTENSIONS });
                     if (!check.valid) {
                       toast.error(check.error);
                       e.target.value = '';

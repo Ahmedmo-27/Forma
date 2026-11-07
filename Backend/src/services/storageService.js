@@ -1,5 +1,6 @@
 const path = require("path");
-const { detectMimeFromBuffer } = require("../utils/fileMagic");
+const { detectMimeFromBuffer, MIME_TO_EXT } = require("../utils/fileMagic");
+const { prepareUpload, profileForUpload } = require("../utils/prepareUpload");
 
 let s3Client = null;
 
@@ -88,7 +89,13 @@ class StorageService {
     async saveFile(tenantId, filename, buffer) {
         const safe = path.basename(filename);
         const { PutObjectCommand } = loadS3();
-        const mime = detectMimeFromBuffer(buffer) || "application/octet-stream";
+        const mime = detectMimeFromBuffer(buffer);
+        const extensionMatches = Boolean(mime && (MIME_TO_EXT[mime] || []).some((ext) => safe.toLowerCase().endsWith(ext)));
+        if (!extensionMatches) {
+            const err = new Error("StorageService: file content does not match its name");
+            err.statusCode = 400;
+            throw err;
+        }
         await this.getClient().send(new PutObjectCommand({
             Bucket: this.bucketName(),
             Key: this.objectKey(tenantId, safe),
@@ -99,18 +106,26 @@ class StorageService {
     }
 
     /**
-     * Magic-byte checks run first. The upload is held in memory until this writes it to R2.
+     * Re-checks type, extension, and size, then writes the upload to R2.
+     * Images and PDFs have already been reduced to the stored limit when needed.
      */
     async persistUpload(tenantId, file) {
         if (!file) return null;
-        const filename = path.basename(file.filename || "");
-        if (!filename) {
-            throw new Error("StorageService: upload is missing a filename");
-        }
         if (!Buffer.isBuffer(file.buffer)) {
             const err = new Error("StorageService: upload is missing a file buffer");
             err.statusCode = 500;
             throw err;
+        }
+        const profile = file.preparedProfile || profileForUpload(file);
+        if (!profile) {
+            const err = new Error("StorageService: unrecognized upload");
+            err.statusCode = 400;
+            throw err;
+        }
+        await prepareUpload(file, profile);
+        const filename = path.basename(file.filename || "");
+        if (!filename) {
+            throw new Error("StorageService: upload is missing a filename");
         }
         await this.saveFile(tenantId, filename, file.buffer);
         return filename;

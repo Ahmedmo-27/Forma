@@ -66,19 +66,64 @@ export function isNonNegativeInteger(val) {
   return Number.isInteger(n);
 }
 
+/** Intake cap for images and PDFs. The server compresses them down to the stored limit. */
+export const UPLOAD_INTAKE_MB = 15;
+
+export const PHOTO_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
+export const DOCUMENT_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf'];
+export const LOGO_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.svg'];
+export const SPREADSHEET_EXTENSIONS = ['.xlsx', '.xls', '.csv'];
+
+export const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp';
+export const DOCUMENT_ACCEPT = 'image/jpeg,image/png,image/gif,image/webp,application/pdf,.jpg,.jpeg,.png,.gif,.webp,.pdf';
+export const LOGO_ACCEPT = 'image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg';
+
+const CODE_EXTENSIONS = new Set([
+  'js', 'mjs', 'cjs', 'jsx', 'ts', 'tsx',
+  'php', 'phtml', 'phar', 'php3', 'php4', 'php5', 'pht',
+  'html', 'htm', 'xhtml', 'svg', 'xml',
+  'exe', 'dll', 'so', 'bat', 'cmd', 'ps1', 'sh', 'bash',
+  'py', 'rb', 'pl', 'cgi', 'asp', 'aspx', 'jsp', 'jar', 'wasm',
+  'vbs', 'wsf', 'hta', 'scr', 'com', 'msi',
+]);
+
+function fileBaseName(name) {
+  return String(name || '').replace(/\\/g, '/').split('/').pop() || '';
+}
+
+function dangerousNameError(name, { allowSvg = false } = {}) {
+  const base = fileBaseName(name);
+  if (!base || base.includes('\0')) return 'Invalid file name';
+  const parts = base.toLowerCase().split('.');
+  if (parts.length < 2 || !parts[0]) return 'This file type is not allowed';
+  const extensions = parts.slice(1);
+  const finalExt = extensions[extensions.length - 1];
+  for (const ext of extensions) {
+    if (!CODE_EXTENSIONS.has(ext)) continue;
+    if (ext === 'svg' && allowSvg && finalExt === 'svg') continue;
+    return 'This file type is not allowed';
+  }
+  return null;
+}
+
 /**
- * Validate a file before upload
+ * Validate a file before upload.
+ * Images and PDFs may be larger than the stored limit; the server compresses those.
+ * Code extensions are refused even when they are hidden before a safe extension.
  * @param {File} file
  * @param {Object} options
- * @param {number} [options.maxSizeMB=5] - Maximum size in megabytes
- * @param {string[]} [options.allowedMimePrefixes] - E.g. ['image/']
- * @param {string[]} [options.allowedExtensions] - E.g. ['.xlsx', '.xls', '.csv', '.pdf']
+ * @param {number} [options.maxSizeMB=15]
+ * @param {string[]} [options.allowedExtensions]
+ * @param {boolean} [options.allowSvg]
  * @returns {{ valid: boolean, error?: string }}
  */
-export function validateFile(file, { maxSizeMB = 5, allowedMimePrefixes = [], allowedExtensions = [] } = {}) {
+export function validateFile(file, { maxSizeMB = UPLOAD_INTAKE_MB, allowedExtensions = [], allowSvg = false } = {}) {
   if (!file) {
     return { valid: false, error: 'Please select a file' };
   }
+
+  const nameError = dangerousNameError(file.name, { allowSvg });
+  if (nameError) return { valid: false, error: nameError };
 
   const maxBytes = maxSizeMB * 1024 * 1024;
   if (file.size > maxBytes) {
@@ -88,18 +133,9 @@ export function validateFile(file, { maxSizeMB = 5, allowedMimePrefixes = [], al
     };
   }
 
-  if (allowedMimePrefixes.length > 0) {
-    const mimeMatches = allowedMimePrefixes.some(prefix => file.type && file.type.startsWith(prefix));
-    const extMatches = allowedExtensions.some(ext => file.name && file.name.toLowerCase().endsWith(ext.toLowerCase()));
-
-    if (!mimeMatches && !extMatches) {
-      return {
-        valid: false,
-        error: `Invalid file type. Allowed: ${[...allowedMimePrefixes, ...allowedExtensions].join(', ')}`
-      };
-    }
-  } else if (allowedExtensions.length > 0) {
-    const extMatches = allowedExtensions.some(ext => file.name && file.name.toLowerCase().endsWith(ext.toLowerCase()));
+  if (allowedExtensions.length > 0) {
+    const finalExt = `.${fileBaseName(file.name).toLowerCase().split('.').pop()}`;
+    const extMatches = allowedExtensions.some(ext => ext.toLowerCase() === finalExt);
     if (!extMatches) {
       return {
         valid: false,

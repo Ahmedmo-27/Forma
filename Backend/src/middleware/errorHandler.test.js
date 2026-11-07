@@ -37,11 +37,11 @@ describe("Central errorHandler", () => {
     expect(res.status).toHaveBeenCalledWith(413);
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({
-        message: "File too large. Maximum size is 5 MB.",
+        message: "File too large. Maximum size is 15 MB.",
         error: expect.objectContaining({
           code: "UPLOAD_FILE_TOO_LARGE",
           status: 413,
-          message: "File too large. Maximum size is 5 MB.",
+          message: "File too large. Maximum size is 15 MB.",
           requestId: "req_test_123456",
         }),
       })

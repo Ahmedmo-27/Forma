@@ -296,7 +296,7 @@ export const ERROR_MESSAGES = {
   // Files & Imports
   UPLOAD_FILE_TOO_LARGE: {
     title: "File Exceeds Size Limit",
-    message: "The file you selected is too large. Maximum allowable file size is 5 MB.",
+    message: "The file is larger than the allowed upload size.",
     severity: "warning",
     presentation: "modal",
     primaryAction: { label: "Choose Smaller File", action: "retry" },

@@ -97,7 +97,7 @@ function errorHandler(err, req, res, _next) {
     if (err.code === "LIMIT_FILE_SIZE") {
       code = "UPLOAD_FILE_TOO_LARGE";
       status = 413;
-      safeMessage = "File too large. Maximum size is 5 MB.";
+      safeMessage = "File too large. Maximum size is 15 MB.";
     } else {
       code = "UPLOAD_INVALID_TYPE";
       status = 400;

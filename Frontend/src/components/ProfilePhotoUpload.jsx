@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { Avatar, Btn, Modal, Spinner } from './ui';
 import { deleteMemberPhoto, uploadMemberPhoto } from '../api/endpoints';
-import { validateFile } from '../lib/validation';
+import { validateFile, PHOTO_EXTENSIONS, PHOTO_ACCEPT, UPLOAD_INTAKE_MB } from '../lib/validation';
 
 const CAN_UPLOAD = ['Accountant'];
 
@@ -119,7 +119,7 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
   const handleFileChange = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const check = validateFile(file, { maxSizeMB: 2, allowedMimePrefixes: ['image/'] });
+    const check = validateFile(file, { maxSizeMB: UPLOAD_INTAKE_MB, allowedExtensions: PHOTO_EXTENSIONS });
     if (!check.valid) {
       toast.error(check.error);
       e.target.value = '';
@@ -268,7 +268,7 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
       <input
         ref={fileRef}
         type="file"
-        accept="image/*"
+        accept={PHOTO_ACCEPT}
         capture="user"
         onChange={handleFileChange}
         style={{ display: 'none' }}
@@ -366,7 +366,7 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
           <input
             ref={captureRef}
             type="file"
-            accept="image/*"
+            accept={PHOTO_ACCEPT}
             capture="user"
             onChange={handleFileChange}
             style={{ display: 'none' }}

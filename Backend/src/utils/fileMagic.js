@@ -65,8 +65,12 @@ function assertSafeSvg(buf) {
         err.statusCode = 400;
         throw err;
     }
-    if (/<script|javascript:|data:\s*text\/html|\son[a-z]+\s*=/i.test(text)) {
-        const err = new Error("SVG logos cannot contain scripts or event handlers");
+    const withoutNamespaces = text.replace(
+        /xmlns(?::[a-z0-9]+)?\s*=\s*["']https?:\/\/www\.w3\.org\/[^"']*["']/gi,
+        ""
+    );
+    if (/<script|javascript:|data:\s*text\/html|\son[a-z]+\s*=|<\s*foreignobject|<\s*iframe|<\s*embed|<\s*object|<!doctype|<!entity|https?:\/\/|href\s*=\s*["']\s*\/\//i.test(withoutNamespaces)) {
+        const err = new Error("SVG logos cannot contain scripts, event handlers, or external content");
         err.statusCode = 400;
         throw err;
     }
@@ -103,9 +107,9 @@ async function assertAllowedUpload(fileOrPath) {
 
     const fd = await fs.promises.open(fileOrPath, "r");
     try {
-        const buf = Buffer.alloc(16);
-        await fd.read(buf, 0, 16, 0);
-        const mime = detectMimeFromBuffer(buf);
+        const buf = Buffer.alloc(512);
+        const { bytesRead } = await fd.read(buf, 0, 512, 0);
+        const mime = detectMimeFromBuffer(buf.subarray(0, bytesRead));
         if (!mime || !ALLOWED.has(mime)) {
             const err = new Error("File content does not match allowed types (jpeg, png, gif, webp, pdf)");
             err.statusCode = 400;
@@ -156,7 +160,9 @@ module.exports = {
     assertAllowedUpload,
     assertAllowedImage,
     assertAllowedLogo,
+    assertSafeSvg,
     ALLOWED,
     IMAGE_ONLY,
+    LOGO_TYPES,
     MIME_TO_EXT,
 };

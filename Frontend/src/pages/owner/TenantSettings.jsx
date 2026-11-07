@@ -10,7 +10,7 @@ import {
 } from '../../components/ui';
 import LifetimeCheckoutModal from '../../components/billing/LifetimeCheckoutModal';
 import LifetimeUpgradeModal from '../../components/billing/LifetimeUpgradeModal';
-import { isValidHexColor, validateFile } from '../../lib/validation';
+import { isValidHexColor, validateFile, LOGO_EXTENSIONS, LOGO_ACCEPT, UPLOAD_INTAKE_MB } from '../../lib/validation';
 
 const KNOWN_ACTIVITIES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 
@@ -128,7 +128,7 @@ export default function TenantSettings() {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    const check = validateFile(file, { maxSizeMB: 2, allowedMimePrefixes: ['image/'] });
+    const check = validateFile(file, { maxSizeMB: UPLOAD_INTAKE_MB, allowedExtensions: LOGO_EXTENSIONS, allowSvg: true });
     if (!check.valid) {
       toast.error(check.error);
       e.target.value = '';
@@ -259,7 +259,7 @@ export default function TenantSettings() {
                   </label>
                   <input
                     type="file"
-                    accept="image/png,image/jpeg,image/webp,image/svg+xml,.png,.jpg,.jpeg,.webp,.svg"
+                    accept={LOGO_ACCEPT}
                     onChange={handleLogoUpload}
                     disabled={uploadingLogo}
                     style={{ fontSize: 13 }}

@@ -1,25 +1,18 @@
 const multer  = require("multer");
 const path    = require("path");
 const crypto  = require("crypto");
+const {
+    prepareUpload,
+    assertSafeFilename,
+    INTAKE_MAX_BYTES,
+    SPREADSHEET_MAX_BYTES,
+} = require("../utils/prepareUpload");
 
-const ALLOWED_EXT = new Set([".jpeg", ".jpg", ".png", ".gif", ".webp", ".pdf"]);
-const ALLOWED_MIME = new Set([
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-    "application/pdf",
-]);
-
-/** Profile photos: images only, no GIF/PDF, tighter size. */
+const DOCUMENT_EXT = new Set([".jpeg", ".jpg", ".png", ".gif", ".webp", ".pdf"]);
 const PHOTO_EXT = new Set([".jpeg", ".jpg", ".png", ".webp"]);
-const PHOTO_MIME = new Set([
-    "image/jpeg",
-    "image/jpg",
-    "image/png",
-    "image/webp",
-]);
+const LOGO_EXT = new Set([".jpeg", ".jpg", ".png", ".webp", ".svg"]);
+const SHEET_EXT = new Set([".xlsx", ".xls", ".csv"]);
+const NAME_EXT = new Set([...DOCUMENT_EXT, ".svg"]);
 
 const FIELD_PREFIX = {
     photoFile: "photo-",
@@ -29,81 +22,78 @@ const FIELD_PREFIX = {
     idFile: "inv-",
     logoFile: "logo-",
     logo: "logo-",
-    file: "photo-",
+    file: "logo-",
 };
 
+function clientExtension(file) {
+    return path.extname(path.basename(String(file?.originalname || "").replace(/\\/g, "/"))).toLowerCase();
+}
+
 function makeFilename(file, prefix = "") {
-    const ext = path.extname(file.originalname).toLowerCase();
-    const safeExt = ALLOWED_EXT.has(ext) ? ext : "";
+    const ext = clientExtension(file);
+    const safeExt = NAME_EXT.has(ext) ? ext : "";
     const unique = crypto.randomBytes(16).toString("hex");
     return `${prefix}${unique}${safeExt}`;
 }
 
-function stampFilename(file) {
+function stampFilename(file, prefix) {
     if (!file || file.filename) return;
-    const prefix = FIELD_PREFIX[file.fieldname] || "";
-    file.filename = makeFilename(file, prefix);
+    const chosen = prefix || FIELD_PREFIX[file.fieldname] || "";
+    file.filename = makeFilename(file, chosen);
+}
+
+function extensionFilter(allowed, message, { allowSvg = false } = {}) {
+    return (_req, file, cb) => {
+        try {
+            assertSafeFilename(file.originalname, { allowSvg });
+            if (!allowed.has(clientExtension(file))) return cb(new Error(message));
+            return cb(null, true);
+        } catch (err) {
+            return cb(err);
+        }
+    };
 }
 
 const storage = multer.memoryStorage();
 
-const fileFilter = (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (ALLOWED_EXT.has(ext) && ALLOWED_MIME.has(file.mimetype)) {
-        return cb(null, true);
-    }
-    cb(new Error("Only images (jpeg, png, gif, webp) and PDF files are allowed"));
-};
-
-const photoFileFilter = (_req, file, cb) => {
-    const ext = path.extname(file.originalname).toLowerCase();
-    if (PHOTO_EXT.has(ext) && PHOTO_MIME.has(file.mimetype)) {
-        return cb(null, true);
-    }
-    cb(new Error("Profile photo must be jpeg, png, or webp"));
-};
-
-const LOGO_EXT = new Set([".jpeg", ".jpg", ".png", ".webp", ".svg"]);
-
-const logoFileFilter = (_req, file, cb) => {
-    const ext = path.extname(file.originalname || "").toLowerCase();
-    const mime = String(file.mimetype || "").toLowerCase();
-    if (LOGO_EXT.has(ext) || mime.startsWith("image/") || mime === "text/xml" || mime === "application/xml") {
-        return cb(null, true);
-    }
-    cb(new Error("Logo must be a png, jpeg, webp, or svg image"));
-};
-
 const upload = multer({
     storage,
-    fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 } // 5 MB max (national ID / invitations)
+    fileFilter: extensionFilter(DOCUMENT_EXT, "Only images (jpeg, png, gif, webp) and PDF files are allowed"),
+    limits: { fileSize: INTAKE_MAX_BYTES },
 });
 
 const photoUpload = multer({
     storage,
-    fileFilter: photoFileFilter,
-    limits: { fileSize: 2 * 1024 * 1024 } // 2 MB max for profile photos
+    fileFilter: extensionFilter(PHOTO_EXT, "Profile photo must be jpeg, png, or webp"),
+    limits: { fileSize: INTAKE_MAX_BYTES },
 });
 
 const logoUpload = multer({
     storage,
-    fileFilter: logoFileFilter,
-    limits: { fileSize: 2 * 1024 * 1024 }
+    fileFilter: extensionFilter(LOGO_EXT, "Logo must be a png, jpeg, webp, or svg image", { allowSvg: true }),
+    limits: { fileSize: INTAKE_MAX_BYTES },
 });
 
-function handleUploadError(err, res) {
-    if (err.name === "MulterError" && err.code === "LIMIT_FILE_SIZE") {
-        return res.status(413).json({ message: "File too large. Maximum size is 5 MB." });
+const spreadsheetUpload = multer({
+    storage,
+    fileFilter: extensionFilter(SHEET_EXT, "Only .xlsx, .xls or .csv files are allowed"),
+    limits: { fileSize: SPREADSHEET_MAX_BYTES },
+});
+
+function handleUploadError(err, res, { maxMb = 15 } = {}) {
+    if (err?.name === "MulterError" && err.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({ message: `File too large. Maximum size is ${maxMb} MB.` });
     }
-    return res.status(400).json({ message: err.message });
+    const status = Number(err?.statusCode) || 400;
+    return res.status(status).json({ message: err?.message || "Invalid file upload" });
 }
 
 const uploadSingle = (fieldName) => (req, res, next) => {
     upload.single(fieldName)(req, res, (err) => {
         if (err) return handleUploadError(err, res);
+        if (!req.file) return next();
         stampFilename(req.file);
-        next();
+        prepareUpload(req.file, "document").then(() => next()).catch((error) => handleUploadError(error, res));
     });
 };
 
@@ -111,15 +101,16 @@ const uploadLogo = (req, res, next) => {
     logoUpload.fields([
         { name: "logoFile", maxCount: 1 },
         { name: "logo", maxCount: 1 },
-        { name: "file", maxCount: 1 }
+        { name: "file", maxCount: 1 },
     ])(req, res, (err) => {
         if (err) return handleUploadError(err, res);
         const files = req.files || {};
         for (const group of Object.values(files)) {
-            (group || []).forEach(stampFilename);
+            (group || []).forEach((file) => stampFilename(file, "logo-"));
         }
         req.file = req.files?.logoFile?.[0] || req.files?.logo?.[0] || req.files?.file?.[0] || null;
-        next();
+        if (!req.file) return next();
+        prepareUpload(req.file, "logo").then(() => next()).catch((error) => handleUploadError(error, res));
     });
 };
 
@@ -129,8 +120,17 @@ const uploadSinglePhoto = (fieldName) => (req, res, next) => {
     }
     photoUpload.single(fieldName)(req, res, (err) => {
         if (err) return handleUploadError(err, res);
+        if (!req.file) return next();
         stampFilename(req.file);
-        next();
+        prepareUpload(req.file, "photo").then(() => next()).catch((error) => handleUploadError(error, res));
+    });
+};
+
+const uploadSpreadsheet = (req, res, next) => {
+    spreadsheetUpload.single("file")(req, res, (err) => {
+        if (err) return handleUploadError(err, res, { maxMb: 5 });
+        if (!req.file) return next();
+        prepareUpload(req.file, "spreadsheet").then(() => next()).catch((error) => handleUploadError(error, res, { maxMb: 5 }));
     });
 };
 
@@ -140,5 +140,6 @@ module.exports = {
     uploadSingle,
     uploadSinglePhoto,
     uploadLogo,
+    uploadSpreadsheet,
     handleUploadError,
 };

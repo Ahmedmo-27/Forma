@@ -5,7 +5,7 @@ import Layout from '../../components/Layout';
 import { PageHeader, Card, Btn, Spinner, Badge, fmtDate } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { bulkImportMembers } from '../../api/endpoints';
-import { validateFile } from '../../lib/validation';
+import { validateFile, SPREADSHEET_EXTENSIONS } from '../../lib/validation';
 
 export default function ImportMembers() {
   usePageTitle('Import Members');
@@ -19,7 +19,7 @@ export default function ImportMembers() {
 
   const handleFile = (f) => {
     if (!f) return;
-    const check = validateFile(f, { maxSizeMB: 5, allowedExtensions: ['.xlsx', '.xls', '.csv'] });
+    const check = validateFile(f, { maxSizeMB: 5, allowedExtensions: SPREADSHEET_EXTENSIONS });
     if (!check.valid) { toast.error(check.error); return; }
     setFile(f);
     setResult(null);
