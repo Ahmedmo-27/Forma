@@ -16,6 +16,23 @@ export const updateMyProfile = (data) => api.patch('/users/me', data);
 export const resetUserPassword = (id, newPassword) => api.patch(`/users/${id}/reset-password`, { newPassword });
 export const getSalesManagerRevenue = (params = {}) =>
   api.get('/users/sales-manager/revenue', { params });
+export const getChurnAnalytics = (params = {}) => api.get('/analytics/churn', { params });
+export const getRevenueForecast = () => api.get('/analytics/forecast');
+export const getRetentionCohorts = (params = {}) => api.get('/analytics/cohorts', { params });
+export const getAttendanceHeatmap = (params = {}) => api.get('/analytics/attendance', { params });
+export const getConversionFunnel = (params = {}) => api.get('/analytics/funnel', { params });
+export const getExecutiveSummary = () => api.get('/analytics/executive');
+export const getBiDashboard = () => api.get('/bi/dashboard');
+export const getBiCohorts = () => api.get('/bi/cohorts');
+export const getBiHeatmap = () => api.get('/bi/heatmap');
+export const getBiForecast = () => api.get('/bi/forecast');
+export const getBiFunnel = (params = {}) => api.get('/bi/funnel', { params });
+export const getBiInsights = () => api.get('/bi/insights');
+export const dismissBiInsight = (id, reason) => api.post(`/bi/insights/${id}/dismiss`, { reason });
+export const getBiObjectives = () => api.get('/bi/objectives');
+export const suggestBiObjectives = () => api.post('/bi/objectives/suggest');
+export const createBiObjective = (data) => api.post('/bi/objectives', data);
+export const updateBiObjective = (id, data) => api.patch(`/bi/objectives/${id}`, data);
 export const getSubscriptionsByDate = (params = {}) =>
   api.get('/users/sales-manager/subscriptions', { params });
 export const getSalesMySubscriptions = (params = {}) =>

@@ -64,7 +64,7 @@ router.get("/me", getMyProfile);
 router.patch("/me", autoInvalidate(["users"]), updateMyProfile);
 router.get("/access/search", allowRoles("access_control", "Owner", "Sales Manager", "Coach Manager"), searchUsersForAccess);
 router.get("/sales-revenue", allowRoles("sales_dashboard", "Sales"), cacheResponse({ ttlSeconds: 60, scope: "user", tags: ["revenue"] }), getSalesRevenue);
-router.get("/sales-manager/revenue", allowRoles("reports", "Sales Manager", "Owner", "Accountant"), requireFeature("exec_analytics"), cacheResponse({ ttlSeconds: 120, tags: ["revenue"] }), getSalesManagerRevenue);
+router.get("/sales-manager/revenue", allowRoles("reports", "Sales Manager", "Owner", "Accountant"), requireFeature("accounting"), cacheResponse({ ttlSeconds: 120, tags: ["revenue"] }), getSalesManagerRevenue);
 router.get("/sales-manager/subscriptions", allowRoles("reports", "Sales Manager", "Owner", "Accountant"), cacheResponse({ ttlSeconds: 120, tags: ["revenue", "contracts"] }), getSubscriptionsByDate);
 router.get("/my-subscriptions", allowRoles("sales_dashboard", "Sales"), cacheResponse({ ttlSeconds: 60, scope: "user", tags: ["revenue"] }), getSalesMySubscriptions);
 router.get("/sales-reps", allowRoles("sales_team", "Sales Manager", "Owner"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getSalesReps);

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { useTenant } from '../../context/TenantContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import {
@@ -31,6 +32,7 @@ const TODAY = new Date().toISOString().slice(0, 10);
 export default function OwnerDashboard() {
   usePageTitle('Owner Dashboard');
   const { user } = useAuth();
+  const { hasFeature } = useTenant();
   const navigate = useNavigate();
 
   const [loading, setLoading]       = useState(true);
@@ -247,6 +249,7 @@ export default function OwnerDashboard() {
                 <CardHeader title="Quick Links" />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   {[
+                    ...(hasFeature('business_intelligence') ? [{ label: 'Executive Summary', icon: '📈', to: '/reports/executive', accent: 'var(--navy)' }] : []),
                     { label: 'All Members',       icon: '👥', to: '/members',                      accent: 'var(--navy)' },
                     { label: 'Sales Dashboard',   icon: '📊', to: '/sales/dashboard',              accent: 'var(--blue)' },
                     { label: 'Packages',          icon: '📦', to: '/sales/packages',               accent: 'var(--green)' },

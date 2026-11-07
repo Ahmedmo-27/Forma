@@ -31,6 +31,8 @@ const auditLogSchema = new mongoose.Schema({
             "lifetime_revoked",
             "lifetime_price_changed",
             "entitlement_policy_updated",
+            "bi_exported",
+            "platform_analytics_exported",
         ],
     },
     actor: {

@@ -45,6 +45,7 @@ const DEFAULT_PLANS = [
             "sales_crm",
             "whatsapp",
             "excel_import",
+            "funnels",
         ],
         allowedRoles: [
             "Owner",

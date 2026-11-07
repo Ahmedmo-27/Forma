@@ -417,6 +417,8 @@ export default function DashboardPage() {
               </div>
               <p className="text-[11px] text-[var(--platform-text-muted)] leading-relaxed">
                 Gyms at ≥ 80% member or staff capacity limit ready for plan upgrade.
+                {health.averageHealthScore != null ? ` Average tenant health score: ${health.averageHealthScore}/100.` : ""}
+                {growth.nrrStatus === "insufficient_history" ? " Net revenue retention is blank until two monthly snapshots exist." : ""}
               </p>
               {upsellCandidates.length > 0 && (
                 <div className="pt-2 border-t border-[var(--platform-border-subtle)] space-y-1.5">

@@ -14,15 +14,26 @@ const logger = require("../utils/logger");
  * Explanations and calculation logic for each metric.
  */
 const METRIC_DEFINITIONS = {
-    mrr: "Monthly Recurring Revenue normalized across active recurring subscribers (Monthly Plan Price + Yearly Plan Price / 12). One-time lifetime licenses are explicitly excluded from MRR.",
-    arr: "Annual Recurring Revenue: MRR multiplied by 12.",
-    lifetimeRevenueTotal: "Total cumulative capital collected from all one-time lifetime license purchases and upgrades.",
-    netRevenue: "Total gross revenue collected across all cycles minus all issued refunds.",
-    logoChurnRate: "Percentage of active tenants cancelled or suspended within the period: (Churned Tenants / Starting Active Tenants) * 100.",
-    netRevenueRetention: "Net revenue retained from existing cohort including upgrades minus churn and downgrades.",
-    upsellCandidates: "Tenants utilizing >= 80% of their plan's member limit or staff limit.",
-    churnRisks: "Tenants with zero login or staff activity in the last 14 days.",
+    mrr: "Monthly recurring revenue for tenants with status active. Monthly cycle uses the plan's monthly price. Yearly cycle uses the yearly price divided by 12. Lifetime licenses are excluded. The price stored on that day's snapshot is kept; a later price change does not rewrite older days unless that day is recomputed.",
+    arr: "Annual recurring revenue: that day's MRR multiplied by 12. Lifetime revenue is not included.",
+    lifetimeRevenueTotal: "Total collected on BillingEvent rows whose cycle is lifetime and whose type is purchase or upgrade.",
+    netRevenue: "BillingEvent purchase and upgrade amounts minus refund amounts. This is Forma revenue, not gym-member sales.",
+    logoChurnRate: "Tenants whose status is cancelled and whose updatedAt falls on this UTC day, divided by active tenants plus those same-day cancellations. This is a same-day count, not a stock of every cancelled gym.",
+    netRevenueRetention: "Not calculated until two monthly snapshots exist. A blank value means the history is missing. It is not 100 by default.",
+    upsellCandidates: "Tenants at or above 80% of the member limit. The live health list also checks the staff limit.",
+    churnRisks: "Tenants with a recorded lastActivityAt older than 14 days. Gyms that have never recorded staff activity are counted as untracked, not as churned.",
+    newTenantsPeriod: "Tenants whose createdAt falls on this UTC day.",
+    tenantHealthScore: "25 points for status active or trial, 25 for a staff request in the last 7 days, 25 for at least one member on file, 25 for at least one staff user. Visit frequency is not in this score until gym snapshots are present.",
 };
+
+function tenantHealthScore({ status, lastActivityAt, memberCount, staffCount, now }) {
+    let score = 0;
+    if (status === "active" || status === "trial") score += 25;
+    if (lastActivityAt && (now.getTime() - new Date(lastActivityAt).getTime()) <= 7 * 24 * 60 * 60 * 1000) score += 25;
+    if (memberCount > 0) score += 25;
+    if (staffCount > 0) score += 25;
+    return score;
+}
 
 /**
  * Computes snapshot metrics for a specific date and saves/upserts into PlatformMetricSnapshot.
@@ -58,6 +69,10 @@ async function computeDailySnapshot(date = new Date()) {
         let pastDueCount = 0;
         let totalStorageBytes = 0;
         let lifetimeFairUseViolations = 0;
+        let newTenantsPeriod = 0;
+        let churnedTenantsPeriod = 0;
+        let healthScoreTotal = 0;
+        let untrackedActivity = 0;
 
         for (const t of tenants) {
             const planKey = t.planId?.key || "unknown";
@@ -92,11 +107,14 @@ async function computeDailySnapshot(date = new Date()) {
                 cancelledTenants++;
             }
 
-            // Health: Check inactive churn risk
-            const lastActivity = t.lastActivityAt || t.updatedAt;
-            if (lastActivity && lastActivity < fourteenDaysAgo) {
-                churnRisks++;
+            if (t.createdAt && new Date(t.createdAt) >= startOfDay && new Date(t.createdAt) <= endOfDay) {
+                newTenantsPeriod += 1;
             }
+            if (t.status === "cancelled" && t.updatedAt && new Date(t.updatedAt) >= startOfDay && new Date(t.updatedAt) <= endOfDay) {
+                churnedTenantsPeriod += 1;
+            }
+            if (!t.lastActivityAt) untrackedActivity += 1;
+            else if (new Date(t.lastActivityAt) < fourteenDaysAgo) churnRisks += 1;
 
             // Health: Capacity check (upsell candidate)
             const [memberCount, staffCount] = await Promise.all([
@@ -108,6 +126,13 @@ async function computeDailySnapshot(date = new Date()) {
             if (maxMembers && memberCount >= maxMembers * 0.8) {
                 upsellCandidates++;
             }
+            healthScoreTotal += tenantHealthScore({
+                status: t.status,
+                lastActivityAt: t.lastActivityAt || null,
+                memberCount,
+                staffCount,
+                now,
+            });
 
             // Storage & Fair Use
             const bytes = await getTenantStorageBytes(t._id);
@@ -157,8 +182,8 @@ async function computeDailySnapshot(date = new Date()) {
         }));
 
         // Churn calculations
-        const startingActive = Math.max(1, activeTenants + cancelledTenants);
-        const logoChurnRate = Math.round((cancelledTenants / startingActive) * 10000) / 100;
+        const startingActive = Math.max(1, activeTenants + churnedTenantsPeriod);
+        const logoChurnRate = Math.round((churnedTenantsPeriod / startingActive) * 10000) / 100;
 
         const snapshotData = {
             snapshotDate: startOfDay,
@@ -180,10 +205,11 @@ async function computeDailySnapshot(date = new Date()) {
                 pastDueTenants,
                 suspendedTenants,
                 cancelledTenants,
-                newTenantsPeriod: 0,
-                churnedTenantsPeriod: cancelledTenants,
+                newTenantsPeriod,
+                churnedTenantsPeriod,
                 logoChurnRate,
-                netRevenueRetention: 100,
+                netRevenueRetention: null,
+                nrrStatus: "insufficient_history",
             },
             mix: {
                 byPlan,
@@ -193,6 +219,8 @@ async function computeDailySnapshot(date = new Date()) {
             health: {
                 upsellCandidates,
                 churnRisks,
+                untrackedActivity,
+                averageHealthScore: tenants.length ? Math.round(healthScoreTotal / tenants.length) : 0,
                 expiringTrialsCount,
                 pastDueCount,
             },
@@ -235,4 +263,5 @@ module.exports = {
     computeDailySnapshot,
     getLatestMetrics,
     METRIC_DEFINITIONS,
+    tenantHealthScore,
 };

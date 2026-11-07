@@ -2,9 +2,16 @@
 
 All notable changes to the Leap Gym Multi-Tenant SaaS platform are documented in this file.
 
-## [Unreleased] - 2026-11-06
+## [Unreleased] - 2026-11-07
 
 ### Added
+- **Gym business intelligence snapshots**:
+  - Daily tenant snapshots for membership, check-ins, PT, funnel counts, renewals, and churn, computed in integer piasters from `pricePaid` and `packageSnapshot`.
+  - Role dashboards at `/analytics`, SMART goals, and rule-based insights for Platinum.
+  - Gold plans include the `funnels` feature. Operational revenue for accountants uses the `accounting` feature.
+  - Snapshot backfill: `node src/scripts/backfillBiSnapshots.js --dry-run --from YYYY-MM-DD --to YYYY-MM-DD`.
+  - Guides in `docs/BUSINESS_INTELLIGENCE.md` and `docs/HOW_TO_USE_ANALYTICS.md`.
+- Platform snapshot definitions now record same-day tenant churn, new tenants, and a tenant health score. Net revenue retention stays blank until monthly history exists. Staff activity updates `lastActivityAt`.
 - **Unified Error Handling & Informative Modal System (Phases 0-5)**:
   - Defined universal error response envelope `{ error: { code, message, status, requestId, details, fieldErrors, retryAfter, docsKey } }` with transitional backward-compatibility fields.
   - Implemented `AppError` class hierarchy (`ValidationError`, `AuthError`, `ForbiddenError`, `FeatureNotInPlanError`, `PlanLimitError`, `SubscriptionError`, `NotFoundError`, `ConflictError`, `RateLimitError`, `PaymentError`, `UploadError`, `MaintenanceError`, `UpstreamError`, `InternalError`).

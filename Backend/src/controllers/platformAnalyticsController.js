@@ -90,7 +90,14 @@ async function getUpsellAndChurnLists(req, res) {
                     });
                 }
 
-                const lastActivity = t.lastActivityAt || t.updatedAt;
+                const lastActivity = t.lastActivityAt || null;
+                const healthScore = platformAnalyticsService.tenantHealthScore({
+                    status: t.status,
+                    lastActivityAt: lastActivity,
+                    memberCount,
+                    staffCount,
+                    now,
+                });
                 if (lastActivity && lastActivity < fourteenDaysAgo) {
                     const daysInactive = Math.floor((now.getTime() - new Date(lastActivity).getTime()) / (24 * 60 * 60 * 1000));
                     churnRisks.push({
@@ -100,6 +107,7 @@ async function getUpsellAndChurnLists(req, res) {
                         plan: t.planId?.name,
                         lastActivityAt: lastActivity,
                         daysInactive,
+                        healthScore,
                         owner: t.ownerUserId ? { name: t.ownerUserId.name, email: t.ownerUserId.email } : null,
                     });
                 }
@@ -201,8 +209,27 @@ async function exportAnalyticsCsv(req, res) {
             csv += `${dateStr},${s.revenue.mrr},${s.revenue.arr},${s.revenue.lifetimeRevenueTotal},${s.revenue.totalCollected},${s.revenue.refundsTotal},${s.revenue.netRevenue},${s.growth.activeTenants},${s.growth.trialTenants},${s.growth.pastDueTenants},${s.growth.suspendedTenants},${s.growth.cancelledTenants},${s.growth.logoChurnRate}%,${storageMb}\n`;
         }
 
+        logger.info("platform", "platform_analytics_exported", {
+            actor: req.platformUser?.id || null,
+            rows: snapshots.length,
+        });
+        if (req.platformUser?.id) {
+            try {
+                await runAsPlatform(() => AuditLog.create({
+                    tenantId: req.platformUser.id,
+                    action: "platform_analytics_exported",
+                    actor: req.platformUser.id,
+                    actorRole: req.platformUser.role || "PlatformUser",
+                    targetType: "other",
+                    meta: { rows: snapshots.length },
+                }));
+            } catch (auditError) {
+                logger.info("platform", "platform export audit skipped", { error: auditError.message });
+            }
+        }
         res.setHeader("Content-Type", "text/csv");
         res.setHeader("Content-Disposition", 'attachment; filename="platform-analytics-snapshots.csv"');
+        res.setHeader("Cache-Control", "private, no-store");
         res.send(csv);
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });

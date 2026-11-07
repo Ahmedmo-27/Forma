@@ -146,7 +146,26 @@ function startScheduledTasks() {
     setInterval(processFreezeCycles, 30 * 60 * 1000);
     setInterval(processExpiryCycles, 30 * 60 * 1000);
 
-    logger.info("scheduler", "Scheduled tasks started (freeze + expiry cycle every 30 min)");
+    // BI snapshots are hourly and idempotent. Platform rollup is daily.
+    // Delayed so a process that is only running tests does not need a database at import time.
+    setTimeout(runAnalyticsJobs, 60 * 1000);
+    setInterval(runAnalyticsJobs, 60 * 60 * 1000);
+
+    logger.info("scheduler", "Scheduled tasks started (freeze + expiry every 30 min, analytics hourly)");
 }
 
-module.exports = { startScheduledTasks, processFreezeCycles, processExpiryCycles };
+function runAnalyticsJobs() {
+    const hour = new Date().getUTCHours();
+    const { runDueBiSnapshots } = require("../services/bi/snapshotJob");
+    runDueBiSnapshots().catch((error) => {
+        logger.error("bi", "Snapshot run failed", { error: error.message });
+    });
+    if (hour === 0) {
+        const { computeDailySnapshot } = require("../services/platformAnalyticsService");
+        computeDailySnapshot().catch((error) => {
+            logger.error("platform", "Platform snapshot failed", { error: error.message });
+        });
+    }
+}
+
+module.exports = { startScheduledTasks, processFreezeCycles, processExpiryCycles, runAnalyticsJobs };

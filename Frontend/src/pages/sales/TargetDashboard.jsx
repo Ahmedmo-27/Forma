@@ -4,11 +4,15 @@ import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, CardHeader, Spinner, EmptyState, Badge, Avatar, fmtDate, Select } from '../../components/ui';
-import { getSalesManagerRevenue, getSubscriptionsByDate, getSalesUsers, getCoachTeam, getAllMembers } from '../../api/endpoints';
+import { getSalesManagerRevenue, getSubscriptionsByDate, getSalesUsers, getCoachTeam, getAllMembers, getPackages } from '../../api/endpoints';
+import {
+  buildPackageOptions, filterByPackage, sharePercent, summarizePackages,
+} from './packageSales';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt  = (n) => Number(n ?? 0).toLocaleString('en-EG');
 const TODAY = new Date().toISOString().slice(0, 10);
+const MONTH_START = `${TODAY.slice(0, 7)}-01`;
 
 function ProgressBar({ value, max, height = 6 }) {
   if (!max) return null;
@@ -335,16 +339,21 @@ function SubscriptionsTab() {
 // ── Sales Subscriptions Content ───────────────────────────────────────────────
 function SalesSubscriptionsContent() {
   const navigate = useNavigate();
-  const [dateFrom,    setDateFrom]    = useState(TODAY);
+  const [dateFrom,    setDateFrom]    = useState(MONTH_START);
   const [dateTo,      setDateTo]      = useState(TODAY);
   const [salesRepId,  setSalesRepId]  = useState('');
+  const [packageId,   setPackageId]   = useState('');
   const [salesReps,   setSalesReps]   = useState([]);
+  const [packages,    setPackages]    = useState([]);
   const [data,        setData]        = useState(null);
   const [loading,     setLoading]     = useState(true);
 
   useEffect(() => {
     getSalesUsers()
       .then(r => setSalesReps(r.data.salesUsers ?? []))
+      .catch(() => {});
+    getPackages({ all: 'true' })
+      .then(r => setPackages(r.data.packages ?? []))
       .catch(() => {});
   }, []);
 
@@ -364,12 +373,19 @@ function SalesSubscriptionsContent() {
 
   useEffect(() => { load(); }, [load]);
 
-  const entries = data?.entries ?? [];
+  const allEntries = data?.entries ?? [];
+  const packageStats = summarizePackages(allEntries);
+  const packageOptions = buildPackageOptions(packages, packageStats, packageId);
+  const entries = filterByPackage(allEntries, packageId);
+  const totalRevenue = entries.reduce((s, e) => s + (Number(e.subscription.pricePaid) || 0), 0);
   const newCount     = entries.filter(e => !e.subscription.isRenewal).length;
   const renewalCount = entries.filter(e =>  e.subscription.isRenewal).length;
+  const packageRevenueTotal = packageStats.reduce((s, p) => s + p.revenue, 0);
 
-  const resetToToday = () => { setDateFrom(TODAY); setDateTo(TODAY); setSalesRepId(''); };
-  const isToday = dateFrom === TODAY && dateTo === TODAY && !salesRepId;
+  const resetToToday = () => { setDateFrom(TODAY); setDateTo(TODAY); setSalesRepId(''); setPackageId(''); };
+  const showThisMonth = () => { setDateFrom(MONTH_START); setDateTo(TODAY); };
+  const isToday = dateFrom === TODAY && dateTo === TODAY && !salesRepId && !packageId;
+  const isThisMonth = dateFrom === MONTH_START && dateTo === TODAY;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -411,6 +427,33 @@ function SalesSubscriptionsContent() {
             </select>
           </div>
 
+          {/* Package filter */}
+          <div style={{ flex: 2, minWidth: 220 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+              Package
+            </label>
+            <select
+              value={packageId}
+              onChange={e => setPackageId(e.target.value)}
+              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer' }}
+            >
+              <option value="">All Packages</option>
+              {packageOptions.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+            </select>
+          </div>
+
+          <button
+            onClick={showThisMonth}
+            style={{
+              padding: '7px 14px', fontSize: 12, fontWeight: 600, borderRadius: 6, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
+              border: `1px solid ${isThisMonth ? 'var(--navy)' : 'var(--border-md)'}`,
+              background: isThisMonth ? 'var(--navy)' : 'transparent',
+              color: isThisMonth ? '#fff' : 'var(--t2)',
+            }}
+          >
+            This month
+          </button>
+
           {/* Reset */}
           {!isToday && (
             <button onClick={resetToToday} style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border-md)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'var(--t3)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
@@ -420,11 +463,69 @@ function SalesSubscriptionsContent() {
         </div>
       </Card>
 
+      {/* ── Packages sold in the selected range ─────────────────── */}
+      <Card noPad>
+        <div style={{ padding: '16px 14px 0' }}>
+          <CardHeader title={isThisMonth ? 'Packages sold this month' : 'Packages sold'}>
+            <span style={{ fontSize: 11, color: 'var(--t4)', fontWeight: 500 }}>
+              {packageId ? 'Click the package again to show all' : 'Click a package to filter the list'}
+            </span>
+          </CardHeader>
+        </div>
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 28 }}><Spinner /></div>
+        ) : packageStats.length === 0 ? (
+          <EmptyState icon="📦" message="No packages sold in this range" sub="Try This month or widen the dates" />
+        ) : (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
+                {['Package', 'Sold', 'Revenue (EGP)', 'Share'].map(h => (
+                  <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {packageStats.map(p => {
+                const share = sharePercent(p.revenue, packageRevenueTotal);
+                const selected = packageId === p.key;
+                return (
+                  <tr
+                    key={p.key}
+                    onClick={() => setPackageId(selected ? '' : p.key)}
+                    style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer', background: selected ? 'var(--bg)' : 'transparent' }}
+                    onMouseEnter={ev => { ev.currentTarget.style.background = 'var(--bg)'; }}
+                    onMouseLeave={ev => { ev.currentTarget.style.background = selected ? 'var(--bg)' : 'transparent'; }}
+                  >
+                    <td style={{ padding: '10px 14px', fontWeight: selected ? 700 : 500, color: 'var(--t1)' }}>
+                      {p.label}
+                      {p.activityType && (
+                        <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'capitalize', marginTop: 1 }}>{p.activityType}</div>
+                      )}
+                    </td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--blue)' }}>{p.count}</td>
+                    <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--green)' }}>{fmt(p.revenue)}</td>
+                    <td style={{ padding: '10px 14px', minWidth: 120 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{ flex: 1, height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${share}%`, background: selected ? 'var(--navy)' : 'var(--blue)', borderRadius: 2 }} />
+                        </div>
+                        <span style={{ fontSize: 11, color: 'var(--t4)', flexShrink: 0 }}>{share}%</span>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </Card>
+
       {/* ── Summary cards ────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
         {[
-          { label: 'Subscriptions', value: data?.count ?? 0,              color: 'var(--blue)',  accent: 'var(--blue)' },
-          { label: 'Revenue',       value: `${fmt(data?.totalRevenue)} EGP`, color: 'var(--green)', accent: 'var(--green)' },
+          { label: 'Subscriptions', value: entries.length,              color: 'var(--blue)',  accent: 'var(--blue)' },
+          { label: 'Revenue',       value: `${fmt(totalRevenue)} EGP`, color: 'var(--green)', accent: 'var(--green)' },
           { label: 'New Members',   value: newCount,                       color: 'var(--navy)',  accent: 'var(--navy)' },
           { label: 'Renewals',      value: renewalCount,                   color: 'var(--amber)', accent: 'var(--amber)' },
         ].map(s => (
@@ -440,7 +541,7 @@ function SalesSubscriptionsContent() {
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
         ) : entries.length === 0 ? (
-          <EmptyState icon="📋" message="No subscriptions found" sub="Try adjusting the date range or sales rep filter" />
+          <EmptyState icon="📋" message="No subscriptions found" sub="Try adjusting the date range, package, or sales rep filter" />
         ) : (
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
@@ -499,7 +600,7 @@ function SalesSubscriptionsContent() {
             <tfoot>
               <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--bg)' }}>
                 <td colSpan={2} style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--t1)' }}>Total ({entries.length})</td>
-                <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--green)' }}>{fmt(data?.totalRevenue)} EGP</td>
+                <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--green)' }}>{fmt(totalRevenue)} EGP</td>
                 <td colSpan={4} />
               </tr>
             </tfoot>

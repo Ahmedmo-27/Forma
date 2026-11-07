@@ -3,6 +3,9 @@ import Layout from '../components/Layout';
 import { PageHeader } from '../components/ui';
 import usePageTitle from '../hooks/usePageTitle';
 import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
+
+const ANALYTICS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Accountant'];
 
 // ── Card ──────────────────────────────────────────────────────────────────────
 function ReportCard({ icon, title, sub, to, iconBg = '#FEF2F2' }) {
@@ -54,14 +57,33 @@ function ReportSection({ title, sub, children }) {
 export default function Reports() {
   usePageTitle('Reports');
   const { user } = useAuth();
+  const { hasFeature } = useTenant();
   const isDataManager = ['Sales Manager', 'Owner'].includes(user?.role);
+  const canSeeAnalytics = ANALYTICS_ROLES.includes(user?.role);
 
   return (
     <Layout>
       <PageHeader title="Reports" />
       <div className="page-wrap" style={{ paddingTop: 24, paddingBottom: 40 }}>
 
-        {/* ── Members ─────────────────────────────────────────── */}
+        {canSeeAnalytics && (hasFeature('business_intelligence') || hasFeature('exec_analytics') || hasFeature('funnels')) && (
+          <ReportSection title="Platinum" sub="Whole-gym figures from members, subscriptions, and check-ins">
+            {hasFeature('business_intelligence') && (
+              <ReportCard icon="📈" title="Executive Summary" sub="Active members, churn, forecast, and conversion" to="/reports/executive" iconBg="rgba(68,41,140,0.08)" />
+            )}
+            {hasFeature('exec_analytics') && (
+              <>
+                <ReportCard icon="📉" title="Churn" sub="Lapses, reactivations, and expiring coverage" to="/reports/churn" iconBg="#FEF2F2" />
+                <ReportCard icon="💰" title="Revenue Forecast" sub="Collected revenue and a three-month average" to="/reports/forecast" iconBg="#F0FFF4" />
+                <ReportCard icon="🗓️" title="Retention Cohorts" sub="Share of each joining month still covered" to="/reports/cohorts" iconBg="#F0FFF4" />
+                <ReportCard icon="🔥" title="Attendance" sub="Check-ins by weekday and hour" to="/reports/attendance" iconBg="#FEF2F2" />
+              </>
+            )}
+            {hasFeature('funnels') && (
+              <ReportCard icon="🧲" title="Conversion Funnel" sub="Lead to member, drop-off, and revenue by source" to="/reports/funnel" iconBg="rgba(68,41,140,0.08)" />
+            )}
+          </ReportSection>
+        )}
         <ReportSection title="Members" sub="Member status and activity">
           <ReportCard icon="👥" title="Guest Members"   sub="Guest member list"            to="/reports/guests"  iconBg="#FEF2F2" />
           <ReportCard icon="📅" title="Expired Members" sub="Expired memberships"          to="/reports/expired" iconBg="#FEF2F2" />

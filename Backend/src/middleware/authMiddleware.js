@@ -1,4 +1,5 @@
 const jwt = require("jsonwebtoken");
+const mongoose = require("mongoose");
 const User = require("../models/User");
 const Tenant = require("../models/Tenant");
 const logger = require("../utils/logger");
@@ -8,6 +9,28 @@ const { runWithTenant, runAsPlatform } = require("../context/tenantContext");
  * Verifies Bearer JWT, validates tenant status, reloads user from DB,
  * and initializes AsyncLocalStorage tenant context for all downstream operations.
  */
+const ACTIVITY_GAP_MS = 15 * 60 * 1000;
+const activityTouches = new Map();
+
+function activityIsDue(previousAt, now, gapMs = ACTIVITY_GAP_MS) {
+    return now - (previousAt || 0) >= gapMs;
+}
+
+function claimActivityTouch(touches, tenantId, now = Date.now()) {
+    if (!tenantId) return false;
+    const key = String(tenantId);
+    if (!activityIsDue(touches.get(key), now)) return false;
+    touches.set(key, now);
+    return true;
+}
+
+function touchTenantActivity(tenantId) {
+    if (!tenantId || mongoose.connection.readyState !== 1) return;
+    if (!claimActivityTouch(activityTouches, tenantId)) return;
+    runAsPlatform(() => Tenant.updateOne({ _id: tenantId }, { $set: { lastActivityAt: new Date() } }))
+        .catch((error) => logger.auth("warn", "Could not record gym activity", { error: error.message }));
+}
+
 const protect = async (req, res, next) => {
     let token;
 
@@ -121,6 +144,7 @@ const protect = async (req, res, next) => {
         }
 
         if (tenantId) {
+            touchTenantActivity(tenantId);
             runWithTenant({ tenantId, tenantSlug }, () => {
                 next();
             });
@@ -156,4 +180,10 @@ const authorizeRoles = (...roles) => {
     };
 };
 
-module.exports = { protect, authorizeRoles };
+module.exports = {
+    protect,
+    authorizeRoles,
+    activityIsDue,
+    claimActivityTouch,
+    ACTIVITY_GAP_MS,
+};

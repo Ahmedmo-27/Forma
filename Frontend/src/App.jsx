@@ -11,6 +11,7 @@ import Login          from './pages/Login';
 import SetupPassword  from './pages/SetupPassword';
 import ForgotPassword from './pages/ForgotPassword';
 import Members        from './pages/Members';
+import Tasks          from './pages/Tasks';
 import MemberProfile  from './pages/member/MemberProfile';
 import SalesDashboard     from './pages/sales/SalesDashboard';
 import SalesMembers       from './pages/sales/SalesMembers';
@@ -51,6 +52,13 @@ import AccessControl   from './pages/management/AccessControl';
 import GuestMembers    from './pages/reports/GuestMembers';
 import ExpiredMembers  from './pages/reports/ExpiredMembers';
 import ImportedMembers from './pages/reports/ImportedMembers';
+import ExecutiveSummary from './pages/reports/ExecutiveSummary';
+import AnalyticsHome from './pages/bi/AnalyticsHome';
+import ChurnReport     from './pages/reports/ChurnReport';
+import ForecastReport  from './pages/reports/ForecastReport';
+import CohortReport    from './pages/reports/CohortReport';
+import AttendanceReport from './pages/reports/AttendanceReport';
+import FunnelReport    from './pages/reports/FunnelReport';
 import NotFound       from './pages/NotFound';
 
 // ── Platform Console Subsystem (Rebuilt from Scratch, Zero Tenant Context) ────
@@ -85,6 +93,8 @@ function PrivateRoute({ children, roles, feature, access }) {
   }
   return children;
 }
+
+const ANALYTICS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Accountant'];
 
 const ROLE_HOME = {
   Owner: { key: 'owner_dashboard', to: '/owner/dashboard' },
@@ -136,6 +146,11 @@ function TenantAppRoutes() {
       <Route path="/members" element={
         <PrivateRoute roles={['Owner', 'Sales Manager', 'Accountant', 'Coach Manager', 'Receptionist']} access="members">
           <Members />
+        </PrivateRoute>
+      } />
+      <Route path="/tasks" element={
+        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Coach Manager']} access="members">
+          <Tasks />
         </PrivateRoute>
       } />
 
@@ -346,10 +361,51 @@ function TenantAppRoutes() {
         </PrivateRoute>
       } />
 
+      <Route path="/analytics" element={
+        <PrivateRoute
+          roles={['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Accountant', 'Receptionist', 'Coach', 'Coach Manager']}
+          feature="members"
+        >
+          <AnalyticsHome />
+        </PrivateRoute>
+      } />
       {/* Reports */}
       <Route path="/reports" element={
-        <PrivateRoute roles={['Owner', 'Sales Manager', 'Sales', 'Coach Manager']} access="reports">
+        <PrivateRoute
+          roles={['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Accountant']}
+          access={['reports', 'accounting_dashboard']}
+        >
           <Reports />
+        </PrivateRoute>
+      } />
+      <Route path="/reports/executive" element={
+        <PrivateRoute roles={ANALYTICS_ROLES} feature="business_intelligence">
+          <ExecutiveSummary />
+        </PrivateRoute>
+      } />
+      <Route path="/reports/churn" element={
+        <PrivateRoute roles={ANALYTICS_ROLES} feature="exec_analytics">
+          <ChurnReport />
+        </PrivateRoute>
+      } />
+      <Route path="/reports/forecast" element={
+        <PrivateRoute roles={ANALYTICS_ROLES} feature="exec_analytics">
+          <ForecastReport />
+        </PrivateRoute>
+      } />
+      <Route path="/reports/cohorts" element={
+        <PrivateRoute roles={ANALYTICS_ROLES} feature="exec_analytics">
+          <CohortReport />
+        </PrivateRoute>
+      } />
+      <Route path="/reports/attendance" element={
+        <PrivateRoute roles={ANALYTICS_ROLES} feature="exec_analytics">
+          <AttendanceReport />
+        </PrivateRoute>
+      } />
+      <Route path="/reports/funnel" element={
+        <PrivateRoute roles={ANALYTICS_ROLES} feature="funnels">
+          <FunnelReport />
         </PrivateRoute>
       } />
       <Route path="/reports/guests" element={
