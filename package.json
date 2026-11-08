@@ -1,0 +1,14 @@
+{
+  "name": "leap",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix Frontend run build",
+    "build:frontend": "npm --prefix Frontend run build",
+    "build:backend": "npm --prefix Backend run build",
+    "start": "npm --prefix Backend start",
+    "dev:frontend": "npm --prefix Frontend run dev",
+    "dev:backend": "npm --prefix Backend run dev",
+    "test": "npm --prefix Backend test"
+  }
+}
