@@ -2103,3 +2103,10 @@
 {"ts":"2026-11-08T13:13:41.065Z","level":"warn","category":"auth","message":"Auth middleware: no token","env":"test","path":"/uploads/guessed.jpg","method":"GET","ip":"127.0.0.1"}
 {"ts":"2026-11-08T13:13:41.100Z","level":"warn","category":"auth","message":"Auth middleware: no token","env":"test","path":"/uploads/photo-private.png","method":"GET","ip":"127.0.0.1"}
 {"ts":"2026-11-08T13:13:41.297Z","level":"info","category":"auth","message":"Password compare completed","env":"test","match":true,"needsRehash":false}
+{"ts":"2026-11-08T14:43:30.384Z","level":"warn","category":"auth","message":"invalid signature","env":"test","path":"/api/members","error":"JsonWebTokenError","hasJwtSecret":true}
+{"ts":"2026-11-08T14:43:30.608Z","level":"info","category":"auth","message":"Login attempt","env":"test","requestId":"1794149010608-ga2s97","ip":"127.0.0.1","userAgent":null,"hasEmail":true,"hasJwtSecret":true,"apiBaseHint":null}
+{"ts":"2026-11-08T14:43:30.859Z","level":"info","category":"auth","message":"Password compare completed","env":"test","requestId":"1794149010608-ga2s97","userId":"6af08a9206d9c5d4a5fc51a1","match":true,"needsRehash":false}
+{"ts":"2026-11-08T14:43:30.862Z","level":"info","category":"auth","message":"Login success","env":"test","requestId":"1794149010608-ga2s97","userId":"6af08a9206d9c5d4a5fc51a1","role":"Sales","tenantSlug":"power-gym"}
+{"ts":"2026-11-08T14:43:31.316Z","level":"warn","category":"auth","message":"Auth middleware: no token","env":"test","path":"/uploads/photo-private.png","method":"GET","ip":"127.0.0.1"}
+{"ts":"2026-11-08T14:43:31.403Z","level":"warn","category":"auth","message":"Auth middleware: no token","env":"test","path":"/uploads/guessed.jpg","method":"GET","ip":"127.0.0.1"}
+{"ts":"2026-11-08T14:43:31.546Z","level":"info","category":"auth","message":"Password compare completed","env":"test","match":true,"needsRehash":false}
