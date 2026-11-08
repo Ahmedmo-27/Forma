@@ -5,7 +5,109 @@ import { PageHeader, Card, Btn, Spinner } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
-import { updateRoleAccess } from '../../api/endpoints';
+import { listAccessUsersByRole, updateRoleAccess } from '../../api/endpoints';
+import ChangeRoleField from '../../components/ChangeRoleField';
+
+const PERSON_ROLES = {
+  Owner: ['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
+  'General Manager': ['Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
+};
+
+function StaffRoleCard() {
+  const { user } = useAuth();
+  const roles = PERSON_ROLES[user?.role] || [];
+  const [role, setRole] = useState('');
+  const [people, setPeople] = useState([]);
+  const [loadingPeople, setLoadingPeople] = useState(false);
+  const [selected, setSelected] = useState(null);
+
+  useEffect(() => {
+    if (!role) {
+      setPeople([]);
+      return undefined;
+    }
+    let cancelled = false;
+    setLoadingPeople(true);
+    listAccessUsersByRole(role)
+      .then((res) => {
+        if (!cancelled) setPeople(res.data.users || []);
+      })
+      .catch(() => {
+        if (!cancelled) setPeople([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPeople(false);
+      });
+    return () => { cancelled = true; };
+  }, [role]);
+
+  if (!roles.length) return null;
+
+  return (
+    <Card style={{ marginBottom: 16 }}>
+      <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
+        Change a staff member’s role
+      </h3>
+      <p style={{ fontSize: 12, color: 'var(--t4)', marginTop: 0, marginBottom: 14 }}>
+        This changes one person. The checklist below still applies to the whole role.
+      </p>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 180px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
+          Current role
+          <select
+            aria-label="Current role"
+            value={role}
+            onChange={(event) => {
+              setRole(event.target.value);
+              setSelected(null);
+            }}
+            style={{
+              padding: '10px 12px', borderRadius: 8,
+              border: '1px solid var(--border)', background: 'var(--card)',
+              color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
+            }}
+          >
+            <option value="">Choose a role</option>
+            {roles.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+        <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 200px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
+          Staff member
+          <select
+            aria-label="Staff member"
+            value={selected?._id || ''}
+            disabled={!role || loadingPeople}
+            onChange={(event) => {
+              const person = people.find((item) => item._id === event.target.value);
+              setSelected(person || null);
+            }}
+            style={{
+              padding: '10px 12px', borderRadius: 8,
+              border: '1px solid var(--border)', background: 'var(--card)',
+              color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
+            }}
+          >
+            <option value="">{loadingPeople ? 'Loading…' : 'Choose a person'}</option>
+            {people.map((person) => (
+              <option key={person._id} value={person._id}>{person.name}</option>
+            ))}
+          </select>
+        </label>
+        {selected && (
+          <ChangeRoleField
+            userId={selected._id}
+            currentRole={selected.role}
+            label="New role"
+            onChanged={(newRole) => {
+              setSelected((prev) => (prev ? { ...prev, role: newRole } : prev));
+              setRole(newRole);
+            }}
+          />
+        )}
+      </div>
+    </Card>
+  );
+}
 
 function Toggle({ checked, onChange, disabled }) {
   return (
@@ -103,6 +205,7 @@ export default function RoleAccess() {
     <Layout>
       <PageHeader title="Role access" />
       <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 40, maxWidth: 760 }}>
+        <StaffRoleCard />
         {loading && !accessCatalog.length ? (
           <Spinner />
         ) : (

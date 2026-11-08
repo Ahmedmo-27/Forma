@@ -10,6 +10,7 @@ import {
     diffConfirmedFeatures,
     canEditTarget,
     canEditFeature,
+    canAssignRole,
     setFeatureEnabled,
     syncLegacyFields,
     memberListDecision,
@@ -509,5 +510,46 @@ describe("route gates", () => {
         const result = run(allowRoles("members", "Owner"), null);
         expect(result.statusCode).toBe(401);
         expect(result.nexted).toBe(false);
+    });
+});
+
+describe("changing a staff member's role", () => {
+    const people = {
+        Owner: blankUser("Owner", "owner-target"),
+        "General Manager": blankUser("General Manager", "gm-target"),
+        Sales: blankUser("Sales", "sales-target"),
+    };
+
+    it("lets the owner move staff, including a general manager", () => {
+        expect(canAssignRole(owner, people.Sales, "Accountant").ok).toBe(true);
+        expect(canAssignRole(owner, people["General Manager"], "Sales").ok).toBe(true);
+        expect(canAssignRole(otherOwner, people.Owner, "Receptionist").ok).toBe(true);
+    });
+
+    it("lets a general manager move other staff, not owners or general managers", () => {
+        expect(canAssignRole(generalManager, people.Sales, "Coach").ok).toBe(true);
+        expect(canAssignRole(generalManager, people["General Manager"], "Sales").ok).toBe(false);
+        expect(canAssignRole(generalManager, people.Owner, "Sales").ok).toBe(false);
+        expect(canAssignRole(generalManager, people.Sales, "General Manager").ok).toBe(false);
+        expect(canAssignRole(generalManager, people.Sales, "Owner").ok).toBe(false);
+    });
+
+    it("lets a sales manager change anyone, except into owner, general manager, sales manager, or accountant", () => {
+        expect(canAssignRole(salesManager, people.Sales, "Coach").ok).toBe(true);
+        expect(canAssignRole(salesManager, people.Sales, "Coach Manager").ok).toBe(true);
+        expect(canAssignRole(salesManager, people.Sales, "Receptionist").ok).toBe(true);
+        expect(canAssignRole(salesManager, people.Owner, "Sales").ok).toBe(true);
+        expect(canAssignRole(salesManager, people["General Manager"], "Coach").ok).toBe(true);
+        expect(canAssignRole(salesManager, people.Sales, "Owner").ok).toBe(false);
+        expect(canAssignRole(salesManager, people.Sales, "General Manager").ok).toBe(false);
+        expect(canAssignRole(salesManager, people.Sales, "Sales Manager").ok).toBe(false);
+        expect(canAssignRole(salesManager, people.Sales, "Accountant").ok).toBe(false);
+        expect(canAssignRole(salesManager, blankUser("Coach", "sm-1"), "Sales").ok).toBe(false);
+    });
+
+    it("blocks everyone else, and blocks changing your own role", () => {
+        expect(canAssignRole(coachManager, people.Sales, "Coach").ok).toBe(false);
+        expect(canAssignRole(owner, blankUser("Sales", "owner-1"), "Coach").ok).toBe(false);
+        expect(canAssignRole(generalManager, blankUser("Sales", "gm-1"), "Coach").ok).toBe(false);
     });
 });

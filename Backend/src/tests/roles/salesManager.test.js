@@ -32,6 +32,7 @@ describe("Sales Manager", () => {
             "reports",
             "contracts",
             "access_control",
+            "change_role",
         ]);
         expectAreas("Sales Manager", [
             "checkin",
@@ -58,10 +59,10 @@ describe("Sales Manager", () => {
         expectAllowed("import_members", ["Sales Manager", "Owner"], user);
     });
 
-    it("cannot refund, change roles, or open coach transfers", () => {
+    it("can change roles, and cannot refund or open coach transfers", () => {
         const user = manager();
         expectDenied("refunds", ["Owner", "Accountant"], user);
-        expectDenied("change_role", ["Owner"], user);
+        expectAllowed("change_role", ["Owner", "General Manager", "Sales Manager"], user);
         expectDenied("settings", ["Owner"], user);
         expectDenied("coach_transfer", ["Coach Manager", "Owner"], user);
     });

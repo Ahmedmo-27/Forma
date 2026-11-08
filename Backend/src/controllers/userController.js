@@ -13,7 +13,7 @@ const {
     clearLoginFailures,
 } = require("../middleware/loginLockout");
 const { writeAudit } = require("../utils/audit");
-const { setFeatureEnabled, featureKeyForAbility } = require("../utils/accessControl");
+const { setFeatureEnabled, featureKeyForAbility, canAssignRole, syncLegacyFields } = require("../utils/accessControl");
 const {
     monthKey,
     dayKey,
@@ -27,7 +27,6 @@ const { resolveSubscriptionPackage } = require("../utils/packageSnapshot");
 
 const FINANCE_ROLES = ["Sales Manager", "Owner", "General Manager", "Accountant"];
 const STAFF_CREATOR_ROLES = ["Sales Manager", "Owner", "Coach Manager", "General Manager"];
-const ASSIGNABLE_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"];
 
 function accessContextFor(tenant) {
     if (!tenant) return null;
@@ -1048,30 +1047,46 @@ const getCoachProfile = async (req, res) => {
     }
 };
 
-const change_Role = async (req,res)=>{
-    const {id,new_role}=req.params;
-    const user=await User.findById(id);
-    if(!user){
-        return res.status(400).json({message: "user doesnt"});
-    }
-
-    if(!ASSIGNABLE_ROLES.includes(new_role)){
-        return res.status(400).json({message: "invalid type"});
-    }
-
-    if (req.user.role === "General Manager") {
-        if (user.role === "General Manager" || user.role === "Owner" || new_role === "General Manager" || new_role === "Owner") {
-            return res.status(403).json({ message: "Only the owner can change a General Manager" });
+const change_Role = async (req, res) => {
+    try {
+        const { id, new_role } = req.params;
+        const user = await User.findById(id);
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
         }
-    } else if (req.user.role !== "Owner") {
-        return res.status(403).json({ message: "Not authorized" });
+
+        const decision = canAssignRole(req.user, user, new_role);
+        if (!decision.ok) {
+            return res.status(decision.status).json({ message: decision.message });
+        }
+
+        if (user.role === new_role) {
+            return res.json({ message: "Role unchanged", user: formatUserResponse(user) });
+        }
+
+        const previousRole = user.role;
+        user.role = new_role;
+        user.featureAccess = { grants: [], revokes: [] };
+        user.accessOverrides = { add: [], remove: [] };
+        user.markModified("featureAccess");
+        user.markModified("accessOverrides");
+        syncLegacyFields(user);
+        await user.save();
+
+        await writeAudit({
+            action: "role_changed",
+            actor: req.user.id,
+            actorRole: req.user.role,
+            targetType: "user",
+            targetId: user._id,
+            meta: { previousRole, newRole: new_role },
+            req,
+        });
+
+        res.json({ message: "Role updated", user: formatUserResponse(user) });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
     }
-
-    user.role = new_role;
-
-    await user.save();
-
-    res.json(user);
 };
 
 const updateCoachRepAbilities = async (req, res) => {

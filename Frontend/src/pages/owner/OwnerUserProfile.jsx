@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -7,19 +7,9 @@ import {
   PageHeader, Card, Spinner, Avatar, Badge,
   EmptyState, Table, fmtDate, Btn, Skeleton, Modal,
 } from '../../components/ui';
-import { getUserById, getSalesProfile, getCoachProfile, changeUserRole, resetUserPassword } from '../../api/endpoints';
-import { useAuth } from '../../context/AuthContext';
+import { getUserById, getSalesProfile, getCoachProfile, resetUserPassword } from '../../api/endpoints';
 import UserAreaAccess from '../../components/UserAreaAccess';
-
-const ALL_ROLES = [
-  'Sales',
-  'Sales Manager',
-  'Coach',
-  'Coach Manager',
-  'Accountant',
-  'Receptionist',
-  'General Manager',
-];
+import ChangeRoleField from '../../components/ChangeRoleField';
 
 // ── Role badge colour map ─────────────────────────────────────────────────────
 const ROLE_COLOUR = {
@@ -35,17 +25,11 @@ const ROLE_COLOUR = {
 export default function OwnerUserProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { user: actor } = useAuth();
 
   const [profile, setProfile]   = useState(null);   // { user, stats, members }
   const [loading, setLoading]   = useState(true);
   const [tab, setTab]           = useState('members');
   const [filter, setFilter]     = useState('all');
-
-  // Change role
-  const [roleOpen, setRoleOpen]         = useState(false);
-  const [changingRole, setChangingRole] = useState(false);
-  const roleRef = useRef(null);
 
   // Reset Password
   const [showResetPwd, setShowResetPwd] = useState(false);
@@ -54,15 +38,6 @@ export default function OwnerUserProfile() {
   const [resettingPwd, setResettingPwd] = useState(false);
 
   usePageTitle(profile?.user?.name ?? 'User Profile');
-
-  // ── Close role dropdown on outside click ─────────────────────────────────
-  useEffect(() => {
-    const handler = (e) => {
-      if (roleRef.current && !roleRef.current.contains(e.target)) setRoleOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
 
   // ── Fetch profile ─────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -97,22 +72,6 @@ export default function OwnerUserProfile() {
 
   useEffect(() => { load(); }, [load]);
 
-  // ── Change role handler ───────────────────────────────────────────────────
-  const handleChangeRole = async (newRole) => {
-    if (newRole === profile?.user?.role) { setRoleOpen(false); return; }
-    setRoleOpen(false);
-    setChangingRole(true);
-    try {
-      await changeUserRole(id, newRole);
-      toast.success(`Role changed to ${newRole}`);
-      load(); // refresh
-    } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to change role');
-    } finally {
-      setChangingRole(false);
-    }
-  };
-
   // ── Derived values ────────────────────────────────────────────────────────
   const user    = profile?.user;
   const stats   = profile?.stats;
@@ -135,12 +94,6 @@ export default function OwnerUserProfile() {
     : ['all'];
 
   const roleColor = ROLE_COLOUR[user?.role] ?? { bg: 'var(--bg)', color: 'var(--t2)', border: 'var(--border)' };
-  const isGeneralManager = actor?.role === 'General Manager';
-  const canChangeRole = actor?.role === 'Owner'
-    || (isGeneralManager && user?.role !== 'Owner' && user?.role !== 'General Manager');
-  const assignableRoles = isGeneralManager
-    ? ALL_ROLES.filter((role) => role !== 'General Manager')
-    : ALL_ROLES;
 
   // ── Render ────────────────────────────────────────────────────────────────
   return (
@@ -196,73 +149,15 @@ export default function OwnerUserProfile() {
                     {user?.mobile_number && <span>📞 {user.mobile_number}</span>}
                     <span>Joined {fmtDate(user?.createdAt)}</span>
                   </div>
+                  <div style={{ maxWidth: 420, marginTop: 4 }}>
+                    <ChangeRoleField
+                      userId={id}
+                      currentRole={user?.role}
+                      label="Change role"
+                      onChanged={() => load()}
+                    />
+                  </div>
                 </div>
-
-                {/* ── Change Role button + dropdown ────────────────── */}
-                {canChangeRole && <div ref={roleRef} style={{ position: 'relative', flexShrink: 0 }}>
-                  <Btn
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setRoleOpen(p => !p)}
-                    disabled={changingRole}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-                  >
-                    {changingRole ? (
-                      <Spinner size="sm" />
-                    ) : (
-                      <>
-                        Change Role
-                        <svg width="10" height="10" viewBox="0 0 10 10" fill="none"
-                          style={{ transition: 'transform 0.15s', transform: roleOpen ? 'rotate(180deg)' : 'none' }}>
-                          <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </>
-                    )}
-                  </Btn>
-
-                  {roleOpen && (
-                    <div className="fade-up" style={{
-                      position: 'absolute', top: 'calc(100% + 6px)', right: 0,
-                      background: 'var(--card)', border: '1px solid var(--border)',
-                      borderRadius: 7, width: 190, padding: 4,
-                      boxShadow: '0 8px 24px rgba(15,23,42,0.14)',
-                      zIndex: 100,
-                    }}>
-                      <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', padding: '6px 10px 4px' }}>
-                        Select new role
-                      </p>
-                      {assignableRoles.map(role => {
-                        const rc = ROLE_COLOUR[role] ?? {};
-                        const isCurrent = role === user?.role;
-                        return (
-                          <button
-                            key={role}
-                            onClick={() => handleChangeRole(role)}
-                            style={{
-                              width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                              padding: '8px 10px', borderRadius: 5, border: 'none',
-                              background: isCurrent ? 'var(--bg)' : 'transparent',
-                              cursor: isCurrent ? 'default' : 'pointer',
-                              fontSize: 13, fontFamily: 'inherit',
-                              color: isCurrent ? rc.color : 'var(--t1)',
-                              fontWeight: isCurrent ? 700 : 400,
-                            }}
-                            onMouseEnter={e => { if (!isCurrent) e.currentTarget.style.background = 'var(--bg)'; }}
-                            onMouseLeave={e => { if (!isCurrent) e.currentTarget.style.background = 'transparent'; }}
-                          >
-                            {isCurrent && (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                                <polyline points="20 6 9 17 4 12" />
-                              </svg>
-                            )}
-                            {!isCurrent && <span style={{ width: 12 }} />}
-                            {role}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>}
               </div>
 
               {/* ── Stats strip ─────────────────────────────────────── */}

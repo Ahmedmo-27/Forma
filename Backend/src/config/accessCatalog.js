@@ -456,7 +456,7 @@ const ACCESS_CATALOG = [
         icon: "🔑",
         group: "Owner",
         domain: "owner",
-        defaultRoles: ["Owner"],
+        defaultRoles: ["Owner", "Sales Manager"],
         exclusive: true,
     },
     {

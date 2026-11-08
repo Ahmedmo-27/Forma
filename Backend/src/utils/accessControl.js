@@ -299,16 +299,54 @@ function syncLegacyFields(user) {
     if (touchesPhones) user.canViewPhones = effective.has("view_phones");
 }
 
+const STAFF_ROLES = ["Owner", "General Manager", "Sales Manager", "Sales", "Coach Manager", "Coach", "Receptionist", "Accountant"];
+
 function editableRolesFor(actorRole) {
-    if (actorRole === "Owner") {
-        return ["Owner", "General Manager", "Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"];
-    }
+    if (actorRole === "Owner") return [...STAFF_ROLES];
     if (actorRole === "General Manager") {
         return ["Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"];
     }
     if (actorRole === "Sales Manager") return ["Sales", "Receptionist"];
     if (actorRole === "Coach Manager") return ["Coach"];
     return [];
+}
+
+/** Roles a person can look up. Sales managers can find anyone so they can change a role. */
+function directoryRolesFor(actorRole) {
+    if (actorRole === "Sales Manager") return [...STAFF_ROLES];
+    return editableRolesFor(actorRole);
+}
+
+const ASSIGNABLE_ROLES = {
+    Owner: ["General Manager", "Sales Manager", "Sales", "Coach Manager", "Coach", "Receptionist", "Accountant"],
+    "General Manager": ["Sales Manager", "Sales", "Coach Manager", "Coach", "Receptionist", "Accountant"],
+    "Sales Manager": ["Sales", "Coach Manager", "Coach", "Receptionist"],
+};
+
+function assignableRolesFor(actorRole) {
+    return ASSIGNABLE_ROLES[actorRole] ? [...ASSIGNABLE_ROLES[actorRole]] : [];
+}
+
+/**
+ * Owner, general manager, and sales manager can move staff between roles.
+ * A general manager cannot touch an owner or another general manager.
+ * A sales manager can change anyone, but not into Owner, General Manager,
+ * Sales Manager, or Accountant. Nobody can change their own role.
+ */
+function canAssignRole(actor, target, newRole) {
+    if (!actor || !target) return { ok: false, status: 403, message: "Not authorized" };
+    if (actorId(actor) && actorId(actor) === actorId(target)) {
+        return { ok: false, status: 403, message: "You cannot change your own role" };
+    }
+    const allowed = assignableRolesFor(actor.role);
+    if (!allowed.length) return { ok: false, status: 403, message: "Not authorized" };
+    if (!allowed.includes(newRole)) {
+        return { ok: false, status: 400, message: "That role cannot be assigned" };
+    }
+    if (actor.role === "General Manager" && (target.role === "Owner" || target.role === "General Manager")) {
+        return { ok: false, status: 403, message: "Only the owner can change a General Manager" };
+    }
+    return { ok: true };
 }
 
 /**
@@ -395,6 +433,9 @@ module.exports = {
     featureKeyForAbility,
     syncLegacyFields,
     editableRolesFor,
+    directoryRolesFor,
+    assignableRolesFor,
+    canAssignRole,
     diffConfirmedFeatures,
     memberListDecision,
 };

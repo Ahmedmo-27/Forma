@@ -44,7 +44,7 @@ describe("Sales", () => {
         expectDenied("refunds", ["Owner", "Accountant"], user);
         expectDenied("packages", ["Owner", "Sales Manager"], user);
         expectDenied("settings", ["Owner"], user);
-        expectDenied("change_role", ["Owner"], user);
+        expectDenied("change_role", ["Owner", "General Manager", "Sales Manager"], user);
         expectDenied("transfer", ["Sales Manager", "Owner"], user);
     });
 

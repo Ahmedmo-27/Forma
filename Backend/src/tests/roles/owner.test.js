@@ -50,7 +50,7 @@ describe("Owner", () => {
     it("can open settings, change roles, refund, transfer, and manage packages", () => {
         const user = owner();
         expectAllowed("settings", ["Owner"], user);
-        expectAllowed("change_role", ["Owner"], user);
+        expectAllowed("change_role", ["Owner", "General Manager", "Sales Manager"], user);
         expectAllowed("refunds", ["Owner", "Accountant"], user);
         expectAllowed("transfer", ["Sales Manager", "Owner"], user);
         expectAllowed("packages", ["Owner", "Sales Manager"], user);

@@ -82,7 +82,7 @@ router.patch("/:id/phone-privacy", protect, authorizeRoles("Sales Manager", "Own
 router.patch("/:id/mobile", protect, authorizeRoles("Sales Manager", "Owner"), autoInvalidate(["users"]), updateStaffMobile);
 router.patch("/:id/reset-password", protect, allowRoles("staff", "Sales Manager", "Owner"), autoInvalidate(["users"]), resetUserPassword);
 router.get("/receptionist-team", protect, allowRoles("sales_team", "Sales Manager", "Owner", "Accountant"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getReceptionistTeam);
-router.get("/changerole/:id/:new_role", protect, allowRoles("change_role", "Owner"), autoInvalidate(["users"]), change_Role);
+router.get("/changerole/:id/:new_role", protect, allowRoles("change_role", "Owner", "General Manager", "Sales Manager"), autoInvalidate(["users"]), change_Role);
 router.get("/allTeams", protect, allowRoles("teams_overview", "Owner"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getTeamsPage);
 router.get("/:id/access", allowRoles("access_control", "Owner", "Sales Manager", "Coach Manager"), getUserAccess);
 router.put("/:id/access", allowRoles("access_control", "Owner", "Sales Manager", "Coach Manager"), autoInvalidate(["users"]), updateUserAccess);

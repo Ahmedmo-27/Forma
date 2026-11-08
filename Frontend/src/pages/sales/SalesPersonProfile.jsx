@@ -8,6 +8,7 @@ import {
   PageHeader, Card, Table, Badge, Btn, Spinner,
   EmptyState, Avatar, fmtDate, Skeleton, Modal, Select,
 } from '../../components/ui';
+import ChangeRoleField from '../../components/ChangeRoleField';
 import {
   getSalesProfile, getSalesUsers, updateSalesRepTarget,
   bulkTransferSalesReps, updateSalesRepAbilities, updatePhonePrivacy,
@@ -242,6 +243,17 @@ export default function SalesPersonProfile() {
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: 'var(--t3)' }}>
                     {user?.email && <span>{user.email}</span>}
                     <span>Joined {fmtDate(user?.createdAt)}</span>
+                  </div>
+                  <div style={{ maxWidth: 420, marginTop: 10 }}>
+                    <ChangeRoleField
+                      userId={id}
+                      currentRole={user?.role}
+                      label="Change role"
+                      onChanged={(newRole) => {
+                        if (newRole === 'Sales') fetchData();
+                        else navigate('/sales/team');
+                      }}
+                    />
                   </div>
                 </div>
               </div>

@@ -60,7 +60,7 @@ describe("Coach Manager", () => {
     it("cannot refund, change roles, or edit sales packages", () => {
         const user = lead();
         expectDenied("refunds", ["Owner", "Accountant"], user);
-        expectDenied("change_role", ["Owner"], user);
+        expectDenied("change_role", ["Owner", "General Manager", "Sales Manager"], user);
         expectDenied("settings", ["Owner"], user);
         expectDenied("packages", ["Owner", "Sales Manager"], user);
     });

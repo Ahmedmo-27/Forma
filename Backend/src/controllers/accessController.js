@@ -6,7 +6,7 @@ const { runAsPlatform } = require("../context/tenantContext");
 const {
     canEditTarget,
     groupFeaturesFor,
-    editableRolesFor,
+    directoryRolesFor,
     diffConfirmedFeatures,
     syncLegacyFields,
     effectiveAreas,
@@ -20,7 +20,7 @@ function escapeRegex(value) {
 
 const searchUsersForAccess = async (req, res) => {
     try {
-        const roles = editableRolesFor(req.user.role);
+        const roles = directoryRolesFor(req.user.role);
         if (!roles.length) return res.status(403).json({ message: "Not authorized" });
 
         const role = String(req.query.role || "").trim();

@@ -8,6 +8,7 @@ import {
   PageHeader, Card, Btn, Spinner, Avatar, fmtDate, Skeleton,
 } from '../../components/ui';
 import { getUserById, updateStaffMobile, updatePhonePrivacy } from '../../api/endpoints';
+import ChangeRoleField from '../../components/ChangeRoleField';
 
 // ── Toggle switch ─────────────────────────────────────────────────────────────
 function Toggle({ checked, onChange, disabled }) {
@@ -125,6 +126,17 @@ export default function ReceptionistProfile() {
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: 'var(--t3)' }}>
                     {user?.email && <span>{user.email}</span>}
                     <span>Joined {fmtDate(user?.createdAt)}</span>
+                  </div>
+                  <div style={{ maxWidth: 420, marginTop: 10 }}>
+                    <ChangeRoleField
+                      userId={id}
+                      currentRole={user?.role}
+                      label="Change role"
+                      onChanged={(newRole) => {
+                        if (newRole === 'Receptionist') fetchData();
+                        else navigate('/sales/team');
+                      }}
+                    />
                   </div>
                 </div>
               </div>

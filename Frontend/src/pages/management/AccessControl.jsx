@@ -5,11 +5,23 @@ import { PageHeader, Card, Btn, Spinner } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { listAccessUsersByRole, getUserAccess, updateUserAccess } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
+import ChangeRoleField from '../../components/ChangeRoleField';
+import { canChangeUserRole } from '../../lib/roles';
+
+const ALL_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'];
+
+function canEditFeatureAccess(actorRole, targetRole) {
+  if (actorRole === 'Owner') return true;
+  if (actorRole === 'General Manager') return targetRole !== 'Owner' && targetRole !== 'General Manager';
+  if (actorRole === 'Sales Manager') return targetRole === 'Sales' || targetRole === 'Receptionist';
+  if (actorRole === 'Coach Manager') return targetRole === 'Coach';
+  return false;
+}
 
 const ROLE_CHOICES = {
-  Owner: ['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
+  Owner: ALL_ROLES,
   'General Manager': ['Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
-  'Sales Manager': ['Sales', 'Receptionist'],
+  'Sales Manager': ALL_ROLES,
   'Coach Manager': ['Coach'],
 };
 
@@ -93,6 +105,12 @@ export default function AccessControl() {
 
   const chooseUser = async (person) => {
     setSelected(person);
+    if (!canEditFeatureAccess(user?.role, person.role)) {
+      setGroups([]);
+      setDraft({});
+      setLoadingAccess(false);
+      return;
+    }
     setLoadingAccess(true);
     try {
       const res = await getUserAccess(person._id);
@@ -106,9 +124,12 @@ export default function AccessControl() {
       });
       setDraft(flags);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Could not load access');
       setGroups([]);
       setDraft({});
+      const blockedFromFeatures = error.response?.status === 403 && canChangeUserRole(user?.role, person.role);
+      if (!blockedFromFeatures) {
+        toast.error(error.response?.data?.message || 'Could not load access');
+      }
     } finally {
       setLoadingAccess(false);
     }
@@ -154,8 +175,9 @@ export default function AccessControl() {
           </h3>
           <p style={{ fontSize: 12, color: 'var(--t4)', marginBottom: 14 }}>
             Filter by role, then choose the person.
+            {['Owner', 'General Manager', 'Sales Manager'].includes(user?.role) && ' You can also change that person’s role.'}
           </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, maxWidth: 640 }}>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', maxWidth: 960 }}>
             <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 200px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
               Role
               <select
@@ -199,11 +221,30 @@ export default function AccessControl() {
                 ))}
               </select>
             </label>
+            {selected && (
+              <ChangeRoleField
+                userId={selected._id}
+                currentRole={selected.role}
+                label="Change role"
+                onChanged={async (newRole) => {
+                  const person = { ...selected, role: newRole };
+                  setSelected(person);
+                  if (newRole !== role) setRole(newRole);
+                  await chooseUser(person);
+                }}
+              />
+            )}
           </div>
         </Card>
 
         {loadingAccess && (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
+        )}
+
+        {!loadingAccess && selected && groups.length === 0 && user?.role === 'Sales Manager' && canChangeUserRole(user.role, selected.role) && (
+          <p style={{ fontSize: 13, color: 'var(--t3)', marginTop: 18 }}>
+            You can change this person’s role. Feature access for this person is managed by an owner or general manager.
+          </p>
         )}
 
         {!loadingAccess && selected && groups.length > 0 && (

@@ -40,7 +40,7 @@ describe("Accountant", () => {
 
     it("cannot change roles, edit packages, or open gym settings", () => {
         const user = books();
-        expectDenied("change_role", ["Owner"], user);
+        expectDenied("change_role", ["Owner", "General Manager", "Sales Manager"], user);
         expectDenied("packages", ["Owner", "Sales Manager"], user);
         expectDenied("settings", ["Owner"], user);
         expectDenied("check_in", ["Receptionist", "Owner", "Sales Manager", "Sales"], user);
