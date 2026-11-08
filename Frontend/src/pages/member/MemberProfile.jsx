@@ -151,9 +151,9 @@ export default function MemberProfile() {
         <div className="member-profile-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {member && <MemberQrButton member={member} onSent={fetchProfile} />}
           {member && ['Receptionist', 'Owner', 'Sales Manager'].includes(user?.role) && (
-            <Btn variant={member.status === 'active' || member.status === 'frozen' ? 'success' : 'outline'} size="sm"
-              onClick={handleCheckIn} disabled={checkingIn || member.status === 'expired' || member.status === 'guest' || member.isBlocked}>
-              {checkingIn ? <Spinner size="sm" /> : 'Check In'}
+            <Btn variant={member.status === 'active' || member.status === 'frozen' || member.status === 'guest' ? 'success' : 'outline'} size="sm"
+              onClick={handleCheckIn} disabled={checkingIn || member.status === 'expired' || member.isBlocked}>
+              {checkingIn ? <Spinner size="sm" /> : (member.status === 'guest' ? 'Check In Guest' : 'Check In')}
             </Btn>
           )}
           {member && user?.role === 'Sales Manager' && (

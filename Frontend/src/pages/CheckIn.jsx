@@ -8,6 +8,8 @@ import { formatSystemId } from '../lib/systemId';
 import { checkInByBarcode, checkInMember, getMemberProfile, getTodayCheckIns } from '../api/endpoints';
 import { subscribeLiveEvents } from '../api/live';
 import QrCheckInCamera from '../components/QrCheckInCamera';
+import CheckInScanner from '../components/CheckInScanner';
+import { parseScannedIdentifier } from '../lib/scannerParser';
 
 // ── small stat pill ───────────────────────────────────────────────────────────
 function StatPill({ label, value, color = 'var(--t1)' }) {
@@ -43,6 +45,8 @@ export default function CheckIn() {
   const [live,       setLive]       = useState('connecting');
   const [freshIds,   setFreshIds]   = useState(() => new Set());
   const [cameraOpen, setCameraOpen] = useState(false);
+  const [activeTab,  setActiveTab]  = useState('scanner'); // 'scanner' | 'lookup'
+  const [lastScannedResult, setLastScannedResult] = useState(null);
   const historyRef = useRef([]);
   const queryRef   = useRef('');
   const burstRef   = useRef({ count: 0, start: 0, last: 0 });
@@ -175,8 +179,8 @@ export default function CheckIn() {
     if (alerts.length) { setAlertPopup(alerts.map(a => a.text)); setTimeout(() => setAlertPopup(null), 5000); }
   };
 
-  const recordScan = async (raw) => {
-    const identifier = String(raw || '').trim();
+  const recordScan = async (raw, sourceRaw, mode = 'auto') => {
+    const identifier = parseScannedIdentifier(raw, mode);
     if (!identifier) return;
     setCameraOpen(false);
     setSearching(true);
@@ -186,32 +190,56 @@ export default function CheckIn() {
     setQuery(identifier);
     try {
       const r = await checkInByBarcode(identifier);
-      setResult({ ok: true, msg: r.data.message || 'Check-in recorded' });
-      toast.success(r.data.message || 'Checked in');
+      const okMsg = r.data.message || 'Check-in recorded';
+      setResult({ ok: true, msg: okMsg });
+      toast.success(okMsg);
+
+      let profileData = null;
+      try {
+        const profile = await getMemberProfile(identifier);
+        profileData = profile.data.member;
+        setMember(profileData);
+        showMemberAlerts(profileData);
+        refreshBoard({ notify: false, memberId: profileData?.systemId });
+      } catch { /* the result message already says why */ }
+
+      setLastScannedResult({
+        ok: true,
+        identifier,
+        name: profileData?.name || r.data.memberName || identifier,
+        status: profileData?.status || r.data.status,
+        systemId: profileData?.systemId || r.data.systemId,
+        memberId: profileData?.memberId || r.data.memberId,
+        msg: okMsg,
+        time: new Date(),
+      });
     } catch (err) {
       const msg = err.normalized?.message || err.response?.data?.message || 'Check-in failed.';
       setResult({ ok: false, msg });
       toast.error(msg);
+      setLastScannedResult({
+        ok: false,
+        identifier,
+        msg,
+        time: new Date(),
+      });
     }
-    try {
-      const profile = await getMemberProfile(identifier);
-      setMember(profile.data.member);
-      showMemberAlerts(profile.data.member);
-      refreshBoard({ notify: false, memberId: profile.data.member?.systemId });
-    } catch { /* the result message already says why */ }
     finally {
       setSearching(false);
       queryRef.current = '';
       burstRef.current = { count: 0, start: 0, last: 0 };
       setQuery('');
-      inputRef.current?.focus();
+      if (activeTab === 'lookup') {
+        inputRef.current?.focus();
+      }
     }
   };
 
   const handleSearch = async (e) => {
     e.preventDefault();
-    const identifier = (queryRef.current || query).trim();
-    if (!identifier) return;
+    const raw = (queryRef.current || query).trim();
+    if (!raw) return;
+    const identifier = parseScannedIdentifier(raw, 'auto');
     if (isHardwareScan(burstRef.current)) {
       await recordScan(identifier);
       return;
@@ -254,7 +282,7 @@ export default function CheckIn() {
     } finally { setChecking(false); }
   };
 
-  const canCheckIn  = member && member.status !== 'expired' && member.status !== 'guest' && !member.isBlocked;
+  const canCheckIn  = member && member.status !== 'expired' && !member.isBlocked;
   const sub         = member?.subscriptions?.at(-1);
   const pkg         = sub?.packageSnapshot ?? sub?.package;
   const today       = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
@@ -271,14 +299,14 @@ export default function CheckIn() {
         <div style={{ flex: 1, background: 'var(--bg)', padding: '24px 32px 40px' }}>
           <div style={{ maxWidth: 1600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-            {/* Check In on the left, Find Member centered, stats on the right */}
+            {/* Check In on the left, Scanner / Search centered, stats on the right */}
             <div className="checkin-top" style={{
               display: 'grid',
-              gridTemplateColumns: '1fr minmax(280px, 520px) 1fr',
-              alignItems: 'center',
+              gridTemplateColumns: '1fr minmax(320px, 580px) 1fr',
+              alignItems: 'start',
               gap: 20,
             }}>
-              <div className="checkin-side" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div className="checkin-side" style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{
                     width: 36, height: 36, borderRadius: 10, flexShrink: 0,
@@ -297,57 +325,150 @@ export default function CheckIn() {
                 boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06)',
                 border: '1px solid var(--border)',
               }}>
-                <div style={{ padding: '18px 20px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>Find Member</div>
-                  <div style={{ fontSize: 11, color: 'var(--t4)' }}>Scan a QR code to check them in, or type an ID to look them up</div>
+                {/* ── Mode Tabs: Scanner vs Manual Search ───────────── */}
+                <div style={{
+                  display: 'flex',
+                  borderBottom: '1px solid var(--border)',
+                  background: 'var(--bg)',
+                }}>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('scanner')}
+                    style={{
+                      flex: 1,
+                      padding: '13px 16px',
+                      border: 'none',
+                      borderBottom: activeTab === 'scanner' ? '2.5px solid #44298C' : '2.5px solid transparent',
+                      background: activeTab === 'scanner' ? 'var(--card)' : 'transparent',
+                      color: activeTab === 'scanner' ? '#44298C' : 'var(--t3)',
+                      fontWeight: activeTab === 'scanner' ? 800 : 600,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      fontFamily: 'inherit',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>📷</span>
+                    <span>Scanner</span>
+                    <span style={{
+                      fontSize: 9,
+                      fontWeight: 700,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.4px',
+                      background: activeTab === 'scanner' ? 'rgba(68,41,140,0.12)' : 'rgba(0,0,0,0.05)',
+                      color: activeTab === 'scanner' ? '#44298C' : 'var(--t4)',
+                      padding: '2px 6px',
+                      borderRadius: 10,
+                    }}>
+                      Camera
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('lookup');
+                      setTimeout(() => inputRef.current?.focus(), 80);
+                    }}
+                    style={{
+                      flex: 1,
+                      padding: '13px 16px',
+                      border: 'none',
+                      borderBottom: activeTab === 'lookup' ? '2.5px solid #44298C' : '2.5px solid transparent',
+                      background: activeTab === 'lookup' ? 'var(--card)' : 'transparent',
+                      color: activeTab === 'lookup' ? '#44298C' : 'var(--t3)',
+                      fontWeight: activeTab === 'lookup' ? 800 : 600,
+                      fontSize: 13,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      fontFamily: 'inherit',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    <span>🔍</span>
+                    <span>Manual Search</span>
+                  </button>
                 </div>
-                <div style={{ padding: '16px 20px' }}>
-                  <form onSubmit={handleSearch}>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <div style={{ position: 'relative', flex: 1 }}>
-                        <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--t4)', pointerEvents: 'none' }}
-                          width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                          <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-                        </svg>
-                        <input
-                          ref={inputRef}
-                          value={query}
-                          onChange={e => { queryRef.current = e.target.value; setQuery(e.target.value); setMember(null); setResult(null); }}
-                          onKeyDown={noteScanKey}
-                          placeholder="Scan QR or type ID…"
-                          autoFocus
-                          style={{
-                            width: '100%', padding: '11px 12px 11px 36px', fontSize: 14,
-                            border: '1.5px solid var(--border)', borderRadius: 10,
-                            outline: 'none', color: 'var(--t1)', background: 'var(--bg)',
-                            fontFamily: 'inherit', boxSizing: 'border-box',
-                            transition: 'border-color 0.15s, box-shadow 0.15s',
-                          }}
-                          onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
-                          onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
-                        />
+
+                {/* ── Tab Content ──────────────────────────────────── */}
+                {activeTab === 'scanner' ? (
+                  <div style={{ padding: '18px 20px' }}>
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>
+                        Scanner
                       </div>
-                      <button type="submit" disabled={searching || !query.trim()} style={{
-                        padding: '0 18px', borderRadius: 10, border: 'none', fontFamily: 'inherit',
-                        background: 'linear-gradient(135deg,#44298C,#5B38BA)', color: '#fff',
-                        fontSize: 13, fontWeight: 700, cursor: searching || !query.trim() ? 'not-allowed' : 'pointer',
-                        opacity: !query.trim() ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6,
-                        transition: 'opacity 0.15s',
-                      }}>
-                        {searching ? <Spinner size="sm" /> : 'Search'}
-                      </button>
-                      <button type="button" onClick={() => setCameraOpen(true)} style={{
-                        padding: '0 14px', borderRadius: 10, fontFamily: 'inherit',
-                        background: 'var(--bg)', color: 'var(--t1)',
-                        border: '1.5px solid var(--border)',
-                        fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                        whiteSpace: 'nowrap',
-                      }}>
-                        Scan QR
-                      </button>
+                      <div style={{ fontSize: 11, color: 'var(--t4)' }}>
+                        Opens camera to scan members or non-members and check them in (System ID or Member ID)
+                      </div>
                     </div>
-                  </form>
-                </div>
+                    <CheckInScanner
+                      onScan={recordScan}
+                      lastScannedResult={lastScannedResult}
+                      autoStart={false}
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>Manual Lookup & USB Scanner</div>
+                      <div style={{ fontSize: 11, color: 'var(--t4)' }}>Type System ID (S100), Member ID (M100 or number), or scan with a USB scanner</div>
+                    </div>
+                    <div style={{ padding: '16px 20px' }}>
+                      <form onSubmit={handleSearch}>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <div style={{ position: 'relative', flex: 1 }}>
+                            <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--t4)', pointerEvents: 'none' }}
+                              width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+                            </svg>
+                            <input
+                              ref={inputRef}
+                              value={query}
+                              onChange={e => { queryRef.current = e.target.value; setQuery(e.target.value); setMember(null); setResult(null); }}
+                              onKeyDown={noteScanKey}
+                              placeholder="Scan QR/barcode or type ID…"
+                              autoFocus
+                              style={{
+                                width: '100%', padding: '11px 12px 11px 36px', fontSize: 14,
+                                border: '1.5px solid var(--border)', borderRadius: 10,
+                                outline: 'none', color: 'var(--t1)', background: 'var(--bg)',
+                                fontFamily: 'inherit', boxSizing: 'border-box',
+                                transition: 'border-color 0.15s, box-shadow 0.15s',
+                              }}
+                              onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+                              onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                            />
+                          </div>
+                          <button type="submit" disabled={searching || !query.trim()} style={{
+                            padding: '0 18px', borderRadius: 10, border: 'none', fontFamily: 'inherit',
+                            background: 'linear-gradient(135deg,#44298C,#5B38BA)', color: '#fff',
+                            fontSize: 13, fontWeight: 700, cursor: searching || !query.trim() ? 'not-allowed' : 'pointer',
+                            opacity: !query.trim() ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6,
+                            transition: 'opacity 0.15s',
+                          }}>
+                            {searching ? <Spinner size="sm" /> : 'Search'}
+                          </button>
+                          <button type="button" onClick={() => setActiveTab('scanner')} style={{
+                            padding: '0 14px', borderRadius: 10, fontFamily: 'inherit',
+                            background: 'var(--bg)', color: 'var(--t1)',
+                            border: '1.5px solid var(--border)',
+                            fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                            whiteSpace: 'nowrap',
+                          }}>
+                            📷 Open Camera
+                          </button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="checkin-side" style={{ display: 'flex', justifyContent: 'flex-start' }}>
@@ -390,9 +511,14 @@ export default function CheckIn() {
                       <h2 style={{ fontSize: 17, fontWeight: 800, color: '#fff', margin: '0 0 6px', lineHeight: 1.2 }}>{member.name}</h2>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <Badge status={member.isBlocked ? 'blocked' : member.status} />
-                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: 'monospace' }}>
-                          {formatSystemId(member.systemId)}{member.memberId ? ` · ${member.memberId}` : ''}
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', fontFamily: 'monospace' }}>
+                          {formatSystemId(member.systemId)}{member.memberId ? ` · Member #${member.memberId}` : ''}
                         </span>
+                        {member.status === 'guest' && (
+                          <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.18)', color: '#fff', padding: '1px 7px', borderRadius: 10, fontWeight: 700 }}>
+                            Non-Member
+                          </span>
+                        )}
                       </div>
                       {member.phones && (
                         <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>📞 {member.phones}</div>
@@ -419,6 +545,11 @@ export default function CheckIn() {
                             </div>
                           )}
                         </div>
+                      </div>
+                    ) : member.status === 'guest' ? (
+                      <div style={{ textAlign: 'center', padding: '12px 14px', fontSize: 13, background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                        <div style={{ fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>Non-Member / Guest</div>
+                        <div style={{ fontSize: 11, color: 'var(--t4)' }}>No package attached · Daily walk-in check-in</div>
                       </div>
                     ) : (
                       <div style={{ textAlign: 'center', padding: '8px', fontSize: 13, color: 'var(--t4)', background: 'var(--bg)', borderRadius: 10 }}>No active package</div>
@@ -471,14 +602,14 @@ export default function CheckIn() {
                         ? <><Spinner size="sm" /> Processing…</>
                         : <>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            Check In Now
+                            {member.status === 'guest' ? 'Check In Non-Member' : 'Check In Now'}
                           </>
                       }
                     </button>
 
-                    {!canCheckIn && member.status && (
+                    {!canCheckIn && (
                       <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--red)', margin: 0 }}>
-                        Cannot check in — member is <strong>{member.status}</strong>
+                        Cannot check in — {member.isBlocked ? 'member is blocked' : member.status === 'expired' ? 'membership has expired' : `member is ${member.status}`}
                       </p>
                     )}
 
@@ -607,6 +738,7 @@ export default function CheckIn() {
         open={cameraOpen}
         onClose={() => setCameraOpen(false)}
         onScan={recordScan}
+        lastScannedResult={lastScannedResult}
       />
 
       {/* ── Alert popup ──────────────────────────────────────────── */}
