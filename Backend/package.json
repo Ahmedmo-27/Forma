@@ -8,6 +8,7 @@
     "build": "node --check server.js",
     "seed": "node src/seed.js",
     "test": "vitest --run",
+    "postinstall": "patch-package",
     "simulate:package-immutability": "node scripts/simulate-package-price-immutability.js",
     "seed:superadmin": "node src/scripts/seedSuperAdminUser.js",
     "seed:plans": "node src/scripts/seedPlans.js",
@@ -26,6 +27,7 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1163.0",
     "@aws-sdk/s3-request-presigner": "^3.1163.0",
+    "@whiskeysockets/baileys": "^7.0.0-rc14",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
@@ -46,6 +48,7 @@
     "fast-check": "^4.9.0",
     "jest": "^30.4.2",
     "nodemon": "^3.1.14",
+    "patch-package": "^8.0.1",
     "vitest": "^1.6.1"
   }
 }

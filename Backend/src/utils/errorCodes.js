@@ -294,6 +294,22 @@ const ERROR_CODES = {
     message: "A record with this information already exists.",
     userAction: "Change the unique field value (e.g. phone, email, barcode, slug).",
   },
+  WHATSAPP_NOT_CONNECTED: {
+    code: "WHATSAPP_NOT_CONNECTED",
+    status: 409,
+    category: "data",
+    retryable: true,
+    message: "Connect WhatsApp before sending. Open Connect WhatsApp from your profile menu.",
+    userAction: "Open Connect WhatsApp from your profile menu and scan the QR code.",
+  },
+  WHATSAPP_NOT_ON_WHATSAPP: {
+    code: "WHATSAPP_NOT_ON_WHATSAPP",
+    status: 400,
+    category: "data",
+    retryable: false,
+    message: "This phone number is not registered on WhatsApp.",
+    userAction: "Check the member's phone number and try again.",
+  },
   RESOURCE_NOT_FOUND: {
     code: "RESOURCE_NOT_FOUND",
     status: 404,

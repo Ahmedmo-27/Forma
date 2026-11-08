@@ -208,6 +208,21 @@ const logWhatsAppTemplateSendSchema = z.object({
     templateId: objectId.optional().nullable(),
 });
 
+const sendWhatsAppMessageSchema = z.object({
+    phone: z.string().trim().min(3).max(32),
+    text: plainText(4000),
+    memberId: z.preprocess(emptyToNull, memberIdInput.nullable().optional()),
+    memberName: z.string().trim().max(120).optional().nullable(),
+    templateId: nullableObjectId,
+});
+
+const sendWhatsAppImageSchema = z.object({
+    phone: z.string().trim().min(3).max(32),
+    caption: z.string().trim().max(1000).optional().default(""),
+    memberId: z.preprocess(emptyToNull, memberIdInput.nullable().optional()),
+    memberName: z.string().trim().max(120).optional().nullable(),
+});
+
 const egpCurrency = z.preprocess(() => "EGP", z.literal("EGP"));
 const planKeySchema = z.enum(["basic", "gold", "platinum"]);
 
@@ -354,6 +369,8 @@ module.exports = {
     createWhatsAppTemplateSchema,
     updateWhatsAppTemplateSchema,
     logWhatsAppTemplateSendSchema,
+    sendWhatsAppMessageSchema,
+    sendWhatsAppImageSchema,
     createPlanSchema,
     updatePlanSchema,
     createTenantSchema,

@@ -15,6 +15,7 @@ const connectDB = require("./src/config/db");
 const app = require("./src/app");
 const { BCRYPT_ROUNDS } = require("./src/utils/passwordUtils");
 const { startScheduledTasks } = require("./src/utils/scheduledTasks");
+const { restoreConnectedSessions } = require("./src/services/whatsapp/sessionManager");
 const { failInterruptedImports } = require("./src/services/memberImportRunner");
 const mongoose = require("mongoose");
 
@@ -40,8 +41,14 @@ const server = app.listen(PORT, "0.0.0.0", () => {
             logger.error("import", "Could not close interrupted imports", { error: error.message });
         });
     };
-    if (mongoose.connection.readyState === 1) markInterrupted();
-    else mongoose.connection.once("connected", markInterrupted);
+    const onDbReady = () => {
+        markInterrupted();
+        restoreConnectedSessions().catch((error) => {
+            logger.error("whatsapp", "Could not restore WhatsApp sessions", { error: error.message });
+        });
+    };
+    if (mongoose.connection.readyState === 1) onDbReady();
+    else mongoose.connection.once("connected", onDbReady);
 });
 
 // Process-level safety: gracefully log and handle unhandled rejections and exceptions
