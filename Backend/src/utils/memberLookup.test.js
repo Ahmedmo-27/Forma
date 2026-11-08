@@ -7,13 +7,18 @@ describe("buildMemberFilter", () => {
         expect(buildMemberFilter("s100003")).toEqual({ systemId: 100003 });
     });
 
+    it("matches a QR member id to that member id only", () => {
+        expect(buildMemberFilter("M100")).toEqual({ memberId: 100 });
+        expect(buildMemberFilter("m100003")).toEqual({ memberId: 100003 });
+    });
+
     it("matches a printed barcode to the barcode field", () => {
         expect(buildMemberFilter("FF000105")).toEqual({ barcode: "FF000105" });
     });
 
-    it("still accepts a bare number as either id", () => {
+    it("accepts a bare number with memberId prioritized over systemId", () => {
         expect(buildMemberFilter("100")).toEqual({
-            $or: [{ systemId: 100 }, { memberId: 100 }],
+            $or: [{ memberId: 100 }, { systemId: 100 }],
         });
     });
 });

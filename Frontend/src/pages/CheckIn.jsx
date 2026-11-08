@@ -299,7 +299,7 @@ export default function CheckIn() {
               }}>
                 <div style={{ padding: '18px 20px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>Find Member</div>
-                  <div style={{ fontSize: 11, color: 'var(--t4)' }}>Scan a member QR to check them in, or type a System ID to look them up</div>
+                  <div style={{ fontSize: 11, color: 'var(--t4)' }}>Scan a QR code to check them in, or type an ID to look them up</div>
                 </div>
                 <div style={{ padding: '16px 20px' }}>
                   <form onSubmit={handleSearch}>
@@ -314,7 +314,7 @@ export default function CheckIn() {
                           value={query}
                           onChange={e => { queryRef.current = e.target.value; setQuery(e.target.value); setMember(null); setResult(null); }}
                           onKeyDown={noteScanKey}
-                          placeholder="Scan QR or type S100…"
+                          placeholder="Scan QR or type ID…"
                           autoFocus
                           style={{
                             width: '100%', padding: '11px 12px 11px 36px', fontSize: 14,
@@ -391,7 +391,7 @@ export default function CheckIn() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <Badge status={member.isBlocked ? 'blocked' : member.status} />
                         <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: 'monospace' }}>
-                          {formatSystemId(member.systemId)}{member.memberId ? ` · M${member.memberId}` : ''}
+                          {formatSystemId(member.systemId)}{member.memberId ? ` · ${member.memberId}` : ''}
                         </span>
                       </div>
                       {member.phones && (

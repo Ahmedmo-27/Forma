@@ -114,7 +114,7 @@ export default function Members() {
                     <tr key={m._id} className="tbl-row" onClick={() => navigate(`/members/${m.systemId}`)}
                       style={{ cursor: 'pointer', borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}>
-                        {formatSystemId(m.systemId)}{m.memberId ? ` / M${m.memberId}` : ''}
+                        {formatSystemId(m.systemId)}{m.memberId ? ` / ${m.memberId}` : ''}
                       </td>
                       <td style={{ padding: '10px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

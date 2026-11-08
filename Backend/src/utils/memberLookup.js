@@ -34,10 +34,16 @@ function buildMemberFilter(id) {
         return { systemId: Number(value.slice(1)) };
     }
 
+    // QR codes or input for members with M prefix (e.g. "M100")
+    if (/^m\d+$/i.test(value)) {
+        return { memberId: Number(value.slice(1)) };
+    }
+
     // A bare number can be either id. Staff still type both at the desk.
+    // Checks memberId first for subscribers, then systemId.
     if (/^\d+$/.test(value)) {
         const numId = Number(value);
-        return { $or: [{ systemId: numId }, { memberId: numId }] };
+        return { $or: [{ memberId: numId }, { systemId: numId }] };
     }
 
     return null;

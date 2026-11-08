@@ -85,11 +85,12 @@ function WhatsAppMark() {
 
 export default function MemberQrButton({ member }) {
   const [busy, setBusy] = useState(false);
-  const code = memberQrPayload(member?.systemId);
+  const isMember = Boolean(member?.memberId != null || member?.isMember);
+  const code = memberQrPayload(member);
 
   const send = async () => {
     if (!code) {
-      toast.error("This member has no system id yet");
+      toast.error(isMember ? "This member has no member id yet" : "This person has no system id yet");
       return;
     }
     if (!toWhatsAppUrl(member?.phones)) {
@@ -103,8 +104,8 @@ export default function MemberQrButton({ member }) {
       body.append("image", blob, "check-in.png");
       body.append("phone", member.phones);
       body.append("caption", qrMessage(member, code));
-      const memberId = member.systemId || member._id;
-      if (memberId) body.append("memberId", String(memberId));
+      const targetId = (isMember && member.memberId) || member.systemId || member._id;
+      if (targetId) body.append("memberId", String(targetId));
       if (member.name) body.append("memberName", member.name);
       await sendWhatsAppImage(body);
       toast.success("QR code sent on WhatsApp");
@@ -118,7 +119,7 @@ export default function MemberQrButton({ member }) {
   return (
     <Btn size="sm" variant="success" onClick={send} disabled={busy || !member}>
       <WhatsAppMark />
-      {busy ? "Sending QR…" : "Send QR code to member on WhatsApp"}
+      {busy ? "Sending QR…" : (isMember ? "Send QR code to member on WhatsApp" : "Send QR code on WhatsApp")}
     </Btn>
   );
 }

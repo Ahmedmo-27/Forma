@@ -73,10 +73,14 @@ export default function GlobalSearch() {
     const all = getSharedCache() ?? [];
     let matched;
     if (field === 'id') {
-      matched = all.filter(m =>
-        String(m.systemId) === q ||
-        String(m.memberId) === q
-      ).slice(0, 8);
+      const isS = /^s\d+$/i.test(q);
+      const isM = /^m\d+$/i.test(q);
+      const numericQ = isS || isM ? q.slice(1) : q;
+      matched = all.filter(m => {
+        if (isS) return String(m.systemId) === numericQ;
+        if (isM) return String(m.memberId) === numericQ;
+        return String(m.systemId) === numericQ || String(m.memberId) === numericQ;
+      }).slice(0, 8);
     } else {
       matched = all.filter(m =>
         m.phones?.includes(q)
@@ -310,7 +314,7 @@ export default function GlobalSearch() {
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[m.status] ?? '#A6A0C2', flexShrink: 0 }} />
                       </div>
                       <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--t4)' }}>
-                        <span style={{ fontFamily: 'monospace' }}>#{highlight(String(m.systemId), q)}{m.memberId ? ` / M${highlight(String(m.memberId), q)}` : ''}</span>
+                        <span style={{ fontFamily: 'monospace' }}>#{highlight(String(m.systemId), q)}{m.memberId ? ` / ${highlight(String(m.memberId), q)}` : ''}</span>
                         {m.phones && <span>{highlight(m.phones, q)}</span>}
                         {pkg && <span style={{ color: 'var(--t3)' }}>{pkg.name}</span>}
                       </div>
