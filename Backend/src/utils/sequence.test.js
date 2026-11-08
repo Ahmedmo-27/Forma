@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-const { isDuplicateKeyError, nextSequence } = require("./sequence");
+const { isDuplicateKeyError, nextSequence, systemIdFloor } = require("./sequence");
 const Counter = require("../models/Counter");
 const { runWithTenant } = require("../context/tenantContext");
 const mongoose = require("mongoose");
@@ -57,6 +57,16 @@ describe("sequence utils & per-tenant counters", () => {
             expect(b1).toBe(100000);
 
             vi.restoreAllMocks();
+        });
+    });
+
+    describe("systemIdFloor", () => {
+        it("starts a new gym at 100 and steps past the current max", () => {
+            expect(systemIdFloor(0)).toBe(100);
+            expect(systemIdFloor(null)).toBe(100);
+            expect(systemIdFloor(99)).toBe(100);
+            expect(systemIdFloor(100)).toBe(101);
+            expect(systemIdFloor(500)).toBe(501);
         });
     });
 });

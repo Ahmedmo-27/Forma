@@ -7,6 +7,7 @@ const {
     INTAKE_MAX_BYTES,
     SPREADSHEET_MAX_BYTES,
 } = require("../utils/prepareUpload");
+const { getTenantContext, runWithTenant } = require("../context/tenantContext");
 
 const DOCUMENT_EXT = new Set([".jpeg", ".jpg", ".png", ".gif", ".webp", ".pdf"]);
 const PHOTO_EXT = new Set([".jpeg", ".jpg", ".png", ".webp"]);
@@ -127,10 +128,17 @@ const uploadSinglePhoto = (fieldName) => (req, res, next) => {
 };
 
 const uploadSpreadsheet = (req, res, next) => {
+    // Multer finishes large files on a later tick, after the request has left
+    // the tenant context. Capture it now and restore it before the controller runs.
+    const tenant = getTenantContext();
     spreadsheetUpload.single("file")(req, res, (err) => {
-        if (err) return handleUploadError(err, res, { maxMb: 5 });
-        if (!req.file) return next();
-        prepareUpload(req.file, "spreadsheet").then(() => next()).catch((error) => handleUploadError(error, res, { maxMb: 5 }));
+        const proceed = () => {
+            if (err) return handleUploadError(err, res, { maxMb: 5 });
+            if (!req.file) return next();
+            prepareUpload(req.file, "spreadsheet").then(() => next()).catch((error) => handleUploadError(error, res, { maxMb: 5 }));
+        };
+        if (tenant?.tenantId) return runWithTenant(tenant, proceed);
+        return proceed();
     });
 };
 

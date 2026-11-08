@@ -1,57 +1,132 @@
-import { useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, Badge, fmtDate } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
-import { bulkImportMembers } from '../../api/endpoints';
+import { bulkImportMembers, getMemberImportJob } from '../../api/endpoints';
 import { validateFile, SPREADSHEET_EXTENSIONS } from '../../lib/validation';
+
+const STEPS = [
+  { key: 'received', label: 'File received' },
+  { key: 'divided', label: 'Split into parts' },
+  { key: 'importing', label: 'Importing' },
+  { key: 'done', label: 'Finished' },
+];
+
+function stepState(job, key) {
+  if (!job) return key === 'received' ? 'active' : 'waiting';
+  const finished = job.status === 'completed' || job.status === 'failed';
+  if (key === 'received') return 'done';
+  if (key === 'divided') return 'done';
+  if (key === 'importing') return finished ? 'done' : 'active';
+  return finished ? (job.status === 'failed' ? 'failed' : 'done') : 'waiting';
+}
 
 export default function ImportMembers() {
   usePageTitle('Import Members');
-  const navigate   = useNavigate();
-  const fileRef    = useRef(null);
+  const navigate = useNavigate();
+  const fileRef = useRef(null);
+  const pollRef = useRef(null);
+  const toldRef = useRef(false);
+  const sawRunningRef = useRef(false);
 
-  const [file,      setFile]      = useState(null);
-  const [loading,   setLoading]   = useState(false);
-  const [result,    setResult]    = useState(null); // import result
-  const [dragOver,  setDragOver]  = useState(false);
+  const [file, setFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [job, setJob] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
 
-  const handleFile = (f) => {
-    if (!f) return;
-    const check = validateFile(f, { maxSizeMB: 5, allowedExtensions: SPREADSHEET_EXTENSIONS });
-    if (!check.valid) { toast.error(check.error); return; }
-    setFile(f);
-    setResult(null);
+  useEffect(() => {
+    const saved = sessionStorage.getItem('ff_member_import_job');
+    if (saved) watchJob(saved);
+    return () => {
+      if (pollRef.current) clearTimeout(pollRef.current);
+    };
+  }, []);
+
+  const watchJob = (jobId) => {
+    const tick = async () => {
+      try {
+        const res = await getMemberImportJob(jobId);
+        setJob(res.data);
+        if (res.data.status === 'processing') sawRunningRef.current = true;
+        if (res.data.status === 'completed' || res.data.status === 'failed') {
+          if (sawRunningRef.current && !toldRef.current) {
+            toldRef.current = true;
+            if (res.data.status === 'completed' && res.data.summary.created > 0) {
+              toast.success(`${res.data.summary.created} member${res.data.summary.created === 1 ? '' : 's'} imported`);
+            } else if (res.data.status === 'failed') {
+              toast.error(res.data.errorMessage || 'Import stopped');
+            } else {
+              toast.error('No new members were imported');
+            }
+          }
+          return;
+        }
+        pollRef.current = setTimeout(tick, 800);
+      } catch (err) {
+        if (err.response?.status === 404) {
+          sessionStorage.removeItem('ff_member_import_job');
+          return;
+        }
+        setJob((current) => current && ({
+          ...current,
+          pollError: err.response?.data?.message || 'Could not refresh the import status',
+        }));
+        pollRef.current = setTimeout(tick, 2000);
+      }
+    };
+    tick();
   };
 
-  const handleDrop = (e) => {
-    e.preventDefault();
+  const handleFile = (nextFile) => {
+    if (!nextFile) return;
+    const check = validateFile(nextFile, { maxSizeMB: 5, allowedExtensions: SPREADSHEET_EXTENSIONS });
+    if (!check.valid) { toast.error(check.error); return; }
+    setFile(nextFile);
+      setJob(null);
+      toldRef.current = false;
+      sawRunningRef.current = false;
+  };
+
+  const handleDrop = (event) => {
+    event.preventDefault();
     setDragOver(false);
-    handleFile(e.dataTransfer.files[0]);
+    handleFile(event.dataTransfer.files[0]);
   };
 
   const handleImport = async () => {
     if (!file) { toast.error('Please select a file first'); return; }
-    setLoading(true);
+    setUploading(true);
+    toldRef.current = false;
+    sawRunningRef.current = true;
     try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await bulkImportMembers(fd);
-      setResult(res.data);
-      if (res.data.summary.created > 0) {
-        toast.success(`${res.data.summary.created} member${res.data.summary.created !== 1 ? 's' : ''} imported successfully`);
-      } else {
-        toast.error('No new members were imported');
-      }
+      const body = new FormData();
+      body.append('file', file);
+      const res = await bulkImportMembers(body);
+      setJob(res.data);
+      sessionStorage.setItem('ff_member_import_job', res.data.jobId);
+      setUploading(false);
+      watchJob(res.data.jobId);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Import failed');
-    } finally {
-      setLoading(false);
+      setUploading(false);
     }
   };
 
-  const reset = () => { setFile(null); setResult(null); if (fileRef.current) fileRef.current.value = ''; };
+  const reset = () => {
+    if (pollRef.current) clearTimeout(pollRef.current);
+    setFile(null);
+    setJob(null);
+    setUploading(false);
+    toldRef.current = false;
+    sawRunningRef.current = false;
+    sessionStorage.removeItem('ff_member_import_job');
+    if (fileRef.current) fileRef.current.value = '';
+  };
+
+  const running = uploading || (job && job.status === 'processing');
+  const showPicker = !uploading && !job;
 
   return (
     <Layout>
@@ -60,15 +135,13 @@ export default function ImportMembers() {
       </PageHeader>
 
       <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 40 }}>
-
-        {/* ── Instructions ────────────────────────────────────── */}
         <Card>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(68,41,140,0.10)', border: '1px solid rgba(68,41,140,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>📥</div>
             <div>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 6 }}>How to use</h3>
               <p style={{ fontSize: 13, color: 'var(--t3)', lineHeight: 1.6, marginBottom: 8 }}>
-                Upload an Excel file (<code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.xlsx</code> / <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.xls</code> / <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.csv</code>) with at least two columns:
+                Upload an Excel file (<code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.xlsx</code> / <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.xls</code> / <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.csv</code>) with at least two columns. Large sheets are split into parts and imported in the background.
               </p>
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {[
@@ -82,22 +155,19 @@ export default function ImportMembers() {
                 ))}
               </div>
               <p style={{ fontSize: 12, color: 'var(--t4)', marginTop: 10 }}>
-                All imported records are added as <strong>unassigned guest members</strong> with source "data entry". Duplicate phone numbers are skipped automatically.
+                Imported records are added as <strong>guest members assigned to the sales manager</strong> with source "data entry". Duplicate phone numbers are skipped.
               </p>
             </div>
           </div>
         </Card>
 
-        {/* ── Upload zone ──────────────────────────────────────── */}
-        {!result && (
+        {showPicker && (
           <Card>
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }}
-              onChange={e => handleFile(e.target.files[0])} />
-
-            {/* Drop zone */}
+              onChange={(event) => handleFile(event.target.files[0])} />
             <div
               onClick={() => !file && fileRef.current?.click()}
-              onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+              onDragOver={(event) => { event.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               style={{
@@ -105,7 +175,6 @@ export default function ImportMembers() {
                 borderRadius: 12, padding: '40px 24px', textAlign: 'center',
                 background: dragOver ? 'rgba(68,41,140,0.04)' : file ? 'rgba(34,197,94,0.04)' : 'var(--bg)',
                 cursor: file ? 'default' : 'pointer',
-                transition: 'all 0.2s',
               }}
             >
               {file ? (
@@ -113,7 +182,7 @@ export default function ImportMembers() {
                   <div style={{ fontSize: 40 }}>📊</div>
                   <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>{file.name}</p>
                   <p style={{ fontSize: 12, color: 'var(--t4)' }}>{(file.size / 1024).toFixed(1)} KB</p>
-                  <button onClick={e => { e.stopPropagation(); reset(); }}
+                  <button type="button" onClick={(event) => { event.stopPropagation(); reset(); }}
                     style={{ fontSize: 12, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
                     ✕ Remove
                   </button>
@@ -127,93 +196,118 @@ export default function ImportMembers() {
                 </div>
               )}
             </div>
-
-            {/* Actions */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
-              {!file && (
-                <Btn variant="outline" size="md" onClick={() => fileRef.current?.click()}>
-                  Browse File
-                </Btn>
-              )}
-              {file && (
-                <Btn size="md" onClick={handleImport} disabled={loading}>
-                  {loading ? <><Spinner size="sm" /> Importing…</> : '📥 Import Now'}
-                </Btn>
-              )}
+              {!file && <Btn variant="outline" size="md" onClick={() => fileRef.current?.click()}>Browse File</Btn>}
+              {file && <Btn size="md" onClick={handleImport}>📥 Import Now</Btn>}
             </div>
           </Card>
         )}
 
-        {/* ── Results ──────────────────────────────────────────── */}
-        {result && (
+        {(uploading || job) && (
+          <Card>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
+              <div>
+                <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--t1)', marginBottom: 4 }}>
+                  {uploading ? 'Uploading the file' : job.stage}
+                </h3>
+                <p style={{ fontSize: 12, color: 'var(--t4)' }}>
+                  {job?.fileName || file?.name}
+                  {running ? ' · You can leave this page. The import keeps going.' : ''}
+                </p>
+              </div>
+              {running && <Spinner size="sm" />}
+            </div>
+
+            <ol style={{ listStyle: 'none', display: 'grid', gap: 8, marginBottom: 18 }}>
+              {STEPS.map((step) => {
+                const state = stepState(uploading ? null : job, step.key);
+                const color = state === 'failed' ? 'var(--red)' : state === 'waiting' ? 'var(--t4)' : '#44298C';
+                const detail = step.key === 'divided' && job
+                  ? `${job.chunkCount} ${job.chunkCount === 1 ? 'part' : 'parts'}`
+                  : step.key === 'importing' && job
+                    ? `Part ${Math.max(job.chunkIndex, running ? 1 : job.chunkIndex)} of ${job.chunkCount}`
+                    : null;
+                return (
+                  <li key={step.key} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color }}>
+                    <span aria-hidden="true" style={{ width: 18, textAlign: 'center', fontWeight: 800 }}>
+                      {state === 'done' ? '✓' : state === 'failed' ? '!' : state === 'active' ? '●' : '○'}
+                    </span>
+                    <span style={{ fontWeight: state === 'active' ? 700 : 500 }}>{step.label}</span>
+                    {detail && <span style={{ color: 'var(--t4)', fontWeight: 500 }}>{detail}</span>}
+                  </li>
+                );
+              })}
+            </ol>
+
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={job?.totalRows || 0}
+              aria-valuenow={job?.processedRows || 0}
+              aria-label={uploading ? 'Uploading the file' : job?.stage}
+              style={{ height: 8, borderRadius: 99, background: 'var(--bg)', border: '1px solid var(--border)', overflow: 'hidden' }}
+            >
+              <div style={{
+                width: `${uploading ? 8 : job?.percent || 0}%`,
+                height: '100%',
+                background: job?.status === 'failed' ? 'var(--red)' : '#44298C',
+                transition: 'width 0.3s ease',
+              }} />
+            </div>
+            <p aria-live="polite" style={{ fontSize: 12, color: 'var(--t3)', marginTop: 8 }}>
+              {uploading
+                ? 'Sending the spreadsheet…'
+                : `${job.processedRows.toLocaleString()} of ${job.totalRows.toLocaleString()} rows · ${job.percent}%`}
+            </p>
+            {job?.pollError && <p style={{ fontSize: 12, color: 'var(--amber)', marginTop: 6 }}>{job.pollError}</p>}
+            {job?.status === 'failed' && job.errorMessage && (
+              <p style={{ fontSize: 12, color: 'var(--red)', marginTop: 6 }}>{job.errorMessage}</p>
+            )}
+          </Card>
+        )}
+
+        {job && (
           <>
-            {/* Summary cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
               {[
-                { label: 'Total Rows',  value: result.summary.total,   accent: '#44298C' },
-                { label: 'Created',     value: result.summary.created,  accent: 'var(--green)' },
-                { label: 'Skipped',     value: result.summary.skipped,  accent: 'var(--amber)' },
-                { label: 'Errors',      value: result.summary.errors,   accent: 'var(--red)' },
+                { label: 'Total Rows', value: job.summary.total, accent: '#44298C' },
+                { label: 'Created', value: job.summary.created, accent: 'var(--green)' },
+                { label: 'Skipped', value: job.summary.skipped, accent: 'var(--amber)' },
+                { label: 'Errors', value: job.summary.errors, accent: 'var(--red)' },
               ].map(({ label, value, accent }) => (
-                <div key={label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderTop: `3px solid ${accent}`, borderRadius: 12, padding: '16px 18px', boxShadow: '0 1px 3px rgba(0,0,0,0.05)' }}>
+                <div key={label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderTop: `3px solid ${accent}`, borderRadius: 12, padding: '16px 18px' }}>
                   <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)', marginBottom: 4 }}>{label}</p>
                   <p style={{ fontSize: 28, fontWeight: 800, color: accent }}>{value}</p>
                 </div>
               ))}
             </div>
 
-            {/* Created list */}
-            {result.created.length > 0 && (
-              <Card noPad>
-                <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>✅ Created ({result.created.length})</span>
-                </div>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-                        {['System ID', 'Name', 'Phone'].map(h => (
-                          <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {result.created.map((m, i) => (
-                        <tr key={i} className="tbl-row" style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                          onClick={() => navigate(`/members/${m.systemId}`)}>
-                          <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: 12, color: 'var(--t4)' }}>#{m.systemId}</td>
-                          <td style={{ padding: '9px 14px', fontWeight: 600, color: 'var(--t1)' }}>{m.name}</td>
-                          <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: 12, color: 'var(--t2)' }}>{m.phone}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
-            )}
-
-            {/* Skipped list */}
-            {result.skipped.length > 0 && (
+            {job.errors?.length > 0 && (
               <Card noPad>
                 <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--amber)' }}>⚠ Skipped — Already Exist ({result.skipped.length})</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)' }}>
+                    Errors ({job.summary.errors})
+                  </span>
+                  {job.summary.errors > job.errors.length && (
+                    <span style={{ fontSize: 12, color: 'var(--t4)', marginLeft: 8 }}>Showing the first {job.errors.length}</span>
+                  )}
                 </div>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-                        {['Name', 'Phone', 'Reason', 'Existing ID'].map(h => (
-                          <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)' }}>{h}</th>
+                        {['Row', 'Name', 'Phone', 'Reason'].map((heading) => (
+                          <th key={heading} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)' }}>{heading}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {result.skipped.map((m, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: 'var(--amber-bg)' }}>
-                          <td style={{ padding: '9px 14px', fontWeight: 600, color: 'var(--t1)' }}>{m.name}</td>
-                          <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: 12, color: 'var(--t2)' }}>{m.phone}</td>
-                          <td style={{ padding: '9px 14px', fontSize: 12, color: 'var(--amber)' }}>{m.reason}</td>
-                          <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: 12, color: 'var(--t4)' }}>#{m.systemId}</td>
+                      {job.errors.map((entry, index) => (
+                        <tr key={`${entry.line}-${index}`} style={{ borderBottom: '1px solid var(--border)', background: 'var(--red-bg)' }}>
+                          <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: 12 }}>{entry.line}</td>
+                          <td style={{ padding: '9px 14px' }}>{entry.name || '—'}</td>
+                          <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: 12 }}>{entry.phone || '—'}</td>
+                          <td style={{ padding: '9px 14px', color: 'var(--red)', fontWeight: 600 }}>{entry.reason}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -222,43 +316,14 @@ export default function ImportMembers() {
               </Card>
             )}
 
-            {/* Errors list */}
-            {result.errors.length > 0 && (
-              <Card noPad>
-                <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)' }}>❌ Errors ({result.errors.length})</span>
-                </div>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-                        {['Row Data', 'Reason'].map(h => (
-                          <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {result.errors.map((e, i) => (
-                        <tr key={i} style={{ borderBottom: '1px solid var(--border)', background: 'var(--red-bg)' }}>
-                          <td style={{ padding: '9px 14px', fontSize: 12, color: 'var(--t2)', fontFamily: 'monospace' }}>{JSON.stringify(e.row)}</td>
-                          <td style={{ padding: '9px 14px', fontSize: 12, color: 'var(--red)', fontWeight: 600 }}>{e.reason}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </Card>
+            {!running && (
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <Btn onClick={reset} variant="outline">Import Another File</Btn>
+                {job.summary.created > 0 && (
+                  <Btn onClick={() => navigate('/members?status=guest')}>View Imported Members →</Btn>
+                )}
+              </div>
             )}
-
-            {/* Actions after import */}
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-              <Btn onClick={reset} variant="outline">Import Another File</Btn>
-              {result.summary.created > 0 && (
-                <Btn onClick={() => navigate('/members?status=guest&unassigned=true')}>
-                  View Imported Members →
-                </Btn>
-              )}
-            </div>
           </>
         )}
       </div>

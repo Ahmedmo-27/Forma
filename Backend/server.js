@@ -15,6 +15,8 @@ const connectDB = require("./src/config/db");
 const app = require("./src/app");
 const { BCRYPT_ROUNDS } = require("./src/utils/passwordUtils");
 const { startScheduledTasks } = require("./src/utils/scheduledTasks");
+const { failInterruptedImports } = require("./src/services/memberImportRunner");
+const mongoose = require("mongoose");
 
 connectDB();
 
@@ -33,6 +35,13 @@ const server = app.listen(PORT, "0.0.0.0", () => {
 
     // Start background tasks (freeze auto-unfreeze, etc.)
     startScheduledTasks();
+    const markInterrupted = () => {
+        failInterruptedImports().catch((error) => {
+            logger.error("import", "Could not close interrupted imports", { error: error.message });
+        });
+    };
+    if (mongoose.connection.readyState === 1) markInterrupted();
+    else mongoose.connection.once("connected", markInterrupted);
 });
 
 // Process-level safety: gracefully log and handle unhandled rejections and exceptions

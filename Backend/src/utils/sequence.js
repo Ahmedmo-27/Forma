@@ -39,9 +39,32 @@ async function nextSequence(name, startingFloor = 100, tenantIdOverride = null) 
     return doc.seq;
 }
 
-/** Next systemId for a guest/member within the tenant (starts from 100000) */
+/**
+ * Floor for the next member system id.
+ * New gyms start at 100 (S100). If records already exist, the next id is
+ * max(100, highest + 1) so numbers are never reused or moved backwards.
+ * nextSequence only raises a counter; a counter already above this floor stays there.
+ */
+function systemIdFloor(highest) {
+    const max = Number(highest);
+    const top = Number.isFinite(max) && max > 0 ? max : 0;
+    return Math.max(100, top + 1);
+}
+
+/** Next systemId for a guest/member within the tenant. Displayed as S{n}. */
 async function nextSystemId(tenantIdOverride = null) {
-    return nextSequence("systemId", 100000, tenantIdOverride);
+    let highest = 0;
+    try {
+        const Member = require("../models/Member");
+        const top = await Member.findOne({ systemId: { $type: "number" } })
+            .sort({ systemId: -1 })
+            .select("systemId")
+            .lean();
+        highest = top?.systemId || 0;
+    } catch {
+        highest = 0;
+    }
+    return nextSequence("systemId", systemIdFloor(highest), tenantIdOverride);
 }
 
 /** Next memberId for subscribed members within the tenant (starts from 100) */
@@ -64,10 +87,48 @@ function isDuplicateKeyError(error, fields = []) {
     return fields.length === 0 || dupFields.some((f) => fields.includes(f));
 }
 
+/**
+ * Reserve a contiguous block of system ids for one import part.
+ * The counter moves forward by `count`. If it would land below the floor,
+ * the block starts at the floor instead.
+ */
+async function reserveSystemIds(count, floor = 100, tenantIdOverride = null) {
+    const tenantId = tenantIdOverride || getTenantId();
+    if (!tenantId) {
+        throw new Error(
+            "TenantContextMissingError: Cannot allocate sequence 'systemId' without active tenant context."
+        );
+    }
+    const size = Number(count);
+    if (!Number.isInteger(size) || size < 1) {
+        throw new Error("Cannot reserve an empty block of system ids");
+    }
+
+    const tenantObjId = new mongoose.Types.ObjectId(tenantId);
+    const doc = await Counter.findOneAndUpdate(
+        { tenantId: tenantObjId, name: "systemId" },
+        { $inc: { seq: size } },
+        { new: true, upsert: true }
+    );
+
+    let end = doc.seq;
+    if (end - size + 1 < floor) {
+        end = floor + size - 1;
+        await Counter.updateOne(
+            { tenantId: tenantObjId, name: "systemId" },
+            { $set: { seq: end } }
+        );
+    }
+
+    return { start: end - size + 1, end };
+}
+
 module.exports = {
     nextSequence,
+    systemIdFloor,
     nextSystemId,
     nextMemberId,
     nextSubscriptionId,
+    reserveSystemIds,
     isDuplicateKeyError,
 };
