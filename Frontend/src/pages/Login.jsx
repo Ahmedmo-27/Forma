@@ -9,7 +9,7 @@ export default function Login() {
   usePageTitle('Sign In');
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail]       = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd]   = useState(false);
   const [loading, setLoading]   = useState(false);
@@ -25,8 +25,7 @@ export default function Login() {
 
   const validate = () => {
     const e = {};
-    if (!email.trim())                     e.email    = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(email))  e.email    = 'Enter a valid email address';
+    if (!username.trim())                  e.username = 'Username is required';
     if (!password)                         e.password = 'Password is required';
     setErrors(e);
     return !Object.keys(e).length;
@@ -37,7 +36,7 @@ export default function Login() {
     if (!validate()) return;
     setLoading(true);
     try {
-      const user = await signIn(email.trim(), password);
+      const user = await signIn(username.trim(), password);
       toast.success(`Welcome back, ${user.name}!`);
       if (user.role === 'Accountant') {
         navigate('/accounting/dashboard', { replace: true });
@@ -61,7 +60,14 @@ export default function Login() {
       } else if (err.response.status === 429) {
         msg = err.response.data?.error?.message || err.response.data?.message || 'Account temporarily locked due to failed login attempts. Please wait.';
       } else {
-        msg = err.response.data?.error?.message || err.response.data?.message || 'Invalid email or password.';
+        const data = err.response.data || {};
+        const fieldErrors = data.fieldErrors || data.error?.fieldErrors || {};
+        const emailIssue = Array.isArray(fieldErrors.email) ? fieldErrors.email[0] : '';
+        if (emailIssue && !username.includes('@')) {
+          msg = 'This server still expects your email address. Sign in with the full email, such as owner@test.com. The username works after the API update is deployed.';
+        } else {
+          msg = data.error?.message || data.message || 'Invalid username or password.';
+        }
       }
       setErrors({ form: msg });
     } finally {
@@ -176,27 +182,27 @@ export default function Login() {
               color: '#374151', letterSpacing: '0.3px',
               textTransform: 'uppercase', marginBottom: 7,
             }}>
-              Email Address
+              Username
             </label>
             <div style={{ position: 'relative' }}>
               <svg style={{
                 position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)',
                 color: '#9CA3AF', pointerEvents: 'none',
               }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
-                <polyline points="22,6 12,13 2,6"/>
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                <circle cx="12" cy="7" r="4"/>
               </svg>
               <input
-                type="email"
-                autoComplete="email"
-                value={email}
-                onChange={(e) => { setEmail(e.target.value); setErrors((p) => ({ ...p, email: '', form: '' })); }}
-                placeholder="you@example.com"
+                type="text"
+                autoComplete="username"
+                value={username}
+                onChange={(e) => { setUsername(e.target.value); setErrors((p) => ({ ...p, username: '', form: '' })); }}
+                placeholder="your username"
                 style={{
                   width: '100%', padding: '12px 14px 12px 40px', fontSize: 14,
-                  border: `1.5px solid ${errors.email ? '#FCA5A5' : '#E5E7EB'}`,
+                  border: `1.5px solid ${errors.username ? '#FCA5A5' : '#E5E7EB'}`,
                   borderRadius: 10, outline: 'none', color: '#111827',
-                  background: errors.email ? '#FEF2F2' : '#F9FAFB',
+                  background: errors.username ? '#FEF2F2' : '#F9FAFB',
                   transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
                   boxSizing: 'border-box',
                 }}
@@ -206,13 +212,13 @@ export default function Login() {
                   e.target.style.background = '#FAFAFF';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = errors.email ? '#FCA5A5' : '#E5E7EB';
+                  e.target.style.borderColor = errors.username ? '#FCA5A5' : '#E5E7EB';
                   e.target.style.boxShadow = 'none';
-                  e.target.style.background = errors.email ? '#FEF2F2' : '#F9FAFB';
+                  e.target.style.background = errors.username ? '#FEF2F2' : '#F9FAFB';
                 }}
               />
             </div>
-            {errors.email && <p style={{ margin: '5px 0 0', fontSize: 12, color: '#DC2626' }}>{errors.email}</p>}
+            {errors.username && <p style={{ margin: '5px 0 0', fontSize: 12, color: '#DC2626' }}>{errors.username}</p>}
           </div>
 
           {/* Password */}

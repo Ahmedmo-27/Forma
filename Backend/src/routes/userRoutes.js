@@ -68,11 +68,11 @@ router.get("/sales-manager/revenue", allowRoles("reports", "Sales Manager", "Own
 router.get("/sales-manager/subscriptions", allowRoles("reports", "Sales Manager", "Owner", "Accountant"), cacheResponse({ ttlSeconds: 120, tags: ["revenue", "contracts"] }), getSubscriptionsByDate);
 router.get("/my-subscriptions", allowRoles("sales_dashboard", "Sales"), cacheResponse({ ttlSeconds: 60, scope: "user", tags: ["revenue"] }), getSalesMySubscriptions);
 router.get("/sales-reps", allowRoles("sales_team", "Sales Manager", "Owner"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getSalesReps);
-router.get("/sales", allowRoles("sales_team", "Sales Manager", "Owner", "Accountant", "Receptionist", "Sales"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getSalesUsers);
+router.get("/sales", allowRoles("sales_team", "Sales Manager", "Owner", "Accountant", "Receptionist", "Sales", "General Manager", "Coach Manager"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getSalesUsers);
 router.get("/receptionists", cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getReceptionists);
 router.get("/team", allowRoles("sales_team", "Sales Manager", "Owner", "Accountant"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getSalesTeam);
 router.get("/team/:id", allowRoles("sales_team", "Sales Manager", "Owner", "Accountant"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getSalesProfile);
-router.get("/coach-team", allowRoles("coach_team", "Coach Manager", "Owner", "Sales Manager", "Receptionist", "Sales", "Accountant"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getCoachTeam);
+router.get("/coach-team", allowRoles("coach_team", "Coach Manager", "Owner", "Sales Manager", "Receptionist", "Sales", "Accountant", "General Manager"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getCoachTeam);
 router.get("/coach-team/:id", allowRoles("coach_team", "Coach Manager", "Owner"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getCoachProfile);
 router.post("/staff", allowRoles("staff", "Sales Manager", "Owner", "Coach Manager"), enforceStaffLimit, autoInvalidate(["users"]), createStaffUser);
 router.patch("/:id/target", protect, allowRoles("targets", "Sales Manager", "Owner", "Accountant"), autoInvalidate(["users", "revenue"]), updateSalesRepTarget);

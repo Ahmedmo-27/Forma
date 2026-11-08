@@ -4,6 +4,7 @@ const { runAsPlatform } = require("../context/tenantContext");
 const passwordSetup = require("../services/passwordSetupService");
 const mailer = require("../services/mailer");
 const logger = require("../utils/logger");
+const { invalidateAuthContext } = require("../middleware/authContextCache");
 
 const GENERIC_RESET = "If an account exists for that email, a reset link has been sent.";
 
@@ -30,6 +31,10 @@ async function setupPassword(req, res) {
 
         record.usedAt = new Date();
         await record.save();
+        invalidateAuthContext({
+            userId: updated._id,
+            tenantId: updated.tenantId,
+        });
 
         res.json({ message: "Password set. You can sign in now." });
     } catch (error) {

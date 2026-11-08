@@ -28,8 +28,11 @@ const memberSource = z.enum([
 ]);
 
 const loginSchema = z.object({
-    email: z.string().trim().email().max(200),
+    username: z.string().trim().min(1).max(200).optional(),
+    email: z.string().trim().min(1).max(200).optional(),
     password: z.string().min(1).max(200),
+}).refine((data) => Boolean(data.username || data.email), {
+    message: "Username and password are required",
 });
 
 const setupPasswordSchema = z.object({
@@ -124,11 +127,13 @@ const salesRequestStatusSchema = z.object({
     status: z.enum(["accepted", "rejected"]),
 });
 
+const GYM_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"];
+
 const createStaffSchema = z.object({
     name: z.string().trim().min(1).max(120),
     email: z.string().trim().email().max(200),
     password: z.string().min(8).max(200),
-    role: z.enum(["Sales", "Receptionist", "Accountant"]),
+    role: z.enum(GYM_ROLES),
 });
 
 const createPackageSchema = z.object({

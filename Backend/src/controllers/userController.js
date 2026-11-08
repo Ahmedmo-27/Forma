@@ -5,6 +5,7 @@ const jwt = require("jsonwebtoken");
 const { formatUserResponse } = require("../utils/userAbilities");
 const logger = require("../utils/logger");
 const { hashPassword, verifyPassword, normalizeEmail } = require("../utils/passwordUtils");
+const { normalizeUsername, uniqueUsername, escapeRegex } = require("../utils/username");
 const { runWithTenant, runAsPlatform } = require("../context/tenantContext");
 const {
     getLockState,
@@ -36,7 +37,8 @@ function accessContextFor(tenant) {
         planFeatures: plan ? getEffectiveFeatures(tenant, plan) : null,
     };
 }
-const GENERIC_LOGIN_FAILURE = "Invalid email or password";
+const GENERIC_LOGIN_FAILURE = "Invalid username or password";
+const GYM_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"];
 
 function respondAfterLoginFailure(res, fail, req) {
     if (fail.lockedUntil) {
@@ -101,7 +103,8 @@ const registerUser = async (req, res) => {
         }
 
         const hashedPassword = await hashPassword(password);
-        const user = await User.create({ name, email, password: hashedPassword, role: "Receptionist" });
+        const username = await uniqueUsername(User, email);
+        const user = await User.create({ name, email, username, password: hashedPassword, role: "Receptionist" });
 
         logger.auth("info", "Register success", {
             requestId,
@@ -124,13 +127,13 @@ const loginUser = async (req, res) => {
     const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
     try {
-        const email = normalizeEmail(req.body?.email);
+        const loginId = normalizeUsername(req.body?.username || req.body?.email);
 
         logger.auth("info", "Login attempt", {
             requestId,
             ip: req.ip,
             userAgent: req.get("user-agent"),
-            hasEmail: Boolean(email),
+            hasEmail: Boolean(loginId),
             hasJwtSecret: Boolean(process.env.JWT_SECRET),
             apiBaseHint: req.get("origin") || req.get("referer") || null,
         });
@@ -140,12 +143,12 @@ const loginUser = async (req, res) => {
             return res.status(500).json({ message: "Server misconfigured: JWT_SECRET is missing" });
         }
 
-        if (!email || !req.body?.password) {
+        if (!loginId || !req.body?.password) {
             logger.auth("warn", "Login validation failed", { requestId, reason: "missing_fields" });
-            return res.status(400).json({ message: "Email and password are required" });
+            return res.status(400).json({ message: "Username and password are required" });
         }
 
-        const lock = getLockState(email);
+        const lock = getLockState(loginId);
         if (lock.locked) {
             logger.auth("warn", "Login blocked: account locked", { requestId });
             const retryAfter = Math.max(1, Math.ceil((lock.lockedUntil - Date.now()) / 1000));
@@ -166,13 +169,24 @@ const loginUser = async (req, res) => {
             });
         }
 
-        // Look up candidate user(s) matching email across platform
+        // Username first. Accounts that only have an email still match the
+        // local-part or the full address so existing staff are not locked out.
         const candidateUsers = await runAsPlatform(async () => {
-            return await User.find({ email });
+            const byUsername = await User.find({ username: loginId });
+            if (byUsername.length) return byUsername;
+            if (loginId.includes("@")) {
+                return User.find({ email: normalizeEmail(loginId) });
+            }
+            return User.find({
+                $or: [
+                    { username: loginId },
+                    { email: new RegExp(`^${escapeRegex(loginId)}@`, "i") },
+                ],
+            });
         });
 
         if (!candidateUsers || candidateUsers.length === 0) {
-            const fail = recordLoginFailure(email);
+            const fail = recordLoginFailure(loginId);
             logger.auth("warn", "Login failed: invalid credentials", {
                 requestId,
                 failureCount: fail.count,
@@ -226,7 +240,7 @@ const loginUser = async (req, res) => {
         }
 
         if (!user) {
-            const fail = recordLoginFailure(email);
+            const fail = recordLoginFailure(loginId);
             logger.auth("warn", "Login failed: invalid credentials", {
                 requestId,
                 failureCount: fail.count,
@@ -235,7 +249,18 @@ const loginUser = async (req, res) => {
             return respondAfterLoginFailure(res, fail, req);
         }
 
-        clearLoginFailures(email);
+        clearLoginFailures(loginId);
+
+        if (!user.username && typeof user.save === "function") {
+            try {
+                user.username = await runAsPlatform(() => uniqueUsername(User, user.email, { excludeId: user._id }));
+                await runAsPlatform(async () => {
+                    await user.save();
+                });
+            } catch (error) {
+                logger.auth("warn", "Username backfill skipped", { requestId, error: error.message });
+            }
+        }
 
         if (verifiedNeedsRehash) {
             user.password = await hashPassword(req.body.password);
@@ -280,7 +305,7 @@ const loginUser = async (req, res) => {
                 tenantSlug: effectiveTenantSlug,
             },
             process.env.JWT_SECRET,
-            { expiresIn: process.env.JWT_EXPIRES_IN || "8h" }
+            { expiresIn: "8h" }
         );
 
         logger.auth("info", "Login success", {
@@ -670,10 +695,8 @@ const createStaffUser = async (req, res) => {
         }
 
         const creatable = req.user.role === "Owner"
-            ? ["Sales", "Receptionist", "Accountant", "Coach", "Sales Manager", "Coach Manager", "General Manager"]
-            : req.user.role === "General Manager"
-                ? ["Sales", "Receptionist", "Accountant", "Coach", "Sales Manager", "Coach Manager"]
-                : ["Sales", "Receptionist", "Accountant", "Coach"];
+            ? GYM_ROLES
+            : GYM_ROLES.filter((roleName) => roleName !== "Owner");
         if (!creatable.includes(role)) {
             return res.status(400).json({ message: "You cannot create that role" });
         }
@@ -685,8 +708,16 @@ const createStaffUser = async (req, res) => {
 
         const normalizedEmail = normalizeEmail(email);
         const hashedPassword = await hashPassword(password);
+        const username = await uniqueUsername(User, normalizedEmail);
 
-        const user = await User.create({ name, email: normalizedEmail, password: hashedPassword, role, mobile_number });
+        const user = await User.create({
+            name,
+            email: normalizedEmail,
+            username,
+            password: hashedPassword,
+            role,
+            mobile_number,
+        });
 
         logger.auth("info", "Staff user created", {
             createdBy: req.user.id,

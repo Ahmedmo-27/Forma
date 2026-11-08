@@ -1,8 +1,14 @@
 import api from './axios';
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-export const login        = (email, password) =>
-  api.post('/users/login', { email, password });
+export const login = (username, password) => {
+  const id = String(username || '').trim();
+  const body = { username: id, password };
+  // The deployed API still requires a valid email. Include it when the
+  // person typed an address so sign-in works before and after that deploy.
+  if (id.includes('@')) body.email = id;
+  return api.post('/users/login', body);
+};
 export const setupPassword = (token, password) =>
   api.post('/users/setup-password', { token, password }, { skipGlobalError: true });
 export const forgotPassword = (email) =>
@@ -59,6 +65,7 @@ export const updateStaffMobile = (id, mobile_number) =>
 export const getReceptionistTeam = () => api.get('/users/receptionist-team');
 export const getUserById = (id) => api.get(`/users/${id}`);
 export const searchAccessUsers = (q) => api.get('/users/access/search', { params: { q } });
+export const listAccessUsersByRole = (role) => api.get('/users/access/search', { params: { role } });
 export const getUserAccess = (id) => api.get(`/users/${id}/access`);
 export const updateUserAccess = (id, features) => api.put(`/users/${id}/access`, { features });
 export const updateUserAreaAccess = (id, add, remove) => api.patch(`/users/${id}/access`, { add, remove });
@@ -77,7 +84,11 @@ export const searchAllMembers  = () => api.get('/members/all', {
   params: { limit: 10000, sortBy: 'createdAt', sortDir: -1 },
 });
 export const getAllNotes       = (params) => api.get('/members/all-notes', { params });
-export const bulkImportMembers = (formData) => api.post('/members/bulk-import', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+export const bulkImportMembers = (formData) => api.post('/members/bulk-import', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+  timeout: 120000,
+});
+export const getMemberImportJob = (jobId) => api.get(`/members/bulk-import/${jobId}`, { skipGlobalError: true });
 export const getMemberProfile  = (id)       => api.get(`/members/${id}`);
 export const createMember      = (data)     => api.post('/members', data);
 export const assignSales       = (id, salesId) =>

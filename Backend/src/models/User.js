@@ -11,7 +11,11 @@ const userSchema = new mongoose.Schema({
         lowercase: true,
     },
 
-    username: String,
+    username: {
+        type: String,
+        trim: true,
+        lowercase: true,
+    },
     mobile_number: String,
     password: String,
 
@@ -54,5 +58,9 @@ const userSchema = new mongoose.Schema({
 
 userSchema.plugin(tenantPlugin);
 userSchema.index({ tenantId: 1, email: 1 }, { unique: true });
+userSchema.index(
+    { tenantId: 1, username: 1 },
+    { unique: true, partialFilterExpression: { username: { $type: "string" } } }
+);
 
 module.exports = mongoose.models.User || mongoose.model("User", userSchema);
