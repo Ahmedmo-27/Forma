@@ -58,16 +58,16 @@ export function AuthProvider({ children }) {
       .finally(() => setChecked(true));
   }, []);
 
-  const signIn = useCallback(async (email, password) => {
+  const signIn = useCallback(async (username, password) => {
     const apiUrl = import.meta.env.BACKEND_ORIGIN || import.meta.env.VITE_API_URL;
     console.info('[auth] Login attempt', {
       apiUrl: apiUrl || '(missing BACKEND_ORIGIN)',
-      email: email?.trim(),
+      username: username?.trim(),
       passwordLength: password?.length ?? 0,
     });
 
     try {
-      const res = await loginApi(email, password);
+      const res = await loginApi(username, password);
       const { token, user: u } = res.data;
       localStorage.setItem('ff_token', token);
       localStorage.setItem('ff_user', JSON.stringify(u));

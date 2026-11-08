@@ -287,15 +287,44 @@ function SearchableSelect({
   const updateDropdownRect = useCallback(() => {
     if (!inputRef.current) return;
     const rect = inputRef.current.getBoundingClientRect();
+    const gap = 8;
+    const preferred = 280;
+    const vh = window.innerHeight;
+    const visibleTop = Math.min(Math.max(rect.top, 0), vh);
+    const visibleBottom = Math.min(Math.max(rect.bottom, 0), vh);
+    const spaceBelow = Math.max(0, vh - visibleBottom - gap);
+    const spaceAbove = Math.max(0, visibleTop - gap);
+    const openUp = spaceBelow < 160 && spaceAbove > spaceBelow;
+    const available = Math.max(0, (openUp ? spaceAbove : spaceBelow) - 4);
+    const maxHeight = Math.min(preferred, available || Math.min(preferred, vh - gap * 2));
+
+    if (openUp) {
+      const anchor = Math.min(rect.top, vh - gap);
+      setDropdownRect({
+        top: undefined,
+        bottom: Math.max(gap, vh - anchor + 4),
+        left: rect.left,
+        width: rect.width,
+        maxHeight: Math.min(maxHeight, Math.max(0, anchor - gap - 4)),
+      });
+      return;
+    }
+
+    const top = Math.min(Math.max(rect.bottom + 4, gap), vh - gap - 48);
     setDropdownRect({
-      top: rect.bottom + 4,
+      top,
+      bottom: undefined,
       left: rect.left,
       width: rect.width,
+      maxHeight: Math.min(maxHeight, Math.max(48, vh - gap - top)),
     });
   }, []);
 
+  const scrolledForOpen = useRef(false);
+
   useLayoutEffect(() => {
     if (!open) {
+      scrolledForOpen.current = false;
       setDropdownRect(null);
       return;
     }
@@ -307,6 +336,20 @@ function SearchableSelect({
       window.removeEventListener('scroll', updateDropdownRect, true);
     };
   }, [open, updateDropdownRect, filtered.length]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    if (scrolledForOpen.current || !listRef.current) return;
+    const selectedEl = listRef.current.querySelector('[aria-selected="true"]');
+    if (selectedEl) {
+      const list = listRef.current;
+      const top = selectedEl.offsetTop;
+      const bottom = top + selectedEl.offsetHeight;
+      if (top < list.scrollTop) list.scrollTop = top;
+      else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+    }
+    scrolledForOpen.current = true;
+  }, [open, dropdownRect]);
 
   useEffect(() => {
     const close = (e) => {
@@ -392,6 +435,7 @@ function SearchableSelect({
       style={{
         position: 'fixed',
         top: dropdownRect.top,
+        bottom: dropdownRect.bottom,
         left: dropdownRect.left,
         width: dropdownRect.width,
         zIndex: 1000,
@@ -399,7 +443,7 @@ function SearchableSelect({
         border: '1px solid var(--border)',
         borderRadius: 10,
         boxShadow: '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-        maxHeight: 240,
+        maxHeight: dropdownRect.maxHeight,
         overflowY: 'auto',
       }}
     >

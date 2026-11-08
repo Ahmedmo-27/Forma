@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, StatCard, Table, Btn, EmptyState, fmtDate, fmtDateTime } from '../../components/ui';
@@ -31,8 +32,9 @@ function ExceptionFlag() {
   );
 }
 
-function QuickLink({ to, label, sub, accent }) {
+function QuickLink({ to, label, sub, accent, user, access }) {
   const navigate = useNavigate();
+  if (!hasAccess(user, access)) return null;
   return (
     <button
       type="button"
@@ -134,7 +136,7 @@ export default function AccountantDashboard() {
           </p>
           {pendingTotal > 0 && (
             <div style={{ marginTop: 14 }}>
-              <Btn size="sm" onClick={() => navigate('/accounting/package-requests')}>
+              <Btn size="sm" onClick={hasAccess(user, 'package_approvals') ? () => navigate('/accounting/package-requests') : undefined}>
                 {pendingTotal} request{pendingTotal !== 1 ? 's' : ''} awaiting review
               </Btn>
             </div>
@@ -147,28 +149,28 @@ export default function AccountantDashboard() {
             value={loading ? '—' : pendingTotal}
             color={pendingTotal > 0 ? 'warning' : 'default'}
             sub={pendingTotal > 0 ? 'Needs your review' : 'All caught up'}
-            onClick={() => navigate('/accounting/package-requests')}
+            onClick={hasAccess(user, 'package_approvals') ? () => navigate('/accounting/package-requests') : undefined}
           />
           <StatCard
             label="Today's Revenue"
             value={loading ? '—' : `${fmt(todayRevenue)} EGP`}
             color="success"
             sub={`${todayContracts} contract${todayContracts !== 1 ? 's' : ''} today`}
-            onClick={() => navigate('/sales/targets')}
+            onClick={hasAccess(user, 'targets') ? () => navigate('/sales/targets') : undefined}
           />
           <StatCard
             label="This Month"
             value={loading ? '—' : `${fmt(monthRevenue)} EGP`}
             color="brand"
             sub={`${monthContracts} contract${monthContracts !== 1 ? 's' : ''} processed`}
-            onClick={() => navigate('/accounting/contract-history')}
+            onClick={hasAccess(user, 'contracts') ? () => navigate('/accounting/contract-history') : undefined}
           />
           <StatCard
             label="Recent Contracts"
             value={loading ? '—' : recentContracts.length}
             color="info"
             sub="Latest activity"
-            onClick={() => navigate('/accounting/contract-history')}
+            onClick={hasAccess(user, 'contracts') ? () => navigate('/accounting/contract-history') : undefined}
           />
         </div>
 
@@ -270,10 +272,10 @@ export default function AccountantDashboard() {
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-          <QuickLink to="/accounting/package-requests" label="Package Requests" sub="Review & approve packages" accent="var(--amber)" />
-          <QuickLink to="/accounting/contract-history" label="Contract History" sub="All processed contracts" accent="var(--blue)" />
-          <QuickLink to="/sales/targets" label="Revenue" sub="Revenue breakdown & reports" accent="var(--green)" />
-          <QuickLink to="/members" label="Members" sub="Browse member profiles" accent="var(--navy)" />
+          <QuickLink user={user} access="package_approvals" to="/accounting/package-requests" label="Package Requests" sub="Review & approve packages" accent="var(--amber)" />
+          <QuickLink user={user} access="contracts" to="/accounting/contract-history" label="Contract History" sub="All processed contracts" accent="var(--blue)" />
+          <QuickLink user={user} access="targets" to="/sales/targets" label="Revenue" sub="Revenue breakdown & reports" accent="var(--green)" />
+          <QuickLink user={user} access="members" to="/members" label="Members" sub="Browse member profiles" accent="var(--navy)" />
         </div>
       </div>
     </Layout>

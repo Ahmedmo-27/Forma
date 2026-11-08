@@ -90,9 +90,10 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
   const expiringSoon = isActive && expiryDays !== null && expiryDays <= 7;
 
   const allLogs          = member.userlog ?? [];
-  const checkIns         = allLogs.filter(l => l.type === 'check-in');
-  const thisMonthCheckIns = thisMonthCount(allLogs, 'check-in');
-  const lastCheckIn      = [...checkIns].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
+  const logCheckIns      = allLogs.filter(l => l.type === 'check-in');
+  const checkInTotal     = data?.stats?.totalCheckIns ?? logCheckIns.length;
+  const thisMonthCheckIns = data?.stats?.thisMonthCheckIns ?? thisMonthCount(allLogs, 'check-in');
+  const lastCheckIn      = data?.checkIns?.[0] ?? [...logCheckIns].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
 
   const totalPT  = member.PT_sessions ?? 0;
   const usedPT   = member.used_PT_sessions ?? 0;
@@ -143,7 +144,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
           sub={expiryDays === null ? undefined : expiryDays < 0 ? `Expired ${Math.abs(expiryDays)}d ago` : expiringSoon ? `⚠ ${expiryDays}d left` : `${expiryDays}d remaining`}
           accent={expiringSoon || isExpired ? '#ef4444' : '#44298C'} onClick={() => go('packages')} />
         <StatBox icon="✅" label="Total Check-Ins"
-          value={checkIns.length} sub={`${thisMonthCheckIns} this month`}
+          value={checkInTotal} sub={`${thisMonthCheckIns} this month`}
           accent="#22c55e" onClick={() => go('checkins')} />
         <StatBox icon="💪" label="PT Sessions"
           value={hasPT ? remainPT : 0} sub={hasPT ? `${usedPT} used · ${totalPT} total` : 'No active PT'}
@@ -191,7 +192,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
           <SectionCard title="Quick Actions" icon="⚡">
             <div className="dash-quick-actions">
               <QuickActionBtn icon="🎟️" label="Invitations"   sub={`${invitationsRemain} left`}    onClick={() => go('invitations')} accent="#22c55e" />
-              <QuickActionBtn icon="✅" label="Check-Ins"     sub={`${checkIns.length} total`}      onClick={() => go('checkins')}    accent="#22c55e" />
+              <QuickActionBtn icon="✅" label="Check-Ins"     sub={`${checkInTotal} total`}      onClick={() => go('checkins')}    accent="#22c55e" />
               <QuickActionBtn icon="�" label="Packages"                                             onClick={() => go('packages')}   accent="#44298C" />
               <QuickActionBtn icon="🧊" label="Freeze"        sub={`${freezeRemain}d left`}          onClick={() => go('freeze')}     accent="#38bdf8" />
               <QuickActionBtn icon="💬" label="Call Center"   sub={`${notes.length} notes`}          onClick={() => go('callcenter')} accent="#f59e0b" />
@@ -283,7 +284,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border)' }}>
                   <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Total</p>
-                  <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--t1)' }}>{checkIns.length}</p>
+                  <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--t1)' }}>{checkInTotal}</p>
                 </div>
                 <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border)' }}>
                   <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>This Month</p>

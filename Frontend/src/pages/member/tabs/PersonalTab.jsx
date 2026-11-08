@@ -93,7 +93,7 @@ export default function PersonalTab({ member, user, onRefresh }) {
         <InfoRow label="Status"            value={<Badge status={member.status} />} />
         <InfoRow label="Added By"          value={member.createdBy?.name} />
         <InfoRow label="Added On"          value={fmtDate(member.createdAt)} />
-        <InfoRow label="Assigned Sales Rep" value={member.assignedSales ? `${member.assignedSales.name} (${member.assignedSales.role})` : 'Unassigned'} />
+        <InfoRow label="Assigned Sales Rep" value={member.assignedSales ? `${member.assignedSales.name} (${member.assignedSales.role})` : '—'} />
       </Card>
 
       <Modal open={showAssign} onClose={() => setShowAssign(false)} title="Assign Sales Rep" size="sm"

@@ -8,6 +8,7 @@ import Layout from '../components/Layout';
 import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, fmtDate, Pagination } from '../components/ui';
 import { getAllMembers } from '../api/endpoints';
 import AddMemberModal from '../components/AddMemberModal';
+import { formatSystemId } from '../lib/systemId';
 
 const PAGE_SIZE = 20;
 
@@ -113,7 +114,7 @@ export default function Members() {
                     <tr key={m._id} className="tbl-row" onClick={() => navigate(`/members/${m.systemId}`)}
                       style={{ cursor: 'pointer', borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}>
-                        #{m.systemId}{m.memberId ? ` / M${m.memberId}` : ''}
+                        {formatSystemId(m.systemId)}{m.memberId ? ` / M${m.memberId}` : ''}
                       </td>
                       <td style={{ padding: '10px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -129,7 +130,7 @@ export default function Members() {
                         {fmtDate(sub?.endDate)}{expiring && <span style={{ display: 'block', fontSize: 10, color: 'var(--amber)' }}>Expiring soon</span>}
                       </td>
                       <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
-                        {m.assignedSales?.name ?? <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
+                        {m.assignedSales?.name ?? <span style={{ color: 'var(--t4)' }}>—</span>}
                       </td>
                       <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
                         <Btn variant="outline" size="xs" onClick={() => navigate(`/members/${m.systemId}`)}>View</Btn>

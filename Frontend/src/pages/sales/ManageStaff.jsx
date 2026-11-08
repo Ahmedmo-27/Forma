@@ -5,11 +5,25 @@ import Layout from '../../components/Layout';
 import { PageHeader, Card, Input, Select, Btn, Spinner } from '../../components/ui';
 import { createStaffUser } from '../../api/endpoints';
 import { isValidEmail, isValidPhone } from '../../lib/validation';
+import { useAuth } from '../../context/AuthContext';
+
+const GYM_ROLES = [
+  ['Owner', 'Owner'],
+  ['General Manager', 'General Manager'],
+  ['Sales Manager', 'Sales Manager'],
+  ['Sales', 'Sales Representative'],
+  ['Coach Manager', 'Coach Manager'],
+  ['Coach', 'Coach'],
+  ['Receptionist', 'Receptionist'],
+  ['Accountant', 'Accountant'],
+];
 
 const INIT = { name: '', email: '', mobile_number: '', password: '', role: 'Sales' };
 
 export default function ManageStaff() {
   usePageTitle('Manage Staff');
+  const { user } = useAuth();
+  const roleOptions = user?.role === 'Owner' ? GYM_ROLES : GYM_ROLES.filter(([role]) => role !== 'Owner');
   const [form, setForm] = useState(INIT);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -48,7 +62,7 @@ export default function ManageStaff() {
       e.password = 'Password must not exceed 200 characters';
     }
 
-    if (!['Sales', 'Receptionist', 'Accountant'].includes(form.role)) {
+    if (!roleOptions.some(([role]) => role === form.role)) {
       e.role = 'Please select a valid staff role';
     }
 
@@ -82,7 +96,7 @@ export default function ManageStaff() {
 
   return (
     <Layout>
-      <PageHeader title="Manage Staff" subtitle="Create accounts for sales representatives, receptionists, and accountants" />
+      <PageHeader title="Manage Staff" subtitle="Create a staff account for any role on the platform" />
 
       <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32, maxWidth: 480 }}>
         <Card>
@@ -119,9 +133,9 @@ export default function ManageStaff() {
               value={form.role}
               onChange={(e) => set('role', e.target.value)}
             >
-              <option value="Sales">Sales Representative</option>
-              <option value="Receptionist">Receptionist</option>
-              <option value="Accountant">Accountant</option>
+              {roleOptions.map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
             </Select>
             <div style={{ paddingTop: 4 }}>
               <Btn type="submit" disabled={loading}>

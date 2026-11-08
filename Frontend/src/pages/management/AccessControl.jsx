@@ -1,9 +1,17 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, Badge } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
-import { searchAccessUsers, getUserAccess, updateUserAccess } from '../../api/endpoints';
+import { listAccessUsersByRole, getUserAccess, updateUserAccess } from '../../api/endpoints';
+import { useAuth } from '../../context/AuthContext';
+
+const ROLE_CHOICES = {
+  Owner: ['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
+  'General Manager': ['Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
+  'Sales Manager': ['Sales', 'Receptionist'],
+  'Coach Manager': ['Coach'],
+};
 
 function Toggle({ checked, onChange, disabled }) {
   return (
@@ -52,56 +60,39 @@ function enabledKeys(groups) {
 
 export default function AccessControl() {
   usePageTitle('Access Control');
-  const [query, setQuery] = useState('');
-  const [results, setResults] = useState([]);
-  const [searching, setSearching] = useState(false);
-  const [open, setOpen] = useState(false);
+  const { user } = useAuth();
+  const roles = ROLE_CHOICES[user?.role] || [];
+  const [role, setRole] = useState('');
+  const [people, setPeople] = useState([]);
+  const [loadingPeople, setLoadingPeople] = useState(false);
   const [selected, setSelected] = useState(null);
   const [groups, setGroups] = useState([]);
   const [draft, setDraft] = useState({});
   const [loadingAccess, setLoadingAccess] = useState(false);
   const [saving, setSaving] = useState(false);
-  const boxRef = useRef(null);
 
   useEffect(() => {
-    const close = (event) => {
-      if (boxRef.current && !boxRef.current.contains(event.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, []);
-
-  useEffect(() => {
-    const q = query.trim();
-    if (q.length < 1) {
-      setResults([]);
-      setSearching(false);
+    if (!role) {
+      setPeople([]);
       return undefined;
     }
     let cancelled = false;
-    setSearching(true);
-    const timer = setTimeout(() => {
-      searchAccessUsers(q)
-        .then((res) => {
-          if (!cancelled) setResults(res.data.users || []);
-        })
-        .catch(() => {
-          if (!cancelled) setResults([]);
-        })
-        .finally(() => {
-          if (!cancelled) setSearching(false);
-        });
-    }, 250);
-    return () => {
-      cancelled = true;
-      clearTimeout(timer);
-    };
-  }, [query]);
+    setLoadingPeople(true);
+    listAccessUsersByRole(role)
+      .then((res) => {
+        if (!cancelled) setPeople(res.data.users || []);
+      })
+      .catch(() => {
+        if (!cancelled) setPeople([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPeople(false);
+      });
+    return () => { cancelled = true; };
+  }, [role]);
 
   const chooseUser = async (person) => {
     setSelected(person);
-    setQuery(person.name);
-    setOpen(false);
     setLoadingAccess(true);
     try {
       const res = await getUserAccess(person._id);
@@ -162,56 +153,52 @@ export default function AccessControl() {
             Choose a staff member
           </h3>
           <p style={{ fontSize: 12, color: 'var(--t4)', marginBottom: 14 }}>
-            Search by name. Each result shows the person and their role.
+            Filter by role, then choose the person.
           </p>
-          <div ref={boxRef} style={{ position: 'relative', maxWidth: 480 }}>
-            <input
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setOpen(true);
-                if (selected && event.target.value !== selected.name) setSelected(null);
-              }}
-              onFocus={() => setOpen(true)}
-              placeholder="Search staff by name"
-              aria-label="Search staff by name"
-              style={{
-                width: '100%', boxSizing: 'border-box',
-                padding: '10px 12px', borderRadius: 8,
-                border: '1px solid var(--border)', background: 'var(--card)',
-                color: 'var(--t1)', fontSize: 13,
-              }}
-            />
-            {open && query.trim() && (
-              <div style={{
-                position: 'absolute', zIndex: 20, top: 'calc(100% + 4px)', left: 0, right: 0,
-                background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8,
-                boxShadow: '0 8px 24px rgba(0,0,0,0.12)', overflow: 'hidden',
-              }}>
-                {searching && (
-                  <div style={{ padding: 12, display: 'flex', justifyContent: 'center' }}><Spinner size="sm" /></div>
-                )}
-                {!searching && results.length === 0 && (
-                  <div style={{ padding: '12px 14px', fontSize: 12, color: 'var(--t4)' }}>No matching staff</div>
-                )}
-                {!searching && results.map((person) => (
-                  <button
-                    key={person._id}
-                    type="button"
-                    onClick={() => chooseUser(person)}
-                    style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                      width: '100%', textAlign: 'left', padding: '10px 14px',
-                      background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)',
-                      cursor: 'pointer', color: 'var(--t1)',
-                    }}
-                  >
-                    <span style={{ fontSize: 13, fontWeight: 600 }}>{person.name}</span>
-                    <Badge status={person.role} />
-                  </button>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, maxWidth: 640 }}>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 200px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
+              Role
+              <select
+                value={role}
+                aria-label="Role"
+                onChange={(event) => {
+                  setRole(event.target.value);
+                  setSelected(null);
+                  setGroups([]);
+                  setDraft({});
+                }}
+                style={{
+                  padding: '10px 12px', borderRadius: 8,
+                  border: '1px solid var(--border)', background: 'var(--card)',
+                  color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
+                }}
+              >
+                <option value="">Choose a role</option>
+                {roles.map((item) => <option key={item} value={item}>{item}</option>)}
+              </select>
+            </label>
+            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 240px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
+              Staff member
+              <select
+                value={selected?._id || ''}
+                aria-label="Staff member"
+                disabled={!role || loadingPeople}
+                onChange={(event) => {
+                  const person = people.find((item) => item._id === event.target.value);
+                  if (person) chooseUser(person);
+                }}
+                style={{
+                  padding: '10px 12px', borderRadius: 8,
+                  border: '1px solid var(--border)', background: 'var(--card)',
+                  color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
+                }}
+              >
+                <option value="">{loadingPeople ? 'Loading…' : 'Choose a person'}</option>
+                {people.map((person) => (
+                  <option key={person._id} value={person._id}>{person.name}</option>
                 ))}
-              </div>
-            )}
+              </select>
+            </label>
           </div>
         </Card>
 

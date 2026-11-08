@@ -8,6 +8,8 @@ import { PageHeader, Tabs, Badge, Btn, Spinner, Skeleton, Modal, Input } from '.
 import { getMemberProfile, checkInMember, blockMember, unblockMember, refundMember } from '../../api/endpoints';
 import ProfilePhotoUpload from '../../components/ProfilePhotoUpload';
 import Barcode from 'react-barcode';
+import MemberQrButton from '../../components/MemberQrButton';
+import { formatSystemId } from '../../lib/systemId';
 import PersonalTab    from './tabs/PersonalTab';
 import PackagesTab    from './tabs/PackagesTab';
 import CallCenterTab  from './tabs/CallCenterTab';
@@ -147,6 +149,7 @@ export default function MemberProfile() {
         </div>
       }>
         <div className="member-profile-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          {member && <MemberQrButton member={member} />}
           {member && ['Receptionist', 'Owner', 'Sales Manager'].includes(user?.role) && (
             <Btn variant={member.status === 'active' || member.status === 'frozen' ? 'success' : 'outline'} size="sm"
               onClick={handleCheckIn} disabled={checkingIn || member.status === 'expired' || member.status === 'guest' || member.isBlocked}>
@@ -417,7 +420,7 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
         {/* Row 2: IDs + gender + phone + last check-in */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
           {member.memberId  && <Chip icon="🪪" label={`Member ID: ${member.memberId}`}    copyVal={String(member.memberId)} />}
-          {member.systemId  && <Chip icon="🔢" label={`Member Code: ${member.systemId}`}  copyVal={String(member.systemId)} />}
+          {member.systemId  && <Chip icon="🔢" label={`System ID: ${formatSystemId(member.systemId)}`}  copyVal={formatSystemId(member.systemId)} />}
           {member.gender    && <Chip icon="👤" label={member.gender.charAt(0).toUpperCase() + member.gender.slice(1)} />}
           {member.phones && <PhoneChip phone={member.phones} />}
           {lastCheckIn      && (

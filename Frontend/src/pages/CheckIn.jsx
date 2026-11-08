@@ -4,15 +4,16 @@ import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
 import Layout from '../components/Layout';
 import { Badge, Avatar, Spinner, fmtDate, EmptyState } from '../components/ui';
+import { formatSystemId } from '../lib/systemId';
 import { checkInMember, getMemberProfile, getTodayCheckIns } from '../api/endpoints';
 import { subscribeLiveEvents } from '../api/live';
 
 // ── small stat pill ───────────────────────────────────────────────────────────
 function StatPill({ label, value, color = 'var(--t1)' }) {
   return (
-    <div style={{ textAlign: 'center', flex: 1 }}>
-      <div style={{ fontSize: 22, fontWeight: 900, color, lineHeight: 1 }}>{value}</div>
-      <div style={{ fontSize: 10, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)', marginTop: 4 }}>{label}</div>
+    <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 15, fontWeight: 800, color, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--t4)', marginTop: 3 }}>{label}</div>
     </div>
   );
 }
@@ -201,44 +202,31 @@ export default function CheckIn() {
     <Layout>
       <div style={{ minHeight: 'calc(100svh - 112px)', display: 'flex', flexDirection: 'column' }}>
 
-        {/* ── Hero header bar ─────────────────────────────────── */}
-        <div style={{
-          background: 'linear-gradient(135deg, #1E1535 0%, #2D1B69 60%, #44298C 100%)',
-          padding: '28px 32px 24px',
-          position: 'relative', overflow: 'hidden',
-        }}>
-          {/* Decorative circles */}
-          <div style={{ position: 'absolute', width: 300, height: 300, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', top: -100, right: -60, pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', width: 200, height: 200, borderRadius: '50%', background: 'rgba(0,240,255,0.04)', bottom: -80, right: 200, pointerEvents: 'none' }} />
-
-          <div style={{ position: 'relative', maxWidth: 1600, margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 16 }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>✅</div>
-                <h1 style={{ fontSize: 22, fontWeight: 900, color: '#fff', margin: 0, letterSpacing: '-0.3px' }}>Check In</h1>
-              </div>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', margin: 0 }}>{today}</p>
-            </div>
-
-            {/* Today stats */}
-            <div style={{ display: 'flex', gap: 0, background: 'rgba(255,255,255,0.08)', borderRadius: 12, padding: '12px 0', minWidth: 220 }}>
-              <StatPill label="Today" value={histLoad ? '…' : todayCount} color="#fff" />
-              <div style={{ width: 1, background: 'rgba(255,255,255,0.12)', margin: '4px 0' }} />
-              <StatPill label="Active" value={histLoad ? '…' : activeToday} color="#4ade80" />
-              <div style={{ width: 1, background: 'rgba(255,255,255,0.12)', margin: '4px 0' }} />
-              <StatPill label="This Month" value="—" color="rgba(255,255,255,0.55)" />
-            </div>
-          </div>
-        </div>
-
         {/* ── Main content ─────────────────────────────────────── */}
         <div style={{ flex: 1, background: 'var(--bg)', padding: '24px 32px 40px' }}>
-          <div style={{ maxWidth: 1600, margin: '0 auto', display: 'grid', gridTemplateColumns: '400px 1fr', gap: 20, alignItems: 'start' }}>
+          <div style={{ maxWidth: 1600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-            {/* ── LEFT PANEL ─────────────────────────────────── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {/* Check In on the left, Find Member centered, stats on the right */}
+            <div className="checkin-top" style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr minmax(280px, 520px) 1fr',
+              alignItems: 'center',
+              gap: 20,
+            }}>
+              <div className="checkin-side" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                    background: 'rgba(68,41,140,0.10)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+                  }}>✅</div>
+                  <div>
+                    <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--t1)', margin: 0, letterSpacing: '-0.3px' }}>Check In</h1>
+                    <p style={{ fontSize: 12, color: 'var(--t4)', margin: '2px 0 0' }}>{today}</p>
+                  </div>
+                </div>
+              </div>
 
-              {/* Search box */}
               <div style={{
                 background: 'var(--card)', borderRadius: 16, overflow: 'hidden',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06)',
@@ -260,7 +248,7 @@ export default function CheckIn() {
                           ref={inputRef}
                           value={query}
                           onChange={e => { setQuery(e.target.value); setMember(null); setResult(null); }}
-                          placeholder="e.g. 100123 or 0101234…"
+                          placeholder="e.g. S100 or 0101234…"
                           autoFocus
                           style={{
                             width: '100%', padding: '11px 12px 11px 36px', fontSize: 14,
@@ -287,12 +275,30 @@ export default function CheckIn() {
                 </div>
               </div>
 
-              {/* Member card */}
+              <div className="checkin-side" style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                <div style={{
+                  background: 'var(--card)', borderRadius: 12, overflow: 'hidden',
+                  border: '1px solid var(--border)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                  display: 'flex', gap: 0, padding: '10px 6px',
+                  width: '100%', maxWidth: 240,
+                }}>
+                  <StatPill label="Today" value={histLoad ? '…' : todayCount} />
+                  <div style={{ width: 1, background: 'var(--border)', margin: '2px 0' }} />
+                  <StatPill label="Active" value={histLoad ? '…' : activeToday} color="var(--green)" />
+                  <div style={{ width: 1, background: 'var(--border)', margin: '2px 0' }} />
+                  <StatPill label="This Month" value="—" color="var(--t4)" />
+                </div>
+              </div>
+            </div>
+
+            {/* Member card */}
               {member && (
                 <div style={{
                   background: 'var(--card)', borderRadius: 16, overflow: 'hidden',
                   border: '1px solid var(--border)',
                   boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06)',
+                  width: '100%', maxWidth: 520, margin: '0 auto',
                 }}>
                   {/* Gradient header */}
                   <div style={{
@@ -310,7 +316,7 @@ export default function CheckIn() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <Badge status={member.isBlocked ? 'blocked' : member.status} />
                         <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: 'monospace' }}>
-                          #{member.systemId}{member.memberId ? ` · M${member.memberId}` : ''}
+                          {formatSystemId(member.systemId)}{member.memberId ? ` · M${member.memberId}` : ''}
                         </span>
                       </div>
                       {member.phones && (
@@ -422,22 +428,12 @@ export default function CheckIn() {
                 </div>
               )}
 
-              {/* Empty state */}
-              {!member && !searching && (
-                <div style={{ background: 'var(--card)', borderRadius: 16, border: '2px dashed var(--border)', padding: '40px 24px', textAlign: 'center' }}>
-                  <div style={{ fontSize: 48, opacity: 0.2, marginBottom: 12 }}>🔍</div>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--t3)', marginBottom: 4 }}>No member loaded</p>
-                  <p style={{ fontSize: 12, color: 'var(--t4)' }}>Search for a member above to check them in</p>
-                </div>
-              )}
-            </div>
-
-            {/* ── RIGHT PANEL: Today's history ────────────────── */}
+            {/* Today's Activity spans the content width */}
             <div style={{
               background: 'var(--card)', borderRadius: 16, overflow: 'hidden',
               border: '1px solid var(--border)',
               boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06)',
-              position: 'sticky', top: 20,
+              width: '100%',
             }}>
               {/* Header */}
               <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg)' }}>
@@ -464,11 +460,11 @@ export default function CheckIn() {
               </div>
 
               {/* List */}
-              <div style={{ maxHeight: 'calc(100svh - 280px)', overflowY: 'auto' }}>
+              <div style={{ maxHeight: 560, overflowY: 'auto' }}>
                 {histLoad ? (
                   <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
                 ) : history.length === 0 ? (
-                  <EmptyState icon="✅" message="No check-ins yet today" sub="Start checking in members using the panel on the left" />
+                  <EmptyState icon="✅" message="No check-ins yet today" sub="Search for a member above to check them in" />
                 ) : (
                   history.map((entry, i) => (
                     <div
@@ -503,7 +499,7 @@ export default function CheckIn() {
                           {entry.member.name}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2, display: 'flex', gap: 6 }}>
-                          <span style={{ fontFamily: 'monospace' }}>#{entry.member.systemId}</span>
+                          <span style={{ fontFamily: 'monospace' }}>{formatSystemId(entry.member.systemId)}</span>
                           {entry.member.package && <span>· {entry.member.package.name}</span>}
                         </div>
                       </div>
@@ -557,7 +553,8 @@ export default function CheckIn() {
 
       <style>{`
         @media (max-width: 960px) {
-          .checkin-grid { grid-template-columns: 1fr !important; }
+          .checkin-top { grid-template-columns: 1fr !important; }
+          .checkin-side { justify-content: flex-start !important; }
         }
       `}</style>
     </Layout>

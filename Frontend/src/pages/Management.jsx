@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { PageHeader } from '../components/ui';
 import usePageTitle from '../hooks/usePageTitle';
 import { useAuth } from '../context/AuthContext';
+import { hasAccess } from '../lib/access';
 
 function MgmtCard({ icon, title, sub, to, iconBg = '#F0F9FF' }) {
   const navigate = useNavigate();
@@ -52,10 +53,24 @@ export default function Management() {
   usePageTitle('Management');
   const { user } = useAuth();
 
-  const isSales      = user?.role === 'Sales';
-  const isManager    = ['Sales Manager', 'Owner', 'General Manager'].includes(user?.role);
-  const isAccountant = user?.role === 'Accountant';
-  const isCoachMgr   = user?.role === 'Coach Manager';
+  const allow = (key) => hasAccess(user, key);
+  const canTasks = allow('members') && ['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Coach Manager'].includes(user?.role);
+  const show = {
+    requests: allow(['approve_requests', 'request_assignment', 'request_takeover']),
+    transfer: canTasks,
+    packages: allow('packages'),
+    whatsapp: allow('whatsapp_templates'),
+    salesTeam: allow('sales_team'),
+    staff: allow('staff'),
+    contracts: allow('contracts'),
+    coachTeam: allow('coach_team'),
+    coachStaff: allow('coach_staff'),
+    coachTransfers: user?.role === 'Coach Manager' && allow('my_transfers'),
+    teams: allow('teams_overview'),
+    roleAccess: ['Owner', 'General Manager'].includes(user?.role) && allow('access_control'),
+    accessControl: allow('access_control'),
+    packageRequests: allow('package_approvals'),
+  };
 
   return (
     <Layout>
@@ -63,62 +78,63 @@ export default function Management() {
       <div className="page-wrap" style={{ paddingTop: 24, paddingBottom: 40 }}>
 
         {/* ── Operations ──────────────────────────────────────── */}
-        <Section title="Operations" sub="Requests, transfers and configuration">
-          {(isSales || isManager) && (
-            <MgmtCard icon="📋" title="Requests"    sub="Package assignment requests"      to="/sales/requests"           iconBg="#F0F9FF" />
-          )}
-          {isManager && (
-            <MgmtCard icon="🔄" title="Transfer"    sub="Transfer members between reps"    to="/sales/transfer"           iconBg="#F0F9FF" />
-          )}
-          {isManager && (
-            <MgmtCard icon="📦" title="Packages"    sub="Manage membership packages"       to="/sales/packages"           iconBg="#F0F9FF" />
-          )}
-          {(isManager || isAccountant || isCoachMgr) && (
-            <MgmtCard icon="💬" title="WA Messages" sub="WhatsApp message templates"
-              to={isCoachMgr ? '/coach/whatsapp-templates' : '/sales/whatsapp-templates'}
-              iconBg="#F0FDF4" />
-          )}
-        </Section>
+        {(show.requests || show.transfer || show.packages || show.whatsapp) && (
+          <Section title="Operations" sub="Requests, transfers and configuration">
+            {show.requests && (
+              <MgmtCard icon="📋" title="Requests"    sub="Package assignment requests"      to="/sales/requests"           iconBg="#F0F9FF" />
+            )}
+            {show.transfer && (
+              <MgmtCard icon="🔄" title="Transfer"    sub="Transfer members between reps and coaches" to="/tasks" iconBg="#F0F9FF" />
+            )}
+            {show.packages && (
+              <MgmtCard icon="📦" title="Packages"    sub="Manage membership packages"       to="/sales/packages"           iconBg="#F0F9FF" />
+            )}
+            {show.whatsapp && (
+              <MgmtCard icon="💬" title="WA Messages" sub="WhatsApp message templates"
+                to={user?.role === 'Coach Manager' ? '/coach/whatsapp-templates' : '/sales/whatsapp-templates'}
+                iconBg="#F0FDF4" />
+            )}
+          </Section>
+        )}
 
-        {/* ── Team & Staff ─────────────────────────────────────── */}
-        {(isManager || isAccountant || isCoachMgr) && (
+        {(show.salesTeam || show.staff || show.contracts || show.coachTeam || show.coachStaff || show.coachTransfers) && (
           <Section title="Team & Staff" sub="Team members and staff accounts">
-            {isManager && (
+            {show.salesTeam && (
               <MgmtCard icon="👥" title="Sales Team"  sub="Sales team overview & stats"      to="/sales/team"   iconBg="#FFF7ED" />
             )}
-            {isManager && (
+            {show.staff && (
               <MgmtCard icon="🧑‍💼" title="Staff"   sub="Manage staff accounts"            to="/sales/staff"  iconBg="#FFF7ED" />
             )}
-            {(isManager || isAccountant) && (
+            {show.contracts && (
               <MgmtCard icon="📜" title="Contracts"   sub="All member contracts"             to="/accounting/contract-history" iconBg="#FFF7ED" />
             )}
-            {isCoachMgr && (
+            {show.coachTeam && (
               <MgmtCard icon="👥" title="Coach Team"  sub="Coach team overview & stats"      to="/coach/team"   iconBg="#FFF7ED" />
             )}
-            {isCoachMgr && (
+            {show.coachStaff && (
               <MgmtCard icon="🧑‍💼" title="Staff"   sub="Manage coach staff accounts"      to="/coach/staff"  iconBg="#FFF7ED" />
             )}
-            {isCoachMgr && (
+            {show.coachTransfers && (
               <MgmtCard icon="🔄" title="Transfers"   sub="Coach member transfers log"       to="/coach/my-transfers" iconBg="#FFF7ED" />
             )}
           </Section>
         )}
 
-        {/* ── Admin (Owner only) ───────────────────────────────── */}
-        {(user?.role === 'Owner' || user?.role === 'General Manager' || isManager || isCoachMgr) && (
+        {(show.teams || show.roleAccess || show.accessControl) && (
           <Section title="Admin" sub={user?.role === 'Owner' ? 'Owner tools and staff access' : 'Staff access for your team'}>
-            {(user?.role === 'Owner' || user?.role === 'General Manager') && (
+            {show.teams && (
               <MgmtCard icon="🏢" title="Teams Overview" sub="All teams at a glance"           to="/owner/teams"  iconBg="#F5F3FF" />
             )}
-            {(user?.role === 'Owner' || user?.role === 'General Manager') && (
+            {show.roleAccess && (
               <MgmtCard icon="🛡️" title="Role Access" sub="Turn areas on or off for a role" to="/owner/access" iconBg="#F5F3FF" />
             )}
-            <MgmtCard icon="🔑" title="Access Control" sub="Grant or remove features for a staff member" to="/management/access" iconBg="#F5F3FF" />
+            {show.accessControl && (
+              <MgmtCard icon="🔑" title="Access Control" sub="Grant or remove features for a staff member" to="/management/access" iconBg="#F5F3FF" />
+            )}
           </Section>
         )}
 
-        {/* ── Accounting ───────────────────────────────────────── */}
-        {isAccountant && (
+        {show.packageRequests && (
           <Section title="Accounting" sub="Financial management tools">
             <MgmtCard icon="📨" title="Package Requests" sub="Pending package approvals"    to="/accounting/package-requests" iconBg="#F0FDF4" />
           </Section>

@@ -5,7 +5,8 @@ import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, fmtDate, Pagination } from '../../components/ui';
+import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, fmtDate, Pagination, Select } from '../../components/ui';
+import { formatSystemId } from '../../lib/systemId';
 import { getAllMembers } from '../../api/endpoints';
 import AddMemberModal from '../../components/AddMemberModal';
 
@@ -23,12 +24,14 @@ export default function SalesMembers() {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
   const [stats, setStats] = useState({ total: 0, active: 0, frozen: 0, expired: 0, guest: 0 });
   const [showAdd,  setShowAdd]  = useState(false);
+  const [extra, setExtra] = useState('');
   const debouncedSearch = useDebounce(search, 300);
 
   const fetchMembers = useCallback(async (override = {}) => {
     const status = override.status ?? filter;
     const pageNum = override.page ?? page;
     const search = override.search ?? debouncedSearch;
+    const extraFilter = override.extra ?? extra;
     setLoading(true);
     try {
       const res = await getAllMembers({
@@ -38,16 +41,19 @@ export default function SalesMembers() {
         search: search || undefined,
         sortBy: 'createdAt',
         sortDir: -1,
+        transferred: extraFilter === 'transferred' ? 'true' : undefined,
+        recent: extraFilter === 'recent' ? 'true' : undefined,
+        expiringSoon: extraFilter === 'expiring' ? 'true' : undefined,
       });
       setMembers(res.data.members ?? []);
       setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
       if (res.data.stats) setStats(res.data.stats);
     } catch { toast.error('Failed to load data.'); }
     finally { setLoading(false); }
-  }, [page, filter, debouncedSearch]);
+  }, [page, filter, debouncedSearch, extra]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
-  useEffect(() => { setPage(1); }, [filter, debouncedSearch]);
+  useEffect(() => { setPage(1); }, [filter, debouncedSearch, extra]);
 
   const paginated = members;
 
@@ -59,6 +65,15 @@ export default function SalesMembers() {
       </PageHeader>
 
       <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+        <div style={{ maxWidth: 280, marginBottom: 12 }}>
+          <Select label="More filters" value={extra} onChange={(e) => setExtra(e.target.value)}>
+            <option value="">All of my members</option>
+            <option value="transferred">Transferred to me</option>
+            <option value="recent">Added in the last 30 days</option>
+            <option value="expiring">Expiring in 7 days</option>
+          </Select>
+        </div>
+
         <div className="grid-stats-5">
           <StatCard label="Total"   value={loading ? '—' : stats.total}   color="brand" />
           <StatCard label="Active"  value={loading ? '—' : stats.active}  color="success" />
@@ -85,7 +100,7 @@ export default function SalesMembers() {
                   return (
                     <tr key={m._id} className="tbl-row" onClick={() => navigate(`/members/${m.systemId}`)}
                       style={{ cursor: 'pointer', borderBottom: '1px solid var(--border)' }}>
-                      <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}>#{m.systemId}</td>
+                      <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}>{formatSystemId(m.systemId)}</td>
                       <td style={{ padding: '10px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <Avatar name={m.name} size="sm" />

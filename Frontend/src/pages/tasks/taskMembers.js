@@ -1,3 +1,5 @@
+import { formatSystemId } from '../../lib/systemId';
+
 export const GROUPS = [
   { id: 'expired', label: 'Expired', hint: 'Memberships that have ended' },
   { id: 'guest', label: 'Guest', hint: 'People who have not subscribed' },
@@ -79,7 +81,7 @@ export function columnValue(member, key) {
   const sub = latestSubscription(member);
   switch (key) {
     case 'name': return member.name || '';
-    case 'systemId': return member.systemId ?? '';
+    case 'systemId': return formatSystemId(member.systemId);
     case 'memberId': return member.memberId ?? '';
     case 'phone': return memberPhone(member);
     case 'status': return member.status || '';
@@ -102,6 +104,31 @@ export function csvEscape(value) {
   return text;
 }
 
+function escapeXml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+/** Excel SpreadsheetML. Excel opens this as a workbook without an extra dependency. */
+export function buildExcel(columns, rows) {
+  const header = columns.map((col) => `<Cell><Data ss:Type="String">${escapeXml(col.label)}</Data></Cell>`).join('');
+  const body = rows.map((row) => {
+    const cells = columns.map((col) => `<Cell><Data ss:Type="String">${escapeXml(columnValue(row, col.key))}</Data></Cell>`).join('');
+    return `<Row>${cells}</Row>`;
+  }).join('');
+  return `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+<Worksheet ss:Name="Members"><Table>
+<Row>${header}</Row>
+${body}
+</Table></Worksheet>
+</Workbook>`;
+}
+
 export function buildCsv(columns, rows) {
   const header = columns.map((col) => csvEscape(col.label)).join(',');
   const body = rows.map((row) => columns.map((col) => csvEscape(columnValue(row, col.key))).join(','));
@@ -109,7 +136,12 @@ export function buildCsv(columns, rows) {
 }
 
 export function columnsForExport(keys) {
-  return EXPORT_COLUMNS.filter((col) => keys.includes(col.key));
+  const chosen = EXPORT_COLUMNS.filter((col) => keys.includes(col.key));
+  if (!chosen.some((col) => col.key === 'salesman')) {
+    const salesRep = EXPORT_COLUMNS.find((col) => col.key === 'salesman');
+    if (salesRep) chosen.push(salesRep);
+  }
+  return chosen;
 }
 
 export function rowsForExport(selectedMembers, filtered) {
@@ -131,6 +163,7 @@ export function filterMembers(members, query) {
       member.name?.toLowerCase().includes(q)
       || phone.includes(q)
       || String(member.systemId ?? '').includes(q)
+      || formatSystemId(member.systemId).toLowerCase().includes(q)
       || salesmanName(member).toLowerCase().includes(q)
       || salesName(member).toLowerCase().includes(q)
       || coachName(member).toLowerCase().includes(q)

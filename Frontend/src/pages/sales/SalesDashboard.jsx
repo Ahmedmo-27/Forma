@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, CardHeader, StatCard, Spinner, Avatar, Badge, EmptyState, fmtDate } from '../../components/ui';
@@ -67,7 +68,7 @@ export default function SalesDashboard() {
   usePageTitle('Dashboard');
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isManager = ['Sales Manager', 'Owner'].includes(user?.role);
+  const isManager = ['Sales Manager', 'Owner', 'General Manager'].includes(user?.role);
 
   const [loading, setLoading]   = useState(true);
   const [members, setMembers]   = useState([]);
@@ -155,9 +156,6 @@ export default function SalesDashboard() {
     const end = new Date(sub.endDate);
     return end >= now && end <= weekFromNow;
   });
-
-  // Unassigned
-  const unassigned = members.filter(m => !m.assignedSales);
 
   // Today's subscriptions for Sales rep — only today (resets at midnight)
   const today = new Date();
@@ -335,35 +333,6 @@ export default function SalesDashboard() {
                   </Card>
                 )}
 
-                {/* Unassigned members */}
-                {isManager && unassigned.length > 0 && (
-                  <Card noPad>
-                    <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
-                        Unassigned Members ({unassigned.length})
-                      </span>
-                      <span style={{ fontSize: 11, background: 'var(--amber-bg)', color: 'var(--amber)', border: '1px solid var(--amber-bd)', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
-                        Needs Assignment
-                      </span>
-                    </div>
-                    <div style={{ maxHeight: 220, overflowY: 'auto' }}>
-                      {unassigned.slice(0, 8).map(m => (
-                        <div key={m._id} onClick={() => navigate(`/members/${m.systemId}`)}
-                          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
-                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                        >
-                          <Avatar name={m.name} size="sm" />
-                          <div style={{ flex: 1 }}>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{m.name}</div>
-                            <div style={{ fontSize: 11, color: 'var(--t4)' }}>#{m.systemId} · <Badge status={m.status} /></div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </Card>
-                )}
-
                 {/* Today's Activity box */}
                 <StatCard
                   label="Today's Activity"
@@ -382,7 +351,9 @@ export default function SalesDashboard() {
                   <Card noPad>
                     <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Team Performance</span>
-                      <span onClick={() => navigate('/sales/team')} style={{ fontSize: 11, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>View team →</span>
+                      {hasAccess(user, 'sales_team') && (
+                        <span onClick={() => navigate('/sales/team')} style={{ fontSize: 11, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>View team →</span>
+                      )}
                     </div>
                     {salesReps.length === 0 ? (
                       <EmptyState message="No sales reps found" />
@@ -422,11 +393,11 @@ export default function SalesDashboard() {
                   {/* Quick links */}
                   <div className="grid-2" style={{ gap: 10 }}>
                     {[
-                      { label: 'Targets', sub: 'Revenue tracking', to: '/sales/targets', icon: '📊' },
-                      { label: 'Packages', sub: 'Manage plans', to: '/sales/packages', icon: '📦' },
-                      { label: 'Transfer', sub: 'Move members', to: '/sales/transfer', icon: '🔄' },
-                      { label: 'Staff', sub: 'Create accounts', to: '/sales/staff', icon: '👥' },
-                    ].map(c => (
+                      { label: 'Targets', sub: 'Revenue tracking', to: '/sales/targets', icon: '📊', access: 'targets' },
+                      { label: 'Packages', sub: 'Manage plans', to: '/sales/packages', icon: '📦', access: 'packages' },
+                      { label: 'Transfer', sub: 'Move members', to: '/tasks', icon: '🔄', access: 'members' },
+                      { label: 'Staff', sub: 'Create accounts', to: '/sales/staff', icon: '👥', access: 'staff' },
+                    ].filter((c) => hasAccess(user, c.access)).map(c => (
                       <button key={c.to} onClick={() => navigate(c.to)} style={{
                         background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8,
                         padding: '14px 16px', textAlign: 'left', cursor: 'pointer',

@@ -39,7 +39,7 @@ const inputStyle = {
 };
 
 export default function ExpiredMembers() {
-  usePageTitle('Expired Members Report');
+  usePageTitle('Members');
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -51,7 +51,6 @@ export default function ExpiredMembers() {
   const [packageId,   setPackageId]   = useState('All');
   const [type,        setType]        = useState('All');
   const [status,      setStatus]      = useState('All');
-  const [renewal,     setRenewal]     = useState('All');
   const [categories,  setCategories]  = useState('All');
   const [gender,      setGender]      = useState('All');
 
@@ -125,13 +124,6 @@ export default function ExpiredMembers() {
           if (snap?.activityType !== type) return false;
         }
 
-        // Renewal filter
-        if (renewal !== 'All') {
-          const isRenewal = lastSub?.isRenewal ?? false;
-          if (renewal === 'ON'  && !isRenewal) return false;
-          if (renewal === 'OFF' &&  isRenewal) return false;
-        }
-
         // Gender filter
         if (gender !== 'All' && m.gender !== gender) return false;
 
@@ -144,7 +136,7 @@ export default function ExpiredMembers() {
     } finally {
       setLoading(false);
     }
-  }, [fromDate, toDate, salesMan, trainerName, packageId, type, status, renewal, categories, gender]);
+  }, [fromDate, toDate, salesMan, trainerName, packageId, type, status, categories, gender]);
 
   const ACTIVITY_TYPES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 
@@ -156,7 +148,7 @@ export default function ExpiredMembers() {
             ← Reports
           </button>
           <span style={{ color: 'var(--border-md)' }}>/</span>
-          <span>Expired Members</span>
+          <span>Members</span>
         </div>
       } />
 
@@ -167,7 +159,7 @@ export default function ExpiredMembers() {
           {/* Heading */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Expired Members</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Members</span>
           </div>
 
           <div style={{ maxWidth: 540 }}>
@@ -223,15 +215,6 @@ export default function ExpiredMembers() {
                 <option value="expired">Expired</option>
                 <option value="active">Active</option>
                 <option value="frozen">Frozen</option>
-              </select>
-            </FilterRow>
-
-            {/* Renewal */}
-            <FilterRow label="Renewal">
-              <select value={renewal} onChange={e => setRenewal(e.target.value)} style={selectStyle}>
-                <option value="All">All</option>
-                <option value="ON">ON</option>
-                <option value="OFF">OFF</option>
               </select>
             </FilterRow>
 

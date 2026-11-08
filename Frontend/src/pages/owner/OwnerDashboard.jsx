@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { hasAccess } from '../../lib/access';
 import { useTenant } from '../../context/TenantContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
@@ -137,11 +138,11 @@ export default function OwnerDashboard() {
 
             {/* KPI row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
-              <StatCard label="Total Members"    value={members.length}   color="brand"    onClick={() => navigate('/members')} />
-              <StatCard label="Today's Revenue"  value={`${fmt(revenue?.todayRevenue ?? 0)} EGP`} color="success" onClick={() => navigate('/sales/targets')} />
-              <StatCard label="This Month"       value={`${fmt(monthRevenue)} EGP`}             color="brand"   onClick={() => navigate('/sales/targets')} />
-              <StatCard label="Pending Packages" value={pendingCount}     color={pendingCount > 0 ? 'warning' : 'default'} onClick={() => navigate('/accounting/package-requests')} />
-              <StatCard label="Pending Requests" value={pendingReqs}      color={pendingReqs > 0 ? 'warning' : 'default'}  onClick={() => navigate('/sales/requests')} />
+              <StatCard label="Total Members"    value={members.length}   color="brand"    onClick={hasAccess(user, 'members') ? () => navigate('/members') : undefined} />
+              <StatCard label="Today's Revenue"  value={`${fmt(revenue?.todayRevenue ?? 0)} EGP`} color="success" onClick={hasAccess(user, 'targets') ? () => navigate('/sales/targets') : undefined} />
+              <StatCard label="This Month"       value={`${fmt(monthRevenue)} EGP`}             color="brand"   onClick={hasAccess(user, 'targets') ? () => navigate('/sales/targets') : undefined} />
+              <StatCard label="Pending Packages" value={pendingCount}     color={pendingCount > 0 ? 'warning' : 'default'} onClick={hasAccess(user, 'package_approvals') ? () => navigate('/accounting/package-requests') : undefined} />
+              <StatCard label="Pending Requests" value={pendingReqs}      color={pendingReqs > 0 ? 'warning' : 'default'}  onClick={hasAccess(user, 'approve_requests') ? () => navigate('/sales/requests') : undefined} />
               <StatCard label="Today's Check-Ins" value={checkIns.length} color="blue"    onClick={() => setShowActivity(true)} />
             </div>
 
@@ -223,7 +224,9 @@ export default function OwnerDashboard() {
               {/* Team overview */}
               <Card>
                 <CardHeader title="Team Overview">
-                  <span onClick={() => navigate('/owner/teams')} style={{ fontSize: 11, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>Manage →</span>
+                  {hasAccess(user, 'teams_overview') && (
+                    <span onClick={() => navigate('/owner/teams')} style={{ fontSize: 11, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>Manage →</span>
+                  )}
                 </CardHeader>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {[
@@ -231,8 +234,8 @@ export default function OwnerDashboard() {
                     { label: 'Coaches',       count: coachTeam.length,        icon: '🏋️', route: '/owner/teams' },
                     { label: 'Receptionists', count: receptionists.length,    icon: '🖥️', route: '/owner/teams' },
                   ].map(t => (
-                    <div key={t.label} onClick={() => navigate(t.route)}
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'var(--bg)', borderRadius: 6, border: '1px solid var(--border)', cursor: 'pointer' }}
+                    <div key={t.label} onClick={hasAccess(user, 'teams_overview') ? () => navigate(t.route) : undefined}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'var(--bg)', borderRadius: 6, border: '1px solid var(--border)', cursor: hasAccess(user, 'teams_overview') ? 'pointer' : 'default' }}
                       onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--navy)'}
                       onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
                     >
@@ -249,17 +252,17 @@ export default function OwnerDashboard() {
                 <CardHeader title="Quick Links" />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   {[
-                    ...(hasFeature('business_intelligence') ? [{ label: 'Executive Summary', icon: '📈', to: '/reports/executive', accent: 'var(--navy)' }] : []),
-                    { label: 'All Members',       icon: '👥', to: '/members',                      accent: 'var(--navy)' },
-                    { label: 'Sales Dashboard',   icon: '📊', to: '/sales/dashboard',              accent: 'var(--blue)' },
-                    { label: 'Packages',          icon: '📦', to: '/sales/packages',               accent: 'var(--green)' },
-                    { label: 'Transfer',          icon: '🔄', to: '/sales/transfer',               accent: 'var(--amber)' },
-                    { label: 'Contracts',         icon: '📋', to: '/accounting/contract-history',  accent: 'var(--sky)' },
-                    { label: 'Revenue',           icon: '💰', to: '/sales/targets',                accent: 'var(--green)' },
-                    { label: 'Pkg Requests',      icon: '🔔', to: '/accounting/package-requests',  accent: 'var(--amber)' },
-                    { label: 'Check-In',          icon: '✅', to: '/checkin',                       accent: 'var(--green)' },
-                    { label: 'Role Access',       icon: '🛡️', to: '/owner/access',                 accent: 'var(--navy)' },
-                  ].map(q => (
+                    ...(hasFeature('business_intelligence') && hasAccess(user, ['reports', 'owner_dashboard']) ? [{ label: 'Executive Summary', icon: '📈', to: '/reports/executive', accent: 'var(--navy)' }] : []),
+                    { label: 'All Members',       icon: '👥', to: '/members',                      accent: 'var(--navy)', access: 'members' },
+                    { label: 'Sales Dashboard',   icon: '📊', to: '/sales/dashboard',              accent: 'var(--blue)', access: 'sales_dashboard' },
+                    { label: 'Packages',          icon: '📦', to: '/sales/packages',               accent: 'var(--green)', access: 'packages' },
+                    { label: 'Transfer',          icon: '🔄', to: '/tasks',                        accent: 'var(--amber)', access: 'members' },
+                    { label: 'Contracts',         icon: '📋', to: '/accounting/contract-history',  accent: 'var(--sky)', access: 'contracts' },
+                    { label: 'Revenue',           icon: '💰', to: '/sales/targets',                accent: 'var(--green)', access: 'targets' },
+                    { label: 'Pkg Requests',      icon: '🔔', to: '/accounting/package-requests',  accent: 'var(--amber)', access: 'package_approvals' },
+                    { label: 'Check-In',          icon: '✅', to: '/checkin',                       accent: 'var(--green)', access: 'check_in' },
+                    { label: 'Role Access',       icon: '🛡️', to: '/owner/access',                 accent: 'var(--navy)', access: 'access_control' },
+                  ].filter((q) => hasAccess(user, q.access)).map(q => (
                     <button key={q.to} onClick={() => navigate(q.to)} style={{
                       background: 'var(--bg)', border: '1px solid var(--border)',
                       borderLeft: `3px solid ${q.accent}`, borderRadius: 7,

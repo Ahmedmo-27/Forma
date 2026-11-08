@@ -31,7 +31,6 @@ import CoachDashboard     from './pages/coach/CoachDashboard';
 import CoachMembers       from './pages/coach/CoachMembers';
 import CoachCheckin       from './pages/coach/CoachCheckin';
 import CoachStaff         from './pages/coach/CoachStaff';
-import CoachTransfer      from './pages/coach/CoachTransfer';
 import CoachTransfers     from './pages/coach/CoachTransfers';
 import CoachTargets       from './pages/coach/CoachTargets';
 import CoachProfile       from './pages/coach/CoachProfile';
@@ -43,7 +42,6 @@ import TenantSettings     from './pages/owner/TenantSettings';
 import RoleAccess         from './pages/owner/RoleAccess';
 import CheckIn            from './pages/CheckIn';
 import CallCenter         from './pages/sales/CallCenter';
-import Transfer           from './pages/sales/Transfer';
 import ImportMembers      from './pages/sales/ImportMembers';
 import ReceptionContacts  from './pages/ReceptionContacts';
 import Reports         from './pages/Reports';
@@ -239,11 +237,7 @@ function TenantAppRoutes() {
           <SalesCallCenter />
         </PrivateRoute>
       } />
-      <Route path="/sales/transfer" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner']} access="transfer">
-          <Transfer />
-        </PrivateRoute>
-      } />
+      <Route path="/sales/transfer" element={<Navigate to="/tasks" replace />} />
       <Route path="/sales/import" element={
         <PrivateRoute roles={['Sales Manager', 'Owner']} feature="excel_import" access="import_members">
           <ImportMembers />
@@ -304,11 +298,7 @@ function TenantAppRoutes() {
           <CoachProfile />
         </PrivateRoute>
       } />
-      <Route path="/coach/transfer" element={
-        <PrivateRoute roles={['Coach Manager']} access="coach_transfer">
-          <CoachTransfer />
-        </PrivateRoute>
-      } />
+      <Route path="/coach/transfer" element={<Navigate to="/tasks" replace />} />
       <Route path="/coach/my-transfers" element={
         <PrivateRoute roles={['Coach', 'Coach Manager']} access="my_transfers">
           <CoachTransfers />

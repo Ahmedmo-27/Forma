@@ -2,29 +2,27 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
-import useDebounce from '../hooks/useDebounce';
 import Layout from '../components/Layout';
 import {
   PageHeader, Card, Btn, Spinner, EmptyState, Badge, Avatar,
-  SearchInput, Select, Textarea, Modal, Pagination, fmtDate,
+  Select, Textarea, Modal, Input,
 } from '../components/ui';
 import {
   getAllMembers, getSalesUsers, getCoachTeam, getWhatsAppTemplates, getPackages,
-  bulkTransferSalesReps, bulkTransferCoach, logWhatsAppTemplateSend,
+  bulkTransferSalesReps, bulkTransferCoach, switchSalesRep, switchCoach, logWhatsAppTemplateSend,
 } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { applyWhatsAppPlaceholders, composeWhatsAppTemplateMessage, toWhatsAppUrl } from '../utils/whatsapp';
 import {
-  EXPORT_COLUMNS, GROUPS, assignChoices, buildCsv, coachName, columnsForExport,
-  filterMembers, latestSubscription, memberPhone, packageName, rowsForExport,
-  salesName, salesmanName, smsUrl, taskPermissions, toggleId, toggleIds,
+  EXPORT_COLUMNS, buildExcel, columnsForExport,
+  columnValue, filterMembers, memberPhone, taskPermissions, toggleId,
 } from './tasks/taskMembers';
 
-const PAGE_SIZE = 25;
+const DEFAULT_COLUMNS = ['name', 'systemId', 'phone', 'status', 'salesman', 'coach', 'package', 'endDate'];
 
-function downloadCsv(filename, columns, rows) {
-  const blob = new Blob([buildCsv(columns, rows)], { type: 'text/csv;charset=utf-8' });
+function downloadExcel(filename, columns, rows) {
+  const blob = new Blob([buildExcel(columns, rows)], { type: 'application/vnd.ms-excel' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
@@ -33,80 +31,20 @@ function downloadCsv(filename, columns, rows) {
   URL.revokeObjectURL(url);
 }
 
-async function loadStatusMembers(status) {
-  const limit = 100;
+async function loadAssigned(kind, personId) {
   const members = [];
   let page = 1;
-  let stats = null;
   for (;;) {
-    const res = await getAllMembers({ status, page, limit });
+    const params = { page, limit: 100, sortBy: 'name', sortDir: 1 };
+    if (kind === 'sales') params.assignedSales = personId;
+    else params.currentCouch = personId;
+    const res = await getAllMembers(params);
     members.push(...(res.data.members ?? []));
-    stats = stats || res.data.stats || null;
     const totalPages = res.data.pagination?.totalPages ?? 1;
     page += 1;
-    if (page > totalPages || page > 50) break;
+    if (page > totalPages || page > 40) break;
   }
-  return { members, stats };
-}
-
-function GroupCard({ group, count, active, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        textAlign: 'left',
-        background: active ? 'rgba(68,41,140,0.08)' : 'var(--card)',
-        border: `1px solid ${active ? '#44298C' : 'var(--border)'}`,
-        borderRadius: 12,
-        padding: '14px 16px',
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        minWidth: 160,
-        flex: '1 1 160px',
-      }}
-    >
-      <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: active ? '#44298C' : 'var(--t3)' }}>
-        {group.label}
-      </div>
-      <div style={{ fontSize: 26, fontWeight: 800, color: 'var(--t1)', marginTop: 4, lineHeight: 1 }}>
-        {count == null ? '—' : count}
-      </div>
-      <div style={{ fontSize: 12, color: 'var(--t4)', marginTop: 6 }}>{group.hint}</div>
-    </button>
-  );
-}
-
-function AssignModal({ open, onClose, title, hint, options, empty, busy, onConfirm }) {
-  const [value, setValue] = useState('');
-
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={title}
-      footer={(
-        <>
-          <Btn variant="ghost" size="sm" onClick={onClose}>Cancel</Btn>
-          <Btn size="sm" disabled={busy || !value} onClick={() => onConfirm(value)}>
-            {busy ? <Spinner size="sm" /> : 'Apply to selected'}
-          </Btn>
-        </>
-      )}
-    >
-      <p style={{ fontSize: 13, color: 'var(--t3)', marginTop: 0 }}>{hint}</p>
-      {options.length === 0 ? (
-        <EmptyState message={empty} />
-      ) : (
-        <Select label="Transfer to" value={value} onChange={(e) => setValue(e.target.value)}>
-          <option value="">Choose…</option>
-          {options.map((person) => (
-            <option key={person._id} value={person._id}>{person.name} ({person.role})</option>
-          ))}
-        </Select>
-      )}
-    </Modal>
-  );
+  return members;
 }
 
 export default function Tasks() {
@@ -115,51 +53,46 @@ export default function Tasks() {
   const { user } = useAuth();
   const { hasFeature } = useTenant();
 
-  const [status, setStatus] = useState('');
-  const [members, setMembers] = useState([]);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState(() => new Set());
-
+  const [kind, setKind] = useState('');
+  const [personId, setPersonId] = useState('');
   const [salesUsers, setSalesUsers] = useState([]);
   const [coaches, setCoaches] = useState([]);
-  const [assign, setAssign] = useState(null);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+  const [search, setSearch] = useState('');
+  const [selected, setSelected] = useState(() => new Set());
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [visibleKeys, setVisibleKeys] = useState(DEFAULT_COLUMNS);
+  const [transferOpen, setTransferOpen] = useState(false);
+  const [destKind, setDestKind] = useState('sales');
+  const [destId, setDestId] = useState('');
+  const [quickId, setQuickId] = useState('');
   const [busy, setBusy] = useState(false);
-
-  const [exportOpen, setExportOpen] = useState(false);
-  const [exportKeys, setExportKeys] = useState(() => EXPORT_COLUMNS.map((col) => col.key));
-
-  const [smsOpen, setSmsOpen] = useState(false);
-  const [smsText, setSmsText] = useState('');
-
   const [waOpen, setWaOpen] = useState(false);
 
-  const debouncedSearch = useDebounce(search, 250);
-  const { canSalesman, canCoach, canSales, canWhatsApp } = taskPermissions(user, hasFeature);
+  const { canSalesman, canCoach, canWhatsApp } = taskPermissions(user, hasFeature);
 
   useEffect(() => {
-    getAllMembers({ page: 1, limit: 1 })
-      .then((res) => setStats(res.data.stats ?? null))
-      .catch(() => {});
-    getSalesUsers()
-      .then((res) => setSalesUsers(res.data.salesUsers ?? []))
-      .catch(() => {});
+    getSalesUsers().then((res) => setSalesUsers(res.data.salesUsers ?? [])).catch(() => {});
     getCoachTeam()
       .then((res) => {
-        const team = (res.data.team ?? []).filter((person) => ['Coach', 'Coach Manager'].includes(person.role));
-        setCoaches(team);
+        setCoaches((res.data.team ?? []).filter((person) => ['Coach', 'Coach Manager'].includes(person.role)));
       })
       .catch(() => {});
   }, []);
 
-  const load = useCallback(async (nextStatus) => {
+  const people = kind === 'sales'
+    ? salesUsers.filter((person) => person.role === 'Sales')
+    : coaches;
+
+  const show = useCallback(async (nextKind, nextPerson) => {
+    if (!nextKind || !nextPerson) return;
     setLoading(true);
+    setLoaded(true);
     try {
-      const result = await loadStatusMembers(nextStatus);
-      setMembers(result.members);
-      if (result.stats) setStats(result.stats);
+      setMembers(await loadAssigned(nextKind, nextPerson));
+      setSelected(new Set());
     } catch {
       setMembers([]);
       toast.error('Failed to load members');
@@ -168,61 +101,45 @@ export default function Tasks() {
     }
   }, []);
 
-  const chooseStatus = (next) => {
-    setStatus(next);
-    setSearch('');
-    setPage(1);
-    setSelected(new Set());
-    load(next);
-  };
-
-  const filtered = useMemo(
-    () => filterMembers(members, debouncedSearch),
-    [members, debouncedSearch],
-  );
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const visiblePage = Math.min(page, totalPages);
-  const pageRows = filtered.slice((visiblePage - 1) * PAGE_SIZE, visiblePage * PAGE_SIZE);
+  const filtered = useMemo(() => filterMembers(members, search), [members, search]);
+  const visibleColumns = EXPORT_COLUMNS.filter((col) => visibleKeys.includes(col.key));
   const selectedMembers = members.filter((member) => selected.has(member._id));
-  const pageIds = pageRows.map((member) => member._id);
-  const pageAllSelected = pageIds.length > 0 && pageIds.every((id) => selected.has(id));
+  const person = people.find((item) => item._id === personId);
 
-  const toggleOne = (id) => {
-    setSelected((prev) => toggleId(prev, id));
+  const exportSheet = () => {
+    const columns = columnsForExport(visibleKeys);
+    const rows = selectedMembers.length ? selectedMembers : filtered;
+    if (!rows.length) {
+      toast.error('Nothing to export');
+      return;
+    }
+    const day = new Date().toISOString().slice(0, 10);
+    downloadExcel(`tasks-${person?.name || 'members'}-${day}.xls`, columns, rows);
+    toast.success(`Exported ${rows.length} member(s)`);
   };
 
-  const togglePage = () => {
-    setSelected((prev) => toggleIds(prev, pageIds));
-  };
+  const refresh = () => show(kind, personId);
 
-  const toggleFiltered = () => {
-    setSelected((prev) => toggleIds(prev, filtered.map((member) => member._id)));
-  };
-
-  const requireSelection = () => {
-    if (selected.size) return true;
-    toast.error('Select at least one member');
-    return false;
-  };
-
-  const refresh = () => {
-    if (status) load(status);
-  };
-
-  const handleAssign = async (destinationId) => {
-    if (!requireSelection()) return;
+  const transferBulk = async () => {
+    if (!selected.size) {
+      toast.error('Select at least one member');
+      return;
+    }
+    if (!destId) {
+      toast.error('Choose who receives the members');
+      return;
+    }
     setBusy(true);
     try {
-      if (assign === 'coach') {
-        const res = await bulkTransferCoach({ coachId: destinationId, memberIds: [...selected] });
-        toast.success(`Coach updated for ${res.data.transferredCount ?? selected.size} member(s)`);
+      if (destKind === 'coach') {
+        const res = await bulkTransferCoach({ coachId: destId, memberIds: [...selected] });
+        toast.success(`Transferred ${res.data.transferredCount ?? selected.size} member(s) to a coach`);
       } else {
-        const res = await bulkTransferSalesReps({ toSalesRepId: destinationId, memberIds: [...selected] });
+        const res = await bulkTransferSalesReps({ toSalesRepId: destId, memberIds: [...selected] });
         toast.success(`Transferred ${res.data.transferredCount} member(s)`);
       }
-      setAssign(null);
       setSelected(new Set());
+      setTransferOpen(false);
       refresh();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Transfer failed');
@@ -231,263 +148,223 @@ export default function Tasks() {
     }
   };
 
-  const exportRows = rowsForExport(selectedMembers, filtered);
-
-  const handleExport = () => {
-    const columns = columnsForExport(exportKeys);
-    if (!columns.length) {
-      toast.error('Choose at least one column');
+  const transferQuick = async () => {
+    const id = quickId.trim();
+    if (!id || !destId) {
+      toast.error('Enter a system id and a destination');
       return;
     }
-    if (!exportRows.length) {
-      toast.error('Nothing to export');
-      return;
+    setBusy(true);
+    try {
+      if (destKind === 'coach') {
+        await switchCoach(id, destId);
+        toast.success('Member transferred to the coach');
+      } else {
+        await switchSalesRep(id, destId);
+        toast.success('Member transferred to the sales rep');
+      }
+      setQuickId('');
+      setTransferOpen(false);
+      refresh();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Transfer failed');
+    } finally {
+      setBusy(false);
     }
-    const day = new Date().toISOString().slice(0, 10);
-    downloadCsv(`tasks-${status || 'members'}-${day}.csv`, columns, exportRows);
-    setExportOpen(false);
-    toast.success(`Exported ${exportRows.length} row(s)`);
   };
 
-  const openSms = () => {
-    if (!requireSelection()) return;
-    const reachable = selectedMembers.filter((member) => memberPhone(member));
-    if (!reachable.length) {
-      toast.error('None of the selected members have a visible phone number');
-      return;
-    }
-    setSmsOpen(true);
-  };
-
-  const sendSms = () => {
-    const phones = selectedMembers.map(memberPhone).filter(Boolean);
-    const url = smsUrl(phones, smsText);
-    if (!url) {
-      toast.error('No phone numbers to message');
-      return;
-    }
-    window.open(url, '_blank', 'noopener,noreferrer');
-    setSmsOpen(false);
-  };
-
-  const assignConfig = assignChoices(assign || 'coach', {
-    salesUsers,
-    coaches,
-    selectedCount: selected.size,
-  });
-
-  const counts = {
-    expired: stats?.expired,
-    guest: stats?.guest,
-    active: stats?.active,
-    frozen: stats?.frozen,
-  };
+  const destPeople = destKind === 'coach'
+    ? coaches
+    : salesUsers.filter((item) => item.role === 'Sales' || item.role === 'Sales Manager');
 
   return (
     <Layout>
       <PageHeader title="Tasks">
-        <Btn variant="outline" size="sm" onClick={() => setExportOpen(true)} disabled={!status || loading}>
-          Export
-        </Btn>
+        {loaded && (
+          <>
+            <Btn variant="outline" size="sm" onClick={() => setColumnsOpen((open) => !open)}>Columns</Btn>
+            <Btn variant="outline" size="sm" onClick={exportSheet} disabled={loading || !filtered.length}>Export Excel</Btn>
+          </>
+        )}
       </PageHeader>
 
       <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-          {GROUPS.map((group) => (
-            <GroupCard
-              key={group.id}
-              group={group}
-              count={counts[group.id]}
-              active={status === group.id}
-              onClick={() => chooseStatus(group.id)}
-            />
-          ))}
-        </div>
+        <Card>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
+            <div style={{ minWidth: 180 }}>
+              <Select
+                label="Show members for"
+                value={kind}
+                onChange={(e) => { setKind(e.target.value); setPersonId(''); setLoaded(false); setMembers([]); }}
+              >
+                <option value="">Choose…</option>
+                <option value="sales">A sales rep</option>
+                <option value="coach">A coach</option>
+              </Select>
+            </div>
+            {kind && (
+              <div style={{ minWidth: 220 }}>
+                <Select
+                  label={kind === 'sales' ? 'Sales rep' : 'Coach'}
+                  value={personId}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setPersonId(next);
+                    setSearch('');
+                    if (next) show(kind, next);
+                    else { setLoaded(false); setMembers([]); }
+                  }}
+                >
+                  <option value="">Choose…</option>
+                  {people.map((item) => (
+                    <option key={item._id} value={item._id}>{item.name} ({item.role})</option>
+                  ))}
+                </Select>
+              </div>
+            )}
+          </div>
+        </Card>
 
-        {!status ? (
+        {columnsOpen && (
           <Card>
-            <EmptyState
-              icon="✅"
-              message="Choose a member group"
-              sub="Expired, guest, active, or freeze. Then select people to transfer, message, or export."
-            />
+            <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginTop: 0 }}>Schedule columns</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '8px 16px' }}>
+              {EXPORT_COLUMNS.map((col) => (
+                <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--t1)' }}>
+                  <input
+                    type="checkbox"
+                    checked={visibleKeys.includes(col.key)}
+                    onChange={() => {
+                      setVisibleKeys((prev) => (
+                        prev.includes(col.key) ? prev.filter((key) => key !== col.key) : [...prev, col.key]
+                      ));
+                    }}
+                  />
+                  {col.label}
+                </label>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {!loaded ? (
+          <Card>
+            <EmptyState icon="👥" message="Choose a sales rep or a coach" sub="Their members show up here as a schedule you can export or transfer." />
           </Card>
         ) : (
           <>
-            <Card>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, alignItems: 'center' }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginRight: 4 }}>
-                  {selected.size} selected
-                </span>
-                {canSalesman && (
-                  <Btn size="sm" variant="outline" disabled={!selected.size} onClick={() => setAssign('salesman')}>Change salesman</Btn>
-                )}
-                {canCoach && (
-                  <Btn size="sm" variant="outline" disabled={!selected.size} onClick={() => setAssign('coach')}>Change coach</Btn>
-                )}
-                {canSales && (
-                  <Btn size="sm" variant="outline" disabled={!selected.size} onClick={() => setAssign('sales')}>Change sales</Btn>
-                )}
-                <Btn size="sm" variant="outline" disabled={!selected.size} onClick={openSms}>Send SMS</Btn>
-                {canWhatsApp && (
-                  <Btn size="sm" variant="outline" disabled={!selected.size} onClick={() => { if (requireSelection()) setWaOpen(true); }}>
-                    Send bulk WhatsApp
-                  </Btn>
-                )}
-              </div>
-              <p style={{ fontSize: 12, color: 'var(--t4)', margin: '10px 0 0' }}>
-                Bulk actions apply to the checked members in this {GROUPS.find((group) => group.id === status)?.label.toLowerCase()} list.
-              </p>
-            </Card>
-
             <Card noPad>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center', padding: '14px 14px 0' }}>
-                <SearchInput value={search} onChange={(value) => { setSearch(value); setPage(1); }} placeholder="Name, phone, ID…" width={240} />
-                <button
-                  type="button"
-                  onClick={toggleFiltered}
-                  style={{ background: 'none', border: 'none', color: '#44298C', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-                >
-                  {filtered.length > 0 && filtered.every((member) => selected.has(member._id)) ? 'Clear this list' : `Select all ${filtered.length}`}
-                </button>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Name, phone, ID…"
+                  aria-label="Search members"
+                  style={{
+                    width: 240, padding: '8px 12px', borderRadius: 8,
+                    border: '1px solid var(--border)', background: 'var(--card)',
+                    color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
+                  }}
+                />
+                <span style={{ fontSize: 12, color: 'var(--t3)' }}>
+                  {person ? `${person.name} · ${filtered.length} member(s)` : `${filtered.length} member(s)`}
+                </span>
               </div>
-
               {loading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="lg" /></div>
               ) : filtered.length === 0 ? (
-                <EmptyState message="No members in this group" sub="Try another status or clear the search" />
+                <EmptyState message="No members for this person" />
               ) : (
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                        <th style={{ padding: '9px 14px', width: 36 }}>
-                          <input type="checkbox" checked={pageAllSelected} onChange={togglePage} aria-label="Select this page" />
-                        </th>
-                        {['Member', 'Phone', 'Salesman', 'Sales', 'Coach', 'Package', 'Ends'].map((heading) => (
-                          <th key={heading} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)', whiteSpace: 'nowrap' }}>{heading}</th>
+                        <th style={{ padding: '9px 14px', width: 36 }} />
+                        {visibleColumns.map((col) => (
+                          <th key={col.key} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)', whiteSpace: 'nowrap' }}>{col.label}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {pageRows.map((member) => {
-                        const sub = latestSubscription(member);
-                        return (
-                          <tr
-                            key={member._id}
-                            style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                            onClick={() => navigate(`/members/${member.systemId}`)}
-                          >
-                            <td style={{ padding: '10px 14px' }} onClick={(event) => event.stopPropagation()}>
-                              <input
-                                type="checkbox"
-                                checked={selected.has(member._id)}
-                                onChange={() => toggleOne(member._id)}
-                                aria-label={`Select ${member.name}`}
-                              />
+                      {filtered.map((member) => (
+                        <tr
+                          key={member._id}
+                          style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                          onClick={() => navigate(`/members/${member.systemId}`)}
+                        >
+                          <td style={{ padding: '10px 14px' }} onClick={(event) => event.stopPropagation()}>
+                            <input
+                              type="checkbox"
+                              checked={selected.has(member._id)}
+                              onChange={() => setSelected((prev) => toggleId(prev, member._id))}
+                              aria-label={`Select ${member.name}`}
+                            />
+                          </td>
+                          {visibleColumns.map((col) => (
+                            <td key={col.key} style={{ padding: '10px 14px', color: 'var(--t2)', whiteSpace: 'nowrap' }}>
+                              {col.key === 'name' ? (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 600, color: 'var(--t1)' }}>
+                                  <Avatar name={member.name} size="sm" />
+                                  {member.name}
+                                  <Badge status={member.status} />
+                                </span>
+                              ) : (columnValue(member, col.key) || '—')}
                             </td>
-                            <td style={{ padding: '10px 14px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                <Avatar name={member.name} size="sm" />
-                                <div>
-                                  <div style={{ fontWeight: 600, color: 'var(--t1)' }}>{member.name}</div>
-                                  <div style={{ fontSize: 11, color: 'var(--t4)' }}>#{member.systemId} · <Badge status={member.status} /></div>
-                                </div>
-                              </div>
-                            </td>
-                            <td style={{ padding: '10px 14px', color: 'var(--t2)' }}>{memberPhone(member) || '—'}</td>
-                            <td style={{ padding: '10px 14px', color: 'var(--t2)' }}>{salesmanName(member) || '—'}</td>
-                            <td style={{ padding: '10px 14px', color: 'var(--t2)' }}>{salesName(member) || '—'}</td>
-                            <td style={{ padding: '10px 14px', color: 'var(--t2)' }}>{coachName(member) || '—'}</td>
-                            <td style={{ padding: '10px 14px', color: 'var(--t2)' }}>{packageName(member) || '—'}</td>
-                            <td style={{ padding: '10px 14px', color: 'var(--t3)', whiteSpace: 'nowrap' }}>{fmtDate(sub?.endDate)}</td>
-                          </tr>
-                        );
-                      })}
+                          ))}
+                        </tr>
+                      ))}
                     </tbody>
                   </table>
                 </div>
               )}
-              <Pagination page={visiblePage} totalPages={totalPages} total={filtered.length} pageSize={PAGE_SIZE} onPageChange={setPage} />
             </Card>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
+              {canWhatsApp && (
+                <Btn size="sm" variant="outline" disabled={!selected.size} onClick={() => setWaOpen(true)}>Send bulk WhatsApp</Btn>
+              )}
+              {(canSalesman || canCoach) && (
+                <Btn size="sm" onClick={() => { setDestKind(canSalesman ? 'sales' : 'coach'); setTransferOpen(true); }}>
+                  Transfer
+                </Btn>
+              )}
+            </div>
           </>
         )}
       </div>
 
-      <AssignModal
-        key={assign || 'none'}
-        open={Boolean(assign)}
-        onClose={() => setAssign(null)}
-        title={assignConfig.title}
-        hint={assignConfig.hint}
-        options={assignConfig.options}
-        empty={assignConfig.empty}
-        busy={busy}
-        onConfirm={handleAssign}
-      />
-
       <Modal
-        open={exportOpen}
-        onClose={() => setExportOpen(false)}
-        title="Export columns"
+        open={transferOpen}
+        onClose={() => !busy && setTransferOpen(false)}
+        title="Transfer"
         footer={(
           <>
-            <Btn variant="ghost" size="sm" onClick={() => setExportOpen(false)}>Cancel</Btn>
-            <Btn size="sm" onClick={handleExport}>Download CSV ({exportRows.length})</Btn>
+            <Btn variant="ghost" size="sm" onClick={() => setTransferOpen(false)} disabled={busy}>Cancel</Btn>
+            <Btn size="sm" variant="outline" onClick={transferQuick} disabled={busy}>Quick transfer</Btn>
+            <Btn size="sm" onClick={transferBulk} disabled={busy}>{busy ? <Spinner size="sm" /> : `Bulk transfer (${selected.size})`}</Btn>
           </>
         )}
       >
         <p style={{ fontSize: 13, color: 'var(--t3)', marginTop: 0 }}>
-          {selected.size
-            ? `Exports the ${selected.size} selected member(s).`
-            : `Nothing is selected, so this exports all ${filtered.length} member(s) in the current list.`}
+          Move members between sales reps and coaches. Quick transfer uses one system id. Bulk transfer uses the members checked in the schedule.
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
-          {EXPORT_COLUMNS.map((col) => (
-            <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--t1)' }}>
-              <input
-                type="checkbox"
-                checked={exportKeys.includes(col.key)}
-                onChange={() => {
-                  setExportKeys((prev) => (
-                    prev.includes(col.key) ? prev.filter((key) => key !== col.key) : [...prev, col.key]
-                  ));
-                }}
-              />
-              {col.label}
-            </label>
-          ))}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Select label="Transfer to" value={destKind} onChange={(e) => { setDestKind(e.target.value); setDestId(''); }}>
+            <option value="sales">A sales rep</option>
+            <option value="coach">A coach</option>
+          </Select>
+          <Select label="Person" value={destId} onChange={(e) => setDestId(e.target.value)}>
+            <option value="">Choose…</option>
+            {destPeople.map((item) => (
+              <option key={item._id} value={item._id}>{item.name} ({item.role})</option>
+            ))}
+          </Select>
+          <Input label="Quick transfer system id" value={quickId} onChange={(e) => setQuickId(e.target.value)} placeholder="S100" />
         </div>
       </Modal>
 
-      <Modal
-        open={smsOpen}
-        onClose={() => setSmsOpen(false)}
-        title="Send SMS"
-        footer={(
-          <>
-            <Btn variant="ghost" size="sm" onClick={() => setSmsOpen(false)}>Cancel</Btn>
-            <Btn size="sm" onClick={sendSms}>Open SMS</Btn>
-          </>
-        )}
-      >
-        <p style={{ fontSize: 13, color: 'var(--t3)', marginTop: 0 }}>
-          Opens your phone’s messages app with {selectedMembers.filter((member) => memberPhone(member)).length} number(s).
-        </p>
-        <Textarea
-          label="Message"
-          value={smsText}
-          onChange={(e) => setSmsText(e.target.value)}
-          rows={5}
-          placeholder="Write the text to send"
-        />
-      </Modal>
-
       {waOpen && (
-        <WhatsAppBulkModal
-          members={selectedMembers}
-          onClose={() => setWaOpen(false)}
-        />
+        <WhatsAppBulkModal members={selectedMembers} onClose={() => setWaOpen(false)} />
       )}
     </Layout>
   );
@@ -524,9 +401,7 @@ function WhatsAppBulkModal({ members, onClose }) {
         if (pick) setTemplateId(pick._id);
       })
       .catch((err) => {
-        if (!cancelled && err?.normalized?.status !== 403) {
-          toast.error('Could not load WhatsApp templates');
-        }
+        if (!cancelled && err?.normalized?.status !== 403) toast.error('Could not load WhatsApp templates');
       })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -534,10 +409,7 @@ function WhatsAppBulkModal({ members, onClose }) {
 
   const composed = useMemo(() => {
     if (!template) return '';
-    return composeWhatsAppTemplateMessage(template, packages, {
-      memberName: '{{name}}',
-      language: 'en',
-    });
+    return composeWhatsAppTemplateMessage(template, packages, { memberName: '{{name}}', language: 'en' });
   }, [template, packages]);
 
   const draft = dirty ? message : composed;
@@ -545,8 +417,7 @@ function WhatsAppBulkModal({ members, onClose }) {
 
   const openCurrent = async () => {
     if (!current) return;
-    const phone = memberPhone(current);
-    const url = toWhatsAppUrl(phone, textFor(current));
+    const url = toWhatsAppUrl(memberPhone(current), textFor(current));
     if (!url) {
       toast.error(`${current.name} has no WhatsApp number`);
       return;
@@ -557,9 +428,7 @@ function WhatsAppBulkModal({ members, onClose }) {
         memberName: current.name,
         templateId: templateId || null,
       });
-    } catch {
-      // Opening WhatsApp still works if the log fails.
-    }
+    } catch { /* opening WhatsApp still works */ }
     window.open(url, '_blank', 'noopener,noreferrer');
     setCursor((index) => index + 1);
   };
@@ -584,7 +453,7 @@ function WhatsAppBulkModal({ members, onClose }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <p style={{ fontSize: 13, color: 'var(--t3)', margin: 0 }}>
-            {reachable.length} of {members.length} selected member(s) have a phone number. WhatsApp opens one chat at a time so each message uses that person’s name. Use {'{{name}}'} where the name should appear.
+            {reachable.length} of {members.length} selected member(s) have a phone number.
           </p>
           <Select label="Template" value={templateId} onChange={(e) => { setTemplateId(e.target.value); setDirty(false); }}>
             <option value="">Custom text</option>
@@ -592,18 +461,7 @@ function WhatsAppBulkModal({ members, onClose }) {
               <option key={item._id} value={item._id}>{item.name}</option>
             ))}
           </Select>
-          <Textarea
-            label="Message"
-            value={draft}
-            onChange={(e) => { setMessage(e.target.value); setDirty(true); }}
-            rows={6}
-          />
-          {current && (
-            <div style={{ fontSize: 12, color: 'var(--t2)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
-              <div style={{ fontWeight: 700, marginBottom: 4 }}>Next: {current.name} ({cursor + 1} of {reachable.length})</div>
-              <div style={{ whiteSpace: 'pre-wrap' }}>{textFor(current)}</div>
-            </div>
-          )}
+          <Textarea label="Message" value={draft} onChange={(e) => { setMessage(e.target.value); setDirty(true); }} rows={6} />
         </div>
       )}
     </Modal>

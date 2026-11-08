@@ -53,7 +53,6 @@ export default function GuestMembers() {
   const [fromDate,     setFromDate]     = useState(MONTH_START);
   const [toDate,       setToDate]       = useState(TODAY);
   const [trainerName,  setTrainerName]  = useState('All');
-  const [loadFrom,     setLoadFrom]     = useState('All');
   const [source,       setSource]       = useState('All');
 
   // ── data state ────────────────────────────────────────────────────────────
@@ -115,7 +114,7 @@ export default function GuestMembers() {
     } finally {
       setLoading(false);
     }
-  }, [salesMan, fromDate, toDate, trainerName, loadFrom, source]);
+  }, [salesMan, fromDate, toDate, trainerName, source]);
 
   return (
     <Layout>
@@ -173,17 +172,6 @@ export default function GuestMembers() {
                   {coaches.map(c => (
                     <option key={c._id} value={c._id}>{c.name}</option>
                   ))}
-                </select>
-              </div>
-            </FilterRow>
-
-            {/* Load From */}
-            <FilterRow label="Load From">
-              <div style={{ position: 'relative' }}>
-                <select value={loadFrom} onChange={e => setLoadFrom(e.target.value)} style={selectStyle}>
-                  <option value="All">All</option>
-                  <option value="assigned">Assigned to Sales</option>
-                  <option value="unassigned">Unassigned</option>
                 </select>
               </div>
             </FilterRow>
@@ -258,7 +246,7 @@ export default function GuestMembers() {
                           {m.source || '—'}
                         </td>
                         <td style={{ padding: '10px 14px', color: 'var(--t2)' }}>
-                          {m.assignedSales?.name ?? <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
+                          {m.assignedSales?.name ?? <span style={{ color: 'var(--t4)' }}>—</span>}
                         </td>
                         <td style={{ padding: '10px 14px', color: 'var(--t2)' }}>
                           {m.current_couch?.name ?? '—'}

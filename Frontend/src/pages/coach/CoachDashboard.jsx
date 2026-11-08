@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, CardHeader, StatCard, Spinner, Avatar, Badge, EmptyState } from '../../components/ui';
@@ -102,9 +103,9 @@ export default function CoachDashboard() {
             {/* Quick actions */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginTop: 16 }}>
               {[
-                { label: 'Session Check-in', icon: '✓', to: '/coach/checkin' },
-                { label: 'My Members', icon: '👥', to: '/coach/members' },
-              ].map(c => (
+                { label: 'Session Check-in', icon: '✓', to: '/coach/checkin', access: 'coach_checkin' },
+                { label: 'My Members', icon: '👥', to: '/coach/members', access: 'coach_members' },
+              ].filter((c) => hasAccess(user, c.access)).map(c => (
                 <button key={c.to} onClick={() => navigate(c.to)} style={{
                   background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8,
                   padding: '16px', textAlign: 'center', cursor: 'pointer', fontFamily: 'inherit',

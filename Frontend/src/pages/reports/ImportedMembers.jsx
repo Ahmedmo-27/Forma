@@ -81,8 +81,7 @@ export default function ImportedMembers() {
 
     return allMembers.filter(m => {
       if (salesMan !== 'all') {
-        if (salesMan === 'unassigned') { if (m.assignedSales) return false; }
-        else if (String(m.assignedSales?._id ?? m.assignedSales) !== salesMan) return false;
+        if (String(m.assignedSales?._id ?? m.assignedSales) !== salesMan) return false;
       }
       if (status !== 'all' && m.status !== status) return false;
       if (from && new Date(m.createdAt) < from) return false;
@@ -135,7 +134,6 @@ export default function ImportedMembers() {
               <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Sales Rep</label>
               <select value={salesMan} onChange={e => setSalesMan(e.target.value)} style={{ ...selectStyle, width: 180 }}>
                 <option value="all">All Reps</option>
-                <option value="unassigned">Unassigned</option>
                 {salesUsers.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
               </select>
             </div>
@@ -210,7 +208,7 @@ export default function ImportedMembers() {
                         <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: 12, color: 'var(--t2)' }}>{m.phones || '—'}</td>
                         <td style={{ padding: '10px 14px' }}><Badge status={m.status} /></td>
                         <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
-                          {m.assignedSales?.name ?? <span style={{ color: 'var(--t4)', fontStyle: 'italic' }}>Unassigned</span>}
+                          {m.assignedSales?.name ?? <span style={{ color: 'var(--t4)' }}>—</span>}
                         </td>
                         <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)', whiteSpace: 'nowrap' }}>{fmtDate(m.createdAt)}</td>
                       </tr>

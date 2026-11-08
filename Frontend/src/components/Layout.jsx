@@ -7,6 +7,7 @@ import { useTenant } from '../context/TenantContext';
 import GlobalSearch from './GlobalSearch';
 import NotificationBell from './NotificationBell';
 import { updateMyProfile } from '../api/endpoints';
+import { hasAccess } from '../lib/access';
 
 const NAV = {
   Receptionist:  [{ to: '/checkin', label: 'Check In', access: 'check_in' }, { to: '/members', label: 'Members', access: 'members' }, { to: '/contacts', label: 'Contacts' }],
@@ -117,9 +118,13 @@ export default function Layout({ children }) {
       return true;
     });
     const seen = new Set(visible.map(item => item.to));
-    if (hasFeature('members') && !seen.has('/analytics')) {
+    const canSeeAnalytics = hasAccess(user, ['reports', 'owner_dashboard', 'accounting_dashboard']);
+    if (canSeeAnalytics && hasFeature('members') && !seen.has('/analytics')) {
       seen.add('/analytics');
-      visible.splice(Math.min(1, visible.length), 0, { to: '/analytics', label: 'Analytics' });
+      const contactsAt = visible.findIndex((item) => item.to === '/contacts');
+      const analytics = { to: '/analytics', label: 'Analytics' };
+      if (contactsAt >= 0) visible.splice(contactsAt, 0, analytics);
+      else visible.push(analytics);
     }
     const platinumAnalytics = hasFeature('exec_analytics') || hasFeature('funnels') || hasFeature('business_intelligence');
     if (user?.role === 'Accountant' && platinumAnalytics && !seen.has('/reports')) {

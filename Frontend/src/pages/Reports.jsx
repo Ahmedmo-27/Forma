@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { PageHeader } from '../components/ui';
 import usePageTitle from '../hooks/usePageTitle';
 import { useAuth } from '../context/AuthContext';
+import { hasAccess } from '../lib/access';
 import { useTenant } from '../context/TenantContext';
 
 const ANALYTICS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Accountant'];
@@ -84,20 +85,22 @@ export default function Reports() {
             )}
           </ReportSection>
         )}
-        <ReportSection title="Members" sub="Member status and activity">
-          <ReportCard icon="👥" title="Guest Members"   sub="Guest member list"            to="/reports/guests"  iconBg="#FEF2F2" />
-          <ReportCard icon="📅" title="Expired Members" sub="Expired memberships"          to="/reports/expired" iconBg="#FEF2F2" />
-        </ReportSection>
+        {hasAccess(user, 'reports') && (
+          <ReportSection title="Members" sub="Member status and activity">
+            <ReportCard icon="👥" title="Guest Members"   sub="Guest member list"            to="/reports/guests"  iconBg="#FEF2F2" />
+            <ReportCard icon="📅" title="Members" sub="Member records"                       to="/reports/expired" iconBg="#FEF2F2" />
+          </ReportSection>
+        )}
 
         {/* ── Revenue & Performance ───────────────────────────── */}
-        {(['Sales Manager', 'Owner', 'Accountant'].includes(user?.role)) && (
+        {hasAccess(user, 'targets') && (
           <ReportSection title="Revenue & Performance" sub="Targets and financial reports">
             <ReportCard icon="🎯" title="Targets"       sub="Revenue targets & performance" to="/sales/targets"   iconBg="#F0FFF4" />
           </ReportSection>
         )}
 
         {/* ── Data — Sales Manager & Owner only ───────────────── */}
-        {isDataManager && (
+        {isDataManager && hasAccess(user, 'import_members') && (
           <ReportSection title="Data" sub="Import and manage bulk data">
             <ReportCard icon="📥" title="Import Members"   sub="Upload Excel sheet of names & numbers"  to="/sales/import"     iconBg="rgba(68,41,140,0.08)" />
             <ReportCard icon="📋" title="Imported Members" sub="View all members added via Excel import" to="/reports/imported" iconBg="rgba(68,41,140,0.08)" />
