@@ -13,6 +13,7 @@ const { liveStream } = require("../utils/liveEvents");
 const { autoInvalidate } = require("../utils/cacheInvalidator");
 const {
     createMemberSchema,
+    updateMemberSchema,
     freezeMemberSchema,
     addNoteSchema,
     addAlertSchema,
@@ -21,6 +22,7 @@ const {
 } = require("../validation/schemas");
 const {
     createMember,
+    updateMember,
     getMemberProfile,
     getAllMembers,
     checkInMember,
@@ -104,6 +106,7 @@ router.patch("/:memberId/unblock", protect, allowRoles("management", "Owner", "S
 router.post("/:memberId/package", protect, allowRoles("package_approvals", "Accountant", "Owner"), requireFeature("packages"), validate(assignPackageSchema), autoInvalidate(["members", "revenue", "contracts"]), assignPackage);
 router.patch("/:memberId/national-id", protect, allowRoles("accounting_dashboard", "Accountant", "Owner"), uploadLimiter, uploadSingle("nationalIdFile"), autoInvalidate(["members"]), uploadNationalId);
 router.patch("/:memberId/photo", protect, allowRoles("members", "Accountant", "Owner", "Receptionist"), uploadLimiter, uploadSinglePhoto("photoFile"), autoInvalidate(["members"]), uploadProfilePhoto);
+router.patch("/:memberId", allowRoles("members", "Receptionist", "Owner", "Sales Manager", "Sales", "Accountant", "General Manager"), validate(updateMemberSchema), autoInvalidate(["members"]), updateMember);
 router.delete("/:memberId/photo", protect, allowRoles("members", "Accountant", "Owner", "Receptionist"), uploadLimiter, autoInvalidate(["members"]), deleteProfilePhoto);
 
 router.post("/PTcheckin", protect, allowRoles("coach_checkin", "Coach", "Coach Manager"), requireFeature("pt_tracking"), autoInvalidate(["members", "coach-transfers"]), sessionCheckIn_for_couch);

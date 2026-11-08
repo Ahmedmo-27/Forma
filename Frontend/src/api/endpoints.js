@@ -91,6 +91,7 @@ export const bulkImportMembers = (formData) => api.post('/members/bulk-import', 
 export const getMemberImportJob = (jobId) => api.get(`/members/bulk-import/${jobId}`, { skipGlobalError: true });
 export const getMemberProfile  = (id)       => api.get(`/members/${id}`);
 export const createMember      = (data)     => api.post('/members', data);
+export const updateMember      = (id, data) => api.patch(`/members/${id}`, data);
 export const assignSales       = (id, salesId) =>
   api.patch(`/members/${id}/assign-sales`, { salesId });
 export const bulkTransferSalesReps = (data) =>

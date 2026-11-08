@@ -1,4 +1,4 @@
-const { assignPackageSchema, addNoteSchema, createExceptionSchema, salesRequestSchema } = require("./schemas");
+const { assignPackageSchema, addNoteSchema, createExceptionSchema, salesRequestSchema, updateMemberSchema } = require("./schemas");
 
 const basePayload = {
     packageId: "507f1f77bcf86cd799439011",
@@ -53,5 +53,26 @@ describe("memberId coercion for request schemas", () => {
         const result = salesRequestSchema.safeParse({ memberId: "100" });
         expect(result.success).toBe(true);
         expect(result.data.memberId).toBe("100");
+    });
+});
+
+describe("updateMemberSchema", () => {
+    it("accepts personal details and empty optional fields", () => {
+        const result = updateMemberSchema.safeParse({
+            name: "Nour Mahmoud",
+            phones: "01000000000",
+            gender: "",
+            birthdate: "",
+            source: "Walk in",
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.gender).toBeNull();
+        expect(result.data.birthdate).toBeNull();
+        expect(result.data.source).toBe("Walk in");
+    });
+
+    it("rejects a blank name", () => {
+        const result = updateMemberSchema.safeParse({ name: "  ", phones: "01000000000" });
+        expect(result.success).toBe(false);
     });
 });

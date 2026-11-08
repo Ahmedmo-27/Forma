@@ -56,6 +56,14 @@ const createMemberSchema = z.object({
     assignedSales: nullableObjectId,
 });
 
+const updateMemberSchema = z.object({
+    name: z.string().trim().min(1).max(120),
+    phones: z.string().trim().min(5).max(40).optional(),
+    gender: z.preprocess(emptyToNull, z.enum(["male", "female"]).nullable().optional()),
+    birthdate: z.preprocess(emptyToNull, z.string().max(40).nullable().optional()),
+    source: z.preprocess(emptyToNull, memberSource.nullable().optional()),
+});
+
 const freezeMemberSchema = z.object({
     startDate: z.string().min(1),
     endDate: z.string().min(1),
@@ -330,6 +338,7 @@ module.exports = {
     setupPasswordSchema,
     forgotPasswordSchema,
     createMemberSchema,
+    updateMemberSchema,
     freezeMemberSchema,
     addNoteSchema,
     addAlertSchema,

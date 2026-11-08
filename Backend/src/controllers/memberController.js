@@ -2334,6 +2334,35 @@ const bulkImportMembers = async (req, res) => {
     }
 };
 
+const updateMember = async (req, res) => {
+    try {
+        const member = await findMember(req.params.memberId);
+        if (!member) {
+            return res.status(404).json({ message: "Member not found" });
+        }
+
+        const visible = redactMemberForViewer(member.toObject(), req.user);
+        const canEditPhone = Boolean(visible.phones && visible.phones !== "hidden");
+        const { name, phones, gender, birthdate, source } = req.body;
+
+        member.name = name;
+        if (canEditPhone && phones !== undefined) member.phones = phones;
+        member.gender = gender || null;
+        member.birthdate = birthdate || null;
+        member.source = source || null;
+        member.userlog.push({
+            type: "other",
+            text: "Personal information updated",
+            createdBy: req.user.id,
+        });
+        await member.save();
+
+        res.json({ message: "Member updated" });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 const getMemberImportJob = async (req, res) => {
     try {
         const job = await getMemberImport(req.params.jobId);
@@ -2347,6 +2376,7 @@ const getMemberImportJob = async (req, res) => {
 
 module.exports = {
     createMember,
+    updateMember,
     getAllMembers,
     getMemberProfile,
     checkInMember,
