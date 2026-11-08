@@ -5,8 +5,9 @@ import usePageTitle from '../hooks/usePageTitle';
 import Layout from '../components/Layout';
 import { Badge, Avatar, Spinner, fmtDate, EmptyState } from '../components/ui';
 import { formatSystemId } from '../lib/systemId';
-import { checkInMember, getMemberProfile, getTodayCheckIns } from '../api/endpoints';
+import { checkInByBarcode, checkInMember, getMemberProfile, getTodayCheckIns } from '../api/endpoints';
 import { subscribeLiveEvents } from '../api/live';
+import QrCheckInCamera from '../components/QrCheckInCamera';
 
 // ── small stat pill ───────────────────────────────────────────────────────────
 function StatPill({ label, value, color = 'var(--t1)' }) {
@@ -16,6 +17,14 @@ function StatPill({ label, value, color = 'var(--t1)' }) {
       <div style={{ fontSize: 9, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', color: 'var(--t4)', marginTop: 3 }}>{label}</div>
     </div>
   );
+}
+
+function isHardwareScan(burst) {
+  if (!burst || burst.count < 4) return false;
+  const span = burst.last - burst.start;
+  const gaps = burst.count - 1;
+  const average = span / gaps;
+  return average < 35 && span < 300 && (performance.now() - burst.last) < 250;
 }
 
 export default function CheckIn() {
@@ -33,7 +42,10 @@ export default function CheckIn() {
   const [alertPopup, setAlertPopup] = useState(null);
   const [live,       setLive]       = useState('connecting');
   const [freshIds,   setFreshIds]   = useState(() => new Set());
+  const [cameraOpen, setCameraOpen] = useState(false);
   const historyRef = useRef([]);
+  const queryRef   = useRef('');
+  const burstRef   = useRef({ count: 0, start: 0, last: 0 });
   const memberRef  = useRef(null);
   const seenRef    = useRef(new Set());
   const readyRef   = useRef(false);
@@ -158,20 +170,73 @@ export default function CheckIn() {
     return () => { stop(); clearInterval(poll); };
   }, [announce, refreshBoard]);
 
+  const showMemberAlerts = (profileMember) => {
+    const alerts = (profileMember?.alert || []).filter(a => a?.active);
+    if (alerts.length) { setAlertPopup(alerts.map(a => a.text)); setTimeout(() => setAlertPopup(null), 5000); }
+  };
+
+  const recordScan = async (raw) => {
+    const identifier = String(raw || '').trim();
+    if (!identifier) return;
+    setCameraOpen(false);
+    setSearching(true);
+    setMember(null);
+    setResult(null);
+    queryRef.current = identifier;
+    setQuery(identifier);
+    try {
+      const r = await checkInByBarcode(identifier);
+      setResult({ ok: true, msg: r.data.message || 'Check-in recorded' });
+      toast.success(r.data.message || 'Checked in');
+    } catch (err) {
+      const msg = err.normalized?.message || err.response?.data?.message || 'Check-in failed.';
+      setResult({ ok: false, msg });
+      toast.error(msg);
+    }
+    try {
+      const profile = await getMemberProfile(identifier);
+      setMember(profile.data.member);
+      showMemberAlerts(profile.data.member);
+      refreshBoard({ notify: false, memberId: profile.data.member?.systemId });
+    } catch { /* the result message already says why */ }
+    finally {
+      setSearching(false);
+      queryRef.current = '';
+      burstRef.current = { count: 0, start: 0, last: 0 };
+      setQuery('');
+      inputRef.current?.focus();
+    }
+  };
+
   const handleSearch = async (e) => {
     e.preventDefault();
-    if (!query.trim()) return;
+    const identifier = (queryRef.current || query).trim();
+    if (!identifier) return;
+    if (isHardwareScan(burstRef.current)) {
+      await recordScan(identifier);
+      return;
+    }
     setSearching(true); setMember(null); setResult(null);
     try {
-      const r = await getMemberProfile(query.trim());
+      const r = await getMemberProfile(identifier);
       setMember(r.data.member);
-      const alerts = (r.data.member?.alert || []).filter(a => a?.active);
-      if (alerts.length) { setAlertPopup(alerts.map(a => a.text)); setTimeout(() => setAlertPopup(null), 5000); }
+      showMemberAlerts(r.data.member);
     } catch (err) {
       const msg = err.normalized?.message || err.response?.data?.message || 'Member not found.';
       toast.error(msg);
     }
     finally { setSearching(false); }
+  };
+
+  const noteScanKey = (e) => {
+    if (e.key.length !== 1) return;
+    const now = performance.now();
+    const burst = burstRef.current;
+    if (!burst.start || now - burst.last > 45) {
+      burstRef.current = { count: 1, start: now, last: now };
+    } else {
+      burstRef.current = { count: burst.count + 1, start: burst.start, last: now };
+    }
   };
 
   const handleCheckIn = async () => {
@@ -234,7 +299,7 @@ export default function CheckIn() {
               }}>
                 <div style={{ padding: '18px 20px 16px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>Find Member</div>
-                  <div style={{ fontSize: 11, color: 'var(--t4)' }}>Enter System ID, Member ID, or phone number</div>
+                  <div style={{ fontSize: 11, color: 'var(--t4)' }}>Scan a member QR to check them in, or type a System ID to look them up</div>
                 </div>
                 <div style={{ padding: '16px 20px' }}>
                   <form onSubmit={handleSearch}>
@@ -247,8 +312,9 @@ export default function CheckIn() {
                         <input
                           ref={inputRef}
                           value={query}
-                          onChange={e => { setQuery(e.target.value); setMember(null); setResult(null); }}
-                          placeholder="e.g. S100 or 0101234…"
+                          onChange={e => { queryRef.current = e.target.value; setQuery(e.target.value); setMember(null); setResult(null); }}
+                          onKeyDown={noteScanKey}
+                          placeholder="Scan QR or type S100…"
                           autoFocus
                           style={{
                             width: '100%', padding: '11px 12px 11px 36px', fontSize: 14,
@@ -269,6 +335,15 @@ export default function CheckIn() {
                         transition: 'opacity 0.15s',
                       }}>
                         {searching ? <Spinner size="sm" /> : 'Search'}
+                      </button>
+                      <button type="button" onClick={() => setCameraOpen(true)} style={{
+                        padding: '0 14px', borderRadius: 10, fontFamily: 'inherit',
+                        background: 'var(--bg)', color: 'var(--t1)',
+                        border: '1.5px solid var(--border)',
+                        fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                        whiteSpace: 'nowrap',
+                      }}>
+                        Scan QR
                       </button>
                     </div>
                   </form>
@@ -527,6 +602,12 @@ export default function CheckIn() {
           </div>
         </div>
       </div>
+
+      <QrCheckInCamera
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onScan={recordScan}
+      />
 
       {/* ── Alert popup ──────────────────────────────────────────── */}
       {alertPopup && (

@@ -28,10 +28,15 @@ function buildMemberFilter(id) {
         return { barcode: value.toUpperCase() };
     }
 
-    // Numeric system id or member id. "S100" is the displayed system id.
-    const numeric = value.replace(/^[sS]/, "");
-    if (/^\d+$/.test(numeric)) {
-        const numId = Number(numeric);
+    // QR codes encode the displayed system id ("S100"). That prefix is this
+    // member's system id only, so a scan cannot land on someone else's member id.
+    if (/^s\d+$/i.test(value)) {
+        return { systemId: Number(value.slice(1)) };
+    }
+
+    // A bare number can be either id. Staff still type both at the desk.
+    if (/^\d+$/.test(value)) {
+        const numId = Number(value);
         return { $or: [{ systemId: numId }, { memberId: numId }] };
     }
 
