@@ -15,17 +15,106 @@ const { isAssignedToRep, redactMemberForViewer } = require("../utils/memberPriva
 const { assertAllowedUpload, assertAllowedImage } = require("../utils/fileMagic");
 const { writeAudit } = require("../utils/audit");
 const { nextSystemId, nextMemberId, nextSubscriptionId, isDuplicateKeyError } = require("../utils/sequence");
+const { startMemberImport, getMemberImport } = require("../services/memberImportRunner");
+const { resolveSalesAssignee } = require("../utils/salesAssignment");
 const { sanitizePlainText } = require("../utils/sanitizeText");
 const { validateNoOverlappingSubscription } = require("../utils/subscriptionUtils");
 const { buildPackageSnapshot, resolveSubscriptionPackage } = require("../utils/packageSnapshot");
 const { generateBarcode } = require("../utils/barcodeHelper");
 const { publishLive } = require("../utils/liveEvents");
+const logger = require("../utils/logger");
 const mongoose = require("mongoose");
 
 // ─── Helper: get purchased package terms from last subscription ───────────────
 const getCurrentPackage = (member) => {
     if (!member.subscriptions || !member.subscriptions.length) return null;
     return resolveSubscriptionPackage(member.subscriptions[member.subscriptions.length - 1]);
+};
+
+const refId = (value) => {
+    if (!value) return null;
+    const id = value._id || value;
+    const text = String(id);
+    return mongoose.Types.ObjectId.isValid(text) ? text : null;
+};
+
+/**
+ * Replace stored ids with the names the member screens render.
+ * One user query and one package query, instead of a populate per array.
+ * Profile views only need authors on the latest log entries.
+ */
+const hydrateMemberRefs = async (member, { userlogLimit = null, summary = false } = {}) => {
+    if (!member) return member;
+    const userIds = new Set();
+    const packageIds = new Set();
+    const addUser = (value) => {
+        const id = refId(value);
+        if (id) userIds.add(id);
+    };
+
+    addUser(member.assignedSales);
+    for (const sub of member.subscriptions || []) {
+        const pkg = refId(sub.package);
+        if (pkg) packageIds.add(pkg);
+    }
+
+    const logs = userlogLimit == null ? [] : (member.userlog || []).slice(-userlogLimit);
+    if (!summary) {
+        addUser(member.createdBy);
+        addUser(member.current_couch);
+        for (const sub of member.subscriptions || []) {
+            addUser(sub.createdBy);
+            addUser(sub.approvedBy);
+            addUser(sub.salesManager);
+        }
+        for (const note of member.notes || []) addUser(note.createdBy);
+        for (const note of member.couch_notes || []) addUser(note.createdBy);
+        for (const alert of member.alert || []) addUser(alert.createdBy);
+        for (const freeze of member.freeze || []) {
+            addUser(freeze.createdBy);
+            addUser(freeze.endedBy);
+        }
+        for (const invite of member.invitations || []) addUser(invite.createdBy);
+        for (const pt of member.pt_subscriptions || []) addUser(pt.createdBy);
+        for (const log of logs) addUser(log.createdBy);
+    }
+
+    const [users, packages] = await Promise.all([
+        userIds.size ? User.find({ _id: { $in: [...userIds] } }).select("name email role").lean() : [],
+        packageIds.size
+            ? Package.find({ _id: { $in: [...packageIds] } })
+                .select("name duration activityType price freezeLimitDays invitationLimit renewalDiscountPercent hasException")
+                .lean()
+            : [],
+    ]);
+    const usersById = new Map(users.map((user) => [String(user._id), user]));
+    const packagesById = new Map(packages.map((pkg) => [String(pkg._id), pkg]));
+    const fillUser = (value) => usersById.get(refId(value)) || value;
+
+    member.assignedSales = fillUser(member.assignedSales);
+    for (const sub of member.subscriptions || []) {
+        sub.package = packagesById.get(refId(sub.package)) || sub.package;
+    }
+    if (summary) return member;
+
+    member.createdBy = fillUser(member.createdBy);
+    member.current_couch = fillUser(member.current_couch);
+    for (const sub of member.subscriptions || []) {
+        sub.createdBy = fillUser(sub.createdBy);
+        sub.approvedBy = fillUser(sub.approvedBy);
+        sub.salesManager = fillUser(sub.salesManager);
+    }
+    for (const note of member.notes || []) note.createdBy = fillUser(note.createdBy);
+    for (const note of member.couch_notes || []) note.createdBy = fillUser(note.createdBy);
+    for (const alert of member.alert || []) alert.createdBy = fillUser(alert.createdBy);
+    for (const freeze of member.freeze || []) {
+        freeze.createdBy = fillUser(freeze.createdBy);
+        freeze.endedBy = fillUser(freeze.endedBy);
+    }
+    for (const invite of member.invitations || []) invite.createdBy = fillUser(invite.createdBy);
+    for (const pt of member.pt_subscriptions || []) pt.createdBy = fillUser(pt.createdBy);
+    for (const log of logs) log.createdBy = fillUser(log.createdBy);
+    return member;
 };
 
 // ─── Helper: validate sales assignee ─────────────────────────────────────────
@@ -83,6 +172,7 @@ const createMember = async (req, res) => {
         } = req.body;
 
         const systemId = await generateSystemId();
+        const salesAssignee = await resolveSalesAssignee(assignedSales || null);
 
         const personData = {
             systemId,
@@ -93,7 +183,7 @@ const createMember = async (req, res) => {
             gender:        gender        || null,
             birthdate:     birthdate     || null,
             source:        source        || null,
-            assignedSales: assignedSales || null,
+            assignedSales: salesAssignee,
             createdBy:     req.user.id
         };
 
@@ -203,10 +293,6 @@ function memberListSort(query = {}) {
 
 const getAllMembers = async (req, res) => {
     try {
-        // Fire-and-forget: expire any overdue members before serving the list
-        const { processExpiryCycles } = require("../utils/scheduledTasks");
-        processExpiryCycles().catch(() => {});
-
         // Detect global-search / "all" call (frontend passes limit=10000)
         const isGlobalSearch = parseInt(req.query.limit, 10) >= 1000;
 
@@ -217,8 +303,11 @@ const getAllMembers = async (req, res) => {
             status:         req.query.status,
             search:         req.query.search,
             assignedSales:  req.query.assignedSales,
-            unassigned:     req.query.unassigned,
             subscribedToday: req.query.subscribedToday,
+            transferred:    req.query.transferred,
+            recent:         req.query.recent,
+            expiringSoon:   req.query.expiringSoon,
+            currentCouch:   req.query.currentCouch,
         });
 
         // Source filter (e.g. source=data entry for imported members)
@@ -285,56 +374,68 @@ const getMemberProfile = async (req, res) => {
             return res.status(400).json({ message: "Invalid member ID" });
         }
 
-        // Single findOne — all populates passed as an array so Mongoose
-        // batches them in parallel instead of sequential round-trips.
-        const member = await Member.findOne(query).populate([
-            { path: "subscriptions.package",    select: "name duration activityType price freezeLimitDays invitationLimit renewalDiscountPercent hasException" },
-            { path: "subscriptions.createdBy",  select: "name" },
-            { path: "subscriptions.approvedBy", select: "name email role" },
-            { path: "subscriptions.salesManager", select: "name email role" },
-            { path: "createdBy",                select: "name role" },
-            { path: "assignedSales",            select: "name role" },
-            { path: "notes.createdBy",          select: "name" },
-            { path: "couch_notes.createdBy",    select: "name" },
-            { path: "current_couch",            select: "name role" },
-            { path: "alert.createdBy",          select: "name role" },
-            { path: "freeze.createdBy",         select: "name" },
-            { path: "freeze.endedBy",           select: "name" },
-            { path: "invitations.createdBy",    select: "name" },
-            { path: "userlog.createdBy",        select: "name role" },
-            { path: "pt_subscriptions.createdBy", select: "name role" },
+        // Names the profile screen renders, without populating every log author.
+        // Ended freezes are applied by the 30-minute freeze cycle, not on this read.
+        // Counts use the full log; only the latest entries are returned.
+        const monthStart = new Date();
+        monthStart.setDate(1);
+        monthStart.setHours(0, 0, 0, 0);
+        // Aggregate $match does not cast strings the way findOne does.
+        const match = { ...query };
+        if (typeof match._id === "string") match._id = new mongoose.Types.ObjectId(match._id);
+        const [member] = await Member.aggregate([
+            { $match: match },
+            {
+                $addFields: {
+                    _checkInCount: {
+                        $size: {
+                            $filter: {
+                                input: { $ifNull: ["$userlog", []] },
+                                as: "log",
+                                cond: { $eq: ["$$log.type", "check-in"] },
+                            },
+                        },
+                    },
+                    _ptCount: {
+                        $size: {
+                            $filter: {
+                                input: { $ifNull: ["$userlog", []] },
+                                as: "log",
+                                cond: { $eq: ["$$log.type", "pt-session"] },
+                            },
+                        },
+                    },
+                    _monthCheckIns: {
+                        $size: {
+                            $filter: {
+                                input: { $ifNull: ["$userlog", []] },
+                                as: "log",
+                                cond: {
+                                    $and: [
+                                        { $eq: ["$$log.type", "check-in"] },
+                                        { $gte: ["$$log.createdAt", monthStart] },
+                                    ],
+                                },
+                            },
+                        },
+                    },
+                    userlog: { $slice: [{ $ifNull: ["$userlog", []] }, -100] },
+                },
+            },
         ]);
 
         if (!member) {
             return res.status(404).json({ message: "Member not found" });
         }
 
-        // Auto-unfreeze if freeze period has ended
-        if (member.status === "frozen") {
-            const now = new Date();
-            const activeFreeze = member.freeze
-                .filter(f => !f.endedBy)
-                .sort((a, b) => new Date(b.startDate) - new Date(a.startDate))[0];
-            if (!activeFreeze || new Date(activeFreeze.endDate) <= now) {
-                member.status = "active";
-                if (activeFreeze) {
-                    const freezeStart = new Date(activeFreeze.startDate);
-                    const freezeEnd = new Date(activeFreeze.endDate);
-                    const frozenDays = Math.ceil((freezeEnd - freezeStart) / 86400000);
-                    const currentSub = member.subscriptions?.at(-1);
-                    if (currentSub) {
-                        const subEnd = new Date(currentSub.endDate);
-                        subEnd.setDate(subEnd.getDate() + frozenDays);
-                        currentSub.endDate = subEnd;
-                    }
-                }
-                await member.save();
-            }
-        }
+        const checkInCount = member._checkInCount || 0;
+        const ptCount = member._ptCount || 0;
+        const monthCheckIns = member._monthCheckIns || 0;
+        delete member._checkInCount;
+        delete member._ptCount;
+        delete member._monthCheckIns;
 
-        const currentPkg = getCurrentPackage(member);
-
-        const recentLog = member.userlog.slice(-100);
+        const recentLog = member.userlog || [];
         const checkIns = recentLog
             .filter(log => log.type === "check-in")
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
@@ -343,9 +444,13 @@ const getMemberProfile = async (req, res) => {
             .filter(log => log.type === "pt-session")
             .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-        // Log this profile view and fetch view history in parallel
+        // The view write is recorded for the history tab, but it does not delay the profile.
+        ProfileView.create({ member: member._id, viewedBy: req.user.id }).catch((error) => {
+            logger.warn("members", "Profile view was not recorded", { message: error.message });
+        });
+
         const [, profileViews] = await Promise.all([
-            ProfileView.create({ member: member._id, viewedBy: req.user.id }),
+            hydrateMemberRefs(member, { userlogLimit: 100 }),
             ProfileView.find({ member: member._id })
                 .populate("viewedBy", "name role")
                 .sort({ createdAt: -1 })
@@ -353,7 +458,9 @@ const getMemberProfile = async (req, res) => {
                 .lean(),
         ]);
 
-        const memberPayload = redactMemberForViewer(member.toObject(), req.user);
+        const currentPkg = getCurrentPackage(member);
+
+        const memberPayload = redactMemberForViewer(member, req.user);
 
         res.status(200).json({
             member: memberPayload,
@@ -361,10 +468,11 @@ const getMemberProfile = async (req, res) => {
             ptSessions,
             profileViews,
             stats: {
-                totalCheckIns:        checkIns.length,
-                totalPTSessions:      ptSessions.length,
-                totalSubscriptions:   member.subscriptions.length,
-                totalFreezes:         member.freeze.length,
+                totalCheckIns:        checkInCount,
+                thisMonthCheckIns:    monthCheckIns,
+                totalPTSessions:      ptCount,
+                totalSubscriptions:   (member.subscriptions || []).length,
+                totalFreezes:         (member.freeze || []).length,
                 freezeDaysUsed:       member.freezeDaysUsed,
                 freezeDaysRemaining:  (currentPkg?.freezeLimitDays || 0) - member.freezeDaysUsed,
                 invitationsUsed:      member.invitationsUsed,
@@ -381,22 +489,55 @@ const checkInMember = async (req, res) => {
     try {
         const { memberId } = req.params;
 
+        const query = buildMemberFilter(memberId);
+        if (!query) {
+            return res.status(404).json({ message: "Member not found" });
+        }
+
+        // Active members only append a log entry. One update, no full-document save.
+        // Frozen members still load the document because ending a freeze rewrites dates.
+        const entry = {
+            _id: new mongoose.Types.ObjectId(),
+            type: "check-in",
+            text: "Member checked in",
+            createdBy: req.user.id,
+            createdAt: new Date(),
+        };
+        const updated = await Member.findOneAndUpdate(
+            { ...query, isBlocked: { $ne: true }, status: { $nin: ["expired", "frozen"] } },
+            { $push: { userlog: entry } },
+            { new: false, projection: { name: 1, systemId: 1, status: 1, subscriptions: { $slice: -1 } } }
+        ).lean();
+        if (updated) {
+            const currentSub = updated.subscriptions?.at(-1);
+            const pkgName = currentSub?.packageSnapshot?.name || null;
+            publishLive(req.user.tenantId, {
+                type: "check-in",
+                message: `${updated.name} checked in${pkgName ? ` · ${pkgName}` : ""}`,
+                checkInId: entry._id,
+                systemId: updated.systemId,
+                memberName: updated.name,
+                status: updated.status,
+                packageName: pkgName,
+            });
+            return res.status(201).json({ message: "Check-in recorded", checkIn: entry, status: updated.status });
+        }
+
+        const preview = await Member.findOne(query).select("status isBlocked").lean();
+        if (!preview) {
+            return res.status(404).json({ message: "Member not found" });
+        }
+        if (preview.isBlocked) {
+            return res.status(403).json({ message: "Cannot check in — member is blocked" });
+        }
+        if (preview.status === "expired") {
+            return res.status(400).json({ message: "Cannot check in — membership expired" });
+        }
+
         const member = await findMember(memberId);
         if (!member) {
             return res.status(404).json({ message: "Member not found" });
         }
-
-        const activeAlerts = (member.alert || []).filter(a => a.active);
-
-        // __________ check member is blocked or not___________//
-        if (member.isBlocked) {
-        return res.status(403).json({ message: "Cannot check in — member is blocked" });
-        }
-
-        if (member.status === "expired") {
-            return res.status(400).json({ message: "Cannot check in — membership expired" });
-        }
-
 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -449,19 +590,19 @@ const checkInMember = async (req, res) => {
 
         await member.save();
 
-        const entry = member.userlog[member.userlog.length - 1];
+        const savedEntry = member.userlog[member.userlog.length - 1];
         const currentSub = member.subscriptions?.at(-1);
         const pkgName = currentSub?.packageSnapshot?.name || currentSub?.package?.name || null;
         publishLive(req.user.tenantId, {
             type: "check-in",
             message: `${member.name} checked in${pkgName ? ` · ${pkgName}` : ""}`,
-            checkInId: entry._id,
+            checkInId: savedEntry._id,
             systemId: member.systemId,
             memberName: member.name,
             status: member.status,
             packageName: pkgName,
         });
-        res.status(201).json({ message: "Check-in recorded", checkIn: entry, status: member.status });
+        res.status(201).json({ message: "Check-in recorded", checkIn: savedEntry, status: member.status });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -641,14 +782,18 @@ const getMembers = async (req, res) => {
             return res.status(200).json({ count: formatted.length, members: formatted });
         }
 
-        // Sales, Sales Manager, Owner, Coach Manager
+        // Sales reps see their own book. A sales manager's scope is the whole gym
+        // (tenant plugin), including members held by the primary sales manager.
         const { page, limit, skip } = parsePagination(req.query);
         const filter = buildMemberListFilter({
             status: req.query.status,
             search: req.query.search,
             assignedSales: req.user.role === "Sales" ? req.user.id : req.query.assignedSales,
-            unassigned: req.query.unassigned,
             subscribedToday: req.query.subscribedToday,
+            transferred: req.query.transferred,
+            recent: req.query.recent,
+            expiringSoon: req.query.expiringSoon,
+            currentCouch: req.query.currentCouch,
         });
 
         const statsFilter = statsFilterFromListFilter(filter);
@@ -687,18 +832,18 @@ const getMembers = async (req, res) => {
 const getMemberById = async (req, res) => {
     try {
         const identifier = req.params.memberId || req.params.id;
-        const member = await findMemberByIdentifier(identifier);
+        const query = buildMemberFilter(identifier);
+        if (!query) {
+            return res.status(400).json({ message: "Invalid member ID" });
+        }
+        const member = await Member.findOne(query).lean();
         if (!member) {
-            if (!buildMemberFilter(identifier)) {
-                return res.status(400).json({ message: "Invalid member ID" });
-            }
             return res.status(404).json({ message: "Member not found" });
         }
 
-        await member.populate("assignedSales", "name email");
-        await member.populate("subscriptions.package", "name price duration activityType");
+        await hydrateMemberRefs(member, { summary: true });
 
-        const memberObj = redactMemberForViewer(member.toObject(), req.user);
+        const memberObj = redactMemberForViewer(member, req.user);
         if (["Sales", "Sales Manager"].includes(req.user.role)) {
             return res.json(formatSalesMember(memberObj, req.user.id, req.user.role));
         }
@@ -990,44 +1135,103 @@ const getTodayCheckIns = async (req, res) => {
         const tomorrow = new Date(today);
         tomorrow.setDate(tomorrow.getDate() + 1);
 
-        // Find members who have a check-in userlog entry today
-        const members = await Member.find({
-            "userlog": {
-                $elemMatch: {
-                    type: "check-in",
-                    createdAt: { $gte: today, $lt: tomorrow }
-                }
-            }
-        })
-            .populate("subscriptions.package", "name activityType duration")
-            .populate("assignedSales", "name")
-            .populate("userlog.createdBy", "name role")
-            .select("name systemId memberId phones status subscriptions assignedSales userlog photo");
+        // Project today's log entries only. Populating userlog.createdBy loaded
+        // every historical author for each member who checked in.
+        const members = await Member.aggregate([
+            {
+                $match: {
+                    userlog: {
+                        $elemMatch: {
+                            type: "check-in",
+                            createdAt: { $gte: today, $lt: tomorrow },
+                        },
+                    },
+                },
+            },
+            {
+                $project: {
+                    name: 1,
+                    systemId: 1,
+                    memberId: 1,
+                    phones: 1,
+                    status: 1,
+                    photo: 1,
+                    assignedSales: 1,
+                    package: {
+                        $let: {
+                            vars: { last: { $arrayElemAt: ["$subscriptions", -1] } },
+                            in: "$$last.package",
+                        },
+                    },
+                    checkIns: {
+                        $filter: {
+                            input: "$userlog",
+                            as: "log",
+                            cond: {
+                                $and: [
+                                    { $eq: ["$$log.type", "check-in"] },
+                                    { $gte: ["$$log.createdAt", today] },
+                                    { $lt: ["$$log.createdAt", tomorrow] },
+                                ],
+                            },
+                        },
+                    },
+                },
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    let: { salesId: "$assignedSales", authorIds: "$checkIns.createdBy" },
+                    pipeline: [
+                        {
+                            $match: {
+                                $expr: {
+                                    $or: [
+                                        { $eq: ["$_id", "$$salesId"] },
+                                        { $in: ["$_id", { $ifNull: ["$$authorIds", []] }] },
+                                    ],
+                                },
+                            },
+                        },
+                        { $project: { name: 1, role: 1 } },
+                    ],
+                    as: "staff",
+                },
+            },
+            {
+                $lookup: {
+                    from: "packages",
+                    localField: "package",
+                    foreignField: "_id",
+                    pipeline: [{ $project: { name: 1, activityType: 1, duration: 1 } }],
+                    as: "packageDoc",
+                },
+            },
+        ]);
 
-        // Extract today's check-in entries with member info
         const checkIns = [];
-        members.forEach(member => {
-            member.userlog.forEach(log => {
-                if (log.type === "check-in" && new Date(log.createdAt) >= today && new Date(log.createdAt) < tomorrow) {
-                    checkIns.push({
-                        _id:       log._id,
-                        time:      log.createdAt,
-                        checkedInBy: log.createdBy,
-                        member: {
-                            _id:       member._id,
-                            name:      member.name,
-                            systemId:  member.systemId,
-                            memberId:  member.memberId,
-                            phones:    member.phones,
-                            status:    member.status,
-                            photo:     member.photo,
-                            package:   member.subscriptions?.at(-1)?.package ?? null,
-                            assignedSales: member.assignedSales,
-                        }
-                    });
-                }
-            });
-        });
+        for (const member of members) {
+            const staffById = new Map((member.staff || []).map((user) => [String(user._id), user]));
+            const pkg = member.packageDoc?.[0] || member.package || null;
+            for (const log of member.checkIns || []) {
+                checkIns.push({
+                    _id: log._id,
+                    time: log.createdAt,
+                    checkedInBy: staffById.get(refId(log.createdBy)) || log.createdBy,
+                    member: {
+                        _id: member._id,
+                        name: member.name,
+                        systemId: member.systemId,
+                        memberId: member.memberId,
+                        phones: member.phones,
+                        status: member.status,
+                        photo: member.photo,
+                        package: pkg,
+                        assignedSales: staffById.get(refId(member.assignedSales)) || member.assignedSales,
+                    },
+                });
+            }
+        }
 
         // Sort newest first
         checkIns.sort((a, b) => new Date(b.time) - new Date(a.time));
@@ -2108,77 +2312,36 @@ const bulkImportMembers = async (req, res) => {
         if (!req.file) {
             return res.status(400).json({ message: "No file uploaded" });
         }
-
-        const XLSX = require("xlsx");
-        const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
-        const sheetName = workbook.SheetNames[0];
-        const sheet = workbook.Sheets[sheetName];
-        const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-
-        if (!rows.length) {
-            return res.status(400).json({ message: "Excel file is empty" });
+        if (!req.user?.tenantId) {
+            return res.status(400).json({ message: "Gym context is missing for this import" });
         }
 
-        const results = { created: [], skipped: [], errors: [] };
-
-        for (const row of rows) {
-            // Normalize column names (case-insensitive, trim whitespace)
-            const normalized = {};
-            for (const [k, v] of Object.entries(row)) {
-                normalized[k.toLowerCase().trim()] = String(v ?? "").trim();
-            }
-
-            const name  = normalized["name"]  || normalized["اسم"] || normalized["الاسم"] || "";
-            const phone = normalized["phone"] || normalized["number"] || normalized["رقم"] || normalized["phones"] || normalized["mobile"] || "";
-
-            if (!name) {
-                results.errors.push({ row: normalized, reason: "Missing name" });
-                continue;
-            }
-            if (!phone) {
-                results.errors.push({ row: normalized, reason: "Missing phone number" });
-                continue;
-            }
-
-            // Check duplicate by phone
-            const existing = await Member.findOne({ phones: phone });
-            if (existing) {
-                results.skipped.push({ name, phone, reason: "Phone already exists", systemId: existing.systemId });
-                continue;
-            }
-
-            try {
-                const systemId = await nextSystemId();
-                const member = await Member.create({
-                    systemId,
-                    name,
-                    phones: phone,
-                    photo: null,
-                    status: "guest",
-                    isMember: false,
-                    source: "data entry",
-                    createdBy: req.user.id,
-                });
-                results.created.push({ name, phone, systemId: member.systemId });
-            } catch (err) {
-                results.errors.push({ row: { name, phone }, reason: err.message });
-            }
-        }
-
-        res.status(200).json({
-            message: `Import complete: ${results.created.length} created, ${results.skipped.length} skipped, ${results.errors.length} errors`,
-            summary: {
-                total: rows.length,
-                created: results.created.length,
-                skipped: results.skipped.length,
-                errors: results.errors.length,
-            },
-            created: results.created,
-            skipped: results.skipped,
-            errors: results.errors,
+        const job = await startMemberImport({
+            buffer: req.file.buffer,
+            fileName: req.file.originalname,
+            userId: req.user.id,
+            tenantId: req.user.tenantId,
+            tenantSlug: req.user.tenantSlug,
         });
+        res.status(202).json(job);
     } catch (error) {
-        res.status(500).json({ message: "Server error", error: error.message });
+        const status = Number(error.statusCode) || 500;
+        if (status >= 500) {
+            res.status(500).json({ message: "Server error", error: error.message });
+            return;
+        }
+        res.status(status).json({ message: error.message });
+    }
+};
+
+const getMemberImportJob = async (req, res) => {
+    try {
+        const job = await getMemberImport(req.params.jobId);
+        if (!job) return res.status(404).json({ message: "Import not found" });
+        res.json(job);
+    } catch (error) {
+        const status = Number(error.statusCode) || 500;
+        res.status(status).json({ message: error.message || "Server error" });
     }
 };
 
@@ -2207,6 +2370,7 @@ module.exports = {
     unblockMember,
     sessionCheckIn_for_couch,
     bulkImportMembers,
+    getMemberImportJob,
     assignCoach,
     addCouch_notes,
     switchCoach,

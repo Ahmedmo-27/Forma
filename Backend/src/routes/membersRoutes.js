@@ -52,6 +52,7 @@ const {
     refund,
     refundPT_Sessions,
     bulkImportMembers,
+    getMemberImportJob,
 } = require("../controllers/memberController");
 
 router.use(protect);
@@ -61,10 +62,11 @@ router.use(requireFeature("members"));
 // ── Routes ────────────────────────────────────────────────────────────────────
 
 router.post("/", allowRoles("members", "Receptionist", "Owner", "Sales Manager", "Sales"), enforceMemberLimit, validate(createMemberSchema), autoInvalidate(["members", "revenue"]), createMember);
-router.post("/bulk-import", allowRoles("import_members", "Sales Manager", "Owner"), requireFeature("excel_import"), autoInvalidate(["members", "revenue"]), uploadSpreadsheet, bulkImportMembers);
+router.post("/bulk-import", allowRoles("import_members", "Sales Manager", "Owner"), requireFeature("excel_import"), uploadSpreadsheet, bulkImportMembers);
+router.get("/bulk-import/:jobId", allowRoles("import_members", "Sales Manager", "Owner"), requireFeature("excel_import"), getMemberImportJob);
 
-router.post("/bulk-transfer-sales", protect, allowRoles("transfer", "Sales Manager", "Owner"), autoInvalidate(["members", "revenue"]), bulkTransferSalesReps);
-router.post("/bulk-transfer-coach", protect, allowRoles("coach_transfer", "Coach Manager", "Owner"), autoInvalidate(["members", "coach-transfers"]), bulkTransferCoach);
+router.post("/bulk-transfer-sales", protect, allowRoles("transfer", "Sales Manager", "Owner", "Coach Manager", "General Manager"), autoInvalidate(["members", "revenue"]), bulkTransferSalesReps);
+router.post("/bulk-transfer-coach", protect, allowRoles("coach_transfer", "Coach Manager", "Owner", "Sales Manager", "General Manager"), autoInvalidate(["members", "coach-transfers"]), bulkTransferCoach);
 
 // Body-based check-in for barcode scanners: POST /members/check-in { identifier: "FF000105" }
 router.post("/check-in", allowRoles("check_in", "Receptionist", "Owner", "Sales Manager", "Sales"), requireFeature("checkin"), autoInvalidate(["checkins", "members"]), (req, res, next) => {
@@ -91,7 +93,7 @@ router.get("/:memberId", protect, allowRoles("member_profile", "Receptionist", "
 
 router.post("/:memberId/notes", allowRoles("comments", "Owner", "Sales", "Sales Manager", "Coach", "Coach Manager"), validate(addNoteSchema), autoInvalidate(["members"]), addNote);
 router.post("/:memberId/invitations", allowRoles("members", "Receptionist", "Owner", "Sales", "Sales Manager"), uploadLimiter, uploadSingle("idFile"), validate(invitationSchema), autoInvalidate(["members"]), addInvitation);
-router.put("/:memberId/sales-rep", protect, allowRoles("transfer", "Sales Manager", "Owner"), autoInvalidate(["members", "revenue"]), switchSalesRep);
+router.put("/:memberId/sales-rep", protect, allowRoles("transfer", "Sales Manager", "Owner", "Coach Manager", "General Manager"), autoInvalidate(["members", "revenue"]), switchSalesRep);
 router.post("/:memberId/alerts", protect, allowRoles("members", "Receptionist", "Sales", "Sales Manager"), validate(addAlertSchema), autoInvalidate(["members"]), addAlert);
 router.post("/:memberId/checkin", allowRoles("check_in", "Receptionist", "Owner", "Sales Manager", "Sales"), requireFeature("checkin"), autoInvalidate(["checkins", "members"]), checkInMember);
 router.patch("/:memberId/alerts/:alertId/deactivate", protect, allowRoles("members", "Receptionist", "Sales", "Sales Manager", "Owner"), autoInvalidate(["members"]), deactivateAlert);
@@ -109,7 +111,7 @@ router.post("/PTcheckin", protect, allowRoles("coach_checkin", "Coach", "Coach M
 // ── Coach routes ──────────────────────────────────────────────────────────────
 
 router.patch("/:memberId/assign-coach", protect, allowRoles("coach_transfer", "Coach Manager", "Owner"), autoInvalidate(["members"]), assignCoach);
-router.put("/:memberId/coach-rep", protect, allowRoles("coach_transfer", "Coach Manager", "Owner"), autoInvalidate(["members"]), switchCoach);
+router.put("/:memberId/coach-rep", protect, allowRoles("coach_transfer", "Coach Manager", "Owner", "Sales Manager", "General Manager"), autoInvalidate(["members"]), switchCoach);
 router.post("/:memberId/couch-notes", protect, allowRoles("coach_notes", "Coach", "Coach Manager"), autoInvalidate(["members"]), addCouch_notes);
 router.get("/by/:memberId", allowRoles("member_profile", "Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant", "General Manager"), cacheResponse({ ttlSeconds: 120, tags: ["members"] }), getMemberById);
 

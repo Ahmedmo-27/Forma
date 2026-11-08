@@ -1,6 +1,6 @@
 const Member = require("../models/Member");
 const logger = require("./logger");
-const { runAsPlatform } = require("../context/tenantContext");
+const { runAsPlatform, runWithTenant } = require("../context/tenantContext");
 
 /**
  * Expire members whose last subscription endDate has passed
@@ -135,16 +135,38 @@ async function processFreezeCycles() {
 }
 
 /**
+ * Members with no sales rep belong to that gym's primary sales manager.
+ * Runs per tenant so the tenant plugin does not assign one manager across gyms.
+ */
+async function assignOpenMembers() {
+    const Tenant = require("../models/Tenant");
+    const { assignOpenMembersToSalesManager } = require("./salesAssignment");
+    try {
+        const tenants = await runAsPlatform(() => Tenant.find().select("_id slug").lean());
+        for (const tenant of tenants) {
+            await runWithTenant(
+                { tenantId: String(tenant._id), tenantSlug: tenant.slug },
+                () => assignOpenMembersToSalesManager()
+            );
+        }
+    } catch (error) {
+        logger.error("scheduler", "Sales assignment cycle error", { error: error.message });
+    }
+}
+
+/**
  * Start all scheduled tasks
  */
 function startScheduledTasks() {
     // Run immediately on startup
     processFreezeCycles();
     processExpiryCycles();
+    assignOpenMembers();
 
     // Then every 30 minutes
     setInterval(processFreezeCycles, 30 * 60 * 1000);
     setInterval(processExpiryCycles, 30 * 60 * 1000);
+    setInterval(assignOpenMembers, 30 * 60 * 1000);
 
     // BI snapshots are hourly and idempotent. Platform rollup is daily.
     // Delayed so a process that is only running tests does not need a database at import time.
@@ -168,4 +190,4 @@ function runAnalyticsJobs() {
     }
 }
 
-module.exports = { startScheduledTasks, processFreezeCycles, processExpiryCycles, runAnalyticsJobs };
+module.exports = { startScheduledTasks, processFreezeCycles, processExpiryCycles, assignOpenMembers, runAnalyticsJobs };

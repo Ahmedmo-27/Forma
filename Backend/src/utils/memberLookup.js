@@ -28,9 +28,10 @@ function buildMemberFilter(id) {
         return { barcode: value.toUpperCase() };
     }
 
-    // Numeric — could be systemId or memberId
-    if (/^\d+$/.test(value)) {
-        const numId = Number(value);
+    // Numeric system id or member id. "S100" is the displayed system id.
+    const numeric = value.replace(/^[sS]/, "");
+    if (/^\d+$/.test(numeric)) {
+        const numId = Number(numeric);
         return { $or: [{ systemId: numId }, { memberId: numId }] };
     }
 

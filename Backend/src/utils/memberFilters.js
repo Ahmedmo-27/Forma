@@ -1,4 +1,19 @@
-function buildMemberListFilter({ status, search, assignedSales, unassigned, subscribedToday }) {
+function numericId(value) {
+    const raw = String(value ?? "").trim().replace(/^[sS]/, "");
+    if (!/^\d+$/.test(raw)) return null;
+    return Number(raw);
+}
+
+function buildMemberListFilter({
+    status,
+    search,
+    assignedSales,
+    subscribedToday,
+    transferred,
+    recent,
+    expiringSoon,
+    currentCouch,
+}) {
     const filter = {};
 
     if (status === "blocked") {
@@ -7,10 +22,22 @@ function buildMemberListFilter({ status, search, assignedSales, unassigned, subs
         filter.status = status;
     }
 
-    if (unassigned === "true") {
-        filter.assignedSales = null;
-    } else if (assignedSales) {
+    if (assignedSales && assignedSales !== "null" && assignedSales !== "undefined") {
         filter.assignedSales = assignedSales;
+    }
+
+    if (currentCouch && currentCouch !== "null" && currentCouch !== "undefined") {
+        filter.current_couch = currentCouch;
+    }
+
+    if (transferred === "true" || transferred === true) {
+        filter.userlog = { $elemMatch: { type: "assign", text: /transferred/i } };
+    }
+
+    if (recent === "true" || recent === true) {
+        const since = new Date();
+        since.setDate(since.getDate() - 30);
+        filter.createdAt = { $gte: since };
     }
 
     if (subscribedToday === "true") {
@@ -21,14 +48,21 @@ function buildMemberListFilter({ status, search, assignedSales, unassigned, subs
         filter["subscriptions.createdAt"] = { $gte: start, $lt: end };
     }
 
+    if (expiringSoon === "true" || expiringSoon === true) {
+        const now = new Date();
+        const soon = new Date(now.getTime() + 7 * 86400000);
+        if (!filter.status) filter.status = "active";
+        filter["subscriptions.endDate"] = { $gte: now, $lte: soon };
+    }
+
     if (search?.trim()) {
         const q = search.trim();
         const or = [
             { name: { $regex: q, $options: "i" } },
             { phones: { $regex: q, $options: "i" } },
         ];
-        const num = Number(q);
-        if (!Number.isNaN(num)) {
+        const num = numericId(q);
+        if (num != null) {
             or.push({ systemId: num }, { memberId: num });
         }
         filter.$or = or;
@@ -37,32 +71,31 @@ function buildMemberListFilter({ status, search, assignedSales, unassigned, subs
     return filter;
 }
 
-/** Status-tab counts must stay global. The active tab only filters the rows. */
+/** Status-tab counts stay on the caller's book. The active tab and extra filters only change the rows. */
 function statsFilterFromListFilter(filter = {}) {
     const statsFilter = { ...filter };
     delete statsFilter.status;
     delete statsFilter.isBlocked;
     delete statsFilter["subscriptions.createdAt"];
+    delete statsFilter["subscriptions.endDate"];
+    delete statsFilter.createdAt;
+    delete statsFilter.userlog;
     return statsFilter;
 }
 
+/**
+ * Count with the same query path as the member list.
+ * Aggregation skips mongoose casting, so a sales-rep ObjectId stored as a
+ * string in the filter matched zero rows and every stat card stayed at 0.
+ */
 async function getMemberStatusStats(Member, baseFilter = {}) {
-    const [groups, blockedCount] = await Promise.all([
-        Member.aggregate([
-            { $match: baseFilter },
-            { $group: { _id: "$status", count: { $sum: 1 } } },
-        ]),
+    const statuses = ["active", "frozen", "expired", "guest"];
+    const [total, blocked, active, frozen, expired, guest] = await Promise.all([
+        Member.countDocuments(baseFilter),
         Member.countDocuments({ ...baseFilter, isBlocked: true }),
+        ...statuses.map((status) => Member.countDocuments({ ...baseFilter, status })),
     ]);
-
-    const stats = { total: 0, active: 0, frozen: 0, expired: 0, guest: 0, blocked: blockedCount };
-    groups.forEach((g) => {
-        if (g._id && Object.prototype.hasOwnProperty.call(stats, g._id)) {
-            stats[g._id] = g.count;
-        }
-        stats.total += g.count;
-    });
-    return stats;
+    return { total, active, frozen, expired, guest, blocked };
 }
 
-module.exports = { buildMemberListFilter, statsFilterFromListFilter, getMemberStatusStats };
+module.exports = { buildMemberListFilter, statsFilterFromListFilter, getMemberStatusStats, numericId };
