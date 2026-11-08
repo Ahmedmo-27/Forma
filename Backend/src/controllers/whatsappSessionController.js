@@ -5,6 +5,7 @@ const { writeAudit } = require("../utils/audit");
 const { AppError, ForbiddenError } = require("../utils/errors");
 const { detectMimeFromBuffer, IMAGE_ONLY } = require("../utils/fileMagic");
 const { WhatsAppSessionError } = require("../services/whatsapp/sessionManager");
+const { findMemberByIdentifier } = require("../utils/memberLookup");
 const {
     getSessionStatus,
     startSession,
@@ -85,9 +86,10 @@ async function assertMonthlyAllowance(req) {
 }
 
 function forward(error, next) {
-    if (error instanceof WhatsAppSessionError || error?.code === "WHATSAPP_NOT_CONNECTED" || error?.code === "WHATSAPP_NOT_ON_WHATSAPP" || error?.code === "VALIDATION_FAILED") {
+    if (error instanceof WhatsAppSessionError || error?.code === "WHATSAPP_NOT_CONNECTED" || error?.code === "WHATSAPP_NOT_ON_WHATSAPP" || error?.code === "WHATSAPP_TIMEOUT" || error?.code === "VALIDATION_FAILED") {
         if (error instanceof AppError) return next(error);
-        return next(new AppError(error.code, error.message));
+        const status = error.code === "WHATSAPP_TIMEOUT" ? 504 : 400;
+        return next(new AppError(error.code, error.message, status));
     }
     return next(error);
 }
@@ -160,26 +162,59 @@ const sendImageMessage = async (req, res, next) => {
             throw new AppError("UPLOAD_INVALID_TYPE", "WhatsApp image must be a png, jpeg, or webp.");
         }
         await assertMonthlyAllowance(req);
-        const { phone, caption, memberId, memberName } = req.body;
-        await sendImage({
+        const { phone, caption, memberId, memberName, kind, code } = req.body;
+        const sendResult = await sendImage({
             ...actor(req),
             phone,
             image: req.file.buffer,
             caption,
         });
+
+        let memberObj = null;
+        let lastQrSentAt = null;
+        if (memberId) {
+            try {
+                memberObj = await findMemberByIdentifier(memberId);
+                if (memberObj) {
+                    lastQrSentAt = new Date();
+                    memberObj.lastQrSentAt = lastQrSentAt;
+                    if (kind === "qr_checkin" || code) {
+                        if (!Array.isArray(memberObj.userlog)) memberObj.userlog = [];
+                        memberObj.userlog.push({
+                            type: "other",
+                            text: `Check-in QR code (${code || memberObj.systemId || ""}) sent via WhatsApp to ${phone}`,
+                            user: req.user?.id || null,
+                        });
+                    }
+                    await memberObj.save();
+                }
+            } catch (memberErr) {
+                // Member tracking failure should not block message response
+            }
+        }
+
+        const isQr = kind === "qr_checkin" || Boolean(code);
         await writeAudit({
-            action: "whatsapp_message_sent",
+            action: isQr ? "whatsapp_qr_sent" : "whatsapp_message_sent",
             actor: req.user.id,
             actorRole: req.user.role,
             targetType: "member",
-            targetId: memberId != null ? String(memberId) : null,
+            targetId: memberObj?._id ? String(memberObj._id) : (memberId != null ? String(memberId) : null),
             meta: {
-                memberName: memberName || null,
-                kind: "image",
+                memberName: memberName || memberObj?.name || null,
+                kind: isQr ? "qr_checkin" : "image",
+                code: code || memberObj?.systemId || null,
+                messageId: sendResult?.messageId || null,
+                sentAt: new Date(),
             },
             req,
         });
-        res.status(200).json({ message: "Sent" });
+
+        res.status(200).json({
+            message: "Sent",
+            messageId: sendResult?.messageId || null,
+            lastQrSentAt: lastQrSentAt || new Date(),
+        });
     } catch (error) {
         forward(error, next);
     }

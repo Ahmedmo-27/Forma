@@ -205,6 +205,8 @@ const updateWhatsAppTemplateSchema = createWhatsAppTemplateSchema.partial().exte
 const logWhatsAppTemplateSendSchema = z.object({
     memberId: z.union([objectId, z.string().trim().min(1).max(40)]).optional().nullable(),
     memberName: z.string().trim().max(120).optional().nullable(),
+    kind: z.string().trim().max(50).optional().nullable(),
+    code: z.string().trim().max(100).optional().nullable(),
     templateId: objectId.optional().nullable(),
 });
 
@@ -213,6 +215,8 @@ const sendWhatsAppMessageSchema = z.object({
     text: plainText(4000),
     memberId: z.preprocess(emptyToNull, memberIdInput.nullable().optional()),
     memberName: z.string().trim().max(120).optional().nullable(),
+    kind: z.string().trim().max(50).optional().nullable(),
+    code: z.string().trim().max(100).optional().nullable(),
     templateId: nullableObjectId,
 });
 
@@ -221,6 +225,8 @@ const sendWhatsAppImageSchema = z.object({
     caption: z.string().trim().max(1000).optional().default(""),
     memberId: z.preprocess(emptyToNull, memberIdInput.nullable().optional()),
     memberName: z.string().trim().max(120).optional().nullable(),
+    kind: z.string().trim().max(50).optional().nullable(),
+    code: z.string().trim().max(100).optional().nullable(),
 });
 
 const egpCurrency = z.preprocess(() => "EGP", z.literal("EGP"));

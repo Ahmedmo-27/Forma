@@ -374,6 +374,11 @@ blockedAt: {
         }
     }],
 
+    lastQrSentAt: {
+        type: Date,
+        default: null,
+    },
+
     notes:       [noteSchema],
     alert:       [alertSchema],
     couch_notes: [noteSchema],

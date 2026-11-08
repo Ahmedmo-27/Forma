@@ -68,7 +68,8 @@ function createSessionManager(deps = {}) {
     // Floor between messages from the same linked number. Bulk send waits at
     // least this long on the client; the server enforces it if a caller does not.
     const minGapMs = deps.minGapMs ?? 20000;
-    const connectTimeoutMs = deps.connectTimeoutMs ?? 20000;
+    const connectTimeoutMs = deps.connectTimeoutMs ?? 35000;
+    const sendTimeoutMs = deps.sendTimeoutMs ?? 60000;
 
     function settleWaiters(entry) {
         const waiters = entry.waiters.splice(0);
@@ -382,19 +383,45 @@ function createSessionManager(deps = {}) {
         const entry = await ensureConnected({ tenantId, userId });
         await pace(entry);
         const jid = await resolveRecipient(entry, phone);
-        await entry.sock.sendMessage(jid, { text });
-        return { status: "sent" };
+        let sendTimer;
+        try {
+            const result = await Promise.race([
+                entry.sock.sendMessage(jid, { text }),
+                new Promise((_, reject) => {
+                    sendTimer = setTimeout(
+                        () => reject(new WhatsAppSessionError("WHATSAPP_TIMEOUT", "WhatsApp message send timed out.")),
+                        sendTimeoutMs
+                    );
+                }),
+            ]);
+            return { status: "sent", messageId: result?.key?.id || null };
+        } finally {
+            if (sendTimer) clearTimeout(sendTimer);
+        }
     }
 
     async function sendImage({ tenantId, userId, phone, image, caption }) {
         const entry = await ensureConnected({ tenantId, userId });
         await pace(entry);
         const jid = await resolveRecipient(entry, phone);
-        await entry.sock.sendMessage(jid, {
-            image,
-            ...(caption ? { caption } : {}),
-        });
-        return { status: "sent" };
+        let sendTimer;
+        try {
+            const result = await Promise.race([
+                entry.sock.sendMessage(jid, {
+                    image,
+                    ...(caption ? { caption } : {}),
+                }),
+                new Promise((_, reject) => {
+                    sendTimer = setTimeout(
+                        () => reject(new WhatsAppSessionError("WHATSAPP_TIMEOUT", "WhatsApp image upload timed out. Media upload took too long.")),
+                        sendTimeoutMs
+                    );
+                }),
+            ]);
+            return { status: "sent", messageId: result?.key?.id || null };
+        } finally {
+            if (sendTimer) clearTimeout(sendTimer);
+        }
     }
 
     async function restoreConnected() {

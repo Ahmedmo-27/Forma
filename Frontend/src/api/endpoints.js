@@ -148,7 +148,7 @@ export const logoutWhatsAppSession = () => api.post('/whatsapp/session/logout');
 export const sendWhatsAppMessage = (data) => api.post('/whatsapp/messages', data, { timeout: 70000 });
 export const sendWhatsAppImage = (formData) => api.post('/whatsapp/messages/image', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
-  timeout: 45000,
+  timeout: 90000,
 });
 
 export const assignPackage       = (id, data) =>

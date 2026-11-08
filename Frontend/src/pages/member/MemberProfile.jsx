@@ -149,7 +149,7 @@ export default function MemberProfile() {
         </div>
       }>
         <div className="member-profile-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {member && <MemberQrButton member={member} />}
+          {member && <MemberQrButton member={member} onSent={fetchProfile} />}
           {member && ['Receptionist', 'Owner', 'Sales Manager'].includes(user?.role) && (
             <Btn variant={member.status === 'active' || member.status === 'frozen' ? 'success' : 'outline'} size="sm"
               onClick={handleCheckIn} disabled={checkingIn || member.status === 'expired' || member.status === 'guest' || member.isBlocked}>
