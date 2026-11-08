@@ -22,6 +22,7 @@ import ReceptionistProfile from './pages/sales/ReceptionistProfile';
 import ManageStaff        from './pages/sales/ManageStaff';
 import ManagePackages     from './pages/sales/ManagePackages';
 import ManageWhatsAppTemplates from './pages/sales/ManageWhatsAppTemplates';
+import ConnectWhatsApp from './pages/account/ConnectWhatsApp';
 import TargetDashboard    from './pages/sales/TargetDashboard';
 import SalesSubscriptions from './pages/sales/SalesSubscriptions';
 import SalesCallCenter    from './pages/sales/SalesCallCenter';
@@ -141,6 +142,11 @@ function TenantAppRoutes() {
       <Route path="/auth/forgot-password" element={<ForgotPassword />} />
 
       {/* Receptionist / Owner */}
+      <Route path="/account/whatsapp" element={
+        <PrivateRoute feature="whatsapp">
+          <ConnectWhatsApp />
+        </PrivateRoute>
+      } />
       <Route path="/members" element={
         <PrivateRoute roles={['Owner', 'Sales Manager', 'Accountant', 'Coach Manager', 'Receptionist']} access="members">
           <Members />

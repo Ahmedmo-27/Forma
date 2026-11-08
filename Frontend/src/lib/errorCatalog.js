@@ -264,6 +264,20 @@ export const ERROR_MESSAGES = {
     presentation: "inline",
     primaryAction: { label: "Review Value", action: "retry" },
   },
+  WHATSAPP_NOT_CONNECTED: {
+    title: "WhatsApp Not Connected",
+    message: "Connect WhatsApp before sending. Open Connect WhatsApp from your profile menu.",
+    severity: "warning",
+    presentation: "toast",
+    primaryAction: { label: "Connect WhatsApp", action: "retry" },
+  },
+  WHATSAPP_NOT_ON_WHATSAPP: {
+    title: "Not on WhatsApp",
+    message: "This phone number is not registered on WhatsApp.",
+    severity: "warning",
+    presentation: "toast",
+    primaryAction: { label: "Check Number", action: "dismiss" },
+  },
   RESOURCE_NOT_FOUND: {
     title: "Record Not Found",
     message: "The record you requested may have been deleted or moved.",

@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Btn, Modal, Select, Textarea, Input, Spinner } from './ui';
-import { getWhatsAppTemplates, getPackages, logWhatsAppTemplateSend } from '../api/endpoints';
+import { getWhatsAppTemplates, getPackages, sendWhatsAppMessage } from '../api/endpoints';
 import { composeWhatsAppTemplateMessage, toWhatsAppUrl } from '../utils/whatsapp';
 
 function typeLabel(type) {
@@ -57,6 +58,8 @@ export default function WhatsAppTemplateSendModal({ open, onClose, phone, member
   const [language, setLanguage] = useState('en');
   const [message, setMessage] = useState('');
   const [messageDirty, setMessageDirty] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [needsConnect, setNeedsConnect] = useState(false);
 
   const buildMessage = useCallback((template, pkgs, pkgIds, percent, lang, name) => {
     if (!template) return '';
@@ -79,6 +82,7 @@ export default function WhatsAppTemplateSendModal({ open, onClose, phone, member
     setLanguage('en');
     setMessage('');
     setMessageDirty(false);
+    setNeedsConnect(false);
 
     Promise.all([
       getWhatsAppTemplates({ limit: 100 }),
@@ -255,22 +259,27 @@ export default function WhatsAppTemplateSendModal({ open, onClose, phone, member
         return;
       }
     }
-    const url = toWhatsAppUrl(phone, message);
-    if (!url) {
+    if (!toWhatsAppUrl(phone, message)) {
       toast.error('This member’s phone number is not valid for WhatsApp');
       return;
     }
+    setSending(true);
+    setNeedsConnect(false);
     try {
-      await logWhatsAppTemplateSend({
+      await sendWhatsAppMessage({
+        phone,
+        text: trimmedMsg,
         memberId: memberId || null,
         memberName: memberName || null,
         templateId: templateId || null,
       });
-    } catch {
-      // non-blocking
+      toast.success('WhatsApp message sent');
+      onClose();
+    } catch (err) {
+      if (err?.normalized?.code === 'WHATSAPP_NOT_CONNECTED') setNeedsConnect(true);
+    } finally {
+      setSending(false);
     }
-    window.open(url, '_blank', 'noopener,noreferrer');
-    onClose();
   };
 
   const showPackagePicker = selectedTemplate?.type === 'packages';
@@ -291,9 +300,9 @@ export default function WhatsAppTemplateSendModal({ open, onClose, phone, member
           variant="success"
           size="sm"
           onClick={handleSend}
-          disabled={loading || !message.trim()}
+          disabled={loading || sending || !message.trim()}
         >
-          Open WhatsApp
+          {sending ? 'Sending…' : 'Send'}
         </Btn>
       </>}
     >
@@ -308,8 +317,13 @@ export default function WhatsAppTemplateSendModal({ open, onClose, phone, member
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
           <div style={tipBox}>
-            Messaging <strong>{memberName || 'this member'}</strong>. Follow the steps below, check the preview, then click <strong>Open WhatsApp</strong>. The text will already be filled in — just press send in WhatsApp.
+            Messaging <strong>{memberName || 'this member'}</strong>. Follow the steps below, check the preview, then click <strong>Send</strong>. The message goes out from your linked WhatsApp.
           </div>
+          {needsConnect && (
+            <div style={tipBox}>
+              Connect WhatsApp before sending. <Link to="/account/whatsapp" style={{ fontWeight: 700 }}>Open Connect WhatsApp</Link>
+            </div>
+          )}
 
           <div>
             <div style={stepLabel}>Step 1 — What do you want to send?</div>

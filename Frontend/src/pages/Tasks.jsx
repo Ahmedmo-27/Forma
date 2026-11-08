@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
 import Layout from '../components/Layout';
@@ -9,7 +9,7 @@ import {
 } from '../components/ui';
 import {
   getAllMembers, getSalesUsers, getCoachTeam, getWhatsAppTemplates, getPackages,
-  bulkTransferSalesReps, bulkTransferCoach, switchSalesRep, switchCoach, logWhatsAppTemplateSend,
+  bulkTransferSalesReps, bulkTransferCoach, switchSalesRep, switchCoach, sendWhatsAppMessage,
 } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -20,6 +20,11 @@ import {
 } from './tasks/taskMembers';
 
 const DEFAULT_COLUMNS = ['name', 'systemId', 'phone', 'status', 'salesman', 'coach', 'package', 'endDate'];
+const BULK_COOLDOWN_SECONDS = 20;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function downloadExcel(filename, columns, rows) {
   const blob = new Blob([buildExcel(columns, rows)], { type: 'application/vnd.ms-excel' });
@@ -378,6 +383,11 @@ function WhatsAppBulkModal({ members, onClose }) {
   const [message, setMessage] = useState('');
   const [dirty, setDirty] = useState(false);
   const [cursor, setCursor] = useState(0);
+  const [sending, setSending] = useState(false);
+  const [running, setRunning] = useState(false);
+  const [waitLeft, setWaitLeft] = useState(0);
+  const [needsConnect, setNeedsConnect] = useState(false);
+  const stopRef = useRef(false);
 
   const reachable = useMemo(
     () => members.filter((member) => toWhatsAppUrl(memberPhone(member))),
@@ -413,37 +423,98 @@ function WhatsAppBulkModal({ members, onClose }) {
   }, [template, packages]);
 
   const draft = dirty ? message : composed;
-  const textFor = (member) => applyWhatsAppPlaceholders(draft, member?.name);
 
-  const openCurrent = async () => {
-    if (!current) return;
-    const url = toWhatsAppUrl(memberPhone(current), textFor(current));
-    if (!url) {
-      toast.error(`${current.name} has no WhatsApp number`);
-      return;
+  useEffect(() => () => { stopRef.current = true; }, []);
+
+  const stopRun = () => { stopRef.current = true; };
+  const closeModal = () => { stopRef.current = true; onClose(); };
+
+  const sendAll = async () => {
+    if (running || !draft.trim()) return;
+    const queue = reachable.slice(cursor);
+    const templateText = draft;
+    if (!queue.length) return;
+    stopRef.current = false;
+    setRunning(true);
+    setNeedsConnect(false);
+    let sent = 0;
+    let completed = true;
+    for (let i = 0; i < queue.length; i += 1) {
+      if (stopRef.current) {
+        completed = false;
+        break;
+      }
+      const member = queue[i];
+      const text = applyWhatsAppPlaceholders(templateText, member?.name);
+      if (!toWhatsAppUrl(memberPhone(member), text)) {
+        toast.error(`${member.name} has no WhatsApp number`);
+        setCursor((index) => index + 1);
+        continue;
+      }
+      setSending(true);
+      let failed = false;
+      try {
+        await sendWhatsAppMessage({
+          phone: memberPhone(member),
+          text,
+          memberId: member.systemId || member._id,
+          memberName: member.name,
+          templateId: templateId || null,
+        });
+        sent += 1;
+        toast.success(`Sent to ${member.name}`);
+        setCursor((index) => index + 1);
+      } catch (err) {
+        failed = true;
+        const code = err?.normalized?.code;
+        if (code === 'WHATSAPP_NOT_CONNECTED') setNeedsConnect(true);
+        if (code === 'WHATSAPP_NOT_ON_WHATSAPP') {
+          setCursor((index) => index + 1);
+          failed = false;
+        }
+      } finally {
+        setSending(false);
+      }
+      if (failed || stopRef.current) {
+        completed = false;
+        break;
+      }
+      if (i >= queue.length - 1) break;
+      const pause = BULK_COOLDOWN_SECONDS + Math.floor(Math.random() * 9);
+      for (let left = pause; left > 0; left -= 1) {
+        if (stopRef.current) break;
+        setWaitLeft(left);
+        await sleep(1000);
+      }
+      setWaitLeft(0);
+      if (stopRef.current) completed = false;
     }
-    try {
-      await logWhatsAppTemplateSend({
-        memberId: current.systemId || current._id,
-        memberName: current.name,
-        templateId: templateId || null,
-      });
-    } catch { /* opening WhatsApp still works */ }
-    window.open(url, '_blank', 'noopener,noreferrer');
-    setCursor((index) => index + 1);
+    setRunning(false);
+    setSending(false);
+    setWaitLeft(0);
+    if (completed && sent > 0) toast.success(`Finished. Sent ${sent} message${sent === 1 ? '' : 's'}.`);
   };
 
   return (
     <Modal
       open
-      onClose={onClose}
+      onClose={closeModal}
       title="Send bulk WhatsApp"
       size="lg"
       footer={(
         <>
-          <Btn variant="ghost" size="sm" onClick={onClose}>Close</Btn>
-          <Btn variant="success" size="sm" onClick={openCurrent} disabled={loading || !current || !draft.trim()}>
-            {current ? `Open WhatsApp for ${current.name}` : (reachable.length ? 'All opened' : 'No numbers')}
+          <Btn variant="ghost" size="sm" onClick={closeModal}>Close</Btn>
+          {running && (
+            <Btn variant="outline" size="sm" onClick={stopRun}>Stop</Btn>
+          )}
+          <Btn variant="success" size="sm" onClick={sendAll} disabled={loading || running || !current || !draft.trim()}>
+            {waitLeft
+              ? `Next in ${waitLeft}s`
+              : sending
+                ? `Sending to ${current?.name || 'member'}…`
+                : current
+                  ? `Send ${reachable.length - cursor} with pauses`
+                  : (reachable.length ? 'All sent' : 'No numbers')}
           </Btn>
         </>
       )}
@@ -454,14 +525,25 @@ function WhatsAppBulkModal({ members, onClose }) {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <p style={{ fontSize: 13, color: 'var(--t3)', margin: 0 }}>
             {reachable.length} of {members.length} selected member(s) have a phone number.
+            {' '}Sent {Math.min(cursor, reachable.length)} of {reachable.length}. After each message Leap waits 20–28 seconds, then sends the next, so WhatsApp is less likely to treat the number as spam.
           </p>
-          <Select label="Template" value={templateId} onChange={(e) => { setTemplateId(e.target.value); setDirty(false); }}>
+          {waitLeft > 0 && (
+            <p style={{ fontSize: 13, margin: 0, fontWeight: 700 }}>
+              Cooling down. Next message in {waitLeft}s.
+            </p>
+          )}
+          {needsConnect && (
+            <p style={{ fontSize: 13, margin: 0 }}>
+              <Link to="/account/whatsapp">Connect WhatsApp</Link> before sending.
+            </p>
+          )}
+          <Select label="Template" value={templateId} onChange={(e) => { setTemplateId(e.target.value); setDirty(false); }} disabled={running}>
             <option value="">Custom text</option>
             {templates.map((item) => (
               <option key={item._id} value={item._id}>{item.name}</option>
             ))}
           </Select>
-          <Textarea label="Message" value={draft} onChange={(e) => { setMessage(e.target.value); setDirty(true); }} rows={6} />
+          <Textarea label="Message" value={draft} onChange={(e) => { setMessage(e.target.value); setDirty(true); }} rows={6} disabled={running} />
         </div>
       )}
     </Modal>

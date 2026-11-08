@@ -227,7 +227,7 @@ export default function CallCenter() {
                 <div>
                   {notes.map((note, i) => (
                     <NoteRow
-                      key={note._id ?? i}
+                      key={`${note.member?._id ?? "member"}-${note._id ?? "note"}-${i}`}
                       note={note}
                       onMemberClick={() => navigate(`/members/${note.member?.systemId}`)}
                       isLast={i === notes.length - 1}

@@ -1,5 +1,6 @@
 import { apiOrigin } from '../../api/axios';
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -38,11 +39,6 @@ export default function TenantSettings() {
   const [activities, setActivities] = useState(KNOWN_ACTIVITIES);
   const [customActivity, setCustomActivity] = useState('');
 
-  // WhatsApp
-  const [waPhoneId, setWaPhoneId] = useState('');
-  const [waAccountId, setWaAccountId] = useState('');
-  const [waToken, setWaToken] = useState('');
-
   useEffect(() => {
     if (tenant?.settings) {
       setDisplayName(tenant.settings.branding?.displayName || tenant.name || '');
@@ -55,10 +51,6 @@ export default function TenantSettings() {
       }
       if (tenant.settings.enabledActivities?.length > 0) {
         setActivities(tenant.settings.enabledActivities);
-      }
-      if (tenant.settings.whatsapp) {
-        setWaPhoneId(tenant.settings.whatsapp.phoneNumberId || '');
-        setWaAccountId(tenant.settings.whatsapp.businessAccountId || '');
       }
     }
   }, [tenant]);
@@ -101,16 +93,6 @@ export default function TenantSettings() {
           enabledActivities: activities,
         },
       };
-
-      if (waPhoneId || waAccountId || waToken) {
-        payload.settings.whatsapp = {
-          phoneNumberId: waPhoneId.trim() || undefined,
-          businessAccountId: waAccountId.trim() || undefined,
-        };
-        if (waToken) {
-          payload.settings.whatsapp.accessToken = waToken.trim();
-        }
-      }
 
       await updateTenantMe(payload);
       toast.success('Gym settings saved successfully!');
@@ -200,7 +182,7 @@ export default function TenantSettings() {
       <div style={{ maxWidth: 1040, margin: '0 auto', padding: '24px 16px' }}>
         <PageHeader
           title="Gym & Tenant Settings"
-          sub="Manage your gym's brand identity, locale, offerings, credentials, and plan"
+          sub="Manage your gym's brand identity, locale, offerings, and plan"
           action={
             <Btn variant="primary" onClick={handleSaveSettings} disabled={saving}>
               {saving ? <><Spinner size="sm" /> Saving…</> : 'Save Settings'}
@@ -213,7 +195,7 @@ export default function TenantSettings() {
           {[
             { id: 'branding', label: 'Branding & Palette' },
             { id: 'locale', label: 'Locale & Activities' },
-            { id: 'whatsapp', label: 'WhatsApp API' },
+            { id: 'whatsapp', label: 'WhatsApp' },
             { id: 'plan', label: 'Plan & Usage' },
           ].map(t => (
             <button
@@ -423,30 +405,16 @@ export default function TenantSettings() {
         {activeTab === 'whatsapp' && (
           <Card>
             <CardHeader
-              title="WhatsApp Cloud API Credentials"
-              sub="Secrets are stored encrypted at rest with AES-256-GCM. Never shared with unauthorized roles."
+              title="WhatsApp"
+              sub="Each staff member connects their own number. Messages are sent from that number."
             />
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 16 }}>
-              <Input
-                label="WhatsApp Phone Number ID"
-                value={waPhoneId}
-                onChange={e => setWaPhoneId(e.target.value)}
-                placeholder="e.g. 104829104812391"
-              />
-              <Input
-                label="WhatsApp Business Account ID (WABA ID)"
-                value={waAccountId}
-                onChange={e => setWaAccountId(e.target.value)}
-                placeholder="e.g. 981249120491823"
-              />
-              <Input
-                label="Permanent System User Access Token"
-                type="password"
-                value={waToken}
-                onChange={e => setWaToken(e.target.value)}
-                placeholder="Enter new token (write-only, leave blank to keep unchanged)"
-                hint="Your token is masked and securely encrypted on write"
-              />
+            <p style={{ margin: '16px 0 0', fontSize: 14, color: '#374151', lineHeight: 1.5 }}>
+              Open the profile menu and choose Connect WhatsApp, then scan the QR code from the WhatsApp app on your phone.
+            </p>
+            <div style={{ marginTop: 16 }}>
+              <Link to="/account/whatsapp" style={{ color: 'var(--navy)', fontWeight: 700, fontSize: 14 }}>
+                Connect WhatsApp
+              </Link>
             </div>
           </Card>
         )}

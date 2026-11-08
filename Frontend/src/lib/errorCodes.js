@@ -223,6 +223,18 @@ export const ERROR_CODES = {
     category: "data",
     retryable: true,
   },
+  WHATSAPP_NOT_CONNECTED: {
+    code: "WHATSAPP_NOT_CONNECTED",
+    status: 409,
+    category: "data",
+    retryable: true,
+  },
+  WHATSAPP_NOT_ON_WHATSAPP: {
+    code: "WHATSAPP_NOT_ON_WHATSAPP",
+    status: 400,
+    category: "data",
+    retryable: false,
+  },
   RESOURCE_NOT_FOUND: {
     code: "RESOURCE_NOT_FOUND",
     status: 404,

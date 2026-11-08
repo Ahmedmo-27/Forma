@@ -142,6 +142,14 @@ export const createWhatsAppTemplate  = (data) => api.post('/whatsapp-templates',
 export const updateWhatsAppTemplate  = (id, data) => api.patch(`/whatsapp-templates/${id}`, data);
 export const deleteWhatsAppTemplate  = (id) => api.delete(`/whatsapp-templates/${id}`);
 export const logWhatsAppTemplateSend = (data) => api.post('/whatsapp-templates/log-send', data);
+export const getWhatsAppSession = () => api.get('/whatsapp/session');
+export const startWhatsAppSession = () => api.post('/whatsapp/session/start');
+export const logoutWhatsAppSession = () => api.post('/whatsapp/session/logout');
+export const sendWhatsAppMessage = (data) => api.post('/whatsapp/messages', data, { timeout: 70000 });
+export const sendWhatsAppImage = (formData) => api.post('/whatsapp/messages/image', formData, {
+  headers: { 'Content-Type': 'multipart/form-data' },
+  timeout: 45000,
+});
 
 export const assignPackage       = (id, data) =>
   api.post(`/members/${id}/package`, data);

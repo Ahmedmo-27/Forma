@@ -1,12 +1,78 @@
 import { useState } from "react";
+import QRCode from "qrcode";
 import toast from "react-hot-toast";
 import { Btn } from "./ui";
 import { toWhatsAppUrl } from "../utils/whatsapp";
+import { sendWhatsAppImage } from "../api/endpoints";
 import { memberQrPayload } from "../lib/systemId";
 
 function qrMessage(member, code) {
   const name = member?.name || "Member";
-  return `Hello ${name}, your Leap gym check-in code is ${code}. Show this code at reception to check in.`;
+  return `Hello ${name}, your Leap gym check-in code is ${code}. Show this QR at reception to check in.`;
+}
+
+function wrapLines(ctx, text, maxWidth) {
+  const words = String(text || "").trim().split(/\s+/).filter(Boolean);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    const next = line ? `${line} ${word}` : word;
+    if (ctx.measureText(next).width > maxWidth && line) {
+      lines.push(line);
+      line = word;
+    } else {
+      line = next;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.slice(0, 2);
+}
+
+async function buildCheckInCard(member, code) {
+  const qrUrl = await QRCode.toDataURL(code, {
+    width: 640,
+    margin: 1,
+    errorCorrectionLevel: "M",
+    color: { dark: "#1E1535", light: "#ffffff" },
+  });
+  const qr = await new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("QR image failed"));
+    image.src = qrUrl;
+  });
+
+  const canvas = document.createElement("canvas");
+  canvas.width = 720;
+  canvas.height = 920;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#44298C";
+  ctx.fillRect(0, 0, canvas.width, 108);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "700 34px system-ui, Segoe UI, sans-serif";
+  ctx.fillText("Leap check-in", 40, 66);
+
+  ctx.fillStyle = "#111827";
+  ctx.font = "700 32px system-ui, Segoe UI, sans-serif";
+  wrapLines(ctx, member?.name || "Member", 640).forEach((line, index) => {
+    ctx.fillText(line, 40, 176 + index * 40);
+  });
+
+  const qrSize = 520;
+  ctx.drawImage(qr, (canvas.width - qrSize) / 2, 270, qrSize, qrSize);
+
+  ctx.fillStyle = "#4B5563";
+  ctx.font = "600 22px system-ui, Segoe UI, sans-serif";
+  ctx.fillText("Show this QR at reception", 40, 840);
+  ctx.font = "500 20px ui-monospace, Consolas, monospace";
+  ctx.fillStyle = "#6B7280";
+  ctx.fillText(code, 40, 878);
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  if (!blob) throw new Error("QR image failed");
+  return blob;
 }
 
 function WhatsAppMark() {
@@ -21,28 +87,38 @@ export default function MemberQrButton({ member }) {
   const [busy, setBusy] = useState(false);
   const code = memberQrPayload(member?.systemId);
 
-  const send = () => {
+  const send = async () => {
     if (!code) {
       toast.error("This member has no system id yet");
       return;
     }
-    const link = toWhatsAppUrl(member?.phones, qrMessage(member, code));
-    if (!link) {
+    if (!toWhatsAppUrl(member?.phones)) {
       toast.error("This member has no phone number for WhatsApp");
       return;
     }
-    // WhatsApp Web opens that member's chat with this text already in the box.
-    const chat = link.replace("https://api.whatsapp.com/send", "https://web.whatsapp.com/send");
     setBusy(true);
-    window.open(chat, "_blank", "noopener,noreferrer");
-    toast.success("WhatsApp is open with the message ready. Press Enter to send.");
-    setBusy(false);
+    try {
+      const blob = await buildCheckInCard(member, code);
+      const body = new FormData();
+      body.append("image", blob, "check-in.png");
+      body.append("phone", member.phones);
+      body.append("caption", qrMessage(member, code));
+      const memberId = member.systemId || member._id;
+      if (memberId) body.append("memberId", String(memberId));
+      if (member.name) body.append("memberName", member.name);
+      await sendWhatsAppImage(body);
+      toast.success("QR code sent on WhatsApp");
+    } catch (err) {
+      if (!err?.normalized) toast.error("Could not send the QR code");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <Btn size="sm" variant="success" onClick={send} disabled={busy || !member}>
       <WhatsAppMark />
-      {busy ? "Opening WhatsApp…" : "Send QR code to member on WhatsApp"}
+      {busy ? "Sending QR…" : "Send QR code to member on WhatsApp"}
     </Btn>
   );
 }
