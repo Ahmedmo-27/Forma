@@ -1,5 +1,6 @@
 const cacheService = require("../services/cacheService");
 const logger = require("./logger");
+const { invalidateAuthContext } = require("../middleware/authContextCache");
 
 /**
  * Invalidate cache tags for a specific tenant.
@@ -43,10 +44,19 @@ function autoInvalidate(categories, scope = "tenant") {
 
                     if (scope === "platform") {
                         invalidatePlatformCache(...catList);
+                        if (catList.some((cat) => cat === "plans" || cat === "tenants")) {
+                            invalidateAuthContext({ all: true });
+                        }
                     } else {
                         const tenantId = req.user?.tenantId || req.tenant?.id;
                         if (tenantId) {
                             invalidateTenantCache(tenantId, ...catList);
+                        }
+                        if (catList.some((cat) => cat === "users" || cat === "tenant")) {
+                            invalidateAuthContext({
+                                tenantId,
+                                userId: req.params?.id || req.params?.userId,
+                            });
                         }
                     }
                 } catch (err) {

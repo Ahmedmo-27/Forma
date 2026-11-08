@@ -4,6 +4,7 @@ const User = require("../models/User");
 const Tenant = require("../models/Tenant");
 const logger = require("../utils/logger");
 const { runWithTenant, runAsPlatform } = require("../context/tenantContext");
+const { getAuthContext, setAuthContext } = require("./authContextCache");
 
 /**
  * Verifies Bearer JWT, validates tenant status, reloads user from DB,
@@ -60,6 +61,38 @@ const protect = async (req, res, next) => {
         let tenantId = decoded.tenantId || null;
         let tenantSlug = decoded.tenantSlug || null;
 
+        if (!decoded.isImpersonation) {
+            const cached = getAuthContext(decoded.id, tenantId);
+            if (cached) {
+                const cachedStatus = cached.tenant?.status;
+                if (cachedStatus === "suspended" || cachedStatus === "cancelled") {
+                    return res.status(403).json({
+                        code: "TENANT_SUSPENDED",
+                        message: "Your gym's subscription is suspended or cancelled. Please contact your administrator.",
+                    });
+                }
+                tenantSlug = cached.tenantSlug || tenantSlug;
+                req.tenant = cached.tenant;
+                req.plan = cached.plan;
+                req.user = {
+                    ...cached.user,
+                    tenantId: tenantId ? String(tenantId) : cached.user.tenantId || null,
+                    tenantSlug,
+                    isImpersonation: false,
+                    impersonatedBy: null,
+                    platformAdminName: null,
+                    readOnly: false,
+                };
+                if (tenantId) {
+                    touchTenantActivity(tenantId);
+                    return runWithTenant({ tenantId, tenantSlug }, () => {
+                        next();
+                    });
+                }
+                return next();
+            }
+        }
+
         let user = null;
         if (tenantId) {
             await runWithTenant({ tenantId, tenantSlug }, async () => {
@@ -108,7 +141,7 @@ const protect = async (req, res, next) => {
             }
         }
 
-        req.user = {
+        const authUser = {
             id: user._id.toString(),
             role: user.role,
             name: user.name,
@@ -123,6 +156,9 @@ const protect = async (req, res, next) => {
                 add: user.accessOverrides?.add || [],
                 remove: user.accessOverrides?.remove || [],
             },
+        };
+        req.user = {
+            ...authUser,
             tenantId: tenantId ? String(tenantId) : null,
             tenantSlug,
             isImpersonation: Boolean(decoded.isImpersonation),
@@ -130,6 +166,15 @@ const protect = async (req, res, next) => {
             platformAdminName: decoded.platformAdminName || null,
             readOnly: Boolean(decoded.readOnly),
         };
+        if (!decoded.isImpersonation && req.user.tenantId) {
+            setAuthContext(decoded.id, decoded.tenantId || null, {
+                user: authUser,
+                tenant: req.tenant || null,
+                plan: req.plan || null,
+                tenantId: req.user.tenantId,
+                tenantSlug,
+            });
+        }
 
         // Block mutating HTTP requests if impersonation session is read-only
         if (req.user.isImpersonation && req.user.readOnly) {

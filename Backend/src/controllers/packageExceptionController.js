@@ -1,8 +1,9 @@
+const mongoose = require("mongoose");
 const PackageExceptionRequest = require("../models/PackageExceptionRequest");
 const Package = require("../models/Package");
 const Member = require("../models/Member");
 const User = require("../models/User");
-const { findMemberByIdentifier } = require("../utils/memberLookup");
+const { findMemberByIdentifier, buildMemberFilter } = require("../utils/memberLookup");
 const { generateBarcode } = require("../utils/barcodeHelper");
 const {
     notifyPackageExceptionPending,
@@ -347,17 +348,59 @@ const getExceptions = async (req, res) => {
 // Pending exception for a specific member (shown on profile Packages tab)
 const getMemberPendingException = async (req, res) => {
     try {
-        const member = await findMemberByIdentifier(req.params.memberId);
-        if (!member) {
+        const memberFilter = buildMemberFilter(req.params.memberId);
+        if (!memberFilter) {
             return res.status(404).json({ message: "Member not found" });
         }
 
-        const request = await PackageExceptionRequest.findOne({
-            member: member._id,
-            status: "pending",
-        })
-            .populate("basePackage", "name duration price activityType freezeLimitDays invitationLimit renewalDiscountPercent")
-            .populate("proposedBy", "name email role");
+        // An id is already the member key, so the pending request does not need a member read.
+        let memberId = memberFilter._id;
+        if (!memberId) {
+            const member = await Member.findOne(memberFilter).select("_id").lean();
+            if (!member) {
+                return res.status(404).json({ message: "Member not found" });
+            }
+            memberId = member._id;
+        }
+
+        const [request] = await PackageExceptionRequest.aggregate([
+            { $match: { member: new mongoose.Types.ObjectId(String(memberId)), status: "pending" } },
+            { $limit: 1 },
+            {
+                $lookup: {
+                    from: "packages",
+                    localField: "basePackage",
+                    foreignField: "_id",
+                    pipeline: [{
+                        $project: {
+                            name: 1,
+                            duration: 1,
+                            price: 1,
+                            activityType: 1,
+                            freezeLimitDays: 1,
+                            invitationLimit: 1,
+                            renewalDiscountPercent: 1,
+                        },
+                    }],
+                    as: "basePackage",
+                },
+            },
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "proposedBy",
+                    foreignField: "_id",
+                    pipeline: [{ $project: { name: 1, email: 1, role: 1 } }],
+                    as: "proposedBy",
+                },
+            },
+            {
+                $set: {
+                    basePackage: { $ifNull: [{ $arrayElemAt: ["$basePackage", 0] }, null] },
+                    proposedBy: { $ifNull: [{ $arrayElemAt: ["$proposedBy", 0] }, null] },
+                },
+            },
+        ]);
 
         res.json({ request: request ?? null });
     } catch (error) {

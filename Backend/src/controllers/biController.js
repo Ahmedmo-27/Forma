@@ -285,7 +285,10 @@ async function listObjectives(req, res, next) {
     try {
         privateCache(res);
         const objectives = await Objective.find({ archived: false }).sort({ deadline: 1 }).lean();
-        const progress = await ObjectiveProgress.find({}).sort({ localDate: -1 }).limit(500).lean();
+        const objectiveIds = objectives.map((row) => row._id);
+        const progress = objectiveIds.length
+            ? await ObjectiveProgress.find({ objectiveId: { $in: objectiveIds } }).sort({ localDate: -1 }).limit(500).lean()
+            : [];
         res.json({ objectives, progress });
     } catch (error) {
         next(error);

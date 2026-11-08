@@ -1,0 +1,1803 @@
+{
+  "ranAt": "2026-11-08T03:11:18.146Z",
+  "baseUrl": "http://127.0.0.1:5001",
+  "role": "Owner",
+  "tenantSlug": "leap",
+  "requestCount": 432,
+  "rateLimited": false,
+  "summary": {
+    "Good": 34,
+    "Moderate": 10,
+    "Bad": 3,
+    "Error": 1,
+    "Skipped": 7,
+    "RateLimited": 0
+  },
+  "explain": null,
+  "recommendations": [
+    {
+      "label": "GET /api/members?limit=20",
+      "grade": "Moderate",
+      "coldMs": 580.6,
+      "loadP95": 4.5,
+      "change": "Page the owner and sales dashboards (limit 20 plus the stats already returned by the list). getAllMembers in Backend/src/controllers/memberController.js also runs processExpiryCycles and assignOpenMembersToSalesManager on every list; move both onto the existing scheduler. For limit=10000 and all=true, add the compound index { tenantId: 1, createdAt: -1 } if the explain plan sorts in memory."
+    },
+    {
+      "label": "GET /api/members/today-checkins",
+      "grade": "Bad",
+      "coldMs": 583.6,
+      "loadP95": 2102.4,
+      "change": "getTodayCheckIns matches userlog with $elemMatch, then populates userlog.createdBy for the whole history of those members. Project only today's check-in log instead of hydrating the array."
+    },
+    {
+      "label": "GET /api/members/6a41277efbd6496e1d99b3df",
+      "grade": "Bad",
+      "coldMs": 2761.6,
+      "loadP95": 3.7,
+      "change": "getMemberProfile populates 16 paths, including every userlog.createdBy, and may save() when a freeze has ended. Select the fields the screen renders, populate only the latest subscription's authors, and let the scheduler unfreeze."
+    },
+    {
+      "label": "GET /api/members/by/6a41277efbd6496e1d99b3df",
+      "grade": "Moderate",
+      "coldMs": 948.9,
+      "loadP95": 2.7,
+      "change": "getMemberProfile populates 16 paths, including every userlog.createdBy, and may save() when a freeze has ended. Select the fields the screen renders, populate only the latest subscription's authors, and let the scheduler unfreeze."
+    },
+    {
+      "label": "GET /api/bi/objectives",
+      "grade": "Moderate",
+      "coldMs": 579.2,
+      "loadP95": 576.3,
+      "change": "These reads use TenantMetricSnapshot and are not wrapped in cacheResponse, unlike /api/analytics. Add the same 120-second tagged cache. If a single route is still slow, the handler is doing more than a snapshot read and should stay on the precomputed rows."
+    },
+    {
+      "label": "POST /api/members/check-in",
+      "grade": "Moderate",
+      "coldMs": 880.6,
+      "loadP95": null,
+      "change": "checkInMember loads the full member, pushes onto userlog, and save() rewrites the document. Use an update that only $push-es the new log entry. A separate check-in collection is the follow-up if this stays Bad."
+    }
+  ],
+  "endpoints": [
+    {
+      "id": "login",
+      "label": "POST /api/users/login",
+      "path": "/api/users/login",
+      "className": "login",
+      "critical": true,
+      "grade": "Moderate",
+      "cold": {
+        "status": 200,
+        "ms": 1687.1,
+        "ttfb": 1687,
+        "bytes": 1198,
+        "cache": null,
+        "grade": "Moderate",
+        "error": null
+      },
+      "warm": null,
+      "load": null
+    },
+    {
+      "id": "users.profile",
+      "label": "GET /api/users/profile",
+      "path": "/api/users/profile",
+      "className": "normal",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 1.2,
+        "ttfb": 1.1,
+        "bytes": 511,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 0.7,
+        "ttfb": 0.7,
+        "bytes": 511,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "users.me",
+      "label": "GET /api/users/me",
+      "path": "/api/users/me",
+      "className": "normal",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 283,
+        "ttfb": 282.9,
+        "bytes": 881,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 289.1,
+        "ttfb": 288.9,
+        "bytes": 881,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "users.access-search",
+      "label": "GET /api/users/access/search?q=a",
+      "path": "/api/users/access/search?q=a",
+      "className": "normal",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 285.1,
+        "ttfb": 284.9,
+        "bytes": 609,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 279.7,
+        "ttfb": 279.7,
+        "bytes": 609,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "users.access-by-role",
+      "label": "GET /api/users/access/search?role=Sales",
+      "path": "/api/users/access/search?role=Sales",
+      "className": "normal",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 306,
+        "ttfb": 305.9,
+        "bytes": 984,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 281.4,
+        "ttfb": 281.3,
+        "bytes": 984,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "users.sales-revenue",
+      "label": "GET /api/users/sales-revenue",
+      "path": "/api/users/sales-revenue",
+      "className": "large",
+      "critical": false,
+      "grade": "Skipped",
+      "cold": {
+        "status": 403,
+        "ms": 1.1,
+        "ttfb": 1.1,
+        "bytes": 96,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "User role Owner is not authorized to access this route"
+      },
+      "warm": {
+        "status": 403,
+        "ms": 0.8,
+        "ttfb": 0.8,
+        "bytes": 96,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "User role Owner is not authorized to access this route"
+      },
+      "load": null
+    },
+    {
+      "id": "users.manager-revenue",
+      "label": "GET /api/users/sales-manager/revenue",
+      "path": "/api/users/sales-manager/revenue",
+      "className": "large",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 568.3,
+        "ttfb": 568.3,
+        "bytes": 755,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1,
+        "ttfb": 1,
+        "bytes": 755,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 0.7,
+        "p95": 11.5,
+        "max": 11.5,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "users.manager-subscriptions",
+      "label": "GET /api/users/sales-manager/subscriptions",
+      "path": "/api/users/sales-manager/subscriptions",
+      "className": "large",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 287.5,
+        "ttfb": 287.4,
+        "bytes": 105,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.3,
+        "ttfb": 1.2,
+        "bytes": 105,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 0.7,
+        "p95": 3.5,
+        "max": 3.5,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "users.my-subscriptions",
+      "label": "GET /api/users/my-subscriptions",
+      "path": "/api/users/my-subscriptions",
+      "className": "large",
+      "critical": false,
+      "grade": "Skipped",
+      "cold": {
+        "status": 403,
+        "ms": 0.7,
+        "ttfb": 0.6,
+        "bytes": 96,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "User role Owner is not authorized to access this route"
+      },
+      "warm": {
+        "status": 403,
+        "ms": 0.7,
+        "ttfb": 0.7,
+        "bytes": 96,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "User role Owner is not authorized to access this route"
+      },
+      "load": null
+    },
+    {
+      "id": "users.sales-reps",
+      "label": "GET /api/users/sales-reps",
+      "path": "/api/users/sales-reps",
+      "className": "normal",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 283,
+        "ttfb": 282.9,
+        "bytes": 3035,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.1,
+        "ttfb": 1.1,
+        "bytes": 3035,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "users.sales",
+      "label": "GET /api/users/sales",
+      "path": "/api/users/sales",
+      "className": "normal",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 290.8,
+        "ttfb": 290.7,
+        "bytes": 1070,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.1,
+        "ttfb": 1,
+        "bytes": 1070,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "users.receptionists",
+      "label": "GET /api/users/receptionists",
+      "path": "/api/users/receptionists",
+      "className": "normal",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 282.9,
+        "ttfb": 282.8,
+        "bytes": 3051,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 0.9,
+        "ttfb": 0.8,
+        "bytes": 3051,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "users.team",
+      "label": "GET /api/users/team",
+      "path": "/api/users/team",
+      "className": "large",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 568.3,
+        "ttfb": 568.2,
+        "bytes": 6235,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 0.9,
+        "ttfb": 0.9,
+        "bytes": 6235,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "users.team-profile",
+      "label": "GET /api/users/team/6a42bc00286f9e72da14da36",
+      "path": "/api/users/team/6a42bc00286f9e72da14da36",
+      "className": "large",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 559.6,
+        "ttfb": 559.4,
+        "bytes": 497,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.1,
+        "ttfb": 1,
+        "bytes": 497,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "users.coach-team",
+      "label": "GET /api/users/coach-team",
+      "path": "/api/users/coach-team",
+      "className": "large",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 279.5,
+        "ttfb": 279.3,
+        "bytes": 1484,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 0.9,
+        "ttfb": 0.9,
+        "bytes": 1484,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "users.coach-profile",
+      "label": "GET /api/users/coach-team/6a5188ddfdfb324a468d36bb",
+      "path": "/api/users/coach-team/6a5188ddfdfb324a468d36bb",
+      "className": "large",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 594.5,
+        "ttfb": 594.5,
+        "bytes": 3318,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1,
+        "ttfb": 1,
+        "bytes": 3318,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "users.receptionist-team",
+      "label": "GET /api/users/receptionist-team",
+      "path": "/api/users/receptionist-team",
+      "className": "normal",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 435.1,
+        "ttfb": 435,
+        "bytes": 278,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.1,
+        "ttfb": 1,
+        "bytes": 278,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "users.all-teams",
+      "label": "GET /api/users/allTeams",
+      "path": "/api/users/allTeams",
+      "className": "normal",
+      "critical": false,
+      "grade": "Error",
+      "cold": {
+        "status": 500,
+        "ms": 1,
+        "ttfb": 1,
+        "bytes": 54,
+        "cache": "BYPASS",
+        "grade": "Error",
+        "error": "Server error"
+      },
+      "warm": {
+        "status": 500,
+        "ms": 0.8,
+        "ttfb": 0.8,
+        "bytes": 54,
+        "cache": "MISS",
+        "grade": "Error",
+        "error": "Server error"
+      },
+      "load": null
+    },
+    {
+      "id": "users.access",
+      "label": "GET /api/users/6a5c24b953e87d4c902224d4/access",
+      "path": "/api/users/6a5c24b953e87d4c902224d4/access",
+      "className": "normal",
+      "critical": false,
+      "grade": "Skipped",
+      "cold": {
+        "status": 403,
+        "ms": 281.5,
+        "ttfb": 281.4,
+        "bytes": 48,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "You cannot edit this user's access"
+      },
+      "warm": {
+        "status": 403,
+        "ms": 327.3,
+        "ttfb": 327.2,
+        "bytes": 48,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "You cannot edit this user's access"
+      },
+      "load": null
+    },
+    {
+      "id": "users.by-id",
+      "label": "GET /api/users/6a5c24b953e87d4c902224d4",
+      "path": "/api/users/6a5c24b953e87d4c902224d4",
+      "className": "normal",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 397.7,
+        "ttfb": 397.6,
+        "bytes": 235,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.2,
+        "ttfb": 1.2,
+        "bytes": 235,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "members.page",
+      "label": "GET /api/members?limit=20",
+      "path": "/api/members?limit=20",
+      "className": "normal",
+      "critical": true,
+      "grade": "Moderate",
+      "cold": {
+        "status": 200,
+        "ms": 580.6,
+        "ttfb": 580.4,
+        "bytes": 21374,
+        "cache": "BYPASS",
+        "grade": "Moderate",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.6,
+        "ttfb": 1.5,
+        "bytes": 21374,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 4.2,
+        "p95": 4.5,
+        "max": 4.5,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "members.dashboard-limit",
+      "label": "GET /api/members?limit=10000",
+      "path": "/api/members?limit=10000",
+      "className": "large",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 615.6,
+        "ttfb": 615.5,
+        "bytes": 22942,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.1,
+        "ttfb": 1,
+        "bytes": 22942,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 4,
+        "p95": 9,
+        "max": 9,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "members.dashboard-all",
+      "label": "GET /api/members?all=true",
+      "path": "/api/members?all=true",
+      "className": "large",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 863.5,
+        "ttfb": 863.4,
+        "bytes": 35778,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.1,
+        "ttfb": 1,
+        "bytes": 35778,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 5.7,
+        "p95": 14.2,
+        "max": 14.2,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "members.search-all",
+      "label": "GET /api/members/all?limit=10000",
+      "path": "/api/members/all?limit=10000",
+      "className": "large",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 567.2,
+        "ttfb": 567.1,
+        "bytes": 22942,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.1,
+        "ttfb": 1,
+        "bytes": 22942,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 0.7,
+        "p95": 11.7,
+        "max": 11.7,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "members.all-notes",
+      "label": "GET /api/members/all-notes",
+      "path": "/api/members/all-notes",
+      "className": "large",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 348.3,
+        "ttfb": 348.2,
+        "bytes": 10215,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.2,
+        "ttfb": 1.1,
+        "bytes": 10215,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 0.8,
+        "p95": 10,
+        "max": 10,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "members.today-checkins",
+      "label": "GET /api/members/today-checkins",
+      "path": "/api/members/today-checkins",
+      "className": "door",
+      "critical": true,
+      "grade": "Bad",
+      "cold": {
+        "status": 200,
+        "ms": 583.6,
+        "ttfb": 583.5,
+        "bytes": 997,
+        "cache": "BYPASS",
+        "grade": "Moderate",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.3,
+        "ttfb": 1.2,
+        "bytes": 997,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 1.9,
+        "p95": 2102.4,
+        "max": 2102.4,
+        "grade": "Bad",
+        "caches": [
+          "MISS",
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "members.today-coach-transfers",
+      "label": "GET /api/members/today-coach-transfers",
+      "path": "/api/members/today-coach-transfers",
+      "className": "normal",
+      "critical": false,
+      "grade": "Skipped",
+      "cold": {
+        "status": 403,
+        "ms": 0.8,
+        "ttfb": 0.7,
+        "bytes": 93,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "User role Owner is not authorized to access this route"
+      },
+      "warm": {
+        "status": 403,
+        "ms": 0.8,
+        "ttfb": 0.8,
+        "bytes": 93,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "User role Owner is not authorized to access this route"
+      },
+      "load": null
+    },
+    {
+      "id": "members.profile",
+      "label": "GET /api/members/6a41277efbd6496e1d99b3df",
+      "path": "/api/members/6a41277efbd6496e1d99b3df",
+      "className": "normal",
+      "critical": true,
+      "grade": "Bad",
+      "cold": {
+        "status": 200,
+        "ms": 2761.6,
+        "ttfb": 2761.5,
+        "bytes": 34122,
+        "cache": "BYPASS",
+        "grade": "Bad",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1,
+        "ttfb": 0.9,
+        "bytes": 34105,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 2.4,
+        "p95": 3.7,
+        "max": 3.7,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "members.by-id",
+      "label": "GET /api/members/by/6a41277efbd6496e1d99b3df",
+      "path": "/api/members/by/6a41277efbd6496e1d99b3df",
+      "className": "normal",
+      "critical": true,
+      "grade": "Moderate",
+      "cold": {
+        "status": 200,
+        "ms": 948.9,
+        "ttfb": 948.8,
+        "bytes": 12447,
+        "cache": "BYPASS",
+        "grade": "Moderate",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1,
+        "ttfb": 1,
+        "bytes": 12447,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 2.3,
+        "p95": 2.7,
+        "max": 2.7,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "analytics.churn",
+      "label": "GET /api/analytics/churn",
+      "path": "/api/analytics/churn",
+      "className": "large",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 355.3,
+        "ttfb": 355.2,
+        "bytes": 1210,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 0.9,
+        "ttfb": 0.9,
+        "bytes": 1210,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 1.4,
+        "p95": 7.6,
+        "max": 7.6,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "analytics.forecast",
+      "label": "GET /api/analytics/forecast",
+      "path": "/api/analytics/forecast",
+      "className": "large",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 289.4,
+        "ttfb": 289.4,
+        "bytes": 1274,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.1,
+        "ttfb": 1,
+        "bytes": 1274,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 2,
+        "p95": 3,
+        "max": 3,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "analytics.cohorts",
+      "label": "GET /api/analytics/cohorts",
+      "path": "/api/analytics/cohorts",
+      "className": "large",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 293.6,
+        "ttfb": 293.5,
+        "bytes": 1295,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.1,
+        "ttfb": 1.1,
+        "bytes": 1295,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 2.1,
+        "p95": 2.1,
+        "max": 2.1,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "analytics.attendance",
+      "label": "GET /api/analytics/attendance",
+      "path": "/api/analytics/attendance",
+      "className": "large",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 296.3,
+        "ttfb": 296.2,
+        "bytes": 6908,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 0.9,
+        "ttfb": 0.9,
+        "bytes": 6908,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 2,
+        "p95": 14.9,
+        "max": 14.9,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "analytics.funnel",
+      "label": "GET /api/analytics/funnel",
+      "path": "/api/analytics/funnel",
+      "className": "large",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 293,
+        "ttfb": 292.9,
+        "bytes": 707,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.3,
+        "ttfb": 1.2,
+        "bytes": 707,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 1.4,
+        "p95": 1.7,
+        "max": 1.7,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "analytics.executive",
+      "label": "GET /api/analytics/executive",
+      "path": "/api/analytics/executive",
+      "className": "large",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 578.4,
+        "ttfb": 578.3,
+        "bytes": 493,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 864.4,
+        "ttfb": 864.3,
+        "bytes": 493,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 2,
+        "p95": 2.4,
+        "max": 2.4,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "bi.dashboard",
+      "label": "GET /api/bi/dashboard",
+      "path": "/api/bi/dashboard",
+      "className": "bi",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 294.9,
+        "ttfb": 294.8,
+        "bytes": 11346,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 357.7,
+        "ttfb": 357.6,
+        "bytes": 11346,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 291.8,
+        "p95": 300.9,
+        "max": 300.9,
+        "grade": "Good",
+        "caches": [
+          "none"
+        ]
+      }
+    },
+    {
+      "id": "bi.cohorts",
+      "label": "GET /api/bi/cohorts",
+      "path": "/api/bi/cohorts",
+      "className": "bi",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 315.8,
+        "ttfb": 315.7,
+        "bytes": 959,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 290.4,
+        "ttfb": 290.4,
+        "bytes": 959,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 282.6,
+        "p95": 291.2,
+        "max": 291.2,
+        "grade": "Good",
+        "caches": [
+          "none"
+        ]
+      }
+    },
+    {
+      "id": "bi.heatmap",
+      "label": "GET /api/bi/heatmap",
+      "path": "/api/bi/heatmap",
+      "className": "bi",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 351.8,
+        "ttfb": 351.8,
+        "bytes": 783,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 287.1,
+        "ttfb": 287.1,
+        "bytes": 783,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 281.2,
+        "p95": 288.4,
+        "max": 288.4,
+        "grade": "Good",
+        "caches": [
+          "none"
+        ]
+      }
+    },
+    {
+      "id": "bi.forecast",
+      "label": "GET /api/bi/forecast",
+      "path": "/api/bi/forecast",
+      "className": "bi",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 296.5,
+        "ttfb": 296.4,
+        "bytes": 281,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 307.3,
+        "ttfb": 307.3,
+        "bytes": 281,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 284.9,
+        "p95": 290,
+        "max": 290,
+        "grade": "Good",
+        "caches": [
+          "none"
+        ]
+      }
+    },
+    {
+      "id": "bi.funnel",
+      "label": "GET /api/bi/funnel",
+      "path": "/api/bi/funnel",
+      "className": "bi",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 292.3,
+        "ttfb": 292.2,
+        "bytes": 888,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 288.2,
+        "ttfb": 288.1,
+        "bytes": 888,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 282.6,
+        "p95": 309.9,
+        "max": 309.9,
+        "grade": "Good",
+        "caches": [
+          "none"
+        ]
+      }
+    },
+    {
+      "id": "bi.insights",
+      "label": "GET /api/bi/insights",
+      "path": "/api/bi/insights",
+      "className": "bi",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 292.2,
+        "ttfb": 292.1,
+        "bytes": 455,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 292.2,
+        "ttfb": 292.2,
+        "bytes": 455,
+        "cache": null,
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 281.5,
+        "p95": 294.8,
+        "max": 294.8,
+        "grade": "Good",
+        "caches": [
+          "none"
+        ]
+      }
+    },
+    {
+      "id": "bi.objectives",
+      "label": "GET /api/bi/objectives",
+      "path": "/api/bi/objectives",
+      "className": "bi",
+      "critical": true,
+      "grade": "Moderate",
+      "cold": {
+        "status": 200,
+        "ms": 579.2,
+        "ttfb": 579.1,
+        "bytes": 31,
+        "cache": null,
+        "grade": "Moderate",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 584.4,
+        "ttfb": 584.3,
+        "bytes": 31,
+        "cache": null,
+        "grade": "Moderate",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 566.8,
+        "p95": 576.3,
+        "max": 576.3,
+        "grade": "Moderate",
+        "caches": [
+          "none"
+        ]
+      }
+    },
+    {
+      "id": "bi.export",
+      "label": "GET /api/bi/export?metric=activeMembers",
+      "path": "/api/bi/export?metric=activeMembers",
+      "className": "bi",
+      "critical": false,
+      "grade": "Skipped",
+      "cold": {
+        "status": 403,
+        "ms": 2.6,
+        "ttfb": 2.5,
+        "bytes": 191,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "That export is not available."
+      },
+      "warm": {
+        "status": 403,
+        "ms": 1.2,
+        "ttfb": 1.2,
+        "bytes": 191,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "That export is not available."
+      },
+      "load": null
+    },
+    {
+      "id": "notifications.list",
+      "label": "GET /api/notifications",
+      "path": "/api/notifications",
+      "className": "normal",
+      "critical": true,
+      "grade": "Skipped",
+      "cold": {
+        "status": 403,
+        "ms": 1.1,
+        "ttfb": 1.1,
+        "bytes": 68,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "User role Owner is not authorized to access this route"
+      },
+      "warm": {
+        "status": 403,
+        "ms": 0.9,
+        "ttfb": 0.8,
+        "bytes": 68,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "User role Owner is not authorized to access this route"
+      },
+      "load": null
+    },
+    {
+      "id": "notifications.unread",
+      "label": "GET /api/notifications/unread-count",
+      "path": "/api/notifications/unread-count",
+      "className": "door",
+      "critical": true,
+      "grade": "Skipped",
+      "cold": {
+        "status": 403,
+        "ms": 1,
+        "ttfb": 1,
+        "bytes": 68,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "User role Owner is not authorized to access this route"
+      },
+      "warm": {
+        "status": 403,
+        "ms": 0.9,
+        "ttfb": 0.9,
+        "bytes": 68,
+        "cache": null,
+        "grade": "Skipped",
+        "error": "User role Owner is not authorized to access this route"
+      },
+      "load": null
+    },
+    {
+      "id": "accounting.contracts",
+      "label": "GET /api/accounting/contracts",
+      "path": "/api/accounting/contracts",
+      "className": "large",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 917.9,
+        "ttfb": 917.8,
+        "bytes": 18733,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.3,
+        "ttfb": 1.2,
+        "bytes": 18733,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 0.6,
+        "p95": 8.6,
+        "max": 8.6,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "packages.list",
+      "label": "GET /api/packages",
+      "path": "/api/packages",
+      "className": "normal",
+      "critical": true,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 291.9,
+        "ttfb": 291.8,
+        "bytes": 7543,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.1,
+        "ttfb": 1,
+        "bytes": 7543,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 1.4,
+        "p95": 9.1,
+        "max": 9.1,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "tenant.me",
+      "label": "GET /api/tenant/me",
+      "path": "/api/tenant/me",
+      "className": "normal",
+      "critical": true,
+      "grade": "Moderate",
+      "cold": {
+        "status": 200,
+        "ms": 963,
+        "ttfb": 962.9,
+        "bytes": 8806,
+        "cache": "BYPASS",
+        "grade": "Moderate",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1,
+        "ttfb": 0.9,
+        "bytes": 8808,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 1.3,
+        "p95": 13.4,
+        "max": 13.4,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "tenant.billing-prices",
+      "label": "GET /api/tenant/billing/prices",
+      "path": "/api/tenant/billing/prices",
+      "className": "normal",
+      "critical": false,
+      "grade": "Moderate",
+      "cold": {
+        "status": 200,
+        "ms": 582.7,
+        "ttfb": 582.7,
+        "bytes": 3564,
+        "cache": null,
+        "grade": "Moderate",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 580.9,
+        "ttfb": 580.8,
+        "bytes": 3564,
+        "cache": null,
+        "grade": "Moderate",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "requests.list",
+      "label": "GET /api/requests",
+      "path": "/api/requests",
+      "className": "normal",
+      "critical": true,
+      "grade": "Moderate",
+      "cold": {
+        "status": 200,
+        "ms": 595.3,
+        "ttfb": 595.3,
+        "bytes": 4907,
+        "cache": "BYPASS",
+        "grade": "Moderate",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 0.9,
+        "ttfb": 0.9,
+        "bytes": 4907,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": {
+        "samples": 10,
+        "ok": 10,
+        "p50": 1.3,
+        "p95": 3.6,
+        "max": 3.6,
+        "grade": "Good",
+        "caches": [
+          "HIT"
+        ]
+      }
+    },
+    {
+      "id": "coach-requests.list",
+      "label": "GET /api/coach-requests",
+      "path": "/api/coach-requests",
+      "className": "normal",
+      "critical": false,
+      "grade": "Good",
+      "cold": {
+        "status": 200,
+        "ms": 301.1,
+        "ttfb": 301.1,
+        "bytes": 2,
+        "cache": "BYPASS",
+        "grade": "Good",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1,
+        "ttfb": 0.9,
+        "bytes": 2,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "whatsapp.list",
+      "label": "GET /api/whatsapp-templates",
+      "path": "/api/whatsapp-templates",
+      "className": "normal",
+      "critical": false,
+      "grade": "Bad",
+      "cold": {
+        "status": 200,
+        "ms": 1760.1,
+        "ttfb": 1760,
+        "bytes": 2858,
+        "cache": "BYPASS",
+        "grade": "Bad",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 0.9,
+        "ttfb": 0.9,
+        "bytes": 2858,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "exceptions.list",
+      "label": "GET /api/package-exceptions",
+      "path": "/api/package-exceptions",
+      "className": "normal",
+      "critical": false,
+      "grade": "Moderate",
+      "cold": {
+        "status": 200,
+        "ms": 563.3,
+        "ttfb": 563.2,
+        "bytes": 11989,
+        "cache": "BYPASS",
+        "grade": "Moderate",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.1,
+        "ttfb": 1,
+        "bytes": 11989,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "exceptions.member",
+      "label": "GET /api/package-exceptions/member/6a41277efbd6496e1d99b3df",
+      "path": "/api/package-exceptions/member/6a41277efbd6496e1d99b3df",
+      "className": "normal",
+      "critical": false,
+      "grade": "Moderate",
+      "cold": {
+        "status": 200,
+        "ms": 863.4,
+        "ttfb": 863.3,
+        "bytes": 982,
+        "cache": "BYPASS",
+        "grade": "Moderate",
+        "error": null
+      },
+      "warm": {
+        "status": 200,
+        "ms": 1.2,
+        "ttfb": 1.2,
+        "bytes": 982,
+        "cache": "HIT",
+        "grade": "Good",
+        "error": null
+      },
+      "load": null
+    },
+    {
+      "id": "check-in",
+      "label": "POST /api/members/check-in",
+      "path": "/api/members/check-in",
+      "className": "write",
+      "critical": true,
+      "grade": "Moderate",
+      "cold": {
+        "status": 201,
+        "ms": 880.6,
+        "ttfb": 880.5,
+        "bytes": 256,
+        "cache": null,
+        "grade": "Moderate",
+        "error": null
+      },
+      "warm": null,
+      "load": null
+    }
+  ]
+}

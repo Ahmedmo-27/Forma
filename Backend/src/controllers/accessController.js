@@ -20,11 +20,23 @@ function escapeRegex(value) {
 
 const searchUsersForAccess = async (req, res) => {
     try {
-        const q = String(req.query.q || "").trim();
-        if (q.length < 1) return res.json({ users: [] });
-
         const roles = editableRolesFor(req.user.role);
         if (!roles.length) return res.status(403).json({ message: "Not authorized" });
+
+        const role = String(req.query.role || "").trim();
+        if (role) {
+            if (!roles.includes(role)) return res.status(403).json({ message: "Not authorized" });
+            const users = await User.find({ role, _id: { $ne: req.user.id } })
+                .select("name role")
+                .sort({ name: 1 })
+                .limit(200);
+            return res.json({
+                users: users.map((user) => ({ _id: user._id, name: user.name, role: user.role })),
+            });
+        }
+
+        const q = String(req.query.q || "").trim();
+        if (q.length < 1) return res.json({ users: [] });
 
         const regex = new RegExp(escapeRegex(q), "i");
         const users = await User.find({

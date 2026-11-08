@@ -30,39 +30,30 @@ const STARTER_TEMPLATES = [
 ];
 
 async function ensureStarterTemplates(createdBy) {
+    const existing = await WhatsAppTemplate.find({
+        $or: STARTER_TEMPLATES.map((starter) => ({ name: starter.name, type: starter.type })),
+    }).select("name type").lean();
+    const present = new Set(existing.map((row) => `${row.type}:${row.name}`));
+    let created = 0;
+
     for (const starter of STARTER_TEMPLATES) {
-        const existing = await WhatsAppTemplate.findOne({ name: starter.name, type: starter.type });
-        if (existing) {
-            await WhatsAppTemplate.updateOne(
-                { _id: existing._id },
-                {
-                    $set: {
-                        introText: starter.introText,
-                        bodyText: starter.bodyText,
-                        introTextAr: starter.introTextAr,
-                        bodyTextAr: starter.bodyTextAr,
-                        includeLiveData: starter.includeLiveData,
-                        defaultDiscountPercent: starter.defaultDiscountPercent ?? existing.defaultDiscountPercent ?? 0,
-                        isActive: true,
-                    },
-                }
+        if (present.has(`${starter.type}:${starter.name}`)) continue;
+        created += 1;
+        if (starter.isDefault) {
+            await WhatsAppTemplate.updateMany(
+                { type: starter.type, isDefault: true },
+                { $set: { isDefault: false } }
             );
-        } else {
-            if (starter.isDefault) {
-                await WhatsAppTemplate.updateMany(
-                    { type: starter.type, isDefault: true },
-                    { $set: { isDefault: false } }
-                );
-            }
-            await WhatsAppTemplate.create({
-                ...starter,
-                createdBy,
-                isActive: true,
-                allowedRoles: [],
-                defaultPackageIds: [],
-            });
         }
+        await WhatsAppTemplate.create({
+            ...starter,
+            createdBy,
+            isActive: true,
+            allowedRoles: [],
+            defaultPackageIds: [],
+        });
     }
+    return created;
 }
 
 function normalizePackageIds(ids) {
@@ -140,8 +131,6 @@ const createTemplate = async (req, res) => {
 const getTemplates = async (req, res) => {
     try {
         const isManager = MANAGER_ROLES.has(req.user.role);
-        // Keep starter copy in sync for all callers (send modal + manage page)
-        await ensureStarterTemplates(req.user.id);
 
         if ((req.user.role === "Sales" || hasExplicitGrant(req.user, "whatsapp_send")) && !hasAccess(req.user, "whatsapp_send")) {
             const { page, limit } = parsePagination(req.query, { defaultLimit: 50 });
@@ -169,18 +158,74 @@ const getTemplates = async (req, res) => {
 
         const [total, templates] = await Promise.all([
             WhatsAppTemplate.countDocuments(filter),
-            WhatsAppTemplate.find(filter)
-                .sort({ isDefault: -1, createdAt: -1 })
-                .skip(skip)
-                .limit(limit)
-                .populate("createdBy", "name role")
-                .populate("defaultPackageIds", "name duration price renewalDiscountPercent"),
+            WhatsAppTemplate.aggregate([
+                { $match: filter },
+                { $sort: { isDefault: -1, createdAt: -1 } },
+                { $skip: skip },
+                { $limit: limit },
+                {
+                    $lookup: {
+                        from: "users",
+                        localField: "createdBy",
+                        foreignField: "_id",
+                        pipeline: [{ $project: { name: 1, role: 1 } }],
+                        as: "createdBy",
+                    },
+                },
+                {
+                    $lookup: {
+                        from: "packages",
+                        localField: "defaultPackageIds",
+                        foreignField: "_id",
+                        pipeline: [{ $project: { name: 1, duration: 1, price: 1, renewalDiscountPercent: 1 } }],
+                        as: "defaultPackageIds",
+                    },
+                },
+                { $set: { createdBy: { $arrayElemAt: ["$createdBy", 0] } } },
+            ]),
         ]);
 
+        let rows = templates;
+        let count = total;
+        const present = new Set(rows.map((row) => `${row.type}:${row.name}`));
+        const missingStarter = STARTER_TEMPLATES.some((starter) => !present.has(`${starter.type}:${starter.name}`));
+        if (missingStarter && await ensureStarterTemplates(req.user.id)) {
+            const [nextTotal, nextRows] = await Promise.all([
+                WhatsAppTemplate.countDocuments(filter),
+                WhatsAppTemplate.aggregate([
+                    { $match: filter },
+                    { $sort: { isDefault: -1, createdAt: -1 } },
+                    { $skip: skip },
+                    { $limit: limit },
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "createdBy",
+                            foreignField: "_id",
+                            pipeline: [{ $project: { name: 1, role: 1 } }],
+                            as: "createdBy",
+                        },
+                    },
+                    {
+                        $lookup: {
+                            from: "packages",
+                            localField: "defaultPackageIds",
+                            foreignField: "_id",
+                            pipeline: [{ $project: { name: 1, duration: 1, price: 1, renewalDiscountPercent: 1 } }],
+                            as: "defaultPackageIds",
+                        },
+                    },
+                    { $set: { createdBy: { $arrayElemAt: ["$createdBy", 0] } } },
+                ]),
+            ]);
+            count = nextTotal;
+            rows = nextRows;
+        }
+
         res.status(200).json({
-            count: total,
-            templates,
-            pagination: buildPagination(page, limit, total),
+            count,
+            templates: rows,
+            pagination: buildPagination(page, limit, count),
         });
     } catch (error) {
         res.status(500).json({ message: error.message });

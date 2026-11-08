@@ -11,9 +11,12 @@ const { BILLING_CURRENCY } = require("../config/currency");
 const getPlanPrices = async (_req, res) => {
     try {
         const [plans, prices] = await Promise.all([
-            Plan.find({ isActive: true }).select("key name features limits allowedRoles"),
-            PlanPrice.find({ isActive: true }).populate("planId", "key name"),
+            Plan.find({ isActive: true }).select("key name features limits allowedRoles").lean(),
+            PlanPrice.find({ isActive: true })
+                .select("planId cycle amount validFrom validUntil maxLifetimeSeats soldLifetimeSeats")
+                .lean(),
         ]);
+        const plansById = new Map(plans.map((plan) => [String(plan._id), plan]));
 
         const now = new Date();
         const activePrices = prices
@@ -23,6 +26,7 @@ const getPlanPrices = async (_req, res) => {
                 return true;
             })
             .map((p) => {
+                const plan = plansById.get(String(p.planId));
                 const remainingSeats =
                     p.maxLifetimeSeats != null
                         ? Math.max(0, p.maxLifetimeSeats - (p.soldLifetimeSeats || 0))
@@ -31,9 +35,9 @@ const getPlanPrices = async (_req, res) => {
 
                 return {
                     id: p._id,
-                    planId: p.planId?._id || p.planId,
-                    planKey: p.planId?.key,
-                    planName: p.planId?.name,
+                    planId: p.planId,
+                    planKey: plan?.key,
+                    planName: plan?.name,
                     cycle: p.cycle,
                     amount: p.amount,
                     currency: BILLING_CURRENCY,
