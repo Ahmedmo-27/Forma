@@ -8,6 +8,7 @@
     "build": "node --check server.js",
     "seed": "node src/seed.js",
     "test": "vitest --run",
+    "perf:whatsapp": "node scripts/perf/run-whatsapp-perf.js",
     "postinstall": "patch-package",
     "simulate:package-immutability": "node scripts/simulate-package-price-immutability.js",
     "seed:superadmin": "node src/scripts/seedSuperAdminUser.js",
