@@ -1,60 +1,30 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
+import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
 import {
-  PageHeader, Card, Btn, Spinner, EmptyState, Badge, Avatar,
-  Select, Textarea, Modal, Input, Tabs, FilterTabs,
+  PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState,
+  SearchInput, Avatar, fmtDate, Pagination, PageSizeFilter,
+  Select, Modal, Spinner, Input,
 } from '../../components/ui';
+import { formatSystemId } from '../../lib/systemId';
 import {
-  getAllMembers, getSalesUsers, getCoachTeam, getWhatsAppTemplates, getPackages,
-  bulkTransferSalesReps, bulkTransferCoach, switchSalesRep, switchCoach, sendWhatsAppMessage,
-  getAssigningCreatedTasks, getAssigningOverview, completeMemberTask,
+  getAllMembers, getSalesUsers, getCoachTeam, getPackages,
+  bulkTransferSalesReps, bulkTransferCoach, switchSalesRep, switchCoach,
+  getAssigningCreatedTasks, getAssigningOverview,
 } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
-import { applyWhatsAppPlaceholders, composeWhatsAppTemplateMessage, toWhatsAppUrl } from '../../utils/whatsapp';
 import {
-  EXPORT_COLUMNS, buildExcel, columnsForExport,
-  columnValue, memberPhone, taskPermissions, toggleId, toggleIds,
-  canUserAssignTasks, canUserReceiveTasks, formatTaskDateTime, filterTaskHistory, filterMembersAdvanced,
-  filterCreatedTasks, filterAssignedHistoryAdvanced, packageName,
-  toLocalDateString, parseDateBoundary,
-  SELECTION_TEMPLATES, applySelectionTemplate, invertSelection, getTransferLogs,
+  toggleId, canUserAssignTasks, canUserReceiveTasks,
+  formatTaskDateTime, packageName, toLocalDateString,
 } from './taskMembers';
 import AssignedTasksPage from './AssignedTasksPage';
 
-const DEFAULT_COLUMNS = ['name', 'systemId', 'phone', 'status', 'salesman', 'coach', 'package', 'endDate', 'transfers'];
-const BULK_COOLDOWN_SECONDS = 20;
-
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function downloadExcel(filename, columns, rows) {
-  const blob = new Blob([buildExcel(columns, rows)], { type: 'application/vnd.ms-excel' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = filename;
-  link.click();
-  URL.revokeObjectURL(url);
-}
-
-async function loadAssigned(scope = {}) {
-  const members = [];
-  let page = 1;
-  for (;;) {
-    const params = { page, limit: 100, sortBy: 'name', sortDir: 1, ...scope };
-    const res = await getAllMembers(params);
-    members.push(...(res.data.members ?? []));
-    const totalPages = res.data.pagination?.totalPages ?? 1;
-    page += 1;
-    if (page > totalPages || page > 40) break;
-  }
-  return members;
-}
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
 
 export default function AssigningTasksPage() {
   usePageTitle('Tasks Management');
@@ -62,9 +32,10 @@ export default function AssigningTasksPage() {
   const { user } = useAuth();
   const { hasFeature } = useTenant();
 
+  const canReceiveTasks = canUserReceiveTasks(user);
   const [activeTab, setActiveTab] = useState('schedule'); // 'schedule' | 'my_tasks'
 
-  // ── Overview KPI Stats State ──
+  // ── Overview KPI Stats ──
   const [overviewStats, setOverviewStats] = useState(null);
   const [loadingOverview, setLoadingOverview] = useState(false);
 
@@ -73,60 +44,55 @@ export default function AssigningTasksPage() {
   const [coaches, setCoaches] = useState([]);
   const [allPackages, setAllPackages] = useState([]);
 
-  // ── Assigner Schedule & Filter State ──
+  // ── Server Pagination & Status Filter (matching Members page) ──
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const saved = parseInt(localStorage.getItem('tasks_page_size'), 10);
+      return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_PAGE_SIZE;
+    } catch {
+      return DEFAULT_PAGE_SIZE;
+    }
+  });
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState('all');
+  const [sortNewest, setSortNewest] = useState(true);
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: DEFAULT_PAGE_SIZE });
+  const [stats, setStats] = useState({ total: 0, active: 0, frozen: 0, expired: 0, guest: 0, blocked: 0 });
+
+  const debouncedSearch = useDebounce(search, 300);
+
+  // ── Advanced Tasks Filters ──
   const [kind, setKind] = useState('all'); // 'all' | 'sales' | 'coach' | 'unassigned_sales' | 'unassigned_coach'
   const [personId, setPersonId] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
   const [transferTypeFilter, setTransferTypeFilter] = useState('all');
+  const [packageFilter, setPackageFilter] = useState('all');
+  const [genderFilter, setGenderFilter] = useState('all');
   const [dateField, setDateField] = useState('endDate');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
-  const [packageFilter, setPackageFilter] = useState('all');
-  const [genderFilter, setGenderFilter] = useState('all');
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
 
-  const [members, setMembers] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-  const [search, setSearch] = useState('');
+  // ── Multi-Member Selection for Task Assignment ──
   const [selected, setSelected] = useState(() => new Set());
-  const [columnsOpen, setColumnsOpen] = useState(false);
-  const [visibleKeys, setVisibleKeys] = useState(DEFAULT_COLUMNS);
+
+  // ── Transfer Modal State ──
   const [transferOpen, setTransferOpen] = useState(false);
   const [destKind, setDestKind] = useState('sales');
   const [destId, setDestId] = useState('');
-  const [quickId, setQuickId] = useState('');
   const [busy, setBusy] = useState(false);
-  const [waOpen, setWaOpen] = useState(false);
 
-  // Selection Templates state
-  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
-  const [customCountInput, setCustomCountInput] = useState('10');
-  const [transferModalTemplate, setTransferModalTemplate] = useState('');
-  const [lastAppliedTemplate, setLastAppliedTemplate] = useState('');
-  const templateMenuRef = useRef(null);
+  // ── Quick Single Transfer State ──
+  const [quickId, setQuickId] = useState('');
 
-  // ── Assigner History Modal State ──
+  // ── Created Tasks History Modal ──
   const [historyOpen, setHistoryOpen] = useState(false);
   const [createdTasks, setCreatedTasks] = useState([]);
   const [loadingCreatedTasks, setLoadingCreatedTasks] = useState(false);
-  const [inspectTaskId, setInspectTaskId] = useState(null);
 
-  // ── Bulk Transfer Progress State ──
-  const [transferProgress, setTransferProgress] = useState({ current: 0, total: 0 });
-  const [transferStatus, setTransferStatus] = useState('idle');
-  const [cooldownRemaining, setCooldownRemaining] = useState(0);
-
-  // ── WhatsApp Modal State ──
-  const [waTemplates, setWaTemplates] = useState([]);
-  const [waTemplateId, setWaTemplateId] = useState('');
-  const [waCustomText, setWaCustomText] = useState('');
-  const [waPreviewMember, setWaPreviewMember] = useState(null);
-  const [waSending, setWaSending] = useState(false);
-  const [waProgress, setWaProgress] = useState({ sent: 0, total: 0 });
-
-  const { canSalesman, canCoach, canWhatsApp } = taskPermissions(user, hasFeature);
-
+  // ── Fetch Task Overview KPIs ──
   const fetchOverview = useCallback(async () => {
     setLoadingOverview(true);
     try {
@@ -139,6 +105,7 @@ export default function AssigningTasksPage() {
     }
   }, []);
 
+  // ── Fetch Reference Options ──
   useEffect(() => {
     fetchOverview();
     getSalesUsers().then((res) => setSalesUsers(res.data.salesUsers ?? [])).catch(() => {});
@@ -152,6 +119,76 @@ export default function AssigningTasksPage() {
       .catch(() => {});
   }, [fetchOverview]);
 
+  // ── Fetch Paginated Members (matching Members.jsx behavior) ──
+  const fetchMembers = useCallback(async (override = {}) => {
+    const pageNum = override.page ?? page;
+    const currentLimit = override.limit ?? pageSize;
+    const status = override.status ?? statusFilter;
+    const searchQuery = override.search ?? debouncedSearch;
+    const newest = override.sortNewest ?? sortNewest;
+
+    setLoading(true);
+    try {
+      const params = {
+        page: pageNum,
+        limit: currentLimit,
+        status: status !== 'all' ? status : undefined,
+        search: searchQuery || undefined,
+        sortBy: 'createdAt',
+        sortDir: newest ? -1 : 1,
+      };
+
+      // Scope filters
+      if (kind === 'sales' && personId) params.assignedSales = personId;
+      else if (kind === 'coach' && personId) params.currentCouch = personId;
+      else if (kind === 'unassigned_sales') params.unassignedSales = 'true';
+      else if (kind === 'unassigned_coach') params.unassignedCoach = 'true';
+
+      // Additional advanced filters
+      if (packageFilter && packageFilter !== 'all') params.packageId = packageFilter;
+      if (genderFilter && genderFilter !== 'all') params.gender = genderFilter;
+      if (transferTypeFilter && transferTypeFilter !== 'all') params.transferType = transferTypeFilter;
+
+      if (dateFrom || dateTo) {
+        if (dateFrom) params.dateFrom = dateFrom;
+        if (dateTo) params.dateTo = dateTo;
+        if (dateField) params.dateField = dateField;
+      }
+
+      const res = await getAllMembers(params);
+      setMembers(res.data.members ?? []);
+      setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: currentLimit });
+      if (res.data.stats) setStats(res.data.stats);
+    } catch {
+      setMembers([]);
+      toast.error('Failed to load members.');
+    } finally {
+      setLoading(false);
+    }
+  }, [page, pageSize, statusFilter, debouncedSearch, sortNewest, kind, personId, packageFilter, genderFilter, transferTypeFilter, dateFrom, dateTo, dateField]);
+
+  useEffect(() => {
+    if (activeTab === 'schedule') {
+      fetchMembers();
+    }
+  }, [fetchMembers, activeTab]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [statusFilter, debouncedSearch, sortNewest, kind, personId, packageFilter, genderFilter, transferTypeFilter, dateFrom, dateTo, dateField]);
+
+  const handlePageSizeChange = (newSize) => {
+    const valid = Math.max(1, Math.min(500, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
+    setPageSize(valid);
+    setPage(1);
+    try {
+      localStorage.setItem('tasks_page_size', String(valid));
+    } catch {
+      // ignore
+    }
+  };
+
+  // ── Created Tasks History ──
   const fetchCreatedTasks = useCallback(async () => {
     setLoadingCreatedTasks(true);
     try {
@@ -169,101 +206,7 @@ export default function AssigningTasksPage() {
     fetchCreatedTasks();
   };
 
-  const people = kind === 'sales'
-    ? salesUsers.filter((person) => person.role === 'Sales')
-    : coaches;
-
-  const showMembers = useCallback(async (currentKind, currentPerson) => {
-    setLoading(true);
-    setLoaded(true);
-    try {
-      const scopeParams = {};
-      if (currentKind === 'sales' && currentPerson) scopeParams.assignedSales = currentPerson;
-      else if (currentKind === 'coach' && currentPerson) scopeParams.currentCouch = currentPerson;
-      else if (currentKind === 'unassigned_sales') scopeParams.unassignedSales = 'true';
-      else if (currentKind === 'unassigned_coach') scopeParams.unassignedCoach = 'true';
-
-      const list = await loadAssigned(scopeParams);
-      setMembers(list);
-      setSelected(new Set());
-    } catch {
-      setMembers([]);
-      toast.error('Failed to load members');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (activeTab === 'schedule') {
-      if (kind === 'sales' || kind === 'coach') {
-        if (personId) showMembers(kind, personId);
-        else { setMembers([]); setLoaded(false); }
-      } else {
-        showMembers(kind, '');
-      }
-    }
-  }, [activeTab, kind, personId, showMembers]);
-
-  const filtered = useMemo(() => {
-    return filterMembersAdvanced(members, {
-      search,
-      status: statusFilter,
-      kind,
-      personId,
-      dateField,
-      dateFrom,
-      dateTo,
-      transferType: transferTypeFilter,
-      packageId: packageFilter,
-      gender: genderFilter,
-    });
-  }, [members, search, statusFilter, kind, personId, dateField, dateFrom, dateTo, transferTypeFilter, packageFilter, genderFilter]);
-
-  const visibleColumns = EXPORT_COLUMNS.filter((col) => visibleKeys.includes(col.key));
-  const selectedMembers = members.filter((member) => selected.has(member._id));
-  const person = people.find((item) => item._id === personId);
-
-  const statusCounts = useMemo(() => {
-    const counts = { all: members.length, active: 0, expired: 0, frozen: 0, guest: 0, blocked: 0 };
-    members.forEach((m) => {
-      if (m.isBlocked) counts.blocked += 1;
-      else if (m.status === 'active') counts.active += 1;
-      else if (m.status === 'expired') counts.expired += 1;
-      else if (m.status === 'frozen') counts.frozen += 1;
-      else if (m.status === 'guest') counts.guest += 1;
-    });
-    return counts;
-  }, [members]);
-
-  const filteredTemplateCounts = useMemo(() => {
-    const counts = {
-      active: 0, expired: 0, frozen: 0, guest: 0,
-      unassignedSales: 0, unassignedCoach: 0,
-      transferred: 0, endingSoon: 0,
-    };
-    const now = new Date();
-    const in30d = new Date(now.getTime() + 30 * 86400000);
-
-    filtered.forEach((m) => {
-      if (m.status === 'active') counts.active += 1;
-      else if (m.status === 'expired') counts.expired += 1;
-      else if (m.status === 'frozen') counts.frozen += 1;
-      else if (m.status === 'guest') counts.guest += 1;
-
-      if (!m.assignedSales || m.assignedSales?.role === 'Sales Manager') counts.unassignedSales += 1;
-      if (!m.current_couch) counts.unassignedCoach += 1;
-      if (Array.isArray(m.userlog) && m.userlog.some((l) => l.type === 'assign')) counts.transferred += 1;
-
-      const sub = m.subscriptions?.[m.subscriptions.length - 1];
-      if (sub?.endDate) {
-        const end = new Date(sub.endDate);
-        if (end >= now && end <= in30d) counts.endingSoon += 1;
-      }
-    });
-    return counts;
-  }, [filtered]);
-
+  // ── Quick Date Presets ──
   const setQuickPeriod = (preset) => {
     const now = new Date();
     if (preset === 'clear') {
@@ -292,92 +235,54 @@ export default function AssigningTasksPage() {
     }
   };
 
-  const handleSelectAllFiltered = () => {
-    const ids = filtered.map((m) => m._id);
-    setSelected((prev) => toggleIds(prev, ids));
+  const handleClearAllFilters = () => {
+    setSearch('');
+    setStatusFilter('all');
+    setKind('all');
+    setPersonId('');
+    setTransferTypeFilter('all');
+    setPackageFilter('all');
+    setGenderFilter('all');
+    setDateField('endDate');
+    setDateFrom('');
+    setDateTo('');
+    setSortNewest(true);
+    setPage(1);
   };
 
-  const isAllFilteredSelected = filtered.length > 0 && filtered.every((m) => selected.has(m._id));
+  // ── Master Selection Helpers ──
+  const allOnPageSelected = members.length > 0 && members.every((m) => selected.has(m._id));
 
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (templateMenuRef.current && !templateMenuRef.current.contains(e.target)) {
-        setTemplateMenuOpen(false);
-      }
+  const handleToggleSelectAllPage = () => {
+    if (allOnPageSelected) {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        members.forEach((m) => next.delete(m._id));
+        return next;
+      });
+    } else {
+      setSelected((prev) => {
+        const next = new Set(prev);
+        members.forEach((m) => next.add(m._id));
+        return next;
+      });
     }
-    if (templateMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [templateMenuOpen]);
-
-  const handleApplyTemplate = (templateId, options = {}) => {
-    if (!filtered.length) {
-      toast.error('No members match the current filters');
-      return;
-    }
-    const ids = applySelectionTemplate(filtered, templateId, options);
-    if (!ids.length) {
-      toast.error('No members matched this template criteria');
-      return;
-    }
-    setSelected(new Set(ids));
-    setTemplateMenuOpen(false);
-    const tmpl = SELECTION_TEMPLATES.find((t) => t.id === templateId);
-    const label = tmpl ? tmpl.label : options.customLabel || `${ids.length} members`;
-    setLastAppliedTemplate(label);
-    toast.success(`Selected ${ids.length} members (${label})`);
-  };
-
-  const handleApplyCustomCount = () => {
-    const count = parseInt(customCountInput, 10);
-    if (!Number.isFinite(count) || count <= 0) {
-      toast.error('Please enter a valid positive number');
-      return;
-    }
-    handleApplyTemplate('custom_first', { count, customLabel: `First ${count}` });
-  };
-
-  const handleInvertSelection = () => {
-    if (!filtered.length) return;
-    const next = invertSelection(filtered, selected);
-    setSelected(next);
-    setLastAppliedTemplate('Inverted');
-    toast.success(`Selection inverted (${next.size} members selected)`);
   };
 
   const handleClearSelection = () => {
     setSelected(new Set());
-    setLastAppliedTemplate('');
   };
 
+  // ── Task Assignment Modal Actions ──
   const openTransferModal = (targetKind) => {
     if (!selected.size) {
-      toast.error('Select at least one member to transfer');
+      toast.error('Select at least one member to assign');
       return;
     }
     setDestKind(targetKind);
     setDestId('');
-    setTransferModalTemplate('');
-    setTransferStatus('idle');
-    setTransferProgress({ current: 0, total: selected.size });
     setTransferOpen(true);
   };
-
-  const handleApplyTemplateInsideModal = (templateId) => {
-    setTransferModalTemplate(templateId);
-    handleApplyTemplate(templateId);
-  };
-
-  useEffect(() => {
-    let timer;
-    if (cooldownRemaining > 0) {
-      timer = setInterval(() => {
-        setCooldownRemaining((prev) => (prev <= 1 ? 0 : prev - 1));
-      }, 1000);
-    }
-    return () => clearInterval(timer);
-  }, [cooldownRemaining]);
 
   const executeBulkTransfer = async () => {
     if (!destId) {
@@ -388,9 +293,6 @@ export default function AssigningTasksPage() {
     if (!ids.length) return;
 
     setBusy(true);
-    setTransferStatus('transferring');
-    setTransferProgress({ current: 0, total: ids.length });
-
     try {
       if (destKind === 'sales') {
         await bulkTransferSalesReps({
@@ -406,19 +308,14 @@ export default function AssigningTasksPage() {
         });
       }
 
-      setTransferProgress({ current: ids.length, total: ids.length });
-      setTransferStatus('cooling_down');
-      setCooldownRemaining(BULK_COOLDOWN_SECONDS);
-      toast.success(`Successfully assigned ${ids.length} members as tasks!`);
-
-      showMembers(kind, personId);
+      toast.success(`Successfully assigned ${ids.length} member(s) as tasks!`);
       setSelected(new Set());
       setTransferOpen(false);
+      fetchMembers();
       fetchOverview();
       fetchCreatedTasks();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Transfer failed');
-      setTransferStatus('idle');
     } finally {
       setBusy(false);
     }
@@ -427,7 +324,10 @@ export default function AssigningTasksPage() {
   const handleQuickTransfer = async (e) => {
     e.preventDefault();
     const id = quickId.trim();
-    if (!id) return;
+    if (!id || !destId) {
+      toast.error('Please enter a system ID and choose a destination rep');
+      return;
+    }
     setBusy(true);
     try {
       if (destKind === 'sales') {
@@ -437,7 +337,7 @@ export default function AssigningTasksPage() {
       }
       toast.success(`Member #${id} assigned as task!`);
       setQuickId('');
-      showMembers(kind, personId);
+      fetchMembers();
       fetchOverview();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Quick transfer failed');
@@ -446,34 +346,27 @@ export default function AssigningTasksPage() {
     }
   };
 
-  const exportSheet = () => {
-    const cols = columnsForExport(visibleKeys);
-    downloadExcel(`tasks-schedule-${toLocalDateString(new Date())}.xls`, cols, filtered);
-  };
-
-  const canReceiveTasks = canUserReceiveTasks(user);
-
   return (
     <Layout>
       <PageHeader title="Tasks Management">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <SearchInput
+            value={search}
+            onChange={setSearch}
+            placeholder="Name, phone, ID…"
+            width={220}
+          />
+
           <Btn variant="outline" size="sm" onClick={openTasksHistoryModal}>
             📋 View Created Tasks
           </Btn>
-
-          {activeTab === 'schedule' && loaded && (
-            <>
-              <Btn variant="outline" size="sm" onClick={() => setColumnsOpen((open) => !open)}>Columns</Btn>
-              <Btn variant="outline" size="sm" onClick={exportSheet} disabled={loading || !filtered.length}>Export Excel</Btn>
-            </>
-          )}
         </div>
       </PageHeader>
 
       <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* KPI Overview Bar */}
+        {/* Task Overview KPIs */}
         {overviewStats && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
             <Card style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Tasks Created</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--t1)' }}>{overviewStats.totalTasks}</div>
@@ -492,6 +385,15 @@ export default function AssigningTasksPage() {
             </Card>
           </div>
         )}
+
+        {/* Member Status Stat Cards (matching Members.jsx) */}
+        <div className="grid-stats-5">
+          <StatCard label="Total"   value={loading ? '—' : stats.total}   color="brand" />
+          <StatCard label="Active"  value={loading ? '—' : stats.active}  color="success" />
+          <StatCard label="Frozen"  value={loading ? '—' : stats.frozen}  color="info" />
+          <StatCard label="Expired" value={loading ? '—' : stats.expired} color="danger" />
+          <StatCard label="Guests"  value={loading ? '—' : stats.guest} />
+        </div>
 
         {/* Tab switcher: Only shown for users who can actually receive assigned tasks (e.g. Coach Manager) */}
         {canReceiveTasks && (
@@ -517,10 +419,44 @@ export default function AssigningTasksPage() {
           <AssignedTasksPage embedded={true} />
         ) : (
           <>
-            {/* ── ASSIGNER VIEW: SCOPE & ADVANCED FILTERS ── */}
+            {/* Filter Toolbar (Status FilterTabs + Sort Toggle) */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+              <FilterTabs
+                active={statusFilter}
+                onChange={setStatusFilter}
+                options={[
+                  { value: 'all',     label: `All (${stats.total})` },
+                  { value: 'active',  label: `Active (${stats.active})` },
+                  { value: 'frozen',  label: `Frozen (${stats.frozen})` },
+                  { value: 'expired', label: `Expired (${stats.expired})` },
+                  { value: 'guest',   label: `Guests (${stats.guest})` },
+                  { value: 'blocked', label: `Blocked (${stats.blocked ?? 0})` },
+                ]}
+              />
+
+              <button
+                type="button"
+                onClick={() => setSortNewest((s) => !s)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  border: `1px solid ${sortNewest ? '#44298C' : 'var(--border)'}`,
+                  background: sortNewest ? 'rgba(68,41,140,0.08)' : 'transparent',
+                  color: sortNewest ? '#44298C' : 'var(--t3)',
+                  cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                  <path d="M3 8l4-4 4 4M7 4v16M21 16l-4 4-4-4M17 20V4"/>
+                </svg>
+                {sortNewest ? 'Newest First' : 'Oldest First'}
+              </button>
+            </div>
+
+            {/* Advanced Filters Card */}
             <Card>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {/* Row 1: Scope / Assignee Selection */}
+                {/* Row 1: Scope & Transfer Type */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
                   <div style={{ flex: '1 1 200px', minWidth: 180 }}>
                     <Select
@@ -534,7 +470,7 @@ export default function AssigningTasksPage() {
                       <option value="all">All Gym Members</option>
                       <option value="sales">By Sales Rep</option>
                       <option value="coach">By Coach</option>
-                      <option value="unassigned_sales">Unassigned Sales</option>
+                      <option value="unassigned_sales">Unassigned Sales Rep</option>
                       <option value="unassigned_coach">Unassigned Coach</option>
                     </Select>
                   </div>
@@ -546,8 +482,8 @@ export default function AssigningTasksPage() {
                         value={personId}
                         onChange={(e) => setPersonId(e.target.value)}
                       >
-                        <option value="">Choose staff member…</option>
-                        {people.map((p) => (
+                        <option value="">Choose {kind === 'sales' ? 'sales rep' : 'coach'}…</option>
+                        {(kind === 'sales' ? salesUsers.filter((u) => u.role === 'Sales') : coaches).map((p) => (
                           <option key={p._id} value={p._id}>{p.name}</option>
                         ))}
                       </Select>
@@ -555,139 +491,35 @@ export default function AssigningTasksPage() {
                   )}
 
                   <div style={{ flex: '1 1 200px', minWidth: 180 }}>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>Search Directory</label>
-                    <input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search name, phone, System ID…"
-                      style={{
-                        width: '100%', padding: '7px 11px', borderRadius: 8,
-                        border: '1px solid var(--border)', background: 'var(--card)',
-                        color: 'var(--t1)', fontSize: 12, fontFamily: 'inherit',
-                      }}
-                    />
+                    <Select
+                      label="Transfer Status"
+                      value={transferTypeFilter}
+                      onChange={(e) => setTransferTypeFilter(e.target.value)}
+                    >
+                      <option value="all">All Transfer Statuses</option>
+                      <option value="transferred">Transferred Members</option>
+                      <option value="never">Never Transferred</option>
+                      <option value="sales">Transferred by Sales</option>
+                      <option value="coach">Transferred by Coach</option>
+                    </Select>
                   </div>
 
-                  <div style={{ display: 'flex', gap: 8, paddingBottom: 2 }}>
-                    <Btn size="sm" variant="outline" onClick={() => setMoreFiltersOpen((o) => !o)}>
-                      {moreFiltersOpen ? '▲ Less Filters' : '▼ More Filters'}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Btn
+                      variant={moreFiltersOpen ? 'primary' : 'outline'}
+                      size="sm"
+                      onClick={() => setMoreFiltersOpen((v) => !v)}
+                    >
+                      ⚙️ {moreFiltersOpen ? 'Hide Filters' : 'More Filters'}
+                    </Btn>
+
+                    <Btn variant="ghost" size="sm" onClick={handleClearAllFilters}>
+                      Reset
                     </Btn>
                   </div>
                 </div>
 
-                {/* Status Quick Tabs */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
-                  <FilterTabs
-                    options={[
-                      { value: 'all', id: 'all', label: `All (${statusCounts.all})` },
-                      { value: 'active', id: 'active', label: `Active (${statusCounts.active})` },
-                      { value: 'expired', id: 'expired', label: `Expired (${statusCounts.expired})` },
-                      { value: 'frozen', id: 'frozen', label: `Frozen (${statusCounts.frozen})` },
-                      { value: 'guest', id: 'guest', label: `Guest (${statusCounts.guest})` },
-                    ]}
-                    active={statusFilter}
-                    onChange={setStatusFilter}
-                  />
-
-                  {/* Selection Action Summary & Templates Trigger */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {selected.size > 0 && (
-                      <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 700 }}>
-                        {selected.size} member(s) selected
-                      </span>
-                    )}
-
-                    <div style={{ position: 'relative' }} ref={templateMenuRef}>
-                      <Btn
-                        size="sm"
-                        variant={selected.size > 0 ? 'primary' : 'outline'}
-                        onClick={() => setTemplateMenuOpen((open) => !open)}
-                      >
-                        ⚡ Selection Templates ▾
-                      </Btn>
-
-                      {templateMenuOpen && (
-                        <div
-                          style={{
-                            position: 'absolute', top: 'calc(100% + 6px)', left: 0, zIndex: 120,
-                            width: 340, maxWidth: '92vw', background: 'var(--card)',
-                            border: '1px solid var(--border)', borderRadius: 10,
-                            boxShadow: '0 12px 32px rgba(0,0,0,0.25)', padding: '12px 14px',
-                            fontSize: 12, color: 'var(--t1)',
-                          }}
-                        >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
-                            <div style={{ fontWeight: 700 }}>Selection Presets</div>
-                            {selected.size > 0 && (
-                              <Btn size="xs" variant="ghost" onClick={handleClearSelection} style={{ color: 'var(--red)' }}>
-                                Clear ({selected.size})
-                              </Btn>
-                            )}
-                          </div>
-
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-                              {[10, 20, 30, 50].map((num) => (
-                                <button
-                                  key={`first_${num}`}
-                                  type="button"
-                                  onClick={() => handleApplyTemplate(`first_${num}`)}
-                                  style={{
-                                    padding: '6px 4px', borderRadius: 6,
-                                    border: '1px solid var(--border)', background: 'var(--bg)',
-                                    color: 'var(--t1)', fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                                  }}
-                                >
-                                  First {num}
-                                </button>
-                              ))}
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleApplyTemplate('unassigned_sales')}
-                              style={{
-                                padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)',
-                                background: 'var(--bg)', color: 'var(--t1)', fontSize: 12, cursor: 'pointer',
-                                display: 'flex', justifyContent: 'space-between', textAlign: 'left',
-                              }}
-                            >
-                              <span>No Sales Rep Assigned</span>
-                              <span style={{ fontWeight: 700 }}>{filteredTemplateCounts.unassignedSales}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleApplyTemplate('unassigned_coach')}
-                              style={{
-                                padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)',
-                                background: 'var(--bg)', color: 'var(--t1)', fontSize: 12, cursor: 'pointer',
-                                display: 'flex', justifyContent: 'space-between', textAlign: 'left',
-                              }}
-                            >
-                              <span>No Coach Assigned</span>
-                              <span style={{ fontWeight: 700 }}>{filteredTemplateCounts.unassignedCoach}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={handleInvertSelection}
-                              style={{
-                                padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)',
-                                background: 'var(--bg)', color: 'var(--t1)', fontSize: 12, cursor: 'pointer',
-                                textAlign: 'center',
-                              }}
-                            >
-                              Invert Selection
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Secondary Filters */}
+                {/* Secondary Filters Collapsible */}
                 {moreFiltersOpen && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12, background: 'var(--bg)', padding: '12px 14px', borderRadius: 8, border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
@@ -725,6 +557,7 @@ export default function AssigningTasksPage() {
                           <option value="endDate">End Date</option>
                           <option value="startDate">Start Date</option>
                           <option value="createdAt">Joined Date</option>
+                          <option value="transferDate">Transfer Date</option>
                         </Select>
                       </div>
 
@@ -756,9 +589,10 @@ export default function AssigningTasksPage() {
                         />
                       </div>
 
-                      <div style={{ display: 'flex', gap: 6, paddingBottom: 2 }}>
+                      <div style={{ display: 'flex', gap: 6, paddingBottom: 2, flexWrap: 'wrap' }}>
                         <Btn size="xs" variant="ghost" onClick={() => setQuickPeriod('next30')}>Next 30d</Btn>
-                        <Btn size="xs" variant="ghost" onClick={() => setQuickPeriod('clear')}>Clear</Btn>
+                        <Btn size="xs" variant="ghost" onClick={() => setQuickPeriod('last30')}>Last 30d</Btn>
+                        <Btn size="xs" variant="ghost" onClick={() => setQuickPeriod('clear')}>Clear Dates</Btn>
                       </div>
                     </div>
                   </div>
@@ -766,123 +600,179 @@ export default function AssigningTasksPage() {
               </div>
             </Card>
 
-            {/* Members Directory Table for Assignment */}
-            <Card noPad>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={isAllFilteredSelected}
-                      onChange={handleSelectAllFiltered}
-                    />
-                    <span>Select All Filtered ({filtered.length})</span>
-                  </label>
-                  {selected.size > 0 && (
-                    <Btn size="xs" variant="ghost" onClick={handleClearSelection} style={{ color: 'var(--red)' }}>
-                      Deselect All
-                    </Btn>
-                  )}
-                </div>
+            {/* Selection & Action Bar */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <PageSizeFilter
+                  pageSize={pageSize}
+                  onChange={handlePageSizeChange}
+                  options={PAGE_SIZE_OPTIONS}
+                />
 
-                <div style={{ display: 'flex', gap: 8 }}>
-                  {canSalesman && (
-                    <Btn
-                      size="sm"
-                      variant="primary"
-                      disabled={!selected.size}
-                      onClick={() => openTransferModal('sales')}
-                    >
-                      👤 Assign Sales Rep ({selected.size})
-                    </Btn>
-                  )}
-                  {canCoach && (
-                    <Btn
-                      size="sm"
-                      variant="outline"
-                      disabled={!selected.size}
-                      onClick={() => openTransferModal('coach')}
-                    >
-                      🏋️ Assign Coach ({selected.size})
-                    </Btn>
-                  )}
-                </div>
+                {selected.size > 0 && (
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)' }}>
+                    {selected.size} member(s) selected
+                  </span>
+                )}
+
+                {selected.size > 0 && (
+                  <Btn size="xs" variant="ghost" onClick={handleClearSelection} style={{ color: 'var(--red)' }}>
+                    Deselect All
+                  </Btn>
+                )}
               </div>
 
-              {loading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="lg" /></div>
-              ) : filtered.length === 0 ? (
-                <EmptyState icon="👥" message="No members found" sub="Adjust your filters or scope selection." />
-              ) : (
-                <div className="table-responsive-container">
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                        <th style={{ width: 40, padding: '10px 14px', textAlign: 'center' }}>#</th>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member</th>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>System ID</th>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Phone</th>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Sales Rep</th>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Coach</th>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Package</th>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>End Date</th>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Status</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filtered.map((member) => {
-                        const isSelected = selected.has(member._id);
-                        return (
-                          <tr
-                            key={member._id}
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <Btn
+                  size="sm"
+                  variant="primary"
+                  disabled={!selected.size}
+                  onClick={() => openTransferModal('sales')}
+                >
+                  👤 Assign Sales Rep {selected.size > 0 && `(${selected.size})`}
+                </Btn>
+
+                <Btn
+                  size="sm"
+                  variant="outline"
+                  disabled={!selected.size}
+                  onClick={() => openTransferModal('coach')}
+                >
+                  🏋️ Assign Coach {selected.size > 0 && `(${selected.size})`}
+                </Btn>
+              </div>
+            </div>
+
+            {/* Member Table Card (matching Members.jsx styling) */}
+            <Card noPad>
+              <div style={{ overflowX: 'auto' }}>
+                <Table
+                  loading={loading}
+                  skeletonRows={Math.min(pageSize, 8)}
+                  headers={[
+                    <input
+                      key="master-cb"
+                      type="checkbox"
+                      checked={allOnPageSelected}
+                      onChange={handleToggleSelectAllPage}
+                      title="Select all on this page"
+                      style={{ cursor: 'pointer' }}
+                    />,
+                    'ID',
+                    'Name',
+                    'Status',
+                    'Package',
+                    'Expires',
+                    'Sales Rep',
+                    'Coach',
+                    'Actions',
+                  ]}
+                >
+                  {!members.length && !loading ? (
+                    <tr>
+                      <td colSpan={9}>
+                        <EmptyState message="No members match your search or filters" />
+                      </td>
+                    </tr>
+                  ) : (
+                    members.map((m) => {
+                      const sub = m.subscriptions?.at(-1);
+                      const pkg = sub?.package;
+                      const expiring =
+                        sub?.endDate &&
+                        (new Date(sub.endDate) - new Date()) / 86400000 <= 7 &&
+                        new Date(sub.endDate) - new Date() >= 0;
+                      const isSelected = selected.has(m._id);
+
+                      return (
+                        <tr
+                          key={m._id}
+                          className="tbl-row"
+                          onClick={() => setSelected((prev) => toggleId(prev, m._id))}
+                          style={{
+                            cursor: 'pointer',
+                            borderBottom: '1px solid var(--border)',
+                            background: isSelected ? 'var(--navy-subtle, rgba(59, 130, 246, 0.08))' : undefined,
+                          }}
+                        >
+                          <td
+                            style={{ width: 40, textAlign: 'center', padding: '10px 14px' }}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => setSelected((prev) => toggleId(prev, m._id))}
+                              style={{ cursor: 'pointer' }}
+                            />
+                          </td>
+                          <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}>
+                            {formatSystemId(m.systemId)}
+                            {m.memberId ? ` / ${m.memberId}` : ''}
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <Avatar name={m.name} size="sm" photo={m.photo} />
+                              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{m.name}</span>
+                            </div>
+                          </td>
+                          <td style={{ padding: '10px 14px' }}>
+                            <Badge status={m.status} />
+                          </td>
+                          <td style={{ padding: '10px 14px', fontSize: 12 }}>
+                            {pkg ? (
+                              <span style={{ color: 'var(--t1)', fontWeight: 500 }}>
+                                {pkg.name}
+                                <br />
+                                <span style={{ color: 'var(--t4)', fontSize: 11 }}>
+                                  {pkg.activityType} · {pkg.duration}
+                                </span>
+                              </span>
+                            ) : (
+                              <span style={{ color: 'var(--t4)' }}>—</span>
+                            )}
+                          </td>
+                          <td
                             style={{
-                              borderBottom: '1px solid var(--border)',
-                              background: isSelected ? 'var(--navy-subtle, rgba(59, 130, 246, 0.05))' : 'transparent',
+                              padding: '10px 14px',
+                              fontSize: 12,
+                              color: expiring ? 'var(--amber)' : 'var(--t3)',
+                              fontWeight: expiring ? 600 : 400,
                             }}
                           >
-                            <td style={{ textAlign: 'center', padding: '12px 14px' }}>
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => setSelected((prev) => toggleId(prev, member._id))}
-                              />
-                            </td>
-                            <td style={{ padding: '12px 14px' }}>
-                              <span
-                                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 600, color: 'var(--t1)', cursor: 'pointer' }}
-                                onClick={() => navigate(`/members/${member.systemId}`)}
-                              >
-                                <Avatar name={member.name} size="sm" />
-                                <span>{member.name}</span>
-                              </span>
-                            </td>
-                            <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                              #{member.systemId}
-                            </td>
-                            <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                              {member.phones || '—'}
-                            </td>
-                            <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                              {member.assignedSales?.name || <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
-                            </td>
-                            <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                              {member.current_couch?.name || <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
-                            </td>
-                            <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                              {packageName(member) || '—'}
-                            </td>
-                            <td style={{ padding: '12px 14px', color: 'var(--t3)', fontSize: 12 }}>
-                              {columnValue(member, 'endDate') || '—'}
-                            </td>
-                            <td style={{ padding: '12px 14px' }}>
-                              <Badge status={member.status || 'active'} />
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+                            {fmtDate(sub?.endDate)}
+                            {expiring && (
+                              <span style={{ display: 'block', fontSize: 10, color: 'var(--amber)' }}>Expiring soon</span>
+                            )}
+                          </td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
+                            {m.assignedSales?.name ?? <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
+                          </td>
+                          <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
+                            {m.current_couch?.name ?? <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
+                          </td>
+                          <td style={{ padding: '10px 14px' }} onClick={(e) => e.stopPropagation()}>
+                            <Btn variant="outline" size="xs" onClick={() => navigate(`/members/${m.systemId}`)}>
+                              View
+                            </Btn>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </Table>
+              </div>
+
+              {!loading && (
+                <Pagination
+                  page={pagination.page}
+                  totalPages={pagination.totalPages}
+                  total={pagination.total}
+                  pageSize={pagination.limit ?? pageSize}
+                  pageSizeOptions={PAGE_SIZE_OPTIONS}
+                  onPageChange={setPage}
+                  onPageSizeChange={handlePageSizeChange}
+                />
               )}
             </Card>
 
