@@ -2,6 +2,8 @@ const WhatsAppTemplate = require("../models/WhatsAppTemplate");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const { writeAudit } = require("../utils/audit");
 const { hasAccess, hasExplicitGrant } = require("../utils/accessControl");
+const { incrementCachedAllowance } = require("../utils/whatsappTracking");
+const { invalidateTenantCache } = require("../utils/cacheInvalidator");
 
 const MANAGER_ROLES = new Set(["Owner", "Sales Manager", "Accountant", "Coach Manager"]);
 
@@ -33,6 +35,7 @@ async function ensureStarterTemplates(createdBy) {
     const existing = await WhatsAppTemplate.find({
         $or: STARTER_TEMPLATES.map((starter) => ({ name: starter.name, type: starter.type })),
     }).select("name type").lean();
+    if (existing.length >= STARTER_TEMPLATES.length) return 0;
     const present = new Set(existing.map((row) => `${row.type}:${row.name}`));
     let created = 0;
 
@@ -141,6 +144,11 @@ const getTemplates = async (req, res) => {
             });
         }
 
+        const countExists = await WhatsAppTemplate.exists({});
+        if (!countExists) {
+            await ensureStarterTemplates(req.user.id);
+        }
+
         const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 50 });
         let filter;
         if (isManager && req.query.all === "true") {
@@ -156,7 +164,7 @@ const getTemplates = async (req, res) => {
             };
         }
 
-        const [total, templates] = await Promise.all([
+        const [count, rows] = await Promise.all([
             WhatsAppTemplate.countDocuments(filter),
             WhatsAppTemplate.aggregate([
                 { $match: filter },
@@ -184,43 +192,6 @@ const getTemplates = async (req, res) => {
                 { $set: { createdBy: { $arrayElemAt: ["$createdBy", 0] } } },
             ]),
         ]);
-
-        let rows = templates;
-        let count = total;
-        const present = new Set(rows.map((row) => `${row.type}:${row.name}`));
-        const missingStarter = STARTER_TEMPLATES.some((starter) => !present.has(`${starter.type}:${starter.name}`));
-        if (missingStarter && await ensureStarterTemplates(req.user.id)) {
-            const [nextTotal, nextRows] = await Promise.all([
-                WhatsAppTemplate.countDocuments(filter),
-                WhatsAppTemplate.aggregate([
-                    { $match: filter },
-                    { $sort: { isDefault: -1, createdAt: -1 } },
-                    { $skip: skip },
-                    { $limit: limit },
-                    {
-                        $lookup: {
-                            from: "users",
-                            localField: "createdBy",
-                            foreignField: "_id",
-                            pipeline: [{ $project: { name: 1, role: 1 } }],
-                            as: "createdBy",
-                        },
-                    },
-                    {
-                        $lookup: {
-                            from: "packages",
-                            localField: "defaultPackageIds",
-                            foreignField: "_id",
-                            pipeline: [{ $project: { name: 1, duration: 1, price: 1, renewalDiscountPercent: 1 } }],
-                            as: "defaultPackageIds",
-                        },
-                    },
-                    { $set: { createdBy: { $arrayElemAt: ["$createdBy", 0] } } },
-                ]),
-            ]);
-            count = nextTotal;
-            rows = nextRows;
-        }
 
         res.status(200).json({
             count,
@@ -326,6 +297,9 @@ const logTemplateSend = async (req, res) => {
             },
             req,
         });
+
+        incrementCachedAllowance(req.user?.tenantId);
+        invalidateTenantCache(req.user?.tenantId, "tenant");
 
         res.status(200).json({ message: "Logged" });
     } catch (error) {

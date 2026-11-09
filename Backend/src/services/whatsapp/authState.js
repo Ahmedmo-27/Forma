@@ -91,7 +91,7 @@ async function useMongoAuthState({ tenantId, userId }) {
                     return data;
                 },
                 set: async (data) => {
-                    const tasks = [];
+                    const ops = [];
                     for (const category of Object.keys(data || {})) {
                         for (const id of Object.keys(data[category] || {})) {
                             const value = data[category][id];
@@ -103,19 +103,25 @@ async function useMongoAuthState({ tenantId, userId }) {
                             };
                             if (value) {
                                 const payload = encryptSecret(JSON.stringify(value, BufferJSON.replacer));
-                                tasks.push(inTenant(tenantId, async () =>
-                                    WhatsAppAuth.findOneAndUpdate(
+                                ops.push({
+                                    updateOne: {
                                         filter,
-                                        { $set: { ...filter, payload, tenantId } },
-                                        { upsert: true }
-                                    )
-                                ));
+                                        update: { $set: { ...filter, payload, tenantId } },
+                                        upsert: true,
+                                    },
+                                });
                             } else {
-                                tasks.push(inTenant(tenantId, async () => WhatsAppAuth.deleteOne(filter)));
+                                ops.push({
+                                    deleteOne: { filter },
+                                });
                             }
                         }
                     }
-                    if (tasks.length) await Promise.all(tasks);
+                    if (ops.length) {
+                        await inTenant(tenantId, async () =>
+                            WhatsAppAuth.bulkWrite(ops, { ordered: false })
+                        );
+                    }
                 },
             },
         },

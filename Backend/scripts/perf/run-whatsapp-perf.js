@@ -663,6 +663,77 @@ async function runScenario8() {
 }
 
 // -------------------------------------------------------------
+
+// -------------------------------------------------------------
+// SCENARIO 9: JID Resolution Cache and Network Elimination
+// -------------------------------------------------------------
+async function runScenario9() {
+    console.log("\n[Scenario 9] Running JID Resolution Cache and Network Elimination Benchmark...");
+
+    const LOOKUPS = 50;
+    const SIMULATED_NETWORK_LATENCY_MS = 25; // Typical WhatsApp query round-trip
+
+    let onWhatsAppCallCount = 0;
+    let sockMock = null;
+    const manager = createSessionManager({
+        loadBaileys: async () => ({
+            makeWASocket: () => {
+                sockMock = {
+                    user: { id: "201229004551:1@s.whatsapp.net" },
+                    ev: { on: (event, fn) => { if (event === "connection.update") sockMock.connHandler = fn; } },
+                    sendMessage: async () => ({}),
+                    onWhatsApp: async (jid) => {
+                        onWhatsAppCallCount++;
+                        await new Promise((res) => setTimeout(res, SIMULATED_NETWORK_LATENCY_MS));
+                        return [{ jid: ALLOWED_JID, exists: true }];
+                    },
+                };
+                return sockMock;
+            },
+            DisconnectReason: {},
+            makeCacheableSignalKeyStore: (k) => k,
+            Browsers: { macOS: () => ["Mac OS", "Chrome", "14.4.1"] },
+            logger: { level: "silent", child() { return this; } },
+        }),
+        useAuthState: async () => ({ state: { creds: { me: { id: "201229004551:1@s.whatsapp.net" } } }, saveCreds: async () => {} }),
+        persistStatus: async () => {},
+        clearAuth: async () => {},
+        hasCreds: async () => true,
+        sleep: async () => {},
+        minGapMs: 0,
+    });
+
+    const tenantId = mockObjectId(1);
+    const userId = mockObjectId(1);
+    await manager.start({ tenantId, userId });
+    sockMock.connHandler({ connection: "open" });
+
+    // Send 1st message (cold JID lookup)
+    const t0 = process.hrtime();
+    await manager.sendText({ tenantId, userId, phone: ALLOWED_TEST_PHONE, text: "Cold lookup" });
+    const coldLookupMs = hrMs(process.hrtime(t0));
+
+    // Send 49 repeat messages (warm JID lookups, cached)
+    const warmTimes = [];
+    for (let i = 0; i < LOOKUPS - 1; i++) {
+        const tWarm = process.hrtime();
+        await manager.sendText({ tenantId, userId, phone: ALLOWED_TEST_PHONE, text: `Warm lookup ${i}` });
+        warmTimes.push(hrMs(process.hrtime(tWarm)));
+    }
+
+    const warmPercentiles = calculatePercentiles(warmTimes);
+    const speedupFactor = Math.round((coldLookupMs / (warmPercentiles.median || 0.001)) * 10) / 10;
+
+    return {
+        totalLookups: LOOKUPS,
+        coldLookupMs: Math.round(coldLookupMs * 100) / 100,
+        warmLookupMs: warmPercentiles,
+        onWhatsAppNetworkCalls: onWhatsAppCallCount,
+        networkCallsSaved: LOOKUPS - onWhatsAppCallCount,
+        speedupFactor,
+    };
+}
+
 // MAIN RUNNER & REPORT GENERATOR
 // -------------------------------------------------------------
 async function runAllBenchmarks() {
@@ -683,6 +754,7 @@ async function runAllBenchmarks() {
         benchmarkResults.scenario6 = await runScenario6();
         benchmarkResults.scenario7 = await runScenario7();
         benchmarkResults.scenario8 = await runScenario8();
+        benchmarkResults.scenario9 = await runScenario9();
     } catch (err) {
         console.error("Benchmark error:", err);
         throw err;
@@ -721,7 +793,7 @@ async function runAllBenchmarks() {
 
 function generateMarkdownReport(report) {
     const { meta, results } = report;
-    const { scenario1, scenario2, scenario3, scenario4, scenario5, scenario6, scenario7, scenario8 } = results;
+    const { scenario1, scenario2, scenario3, scenario4, scenario5, scenario6, scenario7, scenario8, scenario9 } = results;
 
     return `# Baileys WhatsApp Integration Performance Test Report
 
@@ -743,6 +815,7 @@ function generateMarkdownReport(report) {
 | **6. API Quota Query Scaling** | \`AuditLog.countDocuments\` | 50k logs: ${scenario6.records_50000.latencyMs.median.toFixed(3)} ms | Compound index on \`{ action: 1, createdAt: 1 }\` keeps monthly allowance count under 1ms. |
 | **7. Reconnect Storm & Leak Check** | 50 concurrent reconnects: ${scenario7.stormDispatchMs} ms | Zero memory leak | Memory delta across 50 disconnect/reconnect cycles: **${scenario7.memoryLeakCheck.heapDeltaMb} MB**. No EventEmitter leaks. |
 | **8. Bulk Campaign Simulation** | 100 members (${scenario8.sentCount} sent, ${scenario8.skippedCount} skipped) | Real dispatch: ${scenario8.effectiveThroughputMsgSec} msg/sec | Safe batch completion in ${scenario8.realExecutionDurationMs} ms with zero unhandled rejections. |
+| **9. JID Cache & Network Savings** | ${scenario9.networkCallsSaved} / ${scenario9.totalLookups} calls saved | Warm: ${scenario9.warmLookupMs.median.toFixed(3)} ms | JID cache eliminates ${scenario9.speedupFactor}x latency overhead by avoiding redundant onWhatsApp socket roundtrips. |
 
 ---
 
@@ -826,6 +899,15 @@ Restoring 100 sessions on server reboot:
 - Skipped (Missing Phone): **${scenario8.skippedCount}**
 - Execution Duration: **${scenario8.realExecutionDurationMs} ms**
 - Effective Throughput: **${scenario8.effectiveThroughputMsgSec} msgs/sec**
+
+---
+
+### 9. JID Resolution Cache & Network Round-Trip Elimination
+- **Total Invocations**: ${scenario9.totalLookups} sends
+- **Cold Resolution (with simulated WhatsApp socket roundtrip)**: ${scenario9.coldLookupMs} ms
+- **Warm Resolution (In-Memory JID Cache Hit)**: ${scenario9.warmLookupMs.median.toFixed(3)} ms
+- **WebSocket On-Wire Queries Saved**: **${scenario9.networkCallsSaved}** out of ${scenario9.totalLookups} (${Math.round((scenario9.networkCallsSaved / scenario9.totalLookups) * 100)}%)
+- **Latency Speedup Factor**: **${scenario9.speedupFactor}x**
 `;
 }
 

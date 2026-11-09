@@ -166,7 +166,7 @@ describe("WhatsApp Performance & Safety Guard Suite", () => {
             ).rejects.toThrow(SafetyViolationError);
         });
 
-        it("audits concurrent bursts on the same session to measure pacing synchronization", async () => {
+        it("audits sequential spacing on the same session", async () => {
             const sendTimestamps = [];
             let virtualClock = 1000;
             const minGapMs = 50;
@@ -219,6 +219,114 @@ describe("WhatsApp Performance & Safety Guard Suite", () => {
             // Verify sequential spacing was enforced
             expect(sendTimestamps[1] - sendTimestamps[0]).toBeGreaterThanOrEqual(minGapMs);
             expect(sendTimestamps[2] - sendTimestamps[1]).toBeGreaterThanOrEqual(minGapMs);
+        });
+
+        it("strictly serializes simultaneous concurrent sends through FIFO queue mutex", async () => {
+            const sendTimestamps = [];
+            let virtualClock = 1000;
+            const minGapMs = 100;
+            const tenantId = mockObjectId(1);
+            const userId = mockObjectId(2);
+
+            let capturedSocket = null;
+            const manager = createSessionManager({
+                loadBaileys: async () => ({
+                    makeWASocket: () => {
+                        capturedSocket = {
+                            user: { id: "201229004551:1@s.whatsapp.net" },
+                            ev: { on: (event, fn) => { if (event === "connection.update") capturedSocket.connHandler = fn; } },
+                            sendMessage: vi.fn(async () => {
+                                sendTimestamps.push(virtualClock);
+                                return {};
+                            }),
+                            onWhatsApp: vi.fn(async () => [{ jid: ALLOWED_JID, exists: true }]),
+                        };
+                        return capturedSocket;
+                    },
+                    DisconnectReason: {},
+                    makeCacheableSignalKeyStore: (k) => k,
+                    Browsers: { macOS: () => ["Mac OS", "Chrome", "14.4.1"] },
+                    logger: { level: "silent", child() { return this; } },
+                }),
+                useAuthState: async () => ({
+                    state: { creds: { me: { id: "201229004551:1@s.whatsapp.net" } } },
+                    saveCreds: async () => {},
+                }),
+                persistStatus: async () => {},
+                clearAuth: async () => {},
+                hasCreds: async () => true,
+                sleep: async (ms) => {
+                    virtualClock += ms;
+                },
+                now: () => virtualClock,
+                minGapMs,
+            });
+
+            await manager.start({ tenantId, userId });
+            capturedSocket.connHandler({ connection: "open" });
+
+            // Fire 4 concurrent sends simultaneously without awaiting individually
+            await Promise.all([
+                manager.sendText({ tenantId, userId, phone: ALLOWED_TEST_PHONE, text: "Burst 1" }),
+                manager.sendText({ tenantId, userId, phone: ALLOWED_TEST_PHONE, text: "Burst 2" }),
+                manager.sendText({ tenantId, userId, phone: ALLOWED_TEST_PHONE, text: "Burst 3" }),
+                manager.sendText({ tenantId, userId, phone: ALLOWED_TEST_PHONE, text: "Burst 4" }),
+            ]);
+
+            expect(sendTimestamps.length).toBe(4);
+            // Verify every consecutive send was spaced by at least minGapMs
+            for (let i = 1; i < sendTimestamps.length; i++) {
+                const gap = sendTimestamps[i] - sendTimestamps[i - 1];
+                expect(gap).toBeGreaterThanOrEqual(minGapMs);
+            }
+        });
+
+        it("caches resolved JIDs and avoids redundant onWhatsApp network roundtrips", async () => {
+            const tenantId = mockObjectId(1);
+            const userId = mockObjectId(2);
+            let onWhatsAppCalls = 0;
+
+            let capturedSocket = null;
+            const manager = createSessionManager({
+                loadBaileys: async () => ({
+                    makeWASocket: () => {
+                        capturedSocket = {
+                            user: { id: "201229004551:1@s.whatsapp.net" },
+                            ev: { on: (event, fn) => { if (event === "connection.update") capturedSocket.connHandler = fn; } },
+                            sendMessage: vi.fn(async () => ({})),
+                            onWhatsApp: vi.fn(async () => {
+                                onWhatsAppCalls += 1;
+                                return [{ jid: ALLOWED_JID, exists: true }];
+                            }),
+                        };
+                        return capturedSocket;
+                    },
+                    DisconnectReason: {},
+                    makeCacheableSignalKeyStore: (k) => k,
+                    Browsers: { macOS: () => ["Mac OS", "Chrome", "14.4.1"] },
+                    logger: { level: "silent", child() { return this; } },
+                }),
+                useAuthState: async () => ({
+                    state: { creds: { me: { id: "201229004551:1@s.whatsapp.net" } } },
+                    saveCreds: async () => {},
+                }),
+                persistStatus: async () => {},
+                clearAuth: async () => {},
+                hasCreds: async () => true,
+                sleep: async () => {},
+                minGapMs: 0,
+            });
+
+            await manager.start({ tenantId, userId });
+            capturedSocket.connHandler({ connection: "open" });
+
+            // Send 3 messages to the same phone
+            await manager.sendText({ tenantId, userId, phone: ALLOWED_TEST_PHONE, text: "Repeat 1" });
+            await manager.sendText({ tenantId, userId, phone: ALLOWED_TEST_PHONE, text: "Repeat 2" });
+            await manager.sendText({ tenantId, userId, phone: ALLOWED_TEST_PHONE, text: "Repeat 3" });
+
+            // First call queries onWhatsApp, subsequent calls hit JID cache!
+            expect(onWhatsAppCalls).toBe(1);
         });
     });
 

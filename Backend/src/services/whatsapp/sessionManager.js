@@ -10,7 +10,9 @@ const {
 
 const NOT_CONNECTED = "WHATSAPP_NOT_CONNECTED";
 const NOT_ON_WHATSAPP = "WHATSAPP_NOT_ON_WHATSAPP";
-const RESTORE_CONCURRENCY = 3;
+const RESTORE_CONCURRENCY = Number(process.env.WHATSAPP_RESTORE_CONCURRENCY) || 10;
+const JID_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const MAX_JID_CACHE_SIZE = 1000;
 
 class WhatsAppSessionError extends Error {
     constructor(code, message) {
@@ -67,7 +69,7 @@ function createSessionManager(deps = {}) {
     const now = deps.now || Date.now;
     // Floor between messages from the same linked number. Bulk send waits at
     // least this long on the client; the server enforces it if a caller does not.
-    const minGapMs = deps.minGapMs ?? 20000;
+    const minGapMs = deps.minGapMs ?? (process.env.WHATSAPP_MIN_GAP_MS ? Number(process.env.WHATSAPP_MIN_GAP_MS) : 20000);
     const connectTimeoutMs = deps.connectTimeoutMs ?? 35000;
     const sendTimeoutMs = deps.sendTimeoutMs ?? 60000;
 
@@ -93,8 +95,9 @@ function createSessionManager(deps = {}) {
 
         const previous = entry.sock;
         entry.sock = null;
-        if (previous?.end) {
-            try { previous.end(undefined); } catch { /* stale socket */ }
+        if (previous) {
+            try { previous.ev?.removeAllListeners?.(); } catch { /* ignore */ }
+            try { previous.end?.(undefined); } catch { /* stale socket */ }
         }
 
         await persistStatus({
@@ -148,6 +151,7 @@ function createSessionManager(deps = {}) {
             syncFullHistory: false,
         });
         if (entry.generation !== generation || entry.userStopped) {
+            try { sock.ev?.removeAllListeners?.(); } catch { /* superseded */ }
             try { sock.end(undefined); } catch { /* superseded */ }
             return publicState(entry);
         }
@@ -218,8 +222,12 @@ function createSessionManager(deps = {}) {
             || code === reason.forbidden
             || code === reason.connectionReplaced;
 
+        const prevSock = entry.sock;
         entry.sock = null;
         entry.qr = null;
+        if (prevSock) {
+            try { prevSock.ev?.removeAllListeners?.(); } catch { /* ignore */ }
+        }
 
         if (stop) {
             entry.status = "disconnected";
@@ -276,11 +284,15 @@ function createSessionManager(deps = {}) {
                 waiters: [],
                 generation: 0,
                 userStopped: false,
+                sendQueue: Promise.resolve(),
+                jidCache: new Map(),
             };
             live.set(key, entry);
         } else {
             entry.userStopped = false;
             if (!entry.waiters) entry.waiters = [];
+            if (!entry.sendQueue) entry.sendQueue = Promise.resolve();
+            if (!entry.jidCache) entry.jidCache = new Map();
         }
 
         entry.starting = openSocket(entry, 0).finally(() => {
@@ -307,9 +319,14 @@ function createSessionManager(deps = {}) {
             entry.status = "disconnected";
             entry.qr = null;
             entry.phone = null;
+            entry.sendQueue = Promise.resolve();
+            entry.jidCache?.clear?.();
             live.delete(key);
-            try { await sock?.logout?.(); } catch { /* already closed */ }
-            try { sock?.end?.(undefined); } catch { /* already closed */ }
+            if (sock) {
+                try { sock.ev?.removeAllListeners?.(); } catch { /* ignore */ }
+                try { await sock.logout?.(); } catch { /* already closed */ }
+                try { sock.end?.(undefined); } catch { /* already closed */ }
+            }
             settleWaiters(entry);
         }
         await clearAuth({ tenantId, userId });
@@ -360,6 +377,20 @@ function createSessionManager(deps = {}) {
         entry.lastSendAt = now();
     }
 
+    async function enqueueSend(entry, sendFn) {
+        const prevQueue = entry.sendQueue || Promise.resolve();
+        let release;
+        entry.sendQueue = new Promise((resolve) => { release = resolve; });
+
+        await prevQueue.catch(() => {});
+        try {
+            await pace(entry);
+            return await sendFn();
+        } finally {
+            release();
+        }
+    }
+
     async function resolveRecipient(entry, phone) {
         const jid = toWhatsAppJid(phone);
         if (!jid) {
@@ -368,6 +399,12 @@ function createSessionManager(deps = {}) {
                 "This phone number is not valid for WhatsApp"
             );
         }
+        if (!entry.jidCache) entry.jidCache = new Map();
+        const cached = entry.jidCache.get(jid);
+        if (cached && (now() - cached.timestamp < JID_CACHE_TTL_MS)) {
+            return cached.jid;
+        }
+
         const listed = await entry.sock.onWhatsApp(jid);
         const match = (listed || []).find((row) => row.exists && row.jid);
         if (!match) {
@@ -376,52 +413,60 @@ function createSessionManager(deps = {}) {
                 "This phone number is not registered on WhatsApp."
             );
         }
+
+        if (entry.jidCache.size >= MAX_JID_CACHE_SIZE) {
+            const oldestKey = entry.jidCache.keys().next().value;
+            entry.jidCache.delete(oldestKey);
+        }
+        entry.jidCache.set(jid, { jid: match.jid, timestamp: now() });
         return match.jid;
     }
 
     async function sendText({ tenantId, userId, phone, text }) {
         const entry = await ensureConnected({ tenantId, userId });
-        await pace(entry);
-        const jid = await resolveRecipient(entry, phone);
-        let sendTimer;
-        try {
-            const result = await Promise.race([
-                entry.sock.sendMessage(jid, { text }),
-                new Promise((_, reject) => {
-                    sendTimer = setTimeout(
-                        () => reject(new WhatsAppSessionError("WHATSAPP_TIMEOUT", "WhatsApp message send timed out.")),
-                        sendTimeoutMs
-                    );
-                }),
-            ]);
-            return { status: "sent", messageId: result?.key?.id || null };
-        } finally {
-            if (sendTimer) clearTimeout(sendTimer);
-        }
+        return enqueueSend(entry, async () => {
+            const jid = await resolveRecipient(entry, phone);
+            let sendTimer;
+            try {
+                const result = await Promise.race([
+                    entry.sock.sendMessage(jid, { text }),
+                    new Promise((_, reject) => {
+                        sendTimer = setTimeout(
+                            () => reject(new WhatsAppSessionError("WHATSAPP_TIMEOUT", "WhatsApp message send timed out.")),
+                            sendTimeoutMs
+                        );
+                    }),
+                ]);
+                return { status: "sent", messageId: result?.key?.id || null };
+            } finally {
+                if (sendTimer) clearTimeout(sendTimer);
+            }
+        });
     }
 
     async function sendImage({ tenantId, userId, phone, image, caption }) {
         const entry = await ensureConnected({ tenantId, userId });
-        await pace(entry);
-        const jid = await resolveRecipient(entry, phone);
-        let sendTimer;
-        try {
-            const result = await Promise.race([
-                entry.sock.sendMessage(jid, {
-                    image,
-                    ...(caption ? { caption } : {}),
-                }),
-                new Promise((_, reject) => {
-                    sendTimer = setTimeout(
-                        () => reject(new WhatsAppSessionError("WHATSAPP_TIMEOUT", "WhatsApp image upload timed out. Media upload took too long.")),
-                        sendTimeoutMs
-                    );
-                }),
-            ]);
-            return { status: "sent", messageId: result?.key?.id || null };
-        } finally {
-            if (sendTimer) clearTimeout(sendTimer);
-        }
+        return enqueueSend(entry, async () => {
+            const jid = await resolveRecipient(entry, phone);
+            let sendTimer;
+            try {
+                const result = await Promise.race([
+                    entry.sock.sendMessage(jid, {
+                        image,
+                        ...(caption ? { caption } : {}),
+                    }),
+                    new Promise((_, reject) => {
+                        sendTimer = setTimeout(
+                            () => reject(new WhatsAppSessionError("WHATSAPP_TIMEOUT", "WhatsApp image upload timed out. Media upload took too long.")),
+                            sendTimeoutMs
+                        );
+                    }),
+                ]);
+                return { status: "sent", messageId: result?.key?.id || null };
+            } finally {
+                if (sendTimer) clearTimeout(sendTimer);
+            }
+        });
     }
 
     async function restoreConnected() {

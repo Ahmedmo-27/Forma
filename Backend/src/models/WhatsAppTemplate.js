@@ -100,6 +100,7 @@ const whatsAppTemplateSchema = new mongoose.Schema(
 whatsAppTemplateSchema.plugin(tenantPlugin);
 whatsAppTemplateSchema.index({ tenantId: 1, name: 1, type: 1 });
 whatsAppTemplateSchema.index({ tenantId: 1, type: 1, isDefault: 1 });
+whatsAppTemplateSchema.index({ tenantId: 1, isActive: 1, isDefault: -1, createdAt: -1 });
 
 try {
     module.exports = mongoose.model("WhatsAppTemplate");

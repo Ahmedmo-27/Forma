@@ -6,6 +6,11 @@ const { AppError, ForbiddenError } = require("../utils/errors");
 const { detectMimeFromBuffer, IMAGE_ONLY } = require("../utils/fileMagic");
 const { WhatsAppSessionError } = require("../services/whatsapp/sessionManager");
 const { findMemberByIdentifier } = require("../utils/memberLookup");
+const { invalidateTenantCache } = require("../utils/cacheInvalidator");
+const {
+    assertMonthlyAllowance,
+    incrementCachedAllowance,
+} = require("../utils/whatsappTracking");
 const {
     getSessionStatus,
     startSession,
@@ -26,62 +31,6 @@ function actor(req) {
 function assertTemplateSendAllowed(user) {
     if ((user.role === "Sales" || hasExplicitGrant(user, "whatsapp_send")) && !hasAccess(user, "whatsapp_send")) {
         throw new ForbiddenError("AUTH_FORBIDDEN", "You are not allowed to send WhatsApp template messages");
-    }
-}
-
-function monthlyLimit(tenant) {
-    const isLifetime = tenant?.billing?.cycle === "lifetime";
-    if (isLifetime) {
-        return tenant?.billing?.lifetime?.fairUseLimits?.whatsappMessagesMonthlyLimit || 2000;
-    }
-    return 500;
-}
-
-function startOfMonth(timeZone) {
-    const zone = timeZone || "Africa/Cairo";
-    let parts;
-    try {
-        parts = new Intl.DateTimeFormat("en-US", {
-            timeZone: zone,
-            year: "numeric",
-            month: "2-digit",
-            day: "2-digit",
-            hour: "2-digit",
-            minute: "2-digit",
-            second: "2-digit",
-            hourCycle: "h23",
-        }).formatToParts(new Date());
-    } catch {
-        if (zone !== "Africa/Cairo") return startOfMonth("Africa/Cairo");
-        const now = new Date();
-        return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
-    }
-    const pick = (type) => Number(parts.find((part) => part.type === type)?.value);
-    const year = pick("year");
-    const month = pick("month");
-    const day = pick("day");
-    const hour = pick("hour");
-    const minute = pick("minute");
-    const second = pick("second");
-    const zonedAsUtc = Date.UTC(year, month - 1, day, hour, minute, second);
-    const offset = zonedAsUtc - Date.now();
-    return new Date(Date.UTC(year, month - 1, 1, 0, 0, 0) - offset);
-}
-
-async function assertMonthlyAllowance(req) {
-    const tenant = req.tenant;
-    const limit = monthlyLimit(tenant);
-    const since = startOfMonth(tenant?.settings?.locale?.timezone);
-    const used = await AuditLog.countDocuments({
-        action: { $in: ["whatsapp_template_sent", "whatsapp_message_sent"] },
-        createdAt: { $gte: since },
-    });
-    if (used >= limit) {
-        throw new AppError(
-            "RATE_LIMITED",
-            "This gym has reached its monthly WhatsApp message limit.",
-            429
-        );
     }
 }
 
@@ -127,6 +76,8 @@ const sendMessage = async (req, res, next) => {
         await assertMonthlyAllowance(req);
         const { phone, text, memberId, memberName, templateId } = req.body;
         await sendText({ ...actor(req), phone, text });
+        incrementCachedAllowance(req.user?.tenantId);
+        invalidateTenantCache(req.user?.tenantId, "tenant");
 
         const template = templateId
             ? await WhatsAppTemplate.findById(templateId).select("name type")
@@ -169,6 +120,8 @@ const sendImageMessage = async (req, res, next) => {
             image: req.file.buffer,
             caption,
         });
+        incrementCachedAllowance(req.user?.tenantId);
+        invalidateTenantCache(req.user?.tenantId, "tenant");
 
         let memberObj = null;
         let lastQrSentAt = null;
