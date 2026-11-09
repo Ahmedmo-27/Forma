@@ -7,8 +7,7 @@ import { createStaffUser } from '../../api/endpoints';
 import { isValidEmail, isValidPhone } from '../../lib/validation';
 import { useAuth } from '../../context/AuthContext';
 
-const GYM_ROLES = [
-  ['Owner', 'Owner'],
+const ALL_STAFF_ROLES = [
   ['General Manager', 'General Manager'],
   ['Sales Manager', 'Sales Manager'],
   ['Sales', 'Sales Representative'],
@@ -18,12 +17,24 @@ const GYM_ROLES = [
   ['Accountant', 'Accountant'],
 ];
 
+const CREATABLE_ROLES = {
+  Owner: ALL_STAFF_ROLES,
+  'General Manager': ALL_STAFF_ROLES,
+  'Sales Manager': [
+    ['Sales', 'Sales Representative'],
+    ['Receptionist', 'Receptionist'],
+  ],
+  'Coach Manager': [
+    ['Coach', 'Coach'],
+  ],
+};
+
 const INIT = { name: '', email: '', mobile_number: '', password: '', role: 'Sales' };
 
 export default function ManageStaff() {
   usePageTitle('Manage Staff');
   const { user } = useAuth();
-  const roleOptions = user?.role === 'Owner' ? GYM_ROLES : GYM_ROLES.filter(([role]) => role !== 'Owner');
+  const roleOptions = CREATABLE_ROLES[user?.role] || [];
   const [form, setForm] = useState(INIT);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);

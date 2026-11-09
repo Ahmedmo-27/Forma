@@ -693,9 +693,16 @@ const createStaffUser = async (req, res) => {
             return res.status(400).json({ message: "name, email, password, mobile_number and role are required" });
         }
 
-        const creatable = req.user.role === "Owner"
-            ? GYM_ROLES
-            : GYM_ROLES.filter((roleName) => roleName !== "Owner");
+        let creatable = [];
+        if (req.user.role === "Owner") {
+            creatable = GYM_ROLES.filter((roleName) => roleName !== "Owner");
+        } else if (req.user.role === "General Manager") {
+            creatable = ["Sales Manager", "Coach Manager", "Accountant", "Sales", "Coach", "Receptionist"];
+        } else if (req.user.role === "Sales Manager") {
+            creatable = ["Sales", "Receptionist"];
+        } else if (req.user.role === "Coach Manager") {
+            creatable = ["Coach"];
+        }
         if (!creatable.includes(role)) {
             return res.status(400).json({ message: "You cannot create that role" });
         }
@@ -1135,7 +1142,7 @@ const updateCoachRepAbilities = async (req, res) => {
 
 const updateStaffMobile = async (req, res) => {
     try {
-        if (!["Sales Manager", "Owner", "General Manager"].includes(req.user.role)) {
+        if (!["Sales Manager", "Owner", "General Manager", "Coach Manager"].includes(req.user.role)) {
             return res.status(403).json({ message: "Only managers can update staff mobile numbers" });
         }
 
@@ -1143,8 +1150,17 @@ const updateStaffMobile = async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
+        if (user.role === "Owner" && req.user.role !== "Owner") {
+            return res.status(403).json({ message: "You cannot edit this user" });
+        }
         if (req.user.role === "General Manager" && (user.role === "Owner" || user.role === "General Manager")) {
             return res.status(403).json({ message: "You cannot edit this user" });
+        }
+        if (req.user.role === "Sales Manager" && !["Sales", "Receptionist"].includes(user.role)) {
+            return res.status(403).json({ message: "Sales managers can only update mobile numbers for their own team" });
+        }
+        if (req.user.role === "Coach Manager" && user.role !== "Coach") {
+            return res.status(403).json({ message: "Coach managers can only update mobile numbers for their own team" });
         }
 
         const { mobile_number } = req.body;
@@ -1295,12 +1311,17 @@ const resetUserPassword = async (req, res) => {
         const target = await User.findById(req.params.id);
         if (!target) return res.status(404).json({ message: "User not found" });
 
-        // Sales Manager can reset anyone except Owner
-        if (req.user.role === "Sales Manager" && target.role === "Owner") {
-            return res.status(403).json({ message: "Sales Manager cannot reset an Owner's password" });
+        if (target.role === "Owner" && req.user.role !== "Owner") {
+            return res.status(403).json({ message: "You cannot reset an Owner's password" });
         }
         if (req.user.role === "General Manager" && (target.role === "Owner" || target.role === "General Manager")) {
             return res.status(403).json({ message: "You cannot edit this user" });
+        }
+        if (req.user.role === "Sales Manager" && !["Sales", "Receptionist"].includes(target.role)) {
+            return res.status(403).json({ message: "Sales managers can only reset passwords for their own team" });
+        }
+        if (req.user.role === "Coach Manager" && target.role !== "Coach") {
+            return res.status(403).json({ message: "Coach managers can only reset passwords for their own team" });
         }
 
         target.password = await hashPassword(newPassword);

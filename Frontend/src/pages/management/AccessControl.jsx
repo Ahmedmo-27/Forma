@@ -19,9 +19,9 @@ function canEditFeatureAccess(actorRole, targetRole) {
 }
 
 const ROLE_CHOICES = {
-  Owner: ALL_ROLES,
+  Owner: ['General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
   'General Manager': ['Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
-  'Sales Manager': ALL_ROLES,
+  'Sales Manager': ['Sales', 'Receptionist'],
   'Coach Manager': ['Coach'],
 };
 
@@ -221,7 +221,7 @@ export default function AccessControl() {
                 ))}
               </select>
             </label>
-            {selected && (
+            {selected && canChangeUserRole(user?.role, selected.role) && (
               <ChangeRoleField
                 userId={selected._id}
                 currentRole={selected.role}

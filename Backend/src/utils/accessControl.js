@@ -311,16 +311,16 @@ function editableRolesFor(actorRole) {
     return [];
 }
 
-/** Roles a person can look up. Sales managers can find anyone so they can change a role. */
+/** Roles a person can look up in the access directory. Strictly follows the team hierarchy. */
 function directoryRolesFor(actorRole) {
-    if (actorRole === "Sales Manager") return [...STAFF_ROLES];
     return editableRolesFor(actorRole);
 }
 
 const ASSIGNABLE_ROLES = {
     Owner: ["General Manager", "Sales Manager", "Sales", "Coach Manager", "Coach", "Receptionist", "Accountant"],
     "General Manager": ["Sales Manager", "Sales", "Coach Manager", "Coach", "Receptionist", "Accountant"],
-    "Sales Manager": ["Sales", "Coach Manager", "Coach", "Receptionist"],
+    "Sales Manager": ["Sales", "Receptionist"],
+    "Coach Manager": ["Coach"],
 };
 
 function assignableRolesFor(actorRole) {
@@ -328,23 +328,47 @@ function assignableRolesFor(actorRole) {
 }
 
 /**
- * Owner, general manager, and sales manager can move staff between roles.
- * A general manager cannot touch an owner or another general manager.
- * A sales manager can change anyone, but not into Owner, General Manager,
- * Sales Manager, or Accountant. Nobody can change their own role.
+ * Strict role hierarchy:
+ * 1. Owner at top: can change any role below Owner. Nobody can change an Owner's role.
+ * 2. General Manager: can change roles below GM (cannot change Owner or GM).
+ * 3. Sales Manager & Coach Manager: maintain their own teams only.
+ *    - Sales Manager can only change members of their team (Sales, Receptionist) to a role in their team.
+ *    - Coach Manager can only change members of their team (Coach) to a role in their team.
+ * 4. Nobody can change their own role, and nobody can assign the "Owner" role.
  */
 function canAssignRole(actor, target, newRole) {
     if (!actor || !target) return { ok: false, status: 403, message: "Not authorized" };
     if (actorId(actor) && actorId(actor) === actorId(target)) {
         return { ok: false, status: 403, message: "You cannot change your own role" };
     }
+    if (target.role === "Owner") {
+        return { ok: false, status: 403, message: "The Owner role cannot be changed" };
+    }
+    if (newRole === "Owner") {
+        return { ok: false, status: 400, message: "That role cannot be assigned" };
+    }
     const allowed = assignableRolesFor(actor.role);
     if (!allowed.length) return { ok: false, status: 403, message: "Not authorized" };
     if (!allowed.includes(newRole)) {
         return { ok: false, status: 400, message: "That role cannot be assigned" };
     }
-    if (actor.role === "General Manager" && (target.role === "Owner" || target.role === "General Manager")) {
-        return { ok: false, status: 403, message: "Only the owner can change a General Manager" };
+    if (actor.role === "General Manager") {
+        if (target.role === "General Manager") {
+            return { ok: false, status: 403, message: "Only the owner can change a General Manager" };
+        }
+        if (!editableRolesFor("General Manager").includes(target.role)) {
+            return { ok: false, status: 403, message: "You cannot change this user's role" };
+        }
+    }
+    if (actor.role === "Sales Manager") {
+        if (!["Sales", "Receptionist"].includes(target.role)) {
+            return { ok: false, status: 403, message: "Sales managers can only change roles for their own team" };
+        }
+    }
+    if (actor.role === "Coach Manager") {
+        if (target.role !== "Coach") {
+            return { ok: false, status: 403, message: "Coach managers can only change roles for their own team" };
+        }
     }
     return { ok: true };
 }

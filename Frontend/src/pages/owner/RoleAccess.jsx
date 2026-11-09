@@ -9,7 +9,7 @@ import { listAccessUsersByRole, updateRoleAccess } from '../../api/endpoints';
 import ChangeRoleField from '../../components/ChangeRoleField';
 
 const PERSON_ROLES = {
-  Owner: ['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
+  Owner: ['General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
   'General Manager': ['Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
 };
 
