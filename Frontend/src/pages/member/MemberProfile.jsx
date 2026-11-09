@@ -91,6 +91,19 @@ export default function MemberProfile() {
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
   const handleCheckIn = async () => {
+    if (!canCheckIn) {
+      const reason = member?.isBlocked
+        ? 'Cannot check in — member is blocked'
+        : isGuest
+        ? 'Cannot check in — this member is a guest and does not have a package'
+        : !currentPkg
+        ? 'Cannot check in — this member does not have a package'
+        : isExpired
+        ? 'Cannot check in — this member has an expired package'
+        : 'Cannot check in';
+      toast.error(reason);
+      return;
+    }
     setChecking(true);
     try { const res = await checkInMember(id); toast.success(res.data.message); fetchProfile(); }
     catch (e) { toast.error(e.response?.data?.message ?? 'Check-in failed.'); }
@@ -136,6 +149,11 @@ export default function MemberProfile() {
 
   const member = data?.member;
   const stats  = data?.stats;
+  const currentSub = member?.subscriptions?.at(-1);
+  const currentPkg = currentSub?.packageSnapshot ?? currentSub?.package;
+  const isGuest = member?.status === 'guest' || member?.isMember === false;
+  const isExpired = member?.status === 'expired' || (currentSub?.endDate && new Date(currentSub.endDate) < new Date());
+  const canCheckIn = Boolean(member && !member.isBlocked && !isGuest && currentPkg && (!isExpired || member.status === 'frozen'));
 
   return (
     <Layout>
@@ -151,9 +169,22 @@ export default function MemberProfile() {
         <div className="member-profile-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {member && <MemberQrButton member={member} onSent={fetchProfile} />}
           {member && ['Receptionist', 'Owner', 'Sales Manager'].includes(user?.role) && (
-            <Btn variant={member.status === 'active' || member.status === 'frozen' || member.status === 'guest' ? 'success' : 'outline'} size="sm"
-              onClick={handleCheckIn} disabled={checkingIn || member.status === 'expired' || member.isBlocked}>
-              {checkingIn ? <Spinner size="sm" /> : (member.status === 'guest' ? 'Check In Guest' : 'Check In')}
+            <Btn variant={canCheckIn ? 'success' : 'outline'} size="sm"
+              onClick={handleCheckIn} disabled={checkingIn || !canCheckIn}
+              title={
+                !canCheckIn
+                  ? member.isBlocked
+                    ? 'Member is blocked'
+                    : isGuest
+                    ? 'This member is a guest and does not have a package'
+                    : !currentPkg
+                    ? 'This member does not have a package'
+                    : isExpired
+                    ? 'This member has an expired package'
+                    : 'Cannot check in'
+                  : 'Check In'
+              }>
+              {checkingIn ? <Spinner size="sm" /> : 'Check In'}
             </Btn>
           )}
           {member && user?.role === 'Sales Manager' && (
@@ -390,14 +421,11 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
   };
 
   return (
-    <div style={{
+    <div className="profile-header-card" style={{
       background: 'var(--card)',
       border: '1px solid var(--border)',
       borderRadius: 12,
-      padding: '18px 22px',
-      display: 'flex',
-      alignItems: 'center',
-      gap: 20,
+      padding: 'clamp(14px, 3vw, 18px) clamp(14px, 3vw, 22px)',
       boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
     }}>
 

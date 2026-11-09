@@ -494,20 +494,34 @@ const checkInMember = async (req, res) => {
             return res.status(404).json({ message: "Member not found" });
         }
 
-        // Active members only append a log entry. One update, no full-document save.
-        // Frozen members still load the document because ending a freeze rewrites dates.
+        const now = new Date();
         const entry = {
             _id: new mongoose.Types.ObjectId(),
             type: "check-in",
             text: "Member checked in",
             createdBy: req.user.id,
-            createdAt: new Date(),
+            createdAt: now,
         };
+
+        // Active members with an active subscription only append a log entry. One update, no full-document save.
         const updated = await Member.findOneAndUpdate(
-            { ...query, isBlocked: { $ne: true }, status: { $nin: ["expired", "frozen"] } },
+            {
+                ...query,
+                isBlocked: { $ne: true },
+                isMember: true,
+                status: "active",
+                "subscriptions.0": { $exists: true },
+                $expr: {
+                    $gte: [
+                        { $arrayElemAt: ["$subscriptions.endDate", -1] },
+                        now,
+                    ],
+                },
+            },
             { $push: { userlog: entry } },
             { new: false, projection: { name: 1, systemId: 1, status: 1, subscriptions: { $slice: -1 } } }
         ).lean();
+
         if (updated) {
             const currentSub = updated.subscriptions?.at(-1);
             const pkgName = currentSub?.packageSnapshot?.name || null;
@@ -523,20 +537,37 @@ const checkInMember = async (req, res) => {
             return res.status(201).json({ message: "Check-in recorded", checkIn: entry, status: updated.status });
         }
 
-        const preview = await Member.findOne(query).select("status isBlocked").lean();
-        if (!preview) {
-            return res.status(404).json({ message: "Member not found" });
-        }
-        if (preview.isBlocked) {
-            return res.status(403).json({ message: "Cannot check in — member is blocked" });
-        }
-        if (preview.status === "expired") {
-            return res.status(400).json({ message: "Cannot check in — membership expired" });
-        }
-
+        // Fast-path did not match. Inspect the member to return the exact reason or handle frozen members.
         const member = await findMember(memberId);
         if (!member) {
             return res.status(404).json({ message: "Member not found" });
+        }
+
+        if (member.isBlocked) {
+            return res.status(403).json({ message: "Cannot check in — member is blocked" });
+        }
+
+        const hasSubscriptions = Array.isArray(member.subscriptions) && member.subscriptions.length > 0;
+        const currentSub = hasSubscriptions ? member.subscriptions[member.subscriptions.length - 1] : null;
+        const currentPkg = currentSub?.packageSnapshot || currentSub?.package || null;
+
+        if (member.status === "guest" || !member.isMember || !hasSubscriptions || !currentPkg) {
+            const isGuest = member.status === "guest" || !member.isMember;
+            const message = isGuest
+                ? "Cannot check in — this member is a guest and does not have a package"
+                : "Cannot check in — this member does not have a package";
+            return res.status(400).json({ message });
+        }
+
+        const isExpiredStatus = member.status === "expired";
+        const isEndDatePassed = currentSub.endDate && new Date(currentSub.endDate) < now;
+
+        if (isExpiredStatus || (isEndDatePassed && member.status !== "frozen")) {
+            if (member.status !== "expired") {
+                member.status = "expired";
+                await member.save();
+            }
+            return res.status(400).json({ message: "Cannot check in — this member has an expired package" });
         }
 
         const today = new Date();
@@ -565,7 +596,6 @@ const checkInMember = async (req, res) => {
                     ), 0);
                 member.freezeDaysUsed = previousDays + actualFrozenDays;
 
-                const currentSub = member.subscriptions[member.subscriptions.length - 1];
                 if (currentSub && daysSaved > 0) {
                     const newEnd = new Date(currentSub.endDate);
                     newEnd.setDate(newEnd.getDate() + daysSaved);
@@ -579,19 +609,19 @@ const checkInMember = async (req, res) => {
                 });
             }
 
+            if (currentSub && new Date(currentSub.endDate) < now) {
+                member.status = "expired";
+                await member.save();
+                return res.status(400).json({ message: "Cannot check in — this member has an expired package" });
+            }
+
             member.status = "active";
         }
 
-        member.userlog.push({
-            type:      "check-in",
-            text:      "Member checked in",
-            createdBy: req.user.id
-        });
-
+        member.userlog.push(entry);
         await member.save();
 
         const savedEntry = member.userlog[member.userlog.length - 1];
-        const currentSub = member.subscriptions?.at(-1);
         const pkgName = currentSub?.packageSnapshot?.name || currentSub?.package?.name || null;
         publishLive(req.user.tenantId, {
             type: "check-in",
@@ -602,7 +632,7 @@ const checkInMember = async (req, res) => {
             status: member.status,
             packageName: pkgName,
         });
-        res.status(201).json({ message: "Check-in recorded", checkIn: savedEntry, status: member.status });
+        return res.status(201).json({ message: "Check-in recorded", checkIn: savedEntry, status: member.status });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

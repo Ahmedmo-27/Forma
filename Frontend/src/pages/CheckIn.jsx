@@ -267,8 +267,19 @@ export default function CheckIn() {
     }
   };
 
+  const sub         = member?.subscriptions?.at(-1);
+  const pkg         = sub?.packageSnapshot ?? sub?.package;
+  const expiryDays  = sub?.endDate ? Math.ceil((new Date(sub.endDate) - new Date()) / 86400000) : null;
+  const isGuest     = member?.status === 'guest' || member?.isMember === false;
+  const hasExpired  = member?.status === 'expired' || (expiryDays !== null && expiryDays < 0);
+  const hasPackage  = Boolean(pkg);
+  const canCheckIn  = Boolean(member && !member.isBlocked && !isGuest && hasPackage && (!hasExpired || member.status === 'frozen'));
+  const today       = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const todayCount  = history.length;
+  const activeToday = history.filter(e => e.member?.status === 'active').length;
+
   const handleCheckIn = async () => {
-    if (!member) return;
+    if (!member || !canCheckIn) return;
     setChecking(true); setResult(null);
     try {
       const r = await checkInMember(member.systemId);
@@ -282,30 +293,16 @@ export default function CheckIn() {
     } finally { setChecking(false); }
   };
 
-  const canCheckIn  = member && member.status !== 'expired' && !member.isBlocked;
-  const sub         = member?.subscriptions?.at(-1);
-  const pkg         = sub?.packageSnapshot ?? sub?.package;
-  const today       = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-  const todayCount  = history.length;
-  const activeToday = history.filter(e => e.member?.status === 'active').length;
-
-  const expiryDays  = sub?.endDate ? Math.ceil((new Date(sub.endDate) - new Date()) / 86400000) : null;
-
   return (
     <Layout>
       <div style={{ minHeight: 'calc(100svh - 112px)', display: 'flex', flexDirection: 'column' }}>
 
         {/* ── Main content ─────────────────────────────────────── */}
-        <div style={{ flex: 1, background: 'var(--bg)', padding: '24px 32px 40px' }}>
+        <div style={{ flex: 1, background: 'var(--bg)', padding: 'clamp(14px, 3vw, 24px) clamp(12px, 3vw, 32px) 40px' }}>
           <div style={{ maxWidth: 1600, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 20 }}>
 
             {/* Check In on the left, Scanner / Search centered, stats on the right */}
-            <div className="checkin-top" style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr minmax(320px, 580px) 1fr',
-              alignItems: 'start',
-              gap: 20,
-            }}>
+            <div className="checkin-top">
               <div className="checkin-side" style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{
@@ -405,7 +402,7 @@ export default function CheckIn() {
                         Scanner
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--t4)' }}>
-                        Opens camera to scan members or non-members and check them in (System ID or Member ID)
+                        Opens camera to scan members and check them in (System ID or Member ID)
                       </div>
                     </div>
                     <CheckInScanner
@@ -422,8 +419,8 @@ export default function CheckIn() {
                     </div>
                     <div style={{ padding: '16px 20px' }}>
                       <form onSubmit={handleSearch}>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <div style={{ position: 'relative', flex: 1 }}>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                          <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 160 }}>
                             <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--t4)', pointerEvents: 'none' }}
                               width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
@@ -436,7 +433,7 @@ export default function CheckIn() {
                               placeholder="Scan QR/barcode or type ID…"
                               autoFocus
                               style={{
-                                width: '100%', padding: '11px 12px 11px 36px', fontSize: 14,
+                                width: '100%', height: 44, padding: '0 12px 0 36px', fontSize: 14,
                                 border: '1.5px solid var(--border)', borderRadius: 10,
                                 outline: 'none', color: 'var(--t1)', background: 'var(--bg)',
                                 fontFamily: 'inherit', boxSizing: 'border-box',
@@ -447,7 +444,7 @@ export default function CheckIn() {
                             />
                           </div>
                           <button type="submit" disabled={searching || !query.trim()} style={{
-                            padding: '0 18px', borderRadius: 10, border: 'none', fontFamily: 'inherit',
+                            padding: '0 18px', minHeight: 44, borderRadius: 10, border: 'none', fontFamily: 'inherit',
                             background: 'linear-gradient(135deg,#44298C,#5B38BA)', color: '#fff',
                             fontSize: 13, fontWeight: 700, cursor: searching || !query.trim() ? 'not-allowed' : 'pointer',
                             opacity: !query.trim() ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6,
@@ -456,7 +453,7 @@ export default function CheckIn() {
                             {searching ? <Spinner size="sm" /> : 'Search'}
                           </button>
                           <button type="button" onClick={() => setActiveTab('scanner')} style={{
-                            padding: '0 14px', borderRadius: 10, fontFamily: 'inherit',
+                            padding: '0 14px', minHeight: 44, borderRadius: 10, fontFamily: 'inherit',
                             background: 'var(--bg)', color: 'var(--t1)',
                             border: '1.5px solid var(--border)',
                             fontSize: 13, fontWeight: 700, cursor: 'pointer',
@@ -549,10 +546,12 @@ export default function CheckIn() {
                     ) : member.status === 'guest' ? (
                       <div style={{ textAlign: 'center', padding: '12px 14px', fontSize: 13, background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)' }}>
                         <div style={{ fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>Non-Member / Guest</div>
-                        <div style={{ fontSize: 11, color: 'var(--t4)' }}>No package attached · Daily walk-in check-in</div>
+                        <div style={{ fontSize: 11, color: 'var(--red)', fontWeight: 600 }}>This member is a guest and does not have a package</div>
                       </div>
                     ) : (
-                      <div style={{ textAlign: 'center', padding: '8px', fontSize: 13, color: 'var(--t4)', background: 'var(--bg)', borderRadius: 10 }}>No active package</div>
+                      <div style={{ textAlign: 'center', padding: '12px 14px', fontSize: 13, color: 'var(--red)', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)', fontWeight: 600 }}>
+                        This member does not have a package
+                      </div>
                     )}
 
                     {/* Blocked banner */}
@@ -602,14 +601,24 @@ export default function CheckIn() {
                         ? <><Spinner size="sm" /> Processing…</>
                         : <>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            {member.status === 'guest' ? 'Check In Non-Member' : 'Check In Now'}
+                            {isGuest || !hasPackage ? 'Cannot Check In (No Package)' : 'Check In Now'}
                           </>
                       }
                     </button>
 
                     {!canCheckIn && (
-                      <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--red)', margin: 0 }}>
-                        Cannot check in — {member.isBlocked ? 'member is blocked' : member.status === 'expired' ? 'membership has expired' : `member is ${member.status}`}
+                      <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--red)', margin: 0, fontWeight: 600 }}>
+                        Cannot check in — {
+                          member.isBlocked
+                            ? 'member is blocked'
+                            : isGuest
+                            ? 'this member is a guest and does not have a package'
+                            : !hasPackage
+                            ? 'this member does not have a package'
+                            : hasExpired
+                            ? 'this member has an expired package'
+                            : `member is ${member.status}`
+                        }
                       </p>
                     )}
 
