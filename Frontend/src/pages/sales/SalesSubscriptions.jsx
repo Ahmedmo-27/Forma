@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Spinner, EmptyState, Avatar, fmtDate } from '../../components/ui';
+import { PageHeader, Card, Spinner, EmptyState, Avatar, fmtDate, toLocalDateString } from '../../components/ui';
 import { getSalesMySubscriptions } from '../../api/endpoints';
 
 const fmt   = (n) => Number(n ?? 0).toLocaleString('en-EG');
-const TODAY = new Date().toISOString().slice(0, 10);
+const TODAY = toLocalDateString();
 
 export default function SalesSubscriptions() {
   usePageTitle('My Subscriptions');

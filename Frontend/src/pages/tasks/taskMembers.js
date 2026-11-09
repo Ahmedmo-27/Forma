@@ -30,10 +30,46 @@ export function hasAccessKey(user, key) {
   return user.access.includes(key);
 }
 
+export function toLocalDateString(date) {
+  if (!date) return '';
+  const d = new Date(date);
+  if (Number.isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function parseDateBoundary(dateStr, isEnd = false) {
+  if (!dateStr) return null;
+  const parts = String(dateStr).trim().split('-');
+  if (parts.length !== 3) {
+    const d = new Date(dateStr);
+    if (Number.isNaN(d.getTime())) return null;
+    return isEnd ? d.setHours(23, 59, 59, 999) : d.setHours(0, 0, 0, 0);
+  }
+  const year = Number(parts[0]);
+  const month = Number(parts[1]) - 1;
+  const day = Number(parts[2]);
+  const d = new Date(year, month, day);
+  if (Number.isNaN(d.getTime())) return null;
+  if (isEnd) {
+    d.setHours(23, 59, 59, 999);
+  } else {
+    d.setHours(0, 0, 0, 0);
+  }
+  return d.getTime();
+}
+
 export function latestSubscription(member) {
   const list = member?.subscriptions;
   if (!Array.isArray(list) || !list.length) return null;
-  return list[list.length - 1];
+  return list.reduce((latest, current) => {
+    if (!latest) return current;
+    const latestTime = latest.endDate ? new Date(latest.endDate).getTime() : (latest.startDate ? new Date(latest.startDate).getTime() : 0);
+    const currentTime = current.endDate ? new Date(current.endDate).getTime() : (current.startDate ? new Date(current.startDate).getTime() : 0);
+    return currentTime >= latestTime ? current : latest;
+  }, list[list.length - 1]);
 }
 
 export function personName(value) {
@@ -247,8 +283,9 @@ export function canUserAssignTasks(user) {
 
 export function filterTaskHistory(history = [], query = '', statusFilter = 'all') {
   const q = String(query || '').trim().toLowerCase();
+  const sFilter = String(statusFilter || 'all').toLowerCase();
   return history.filter((item) => {
-    if (statusFilter !== 'all' && item.status !== statusFilter) return false;
+    if (sFilter !== 'all' && String(item.status || '').toLowerCase() !== sFilter) return false;
     if (!q) return true;
     const name = String(item.member?.name || '').toLowerCase();
     const phone = String(item.member?.phone || '').toLowerCase();
@@ -293,13 +330,18 @@ export function filterMembersAdvanced(members = [], filters = {}) {
   } = filters;
 
   const q = String(search || '').trim().toLowerCase();
-  const fromTime = dateFrom ? new Date(dateFrom).setHours(0, 0, 0, 0) : null;
-  const toTime = dateTo ? new Date(dateTo).setHours(23, 59, 59, 999) : null;
+  const fromTime = parseDateBoundary(dateFrom);
+  const toTime = parseDateBoundary(dateTo, true);
 
   return members.filter((member) => {
     // 1. Status Filter
-    if (status === 'blocked' && !member.isBlocked) return false;
-    if (status !== 'all' && status !== 'blocked' && member.status !== status) return false;
+    const effectiveStatus = String(status || 'all').toLowerCase();
+    if (effectiveStatus === 'blocked') {
+      if (!member.isBlocked) return false;
+    } else if (effectiveStatus !== 'all') {
+      const memberStatus = String(member.status || '').toLowerCase();
+      if (memberStatus !== effectiveStatus) return false;
+    }
 
     // 2. Kind / Assignee Filter
     if (kind === 'unassigned_sales') {
@@ -319,20 +361,33 @@ export function filterMembersAdvanced(members = [], filters = {}) {
     }
 
     // 3. Gender Filter
-    if (gender !== 'all' && member.gender && member.gender.toLowerCase() !== gender.toLowerCase()) {
-      return false;
+    if (gender && gender !== 'all') {
+      if (!member.gender || member.gender.toLowerCase() !== gender.toLowerCase()) {
+        return false;
+      }
     }
 
     // 4. Source Filter
-    if (source !== 'all' && member.source && member.source.toLowerCase() !== source.toLowerCase()) {
-      return false;
+    if (source && source !== 'all') {
+      if (!member.source || member.source.toLowerCase() !== source.toLowerCase()) {
+        return false;
+      }
     }
 
     // 5. Package Filter
-    const sub = latestSubscription(member);
-    if (packageId !== 'all') {
-      const pkgId = sub?.package?._id || sub?.package;
-      if (String(pkgId) !== String(packageId)) return false;
+    if (packageId && packageId !== 'all') {
+      const sub = latestSubscription(member);
+      const latestPkgId = sub?.package?._id ? String(sub.package._id) : (sub?.package ? String(sub.package) : null);
+      const latestPkgName = typeof sub?.package?.name === 'string' ? sub.package.name : (typeof sub?.package === 'string' ? sub.package : null);
+      const matchesLatest = latestPkgId === String(packageId) || latestPkgName === String(packageId);
+
+      const subs = Array.isArray(member.subscriptions) ? member.subscriptions : [];
+      const matchesAny = subs.some((s) => {
+        const pId = s?.package?._id ? String(s.package._id) : (s?.package ? String(s.package) : null);
+        const pName = typeof s?.package?.name === 'string' ? s.package.name : (typeof s?.package === 'string' ? s.package : null);
+        return pId === String(packageId) || pName === String(packageId);
+      });
+      if (!matchesLatest && !matchesAny) return false;
     }
 
     // 6. Transfer Filter
@@ -344,13 +399,18 @@ export function filterMembersAdvanced(members = [], filters = {}) {
     } else if (transferType === 'bulk') {
       if (!logs.some((l) => /bulk/i.test(l.text || ''))) return false;
     } else if (transferType === 'coach') {
-      if (!logs.some((l) => /coach|couch/i.test(l.text || '') || member.current_couch)) return false;
+      const hasCoachLog = logs.some((l) => /coach|couch/i.test(l.text || '') || l.createdBy?.role?.toLowerCase().includes('coach'));
+      const hasCoachTransfer = logs.length > 0 && (hasCoachLog || Boolean(member.current_couch));
+      if (!hasCoachTransfer) return false;
     } else if (transferType === 'sales') {
-      if (!logs.some((l) => /sales|salesman|sales rep/i.test(l.text || '') || member.assignedSales)) return false;
+      const hasSalesLog = logs.some((l) => /sales|salesman|sales rep/i.test(l.text || '') || l.createdBy?.role?.toLowerCase().includes('sales'));
+      const hasSalesTransfer = logs.length > 0 && (hasSalesLog || Boolean(member.assignedSales));
+      if (!hasSalesTransfer) return false;
     }
 
     // 7. Date Period Filter (From / To)
     if (fromTime || toTime) {
+      const sub = latestSubscription(member);
       let targetTime = null;
       if (dateField === 'joined' || dateField === 'createdAt') {
         targetTime = member.createdAt ? new Date(member.createdAt).getTime() : null;
@@ -382,6 +442,7 @@ export function filterMembersAdvanced(members = [], filters = {}) {
       const name = String(member.name || '').toLowerCase();
       const sid = String(member.systemId ?? '').toLowerCase();
       const formattedSid = formatSystemId(member.systemId).toLowerCase();
+      const mid = String(member.memberId ?? '').toLowerCase();
       const sName = salesmanName(member).toLowerCase();
       const smName = salesName(member).toLowerCase();
       const cName = coachName(member).toLowerCase();
@@ -392,6 +453,7 @@ export function filterMembersAdvanced(members = [], filters = {}) {
         || phone.includes(q)
         || sid.includes(q)
         || formattedSid.includes(q)
+        || mid.includes(q)
         || sName.includes(q)
         || smName.includes(q)
         || cName.includes(q)
@@ -418,15 +480,20 @@ export function filterCreatedTasks(tasks = [], filters = {}) {
   } = filters;
 
   const mSearch = String(memberSearch || '').trim().toLowerCase();
-  const fromTime = dateFrom ? new Date(dateFrom).setHours(0, 0, 0, 0) : null;
-  const toTime = dateTo ? new Date(dateTo).setHours(23, 59, 59, 999) : null;
+  const fromTime = parseDateBoundary(dateFrom);
+  const toTime = parseDateBoundary(dateTo, true);
 
   return tasks.filter((task) => {
     // Role filter
-    if (role !== 'all') {
-      const taskRole = task.targetRole || task.assignedTo?.role;
-      if (role === 'Sales' && !['Sales', 'Sales Manager'].includes(taskRole)) return false;
-      if (role === 'Coach' && !['Coach', 'Coach Manager'].includes(taskRole)) return false;
+    if (role && role !== 'all') {
+      const taskRole = String(task.targetRole || task.assignedTo?.role || '');
+      const assignedRole = String(task.assignedTo?.role || '');
+      const isSales = ['sales', 'sales manager'].includes(taskRole.toLowerCase())
+        || ['sales', 'sales manager'].includes(assignedRole.toLowerCase());
+      const isCoach = ['coach', 'coach manager'].includes(taskRole.toLowerCase())
+        || ['coach', 'coach manager'].includes(assignedRole.toLowerCase());
+      if (role === 'Sales' && !isSales) return false;
+      if (role === 'Coach' && !isCoach) return false;
     }
 
     // Person picker filter (specific sales rep or coach)
@@ -436,10 +503,24 @@ export function filterCreatedTasks(tasks = [], filters = {}) {
     }
 
     // Task status filter
-    if (status !== 'all' && task.status !== status) return false;
+    if (status && status !== 'all') {
+      const s = String(status).toLowerCase();
+      const taskStatus = String(task.status || '').toLowerCase();
+      const total = task.totalCount || task.members?.length || 0;
+      const done = task.completedCount || (task.members || []).filter((m) => m.status === 'completed').length;
+      const isCompleted = taskStatus === 'completed' || (total > 0 && done >= total);
+      const isPending = taskStatus === 'pending' || (done === 0);
+      const isInProgress = taskStatus === 'in_progress' || (done > 0 && done < total);
+
+      if (s === 'completed' && !isCompleted) return false;
+      if (s === 'pending' && !isPending) return false;
+      if (s === 'in_progress' && !isInProgress) return false;
+    }
 
     // Transfer type filter
-    if (transferType !== 'all' && task.transferType !== transferType) return false;
+    if (transferType && transferType !== 'all') {
+      if (String(task.transferType || '').toLowerCase() !== String(transferType).toLowerCase()) return false;
+    }
 
     // Date range filter
     if (fromTime || toTime) {
@@ -461,20 +542,28 @@ export function filterCreatedTasks(tasks = [], filters = {}) {
     }
 
     // Member status filter
-    if (memberStatus !== 'all') {
+    if (memberStatus && memberStatus !== 'all') {
+      const targetMemberStatus = memberStatus.toLowerCase();
       const hasStatus = (task.members || []).some((m) => {
-        const s = m.member?.status || m.status;
-        return s === memberStatus;
+        if (targetMemberStatus === 'blocked') {
+          return Boolean(m.member?.isBlocked);
+        }
+        const s = String(m.member?.status || '').toLowerCase();
+        return s === targetMemberStatus;
       });
       if (!hasStatus) return false;
     }
 
     // Package filter
-    if (packageId !== 'all') {
+    if (packageId && packageId !== 'all') {
       const hasPkg = (task.members || []).some((m) => {
-        const sub = latestSubscription(m.member);
-        const pkg = sub?.package?._id || sub?.package;
-        return String(pkg) === String(packageId);
+        const memberObj = m.member && typeof m.member === 'object' ? m.member : null;
+        const subs = Array.isArray(memberObj?.subscriptions) ? memberObj.subscriptions : [];
+        return subs.some((sub) => {
+          const pId = sub?.package?._id ? String(sub.package._id) : (sub?.package ? String(sub.package) : null);
+          const pName = typeof sub?.package?.name === 'string' ? sub.package.name : (typeof sub?.package === 'string' ? sub.package : null);
+          return pId === String(packageId) || pName === String(packageId);
+        });
       });
       if (!hasPkg) return false;
     }
@@ -486,7 +575,16 @@ export function filterCreatedTasks(tasks = [], filters = {}) {
         const phone = String(m.phone || m.member?.phones || '').toLowerCase();
         const sid = String(m.systemId ?? m.member?.systemId ?? '').toLowerCase();
         const formattedSid = formatSystemId(m.systemId || m.member?.systemId).toLowerCase();
-        return name.includes(mSearch) || phone.includes(mSearch) || sid.includes(mSearch) || formattedSid.includes(mSearch);
+        const mid = String(m.member?.memberId ?? '').toLowerCase();
+        const notes = String(m.notes || '').toLowerCase();
+        return (
+          name.includes(mSearch)
+          || phone.includes(mSearch)
+          || sid.includes(mSearch)
+          || formattedSid.includes(mSearch)
+          || mid.includes(mSearch)
+          || notes.includes(mSearch)
+        );
       });
       const matchAssignee = String(task.assignedTo?.name || '').toLowerCase().includes(mSearch);
       const matchTitle = String(task.title || '').toLowerCase().includes(mSearch);
@@ -511,30 +609,42 @@ export function filterAssignedHistoryAdvanced(history = [], filters = {}) {
   } = filters;
 
   const q = String(search || '').trim().toLowerCase();
-  const fromTime = dateFrom ? new Date(dateFrom).setHours(0, 0, 0, 0) : null;
-  const toTime = dateTo ? new Date(dateTo).setHours(23, 59, 59, 999) : null;
+  const fromTime = parseDateBoundary(dateFrom);
+  const toTime = parseDateBoundary(dateTo, true);
 
   return history.filter((item) => {
     // 1. Assigned By filter (who assigned these tasks)
-    if (assignedBy !== 'all') {
+    if (assignedBy && assignedBy !== 'all') {
       const byId = item.assignedBy?._id || item.assignedBy;
       if (String(byId) !== String(assignedBy)) return false;
     }
 
     // 2. Status filter
-    if (status !== 'all' && item.status !== status) return false;
+    if (status && status !== 'all') {
+      if (String(item.status || '').toLowerCase() !== String(status).toLowerCase()) return false;
+    }
 
     // 3. Transfer type filter
-    if (transferType !== 'all' && item.transferType !== transferType) return false;
+    if (transferType && transferType !== 'all') {
+      if (String(item.transferType || '').toLowerCase() !== String(transferType).toLowerCase()) return false;
+    }
 
     // 4. Member status filter
-    if (memberStatus !== 'all' && item.member?.status !== memberStatus) return false;
+    if (memberStatus && memberStatus !== 'all') {
+      const target = memberStatus.toLowerCase();
+      if (target === 'blocked') {
+        if (!item.member?.isBlocked) return false;
+      } else {
+        const s = String(item.member?.status || '').toLowerCase();
+        if (s !== target) return false;
+      }
+    }
 
     // 5. Package filter
-    if (packageId !== 'all') {
-      const pkgId = item.member?.packageId;
-      const pkgName = item.member?.package;
-      if (String(pkgId) !== String(packageId) && String(pkgName) !== String(packageId)) return false;
+    if (packageId && packageId !== 'all') {
+      const pkgId = item.member?.packageId ? String(item.member.packageId) : null;
+      const pkgName = item.member?.package ? String(item.member.package) : null;
+      if (pkgId !== String(packageId) && pkgName !== String(packageId)) return false;
     }
 
     // 6. Date period filter
@@ -560,18 +670,22 @@ export function filterAssignedHistoryAdvanced(history = [], filters = {}) {
       const phone = String(item.member?.phone || '').toLowerCase();
       const sid = String(item.member?.systemId ?? '').toLowerCase();
       const formattedSid = formatSystemId(item.member?.systemId).toLowerCase();
+      const mid = String(item.member?.memberId ?? '').toLowerCase();
       const byName = String(item.assignedBy?.name || '').toLowerCase();
       const byRole = String(item.assignedBy?.role || '').toLowerCase();
       const notes = String(item.notes || '').toLowerCase();
+      const taskTitle = String(item.taskTitle || '').toLowerCase();
 
       return (
         name.includes(q)
         || phone.includes(q)
         || sid.includes(q)
         || formattedSid.includes(q)
+        || mid.includes(q)
         || byName.includes(q)
         || byRole.includes(q)
         || notes.includes(q)
+        || taskTitle.includes(q)
       );
     }
 

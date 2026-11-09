@@ -8,17 +8,18 @@ import { WhatsAppBtn } from '../utils/whatsapp';
 import useDebounce from '../hooks/useDebounce';
 
 const ROLE_META = {
-  'Receptionist':  { icon: '🖥️', color: '#0284c7', bg: '#f0f9ff', group: 'staff' },
-  'Sales':         { icon: '💼', color: '#16a34a', bg: '#f0fdf4', group: 'staff' },
-  'Coach':         { icon: '🏋️', color: '#d97706', bg: '#fffbeb', group: 'staff' },
-  'Accountant':    { icon: '🧾', color: '#7c3aed', bg: '#f5f3ff', group: 'staff' },
-  'Sales Manager': { icon: '👔', color: '#44298C', bg: 'rgba(68,41,140,0.08)', group: 'managers' },
-  'Coach Manager': { icon: '🏅', color: '#b45309', bg: '#fef9c3', group: 'managers' },
-  'Owner':         { icon: '👑', color: '#dc2626', bg: '#fef2f2', group: 'managers' },
+  'Receptionist':    { icon: '🖥️', color: '#0284c7', bg: '#f0f9ff', group: 'staff' },
+  'Sales':           { icon: '💼', color: '#16a34a', bg: '#f0fdf4', group: 'staff' },
+  'Coach':           { icon: '🏋️', color: '#d97706', bg: '#fffbeb', group: 'staff' },
+  'Accountant':      { icon: '🧾', color: '#7c3aed', bg: '#f5f3ff', group: 'staff' },
+  'Sales Manager':   { icon: '👔', color: '#44298C', bg: 'rgba(68,41,140,0.08)', group: 'managers' },
+  'Coach Manager':   { icon: '🏅', color: '#b45309', bg: '#fef9c3', group: 'managers' },
+  'General Manager': { icon: '🏢', color: '#0f766e', bg: '#f0fdfa', group: 'managers' },
+  'Owner':           { icon: '👑', color: '#dc2626', bg: '#fef2f2', group: 'managers' },
 };
 
 const STAFF_ROLES   = ['Receptionist', 'Sales', 'Coach', 'Accountant'];
-const MANAGER_ROLES = ['Sales Manager', 'Coach Manager', 'Owner'];
+const MANAGER_ROLES = ['General Manager', 'Sales Manager', 'Coach Manager', 'Owner'];
 const ALL_ROLES     = [...STAFF_ROLES, ...MANAGER_ROLES];
 
 function ContactCard({ person }) {

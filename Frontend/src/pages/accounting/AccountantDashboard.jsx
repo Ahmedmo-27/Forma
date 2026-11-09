@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, StatCard, Table, Btn, EmptyState, fmtDate, fmtDateTime } from '../../components/ui';
+import { PageHeader, Card, StatCard, Table, Btn, EmptyState, fmtDate, fmtDateTime, toLocalDateString } from '../../components/ui';
 import {
   getPackageExceptions,
   getContracts,
@@ -13,7 +13,7 @@ import {
 } from '../../api/endpoints';
 
 const fmt = (n) => Number(n ?? 0).toLocaleString('en-EG');
-const TODAY = new Date().toISOString().slice(0, 10);
+const TODAY = toLocalDateString();
 
 function monthStart() {
   const d = new Date();

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Table, EmptyState, fmtDate, fmtDateTime, Pagination } from '../../components/ui';
+import { PageHeader, Card, Table, EmptyState, fmtDate, fmtDateTime, Pagination, toLocalDateString } from '../../components/ui';
 import { getContracts } from '../../api/endpoints';
 import ContractDetailModal from '../../components/accounting/ContractDetailModal';
 
@@ -12,10 +12,10 @@ const fmt = (n) => Number(n ?? 0).toLocaleString('en-EG');
 function thirtyDaysAgo() {
   const d = new Date();
   d.setDate(d.getDate() - 30);
-  return d.toISOString().slice(0, 10);
+  return toLocalDateString(d);
 }
 
-const TODAY = new Date().toISOString().slice(0, 10);
+const TODAY = toLocalDateString();
 
 export default function ContractHistory() {
   usePageTitle('Contract History');

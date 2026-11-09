@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, CardHeader, Spinner, EmptyState, Badge, Avatar, fmtDate, Select } from '../../components/ui';
+import { PageHeader, Card, CardHeader, Spinner, EmptyState, Badge, Avatar, fmtDate, Select, toLocalDateString } from '../../components/ui';
 import { getSalesManagerRevenue, getSubscriptionsByDate, getSalesUsers, getCoachTeam, getAllMembers, getPackages } from '../../api/endpoints';
 import {
   buildPackageOptions, filterByPackage, sharePercent, summarizePackages,
@@ -11,7 +11,7 @@ import {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt  = (n) => Number(n ?? 0).toLocaleString('en-EG');
-const TODAY = new Date().toISOString().slice(0, 10);
+const TODAY = toLocalDateString();
 const MONTH_START = `${TODAY.slice(0, 7)}-01`;
 
 function ProgressBar({ value, max, height = 6 }) {

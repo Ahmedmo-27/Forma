@@ -68,4 +68,37 @@ describe("member list filters", () => {
         const neverFilter = buildMemberListFilter({ transferType: "never" });
         expect(neverFilter["userlog.type"]).toEqual({ $ne: "assign" });
     });
+
+    it("filters blocked members explicitly and excludes blocked from normal statuses", () => {
+        const activeFilter = buildMemberListFilter({ status: "active" });
+        expect(activeFilter.status).toBe("active");
+        expect(activeFilter.isBlocked).toEqual({ $ne: true });
+
+        const blockedFilter = buildMemberListFilter({ status: "blocked" });
+        expect(blockedFilter.status).toBeUndefined();
+        expect(blockedFilter.isBlocked).toBe(true);
+
+        const allFilter = buildMemberListFilter({ status: "all" });
+        expect(allFilter.status).toBeUndefined();
+        expect(allFilter.isBlocked).toBeUndefined();
+    });
+
+    it("passes isBlocked: { $ne: true } in status stats queries", async () => {
+        const statusCalls = [];
+        const Member = {
+            countDocuments: vi.fn(async (filter) => {
+                statusCalls.push(filter);
+                return 1;
+            }),
+        };
+        await getMemberStatusStats(Member, {});
+        // active, frozen, expired, guest calls should include isBlocked: { $ne: true }
+        const nonBlockedStatusCalls = statusCalls.filter(c => c.status);
+        expect(nonBlockedStatusCalls.length).toBe(4);
+        nonBlockedStatusCalls.forEach(call => {
+            expect(call.isBlocked).toEqual({ $ne: true });
+        });
+        const blockedCall = statusCalls.find(c => c.isBlocked === true);
+        expect(blockedCall).toBeDefined();
+    });
 });

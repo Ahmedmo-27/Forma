@@ -88,6 +88,7 @@ export default function SalesMembers() {
           { value: 'frozen',  label: `Frozen (${stats.frozen})` },
           { value: 'expired', label: `Expired (${stats.expired})` },
           { value: 'guest',   label: `Guests (${stats.guest})` },
+          { value: 'blocked', label: `Blocked (${stats.blocked ?? 0})` },
         ]} />
 
         <Card noPad>
@@ -107,7 +108,7 @@ export default function SalesMembers() {
                           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{m.name}</span>
                         </div>
                       </td>
-                      <td style={{ padding: '10px 14px' }}><Badge status={m.status} /></td>
+                      <td style={{ padding: '10px 14px' }}><Badge status={m.isBlocked ? 'blocked' : m.status} /></td>
                       <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{pkg ? `${pkg.name} · ${pkg.duration}` : '—'}</td>
                       <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}>{fmtDate(sub?.endDate)}</td>
                       <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>

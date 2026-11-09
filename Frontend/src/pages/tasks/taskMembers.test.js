@@ -18,6 +18,9 @@ import {
   taskPermissions,
   toggleId,
   toggleIds,
+  toLocalDateString,
+  parseDateBoundary,
+  latestSubscription,
 } from "./taskMembers";
 
 function member(extra) {
@@ -33,12 +36,14 @@ function member(extra) {
     createdAt: extra.createdAt || "2026-04-01T10:00:00.000Z",
     assignedSales: extra.assignedSales ?? { name: "Rep One", role: "Sales" },
     current_couch: extra.current_couch ?? { name: "Coach Hana" },
+    isBlocked: Boolean(extra.isBlocked),
     subscriptions: extra.subscriptions || [{
       package: { name: "Gold Month" },
       salesManager: { name: "Manager Sara", role: "Sales Manager" },
       startDate: "2026-04-01T10:00:00.000Z",
       endDate: "2026-05-01T10:00:00.000Z",
     }],
+    ...extra,
   };
 }
 
@@ -309,5 +314,198 @@ describe("tasks member groups", () => {
     expect(filterAssignedHistoryAdvanced(history, { packageId: "pkg-2" })).toHaveLength(1);
     expect(filterAssignedHistoryAdvanced(history, { dateField: "completedAt", dateFrom: "2026-05-01", dateTo: "2026-05-10" })).toHaveLength(1);
     expect(filterAssignedHistoryAdvanced(history, { dateField: "completedAt", dateFrom: "2026-05-01", dateTo: "2026-05-10" })[0]._id).toBe("h1");
+  });
+
+  it("filters members by status correctly and never returns all users when filtering by specific status", () => {
+    const list = [
+      member({ _id: "m_active", name: "Active User", status: "active" }),
+      member({ _id: "m_expired", name: "Expired User", status: "expired" }),
+      member({ _id: "m_frozen", name: "Frozen User", status: "frozen" }),
+      member({ _id: "m_guest", name: "Guest User", status: "guest" }),
+      member({ _id: "m_blocked", name: "Blocked User", status: "active", isBlocked: true }),
+      member({ _id: "m_capital", name: "Capitalized User", status: "Active" }),
+    ];
+
+    // Filter by active - must include active and capitalized Active, exclude expired/frozen/guest
+    const activeResult = filterMembersAdvanced(list, { status: "active" });
+    expect(activeResult.map((m) => m._id)).toEqual(["m_active", "m_blocked", "m_capital"]);
+
+    // Filter by expired - must only return expired
+    const expiredResult = filterMembersAdvanced(list, { status: "expired" });
+    expect(expiredResult.map((m) => m._id)).toEqual(["m_expired"]);
+
+    // Filter by frozen - must only return frozen
+    const frozenResult = filterMembersAdvanced(list, { status: "frozen" });
+    expect(frozenResult.map((m) => m._id)).toEqual(["m_frozen"]);
+
+    // Filter by guest - must only return guest
+    const guestResult = filterMembersAdvanced(list, { status: "guest" });
+    expect(guestResult.map((m) => m._id)).toEqual(["m_guest"]);
+
+    // Filter by blocked - must only return members with isBlocked === true
+    const blockedResult = filterMembersAdvanced(list, { status: "blocked" });
+    expect(blockedResult.map((m) => m._id)).toEqual(["m_blocked"]);
+
+    // Filter by all - returns all members
+    const allResult = filterMembersAdvanced(list, { status: "all" });
+    expect(allResult).toHaveLength(6);
+
+    // If status is undefined or null, fallback gracefully to all
+    expect(filterMembersAdvanced(list, { status: undefined })).toHaveLength(6);
+  });
+
+  it("formats local dates and parses date boundaries without timezone shifts", () => {
+    const d = new Date(2026, 4, 15); // May 15, 2026 local
+    expect(toLocalDateString(d)).toBe("2026-05-15");
+    expect(toLocalDateString(null)).toBe("");
+
+    const startTs = parseDateBoundary("2026-05-15", false);
+    const endTs = parseDateBoundary("2026-05-15", true);
+    expect(startTs).toBeLessThan(endTs);
+
+    const startDate = new Date(startTs);
+    expect(startDate.getHours()).toBe(0);
+    expect(startDate.getMinutes()).toBe(0);
+    expect(startDate.getSeconds()).toBe(0);
+
+    const endDate = new Date(endTs);
+    expect(endDate.getHours()).toBe(23);
+    expect(endDate.getMinutes()).toBe(59);
+    expect(endDate.getSeconds()).toBe(59);
+  });
+
+  it("filters created tasks history by task status, member status, and package in modal", () => {
+    const tasks = [
+      {
+        _id: "t_pending",
+        status: "pending",
+        totalCount: 2,
+        completedCount: 0,
+        transferType: "bulk",
+        targetRole: "Sales",
+        assignedTo: { _id: "s1", name: "Sara Rep", role: "Sales" },
+        createdAt: "2026-05-10T10:00:00Z",
+        members: [
+          {
+            _id: "tm1",
+            status: "pending",
+            member: { _id: "mem1", name: "John Doe", status: "active", subscriptions: [{ package: { _id: "pkg1", name: "Gold" } }] },
+          },
+          {
+            _id: "tm2",
+            status: "pending",
+            member: { _id: "mem2", name: "Jane Smith", status: "expired", subscriptions: [{ package: { _id: "pkg2", name: "Silver" } }] },
+          },
+        ],
+      },
+      {
+        _id: "t_in_progress",
+        status: "in_progress",
+        totalCount: 2,
+        completedCount: 1,
+        transferType: "bulk",
+        targetRole: "Sales Manager",
+        assignedTo: { _id: "sm1", name: "Manager Ali", role: "Sales Manager" },
+        createdAt: "2026-05-12T10:00:00Z",
+        members: [
+          {
+            _id: "tm3",
+            status: "completed",
+            completedAt: "2026-05-13T12:00:00Z",
+            member: { _id: "mem3", name: "Bob Martin", status: "frozen", subscriptions: [{ package: { _id: "pkg1", name: "Gold" } }] },
+          },
+          {
+            _id: "tm4",
+            status: "pending",
+            member: { _id: "mem4", name: "Alice Brown", status: "active", subscriptions: [{ package: { _id: "pkg3", name: "Bronze" } }] },
+          },
+        ],
+      },
+      {
+        _id: "t_completed",
+        status: "completed",
+        totalCount: 1,
+        completedCount: 1,
+        transferType: "quick",
+        targetRole: "Coach",
+        assignedTo: { _id: "c1", name: "Coach Mike", role: "Coach" },
+        createdAt: "2026-05-14T10:00:00Z",
+        members: [
+          {
+            _id: "tm5",
+            status: "completed",
+            completedAt: "2026-05-15T12:00:00Z",
+            member: { _id: "mem5", name: "Charlie Blocked", status: "active", isBlocked: true, subscriptions: [{ package: { _id: "pkg1", name: "Gold" } }] },
+          },
+        ],
+      },
+    ];
+
+    // Filter by task status: pending
+    expect(filterCreatedTasks(tasks, { status: "pending" }).map((t) => t._id)).toEqual(["t_pending"]);
+
+    // Filter by task status: in_progress
+    expect(filterCreatedTasks(tasks, { status: "in_progress" }).map((t) => t._id)).toEqual(["t_in_progress"]);
+
+    // Filter by task status: completed
+    expect(filterCreatedTasks(tasks, { status: "completed" }).map((t) => t._id)).toEqual(["t_completed"]);
+
+    // Filter by member status: expired (only t_pending has an expired member)
+    expect(filterCreatedTasks(tasks, { memberStatus: "expired" }).map((t) => t._id)).toEqual(["t_pending"]);
+
+    // Filter by member status: frozen (only t_in_progress has a frozen member)
+    expect(filterCreatedTasks(tasks, { memberStatus: "frozen" }).map((t) => t._id)).toEqual(["t_in_progress"]);
+
+    // Filter by member status: blocked (only t_completed has a blocked member)
+    expect(filterCreatedTasks(tasks, { memberStatus: "blocked" }).map((t) => t._id)).toEqual(["t_completed"]);
+
+    // Filter by package: pkg1 (present in t_pending, t_in_progress, t_completed)
+    expect(filterCreatedTasks(tasks, { packageId: "pkg1" }).map((t) => t._id)).toEqual(["t_pending", "t_in_progress", "t_completed"]);
+
+    // Filter by package: pkg2 (only in t_pending)
+    expect(filterCreatedTasks(tasks, { packageId: "pkg2" }).map((t) => t._id)).toEqual(["t_pending"]);
+
+    // Filter by completion date
+    expect(filterCreatedTasks(tasks, { dateField: "completedAt", dateFrom: "2026-05-15", dateTo: "2026-05-15" }).map((t) => t._id)).toEqual(["t_completed"]);
+
+    // Filter by role: Sales (should include both Sales and Sales Manager)
+    expect(filterCreatedTasks(tasks, { role: "Sales" }).map((t) => t._id)).toEqual(["t_pending", "t_in_progress"]);
+
+    // Filter by role: Coach
+    expect(filterCreatedTasks(tasks, { role: "Coach" }).map((t) => t._id)).toEqual(["t_completed"]);
+  });
+
+  it("filters assigned history with status and member status tabs", () => {
+    const history = [
+      {
+        _id: "h1",
+        status: "pending",
+        member: { _id: "m1", name: "Ahmed", status: "active", package: "Gold", packageId: "p1" },
+        assignedBy: { _id: "u1", name: "Boss" },
+      },
+      {
+        _id: "h2",
+        status: "completed",
+        member: { _id: "m2", name: "Sara", status: "expired", package: "Silver", packageId: "p2" },
+        assignedBy: { _id: "u1", name: "Boss" },
+      },
+      {
+        _id: "h3",
+        status: "completed",
+        member: { _id: "m3", name: "Kareem", status: "active", isBlocked: true, package: "Gold", packageId: "p1" },
+        assignedBy: { _id: "u2", name: "Lead" },
+      },
+    ];
+
+    expect(filterAssignedHistoryAdvanced(history, { status: "pending" })).toHaveLength(1);
+    expect(filterAssignedHistoryAdvanced(history, { status: "pending" })[0]._id).toBe("h1");
+
+    expect(filterAssignedHistoryAdvanced(history, { status: "completed" })).toHaveLength(2);
+
+    expect(filterAssignedHistoryAdvanced(history, { memberStatus: "expired" })).toHaveLength(1);
+    expect(filterAssignedHistoryAdvanced(history, { memberStatus: "expired" })[0]._id).toBe("h2");
+
+    expect(filterAssignedHistoryAdvanced(history, { memberStatus: "blocked" })).toHaveLength(1);
+    expect(filterAssignedHistoryAdvanced(history, { memberStatus: "blocked" })[0]._id).toBe("h3");
   });
 });

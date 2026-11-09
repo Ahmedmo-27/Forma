@@ -5,10 +5,10 @@ import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, EmptyState, Avatar, Badge, Spinner, SearchInput, Btn, Pagination, fmtDateTime } from '../../components/ui';
+import { PageHeader, Card, EmptyState, Avatar, Badge, Spinner, SearchInput, Btn, Pagination, fmtDateTime, toLocalDateString } from '../../components/ui';
 import { getAllNotes } from '../../api/endpoints';
 
-const TODAY    = new Date().toISOString().slice(0, 10);
+const TODAY    = toLocalDateString();
 const PAGE_SIZE = 25;
 
 const inputStyle = {

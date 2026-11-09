@@ -8,7 +8,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, CardHeader, StatCard, Spinner,
-  Avatar, Badge, EmptyState, fmtDate, Table, fmtDateTime,
+  Avatar, Badge, EmptyState, fmtDate, Table, fmtDateTime, toLocalDateString,
 } from '../../components/ui';
 import {
   getAllMembers,
@@ -28,7 +28,7 @@ function monthStart() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
 }
-const TODAY = new Date().toISOString().slice(0, 10);
+const TODAY = toLocalDateString();
 
 export default function OwnerDashboard() {
   usePageTitle('Owner Dashboard');

@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Table, Badge, StatCard, Spinner, EmptyState, SearchInput, Avatar } from '../../components/ui';
+import { PageHeader, Card, Table, Badge, StatCard, Spinner, EmptyState, SearchInput, Avatar, formatSystemId } from '../../components/ui';
 import { getAllMembers } from '../../api/endpoints';
 
 export default function CoachMembers() {
@@ -44,20 +44,30 @@ export default function CoachMembers() {
 
   // Apply status filter and search
   const filtered = coachMembers.filter(m => {
-    if (filter !== 'all' && m.couch_subscription_status !== filter) return false;
+    const memberStatus = (m.couch_subscription_status || 'guest').toLowerCase();
+    if (filter !== 'all' && memberStatus !== filter.toLowerCase()) return false;
     if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      if (!m.name?.toLowerCase().includes(q) && !m.phones?.includes(q) && !String(m.systemId).includes(q)) return false;
+      const q = debouncedSearch.toLowerCase().trim();
+      const sId = String(m.systemId ?? '').toLowerCase();
+      const fId = formatSystemId(m.systemId).toLowerCase();
+      const mId = String(m.memberId ?? '').toLowerCase();
+      const match =
+        m.name?.toLowerCase().includes(q) ||
+        m.phones?.toLowerCase().includes(q) ||
+        sId.includes(q) ||
+        fId.includes(q) ||
+        mId.includes(q);
+      if (!match) return false;
     }
     return true;
   });
 
   const stats = {
     total: coachMembers.length,
-    active: coachMembers.filter(m => m.couch_subscription_status === 'active').length,
-    transferred: coachMembers.filter(m => m.couch_subscription_status === 'transferred').length,
-    interested: coachMembers.filter(m => m.couch_subscription_status === 'interested').length,
-    expired: coachMembers.filter(m => m.couch_subscription_status === 'expired').length,
+    active: coachMembers.filter(m => (m.couch_subscription_status || 'guest').toLowerCase() === 'active').length,
+    transferred: coachMembers.filter(m => (m.couch_subscription_status || '').toLowerCase() === 'transferred').length,
+    interested: coachMembers.filter(m => (m.couch_subscription_status || '').toLowerCase() === 'interested').length,
+    expired: coachMembers.filter(m => (m.couch_subscription_status || '').toLowerCase() === 'expired').length,
   };
 
   return (

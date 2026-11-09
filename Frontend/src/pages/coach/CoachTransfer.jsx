@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, CardHeader, Table, Badge, Btn, Spinner, EmptyState, SearchInput, Avatar, Modal, Select } from '../../components/ui';
+import { PageHeader, Card, CardHeader, Table, Badge, Btn, Spinner, EmptyState, SearchInput, Avatar, Modal, Select, formatSystemId } from '../../components/ui';
 import { getAllMembers, getCoachTeam, switchCoach, assignCoach, bulkTransferCoach } from '../../api/endpoints';
 
 const PAGE_SIZE = 25;
@@ -51,8 +51,17 @@ export default function CoachTransfer() {
       if (String(coachId) !== filter) return false;
     }
     if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      if (!m.name?.toLowerCase().includes(q) && !m.phones?.includes(q) && !String(m.systemId).includes(q)) return false;
+      const q = debouncedSearch.toLowerCase().trim();
+      const sId = String(m.systemId ?? '').toLowerCase();
+      const fId = formatSystemId(m.systemId).toLowerCase();
+      const mId = String(m.memberId ?? '').toLowerCase();
+      const match =
+        m.name?.toLowerCase().includes(q) ||
+        m.phones?.toLowerCase().includes(q) ||
+        sId.includes(q) ||
+        fId.includes(q) ||
+        mId.includes(q);
+      if (!match) return false;
     }
     return true;
   });

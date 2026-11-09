@@ -20,6 +20,7 @@ import {
   columnValue, memberPhone, taskPermissions, toggleId, toggleIds,
   canUserAssignTasks, formatTaskDateTime, filterTaskHistory, filterMembersAdvanced,
   filterCreatedTasks, filterAssignedHistoryAdvanced, packageName,
+  toLocalDateString, parseDateBoundary,
 } from './tasks/taskMembers';
 
 const DEFAULT_COLUMNS = ['name', 'systemId', 'phone', 'status', 'salesman', 'coach', 'package', 'endDate', 'transfers'];
@@ -239,7 +240,8 @@ export default function Tasks() {
     const counts = { all: members.length, active: 0, expired: 0, frozen: 0, guest: 0, blocked: 0 };
     members.forEach((m) => {
       if (m.isBlocked) counts.blocked += 1;
-      if (counts[m.status] !== undefined) counts[m.status] += 1;
+      const s = String(m.status || '').toLowerCase();
+      if (counts[s] !== undefined) counts[s] += 1;
     });
     return counts;
   }, [members]);
@@ -337,18 +339,18 @@ export default function Tasks() {
       const from = new Date(now);
       const to = new Date(now);
       to.setDate(to.getDate() + 7);
-      setDateFrom(from.toISOString().slice(0, 10));
-      setDateTo(to.toISOString().slice(0, 10));
+      setDateFrom(toLocalDateString(from));
+      setDateTo(toLocalDateString(to));
     } else if (preset === 'thisMonth') {
       const from = new Date(now.getFullYear(), now.getMonth(), 1);
       const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      setDateFrom(from.toISOString().slice(0, 10));
-      setDateTo(to.toISOString().slice(0, 10));
+      setDateFrom(toLocalDateString(from));
+      setDateTo(toLocalDateString(to));
     } else if (preset === 'last30') {
       const from = new Date(now);
       from.setDate(from.getDate() - 30);
-      setDateFrom(from.toISOString().slice(0, 10));
-      setDateTo(now.toISOString().slice(0, 10));
+      setDateFrom(toLocalDateString(from));
+      setDateTo(toLocalDateString(now));
     }
   };
 
@@ -381,18 +383,18 @@ export default function Tasks() {
     if (preset === 'last7') {
       const from = new Date(now);
       from.setDate(from.getDate() - 7);
-      setHistoryDateFrom(from.toISOString().slice(0, 10));
-      setHistoryDateTo(now.toISOString().slice(0, 10));
+      setHistoryDateFrom(toLocalDateString(from));
+      setHistoryDateTo(toLocalDateString(now));
     } else if (preset === 'thisMonth') {
       const from = new Date(now.getFullYear(), now.getMonth(), 1);
       const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      setHistoryDateFrom(from.toISOString().slice(0, 10));
-      setHistoryDateTo(to.toISOString().slice(0, 10));
+      setHistoryDateFrom(toLocalDateString(from));
+      setHistoryDateTo(toLocalDateString(to));
     } else if (preset === 'last30') {
       const from = new Date(now);
       from.setDate(from.getDate() - 30);
-      setHistoryDateFrom(from.toISOString().slice(0, 10));
-      setHistoryDateTo(now.toISOString().slice(0, 10));
+      setHistoryDateFrom(toLocalDateString(from));
+      setHistoryDateTo(toLocalDateString(now));
     }
   };
 
@@ -637,9 +639,9 @@ export default function Tasks() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 2 }}>
                       <FilterTabs
                         options={[
-                          { id: 'all', label: 'All' },
-                          { id: 'completed', label: 'Completed' },
-                          { id: 'pending', label: 'Pending' },
+                          { value: 'all', id: 'all', label: 'All' },
+                          { value: 'completed', id: 'completed', label: 'Completed' },
+                          { value: 'pending', id: 'pending', label: 'Pending' },
                         ]}
                         active={historyStatusFilter}
                         onChange={setHistoryStatusFilter}
@@ -903,6 +905,24 @@ export default function Tasks() {
                     >
                       {moreFiltersOpen ? '▲ Less Filters' : '▼ More Filters'}
                     </Btn>
+                    {(search.trim() || statusFilter !== 'all' || transferTypeFilter !== 'all' || packageFilter !== 'all' || genderFilter !== 'all' || dateFrom || dateTo) && (
+                      <Btn
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setPackageFilter('all');
+                          setGenderFilter('all');
+                          setDateFrom('');
+                          setDateTo('');
+                          setDateField('endDate');
+                          setTransferTypeFilter('all');
+                          setStatusFilter('all');
+                          setSearch('');
+                        }}
+                      >
+                        ✕ Reset Filters
+                      </Btn>
+                    )}
                     <Btn size="sm" variant="ghost" onClick={refresh} disabled={loading}>
                       Refresh
                     </Btn>
@@ -914,12 +934,12 @@ export default function Tasks() {
                   <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase' }}>Status:</span>
                   <FilterTabs
                     options={[
-                      { id: 'all', label: `All (${statusCounts.all})` },
-                      { id: 'active', label: `Active (${statusCounts.active})` },
-                      { id: 'expired', label: `Expired (${statusCounts.expired})` },
-                      { id: 'frozen', label: `Frozen (${statusCounts.frozen})` },
-                      { id: 'guest', label: `Guest (${statusCounts.guest})` },
-                      { id: 'blocked', label: `Blocked (${statusCounts.blocked})` },
+                      { value: 'all', id: 'all', label: `All (${statusCounts.all})` },
+                      { value: 'active', id: 'active', label: `Active (${statusCounts.active})` },
+                      { value: 'expired', id: 'expired', label: `Expired (${statusCounts.expired})` },
+                      { value: 'frozen', id: 'frozen', label: `Frozen (${statusCounts.frozen})` },
+                      { value: 'guest', id: 'guest', label: `Guest (${statusCounts.guest})` },
+                      { value: 'blocked', id: 'blocked', label: `Blocked (${statusCounts.blocked})` },
                     ]}
                     active={statusFilter}
                     onChange={setStatusFilter}
@@ -1016,6 +1036,7 @@ export default function Tasks() {
                         setGenderFilter('all');
                         setDateFrom('');
                         setDateTo('');
+                        setDateField('endDate');
                         setTransferTypeFilter('all');
                         setStatusFilter('all');
                         setSearch('');
@@ -1244,6 +1265,7 @@ function AssignerTasksHistoryModal({
   const [dateTo, setDateTo] = useState('');
   const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const [expandedTaskId, setExpandedTaskId] = useState(null);
+  const [showAllInTask, setShowAllInTask] = useState({});
   const navigate = useNavigate();
 
   const toggleExpand = (id) => {
@@ -1278,20 +1300,63 @@ function AssignerTasksHistoryModal({
     if (preset === 'last7') {
       const from = new Date(now);
       from.setDate(from.getDate() - 7);
-      setDateFrom(from.toISOString().slice(0, 10));
-      setDateTo(now.toISOString().slice(0, 10));
+      setDateFrom(toLocalDateString(from));
+      setDateTo(toLocalDateString(now));
     } else if (preset === 'thisMonth') {
       const from = new Date(now.getFullYear(), now.getMonth(), 1);
       const to = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-      setDateFrom(from.toISOString().slice(0, 10));
-      setDateTo(to.toISOString().slice(0, 10));
+      setDateFrom(toLocalDateString(from));
+      setDateTo(toLocalDateString(to));
     } else if (preset === 'last30') {
       const from = new Date(now);
       from.setDate(from.getDate() - 30);
-      setDateFrom(from.toISOString().slice(0, 10));
-      setDateTo(now.toISOString().slice(0, 10));
+      setDateFrom(toLocalDateString(from));
+      setDateTo(toLocalDateString(now));
     }
   };
+
+  const isMemberMatchingFilters = useCallback((m) => {
+    if (memberSearchFilter.trim()) {
+      const q = memberSearchFilter.trim().toLowerCase();
+      const name = String(m.name || m.member?.name || '').toLowerCase();
+      const phone = String(m.phone || m.member?.phones || '').toLowerCase();
+      const sid = String(m.systemId ?? m.member?.systemId ?? '').toLowerCase();
+      const formattedSid = formatSystemId(m.systemId || m.member?.systemId).toLowerCase();
+      const mid = String(m.member?.memberId ?? '').toLowerCase();
+      const notes = String(m.notes || '').toLowerCase();
+      if (!name.includes(q) && !phone.includes(q) && !sid.includes(q) && !formattedSid.includes(q) && !mid.includes(q) && !notes.includes(q)) {
+        return false;
+      }
+    }
+    if (memberStatusFilter !== 'all') {
+      const target = memberStatusFilter.toLowerCase();
+      if (target === 'blocked') {
+        if (!m.member?.isBlocked) return false;
+      } else {
+        const s = String(m.member?.status || '').toLowerCase();
+        if (s !== target) return false;
+      }
+    }
+    if (packageFilter !== 'all') {
+      const memberObj = m.member && typeof m.member === 'object' ? m.member : null;
+      const subs = Array.isArray(memberObj?.subscriptions) ? memberObj.subscriptions : [];
+      const hasPkg = subs.some((sub) => {
+        const pId = sub?.package?._id ? String(sub.package._id) : (sub?.package ? String(sub.package) : null);
+        const pName = typeof sub?.package?.name === 'string' ? sub.package.name : (typeof sub?.package === 'string' ? sub.package : null);
+        return pId === String(packageFilter) || pName === String(packageFilter);
+      });
+      if (!hasPkg) return false;
+    }
+    if (dateField === 'completedAt' && (dateFrom || dateTo)) {
+      if (!m.completedAt) return false;
+      const t = new Date(m.completedAt).getTime();
+      const fromTime = parseDateBoundary(dateFrom);
+      const toTime = parseDateBoundary(dateTo, true);
+      if (fromTime && t < fromTime) return false;
+      if (toTime && t > toTime) return false;
+    }
+    return true;
+  }, [memberSearchFilter, memberStatusFilter, packageFilter, dateField, dateFrom, dateTo]);
 
   const resetFilters = () => {
     setRoleFilter('all');
@@ -1476,6 +1541,7 @@ function AssignerTasksHistoryModal({
                     <option value="expired">Expired</option>
                     <option value="frozen">Frozen</option>
                     <option value="guest">Guest</option>
+                    <option value="blocked">Blocked</option>
                   </Select>
                 </div>
               </div>
@@ -1626,64 +1692,111 @@ function AssignerTasksHistoryModal({
                     </div>
                   </div>
 
-                  {isExpanded && (
-                    <div style={{ borderTop: '1px solid var(--border)', padding: '10px 16px', background: 'var(--card)' }}>
-                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                        <thead>
-                          <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--t4)' }}>
-                            <th style={{ padding: '6px 8px' }}>Member</th>
-                            <th style={{ padding: '6px 8px' }}>System ID</th>
-                            <th style={{ padding: '6px 8px' }}>Phone</th>
-                            <th style={{ padding: '6px 8px' }}>Package</th>
-                            <th style={{ padding: '6px 8px' }}>Member Status</th>
-                            <th style={{ padding: '6px 8px' }}>Task Status</th>
-                            <th style={{ padding: '6px 8px' }}>Completed At</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(task.members || []).map((m) => {
-                            const sid = m.systemId || m.member?.systemId;
-                            const pkgName = packageName(m.member) || m.member?.package || '—';
-                            const mStatus = m.member?.status || m.status || 'active';
-                            return (
-                              <tr key={m._id} style={{ borderBottom: '1px solid var(--border)' }}>
-                                <td style={{ padding: '8px 8px', fontWeight: 600, color: 'var(--t1)' }}>
-                                  <span
-                                    style={{ cursor: sid ? 'pointer' : 'default', textDecoration: sid ? 'underline' : 'none' }}
-                                    onClick={() => sid && navigate(`/members/${sid}`)}
-                                  >
-                                    {m.name || m.member?.name || 'Member'}
-                                  </span>
-                                </td>
-                                <td style={{ padding: '8px 8px', color: 'var(--t2)' }}>
-                                  #{sid || '—'}
-                                </td>
-                                <td style={{ padding: '8px 8px', color: 'var(--t3)' }}>
-                                  {m.phone || m.member?.phones || '—'}
-                                </td>
-                                <td style={{ padding: '8px 8px', color: 'var(--t2)' }}>
-                                  {pkgName}
-                                </td>
-                                <td style={{ padding: '8px 8px' }}>
-                                  <Badge status={mStatus} />
-                                </td>
-                                <td style={{ padding: '8px 8px' }}>
-                                  <Badge status={m.status} />
-                                </td>
-                                <td style={{ padding: '8px 8px', color: m.status === 'completed' ? 'var(--green)' : 'var(--t4)', fontSize: 11 }}>
-                                  {m.status === 'completed' && m.completedAt ? (
-                                    <>✓ {formatTaskDateTime(m.completedAt)} {m.completedBy?.name && `by ${m.completedBy.name}`}</>
-                                  ) : (
-                                    'Pending'
-                                  )}
-                                </td>
+                  {isExpanded && (() => {
+                    const allMembers = task.members || [];
+                    const matchingMembers = allMembers.filter(isMemberMatchingFilters);
+                    const hasMemberFilter = Boolean(
+                      memberSearchFilter.trim()
+                      || memberStatusFilter !== 'all'
+                      || packageFilter !== 'all'
+                      || (dateField === 'completedAt' && (dateFrom || dateTo))
+                    );
+                    const showAll = Boolean(showAllInTask[task._id]);
+                    const membersToRender = (hasMemberFilter && !showAll) ? matchingMembers : allMembers;
+
+                    return (
+                      <div style={{ borderTop: '1px solid var(--border)', padding: '10px 16px', background: 'var(--card)' }}>
+                        {hasMemberFilter && matchingMembers.length < allMembers.length && (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, fontSize: 12, color: 'var(--t3)', background: 'var(--bg)', padding: '6px 10px', borderRadius: 6 }}>
+                            <span>
+                              Showing <strong>{membersToRender.length}</strong> of <strong>{allMembers.length}</strong> members matching active filter(s)
+                            </span>
+                            <Btn
+                              size="xs"
+                              variant="ghost"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowAllInTask((prev) => ({ ...prev, [task._id]: !prev[task._id] }));
+                              }}
+                            >
+                              {showAll ? 'Show filtered members only' : 'Show all members in task'}
+                            </Btn>
+                          </div>
+                        )}
+                        {membersToRender.length === 0 ? (
+                          <div style={{ padding: '16px 8px', fontSize: 12, color: 'var(--t3)', textAlign: 'center' }}>
+                            No members in this task match your active filters.
+                            <Btn
+                              size="xs"
+                              variant="ghost"
+                              style={{ marginLeft: 8 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setShowAllInTask((prev) => ({ ...prev, [task._id]: true }));
+                              }}
+                            >
+                              View all {allMembers.length} members
+                            </Btn>
+                          </div>
+                        ) : (
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+                            <thead>
+                              <tr style={{ borderBottom: '1px solid var(--border)', textAlign: 'left', color: 'var(--t4)' }}>
+                                <th style={{ padding: '6px 8px' }}>Member</th>
+                                <th style={{ padding: '6px 8px' }}>System ID</th>
+                                <th style={{ padding: '6px 8px' }}>Phone</th>
+                                <th style={{ padding: '6px 8px' }}>Package</th>
+                                <th style={{ padding: '6px 8px' }}>Member Status</th>
+                                <th style={{ padding: '6px 8px' }}>Task Status</th>
+                                <th style={{ padding: '6px 8px' }}>Completed At</th>
                               </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
+                            </thead>
+                            <tbody>
+                              {membersToRender.map((m) => {
+                                const sid = m.systemId || m.member?.systemId;
+                                const pkgName = packageName(m.member) || m.member?.package || '—';
+                                const mStatus = m.member?.status || (m.member?.isBlocked ? 'blocked' : 'active');
+                                return (
+                                  <tr key={m._id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                    <td style={{ padding: '8px 8px', fontWeight: 600, color: 'var(--t1)' }}>
+                                      <span
+                                        style={{ cursor: sid ? 'pointer' : 'default', textDecoration: sid ? 'underline' : 'none' }}
+                                        onClick={() => sid && navigate(`/members/${sid}`)}
+                                      >
+                                        {m.name || m.member?.name || 'Member'}
+                                      </span>
+                                    </td>
+                                    <td style={{ padding: '8px 8px', color: 'var(--t2)' }}>
+                                      #{sid || '—'}
+                                    </td>
+                                    <td style={{ padding: '8px 8px', color: 'var(--t3)' }}>
+                                      {m.phone || m.member?.phones || '—'}
+                                    </td>
+                                    <td style={{ padding: '8px 8px', color: 'var(--t2)' }}>
+                                      {pkgName}
+                                    </td>
+                                    <td style={{ padding: '8px 8px' }}>
+                                      <Badge status={mStatus} />
+                                    </td>
+                                    <td style={{ padding: '8px 8px' }}>
+                                      <Badge status={m.status} />
+                                    </td>
+                                    <td style={{ padding: '8px 8px', color: m.status === 'completed' ? 'var(--green)' : 'var(--t4)', fontSize: 11 }}>
+                                      {m.status === 'completed' && m.completedAt ? (
+                                        <>✓ {formatTaskDateTime(m.completedAt)} {m.completedBy?.name && `by ${m.completedBy.name}`}</>
+                                      ) : (
+                                        'Pending'
+                                      )}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

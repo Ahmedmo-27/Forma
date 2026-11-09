@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, fmtDate, Avatar } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, fmtDate, Avatar, toLocalDateString, parseDateBoundary } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAllMembers, getSalesUsers, getCoachTeam } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
 
-const TODAY      = new Date().toISOString().slice(0, 10);
-const MONTH_START = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+const TODAY      = toLocalDateString();
+const MONTH_START = toLocalDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
 const SOURCES = ['All', 'Social media', 'Walk in', 'Word of mouth', 'referral', 'sales call', 'data entry', 'others'];
 
@@ -93,8 +93,8 @@ export default function GuestMembers() {
       let members = res.data.members ?? [];
 
       // Client-side filters
-      const from = fromDate ? new Date(fromDate) : null;
-      const to   = toDate   ? new Date(toDate + 'T23:59:59') : null;
+      const from = parseDateBoundary(fromDate, false);
+      const to   = parseDateBoundary(toDate, true);
 
       members = members.filter(m => {
         const created = new Date(m.createdAt);
@@ -104,7 +104,7 @@ export default function GuestMembers() {
           const coachId = m.current_couch?._id ?? m.current_couch;
           if (String(coachId) !== trainerName) return false;
         }
-        if (source !== 'All' && m.source !== source) return false;
+        if (source !== 'All' && String(m.source).toLowerCase() !== source.toLowerCase()) return false;
         return true;
       });
 

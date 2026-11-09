@@ -28,6 +28,7 @@ function buildMemberListFilter({
         filter.isBlocked = true;
     } else if (status && status !== "all") {
         filter.status = status;
+        filter.isBlocked = { $ne: true };
     }
 
     if (unassignedSales === "true" || unassignedSales === true) {
@@ -150,7 +151,7 @@ async function getMemberStatusStats(Member, baseFilter = {}) {
     const [total, blocked, active, frozen, expired, guest] = await Promise.all([
         Member.countDocuments(baseFilter),
         Member.countDocuments({ ...baseFilter, isBlocked: true }),
-        ...statuses.map((status) => Member.countDocuments({ ...baseFilter, status })),
+        ...statuses.map((status) => Member.countDocuments({ ...baseFilter, status, isBlocked: { $ne: true } })),
     ]);
     return { total, active, frozen, expired, guest, blocked };
 }

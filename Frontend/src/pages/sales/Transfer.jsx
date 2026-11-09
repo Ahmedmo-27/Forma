@@ -5,7 +5,7 @@ import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, CardHeader, Table, Badge, Btn, Spinner, EmptyState,
-  SearchInput, Avatar, Select, Input, Pagination,
+  SearchInput, Avatar, Select, Input, Pagination, formatSystemId,
 } from '../../components/ui';
 import { getAllMembers, getSalesUsers, bulkTransferSalesReps, switchSalesRep } from '../../api/endpoints';
 
@@ -66,8 +66,17 @@ export default function Transfer() {
       if (String(repId) !== repFilter) return false;
     }
     if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      if (!m.name?.toLowerCase().includes(q) && !m.phones?.includes(q) && !String(m.systemId).includes(q)) return false;
+      const q = debouncedSearch.toLowerCase().trim();
+      const sId = String(m.systemId ?? '').toLowerCase();
+      const fId = formatSystemId(m.systemId).toLowerCase();
+      const mId = String(m.memberId ?? '').toLowerCase();
+      const match =
+        m.name?.toLowerCase().includes(q) ||
+        m.phones?.toLowerCase().includes(q) ||
+        sId.includes(q) ||
+        fId.includes(q) ||
+        mId.includes(q);
+      if (!match) return false;
     }
     return true;
   });

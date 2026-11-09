@@ -287,7 +287,7 @@ export default function CheckIn() {
   const canCheckIn  = Boolean(member && !member.isBlocked && !isGuest && hasPackage && (!hasExpired || member.status === 'frozen'));
   const today       = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
   const todayCount  = history.length;
-  const activeToday = history.filter(e => e.member?.status === 'active').length;
+  const activeToday = history.filter(e => String(e.member?.status).toLowerCase() === 'active' && !e.member?.isBlocked).length;
 
   const handleCheckIn = async () => {
     if (!member || !canCheckIn) return;

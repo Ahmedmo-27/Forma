@@ -725,20 +725,27 @@ export function Table({ headers, children, loading, skeletonRows = 5 }) {
 export function Tabs({ tabs, active, onChange }) {
   return (
     <div className="tabs-scroll" style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20, gap: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-      {tabs.map(t => (
-        <button key={t.id} onClick={() => onChange(t.id)} style={{
-          padding: '10px 16px', background: 'none', border: 'none',
-          borderBottom: `2px solid ${active === t.id ? 'var(--navy)' : 'transparent'}`,
-          marginBottom: -1,
-          color: active === t.id ? 'var(--t1)' : 'var(--t4)',
-          fontSize: 13, fontWeight: active === t.id ? 700 : 500,
-          cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit',
-          transition: 'color 0.12s', flexShrink: 0,
-        }}
-          onMouseEnter={e => { if (active !== t.id) e.currentTarget.style.color = 'var(--t2)'; }}
-          onMouseLeave={e => { if (active !== t.id) e.currentTarget.style.color = 'var(--t4)'; }}
-        >{t.label}</button>
-      ))}
+      {tabs.map((t, idx) => {
+        const val = t.id !== undefined ? t.id : t.value;
+        const isSelected = active === val;
+        return (
+          <button
+            key={val ?? idx}
+            onClick={() => onChange(val)}
+            style={{
+              padding: '10px 16px', background: 'none', border: 'none',
+              borderBottom: `2px solid ${isSelected ? 'var(--navy)' : 'transparent'}`,
+              marginBottom: -1,
+              color: isSelected ? 'var(--t1)' : 'var(--t4)',
+              fontSize: 13, fontWeight: isSelected ? 700 : 500,
+              cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit',
+              transition: 'color 0.12s', flexShrink: 0,
+            }}
+            onMouseEnter={e => { if (!isSelected) e.currentTarget.style.color = 'var(--t2)'; }}
+            onMouseLeave={e => { if (!isSelected) e.currentTarget.style.color = 'var(--t4)'; }}
+          >{t.label}</button>
+        );
+      })}
     </div>
   );
 }
@@ -751,20 +758,27 @@ export function FilterTabs({ options, active, onChange }) {
       overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none',
       paddingBottom: 2, maxWidth: '100%',
     }}>
-      {options.map(o => (
-        <button key={o.value} onClick={() => onChange(o.value)} style={{
-          padding: '6px 12px', borderRadius: 20,
-          background: active === o.value ? '#44298C' : 'var(--card)',
-          border: `1px solid ${active === o.value ? '#44298C' : 'var(--border)'}`,
-          color: active === o.value ? '#fff' : 'var(--t2)',
-          fontSize: 12, fontWeight: 600, cursor: 'pointer',
-          fontFamily: 'inherit', transition: 'all 0.12s',
-          whiteSpace: 'nowrap', flexShrink: 0,
-        }}
-          onMouseEnter={e => { if (active !== o.value) { e.currentTarget.style.borderColor = 'var(--border-md)'; e.currentTarget.style.color = 'var(--t1)'; } }}
-          onMouseLeave={e => { if (active !== o.value) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--t2)'; } }}
-        >{o.label}</button>
-      ))}
+      {options.map((o, idx) => {
+        const val = o.value !== undefined ? o.value : o.id;
+        const isSelected = active === val;
+        return (
+          <button
+            key={val ?? idx}
+            onClick={() => onChange(val)}
+            style={{
+              padding: '6px 12px', borderRadius: 20,
+              background: isSelected ? '#44298C' : 'var(--card)',
+              border: `1px solid ${isSelected ? '#44298C' : 'var(--border)'}`,
+              color: isSelected ? '#fff' : 'var(--t2)',
+              fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              fontFamily: 'inherit', transition: 'all 0.12s',
+              whiteSpace: 'nowrap', flexShrink: 0,
+            }}
+            onMouseEnter={e => { if (!isSelected) { e.currentTarget.style.borderColor = 'var(--border-md)'; e.currentTarget.style.color = 'var(--t1)'; } }}
+            onMouseLeave={e => { if (!isSelected) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--t2)'; } }}
+          >{o.label}</button>
+        );
+      })}
     </div>
   );
 }
@@ -965,4 +979,25 @@ export function fmtDateTime(d) {
 }
 export function initials(name = '') {
   return name.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+}
+
+export { formatSystemId } from '../lib/systemId';
+
+export function toLocalDateString(value = new Date()) {
+  const d = value instanceof Date ? value : new Date(value);
+  if (isNaN(d.getTime())) return '';
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function parseDateBoundary(dateStr, isEnd = false) {
+  if (!dateStr) return null;
+  const [y, m, d] = String(dateStr).split('-').map(Number);
+  if (!y || !m || !d) {
+    const fallback = new Date(dateStr);
+    return isNaN(fallback.getTime()) ? null : fallback;
+  }
+  return isEnd ? new Date(y, m - 1, d, 23, 59, 59, 999) : new Date(y, m - 1, d, 0, 0, 0, 0);
 }

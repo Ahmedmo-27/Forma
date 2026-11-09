@@ -16,7 +16,13 @@ const getCreatedTasks = async (req, res) => {
             filter.assignedTo = req.query.assignedTo;
         }
         if (req.query.targetRole && req.query.targetRole !== "all") {
-            filter.targetRole = req.query.targetRole;
+            if (req.query.targetRole === "Sales") {
+                filter.targetRole = { $in: ["Sales", "Sales Manager"] };
+            } else if (req.query.targetRole === "Coach") {
+                filter.targetRole = { $in: ["Coach", "Coach Manager"] };
+            } else {
+                filter.targetRole = req.query.targetRole;
+            }
         }
         if (req.query.status && req.query.status !== "all") {
             filter.status = req.query.status;

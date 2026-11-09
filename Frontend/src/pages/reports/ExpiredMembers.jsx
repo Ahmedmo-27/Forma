@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, fmtDate, Avatar } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, fmtDate, Avatar, toLocalDateString, parseDateBoundary } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAllMembers, getSalesUsers, getCoachTeam, getPackages } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
 
-const TODAY       = new Date().toISOString().slice(0, 10);
-const MONTH_START = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10);
+const TODAY       = toLocalDateString();
+const MONTH_START = toLocalDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
 
 // ── Reusable filter row ───────────────────────────────────────────────────────
 function FilterRow({ label, required, children }) {
@@ -96,15 +96,17 @@ export default function ExpiredMembers() {
       const res  = await getAllMembers(params);
       let members = res.data.members ?? [];
 
-      const from = fromDate ? new Date(fromDate) : null;
-      const to   = toDate   ? new Date(toDate + 'T23:59:59') : null;
+      const from = parseDateBoundary(fromDate, false);
+      const to   = parseDateBoundary(toDate, true);
 
       members = members.filter(m => {
         // Date filter — on subscription end date (for expired)
-        const lastSub = m.subscriptions?.at(-1);
+        const lastSub = m.subscriptions?.length
+          ? [...m.subscriptions].sort((a, b) => new Date(b.endDate || b.createdAt || 0) - new Date(a.endDate || a.createdAt || 0))[0]
+          : null;
         const endDate = lastSub?.endDate ? new Date(lastSub.endDate) : null;
-        if (from && endDate && endDate < from) return false;
-        if (to   && endDate && endDate > to)   return false;
+        if (from && (!endDate || endDate < from)) return false;
+        if (to   && (!endDate || endDate > to))   return false;
 
         // Trainer filter
         if (trainerName !== 'All') {
@@ -121,11 +123,11 @@ export default function ExpiredMembers() {
         // Type filter (activityType)
         if (type !== 'All') {
           const snap = lastSub?.packageSnapshot ?? lastSub?.package;
-          if (snap?.activityType !== type) return false;
+          if (snap?.activityType?.toLowerCase() !== type.toLowerCase()) return false;
         }
 
         // Gender filter
-        if (gender !== 'All' && m.gender !== gender) return false;
+        if (gender !== 'All' && String(m.gender).toLowerCase() !== gender.toLowerCase()) return false;
 
         return true;
       });

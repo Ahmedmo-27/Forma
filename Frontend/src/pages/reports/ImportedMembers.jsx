@@ -2,13 +2,13 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Spinner, EmptyState, Badge, Avatar, fmtDate, Btn, SearchInput } from '../../components/ui';
+import { PageHeader, Card, Spinner, EmptyState, Badge, Avatar, fmtDate, Btn, SearchInput, toLocalDateString, parseDateBoundary, formatSystemId } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import { getAllMembers, getSalesUsers } from '../../api/endpoints';
 
 const PAGE_SIZE = 25;
-const TODAY = new Date().toISOString().slice(0, 10);
+const TODAY = toLocalDateString();
 
 const selectStyle = {
   padding: '8px 32px 8px 12px', fontSize: 13,
@@ -75,18 +75,34 @@ export default function ImportedMembers() {
 
   // Apply all filters client-side
   const filtered = useMemo(() => {
-    const from = dateFrom ? new Date(dateFrom) : null;
-    const to   = dateTo   ? new Date(dateTo + 'T23:59:59') : null;
+    const from = parseDateBoundary(dateFrom, false);
+    const to   = parseDateBoundary(dateTo, true);
     const q    = debouncedSearch.trim().toLowerCase();
 
     return allMembers.filter(m => {
       if (salesMan !== 'all') {
         if (String(m.assignedSales?._id ?? m.assignedSales) !== salesMan) return false;
       }
-      if (status !== 'all' && m.status !== status) return false;
+      if (status === 'blocked') {
+        if (!m.isBlocked) return false;
+      } else if (status !== 'all') {
+        if (m.isBlocked) return false;
+        if (String(m.status).toLowerCase() !== status.toLowerCase()) return false;
+      }
       if (from && new Date(m.createdAt) < from) return false;
       if (to   && new Date(m.createdAt) > to)   return false;
-      if (q && !m.name.toLowerCase().includes(q) && !(m.phones || '').includes(q)) return false;
+      if (q) {
+        const sId = String(m.systemId ?? '').toLowerCase();
+        const fId = formatSystemId(m.systemId).toLowerCase();
+        const mId = String(m.memberId ?? '').toLowerCase();
+        const match =
+          m.name?.toLowerCase().includes(q) ||
+          m.phones?.toLowerCase().includes(q) ||
+          sId.includes(q) ||
+          fId.includes(q) ||
+          mId.includes(q);
+        if (!match) return false;
+      }
       return true;
     });
   }, [allMembers, debouncedSearch, salesMan, status, dateFrom, dateTo]);
@@ -146,6 +162,7 @@ export default function ImportedMembers() {
                 <option value="active">Active</option>
                 <option value="expired">Expired</option>
                 <option value="frozen">Frozen</option>
+                <option value="blocked">Blocked</option>
               </select>
             </div>
 

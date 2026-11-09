@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { Card, CardHeader, Badge, Table, EmptyState, fmtDate, fmtDateTime, Btn, Modal, Input, Select, Spinner, ConfirmDialog, Switch, Alert } from '../../../components/ui';
+import { Card, CardHeader, Badge, Table, EmptyState, fmtDate, fmtDateTime, Btn, Modal, Input, Select, Spinner, ConfirmDialog, Switch, Alert, toLocalDateString } from '../../../components/ui';
 import { getPackages, getMemberPendingException, createPackageException, updatePackageExceptionStatus, assignPackage, createPackage, addPTSessions, refundMember, refundPTSessions } from '../../../api/endpoints';
 import api from '../../../api/axios';
 import CatalogPackageForm, { EMPTY_PACKAGE_FORM, validatePackageForm, packageFormToPayload } from '../../../components/PackageForm';
@@ -50,7 +50,7 @@ export default function PackagesTab({ member, user, onRefresh }) {
 // ── Private Sessions Sub-tab ──────────────────────────────────────────────────
 function PTSessionsContent({ member, user, onRefresh }) {
   const [sessions, setSessions] = useState('');
-  const [startDate, setStartDate] = useState(new Date().toISOString().slice(0, 10));
+  const [startDate, setStartDate] = useState(toLocalDateString());
   const [durationMonths, setDurationMonths] = useState('');
   const [pricePaid, setPricePaid] = useState('');
   const [loading, setLoading] = useState(false);
@@ -696,7 +696,7 @@ function requestToForm(request) {
     description: request.description ?? '',
     pricePaid: String(request.pricePaid ?? ''),
     discountPercent: String(request.discountPercent ?? 0),
-    startDate: request.startDate ? new Date(request.startDate).toISOString().slice(0, 10) : '',
+    startDate: request.startDate ? toLocalDateString(request.startDate) : '',
     reason: request.reason ?? '',
   };
 }
@@ -761,7 +761,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
     // Pre-fill start date with current package end date if active
     const currentSub = member.subscriptions?.at(-1);
     const currentEnd = currentSub?.endDate ? new Date(currentSub.endDate) : null;
-    const defaultStart = (currentEnd && currentEnd > new Date()) ? currentEnd.toISOString().slice(0, 10) : '';
+    const defaultStart = (currentEnd && currentEnd > new Date()) ? toLocalDateString(currentEnd) : '';
     setForm({ ...EMPTY_FORM, startDate: defaultStart });
     setShowCreatePackage(false);
     setCreateForm(EMPTY_PACKAGE_FORM);

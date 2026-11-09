@@ -11,7 +11,7 @@ const { findMemberByIdentifier, buildMemberFilter } = require("../utils/memberLo
 const { notifyMemberAssigned, notifyTaskAssigned } = require("../utils/notificationService");
 const Task = require("../models/Task");
 const { parsePagination, buildPagination } = require("../utils/pagination");
-const { buildMemberListFilter, statsFilterFromListFilter, getMemberStatusStats } = require("../utils/memberFilters");
+const { buildMemberListFilter, statsFilterFromListFilter, getMemberStatusStats, numericId } = require("../utils/memberFilters");
 const { isAssignedToRep, redactMemberForViewer } = require("../utils/memberPrivacy");
 const { assertAllowedUpload, assertAllowedImage } = require("../utils/fileMagic");
 const { writeAudit } = require("../utils/audit");
@@ -1352,25 +1352,41 @@ const getAllNotes = async (req, res) => {
         // Date range filter on note createdAt
         if (req.query.dateFrom || req.query.dateTo) {
             const dateFilter = {};
-            if (req.query.dateFrom) dateFilter.$gte = new Date(req.query.dateFrom);
+            if (req.query.dateFrom) {
+                const from = new Date(req.query.dateFrom);
+                if (!isNaN(from.getTime())) {
+                    from.setHours(0, 0, 0, 0);
+                    dateFilter.$gte = from;
+                }
+            }
             if (req.query.dateTo) {
                 const to = new Date(req.query.dateTo);
-                to.setHours(23, 59, 59, 999);
-                dateFilter.$lte = to;
+                if (!isNaN(to.getTime())) {
+                    to.setHours(23, 59, 59, 999);
+                    dateFilter.$lte = to;
+                }
             }
-            match["notes.createdAt"] = dateFilter;
+            if (Object.keys(dateFilter).length > 0) {
+                match["notes.createdAt"] = dateFilter;
+            }
         }
 
         const search = req.query.search?.trim();
-        const searchMatch = search
-            ? {
-                $or: [
-                    { name: { $regex: search, $options: "i" } },
-                    { phones: { $regex: search, $options: "i" } },
-                    { "notes.text": { $regex: search, $options: "i" } },
-                ],
+        let searchMatch = null;
+        if (search) {
+            const or = [
+                { name: { $regex: search, $options: "i" } },
+                { phones: { $regex: search, $options: "i" } },
+                { "notes.text": { $regex: search, $options: "i" } },
+                { "noteAuthor.name": { $regex: search, $options: "i" } },
+                { "salesRep.name": { $regex: search, $options: "i" } },
+            ];
+            const num = numericId(search);
+            if (num != null) {
+                or.push({ systemId: num }, { memberId: num });
             }
-            : null;
+            searchMatch = { $or: or };
+        }
 
         const pipeline = [
             { $match: match },
@@ -1380,8 +1396,8 @@ const getAllNotes = async (req, res) => {
             ...((req.query.dateFrom || req.query.dateTo) ? [{
                 $match: {
                     "notes.createdAt": {
-                        ...(req.query.dateFrom ? { $gte: new Date(req.query.dateFrom) } : {}),
-                        ...(req.query.dateTo ? (() => { const d = new Date(req.query.dateTo); d.setHours(23,59,59,999); return { $lte: d }; })() : {}),
+                        ...(req.query.dateFrom ? (() => { const d = new Date(req.query.dateFrom); if (isNaN(d.getTime())) return {}; d.setHours(0, 0, 0, 0); return { $gte: d }; })() : {}),
+                        ...(req.query.dateTo ? (() => { const d = new Date(req.query.dateTo); if (isNaN(d.getTime())) return {}; d.setHours(23, 59, 59, 999); return { $lte: d }; })() : {}),
                     }
                 }
             }] : []),
