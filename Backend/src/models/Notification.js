@@ -9,7 +9,7 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ["member_assigned", "package_exception_pending", "package_exception_resolved", "sales_rep_request_pending"],
+        enum: ["member_assigned", "task_assigned", "package_exception_pending", "package_exception_resolved", "sales_rep_request_pending"],
         required: true,
     },
     title: {
@@ -23,7 +23,8 @@ const notificationSchema = new mongoose.Schema({
     member: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Member",
-        required: true,
+        required: false,
+        default: null,
     },
     read: {
         type: Boolean,
@@ -43,4 +44,4 @@ const notificationSchema = new mongoose.Schema({
 notificationSchema.plugin(tenantPlugin);
 notificationSchema.index({ tenantId: 1, recipient: 1, read: 1, createdAt: -1 });
 
-module.exports = mongoose.model("Notification", notificationSchema);
+module.exports = mongoose.models.Notification || mongoose.model("Notification", notificationSchema);

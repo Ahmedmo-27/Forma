@@ -28,6 +28,7 @@ const tenantRoutes = require("./routes/tenantRoutes");
 const platformRoutes = require("./routes/platformRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const biRoutes = require("./routes/biRoutes");
+const taskRoutes = require("./routes/taskRoutes");
 const storageService = require("./services/storageService");
 const Tenant = require("./models/Tenant");
 const { runAsPlatform } = require("./context/tenantContext");
@@ -131,6 +132,7 @@ app.use("/api/tenant", tenantRoutes);
 app.use("/api/platform", platformRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/bi", biRoutes);
+app.use("/api/tasks", taskRoutes);
 
 const uploadReadLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,

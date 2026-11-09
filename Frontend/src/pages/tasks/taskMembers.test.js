@@ -2,6 +2,12 @@ import { describe, expect, it } from "vitest";
 import {
   assignChoices,
   buildCsv,
+  canUserAssignTasks,
+  filterAssignedHistoryAdvanced,
+  filterCreatedTasks,
+  filterMembersAdvanced,
+  filterTaskHistory,
+  formatTaskDateTime,
   columnsForExport,
   filterMembers,
   memberPhone,
@@ -141,5 +147,167 @@ describe("tasks member groups", () => {
     expect(assignChoices("sales", { salesUsers: people, selectedCount: 2 }).options).toEqual([people[1]]);
     expect(assignChoices("sales", { salesUsers: [people[0]], selectedCount: 1 }).options).toEqual([people[0]]);
     expect(assignChoices("coach", { coaches: [{ _id: "c", name: "Hana" }], selectedCount: 4 }).hint).toContain("4");
+  });
+
+  it("formats task date time cleanly", () => {
+    expect(formatTaskDateTime(null)).toBe("—");
+    expect(formatTaskDateTime("invalid")).toBe("—");
+    const d = new Date("2026-11-09T10:30:00Z");
+    expect(formatTaskDateTime(d)).toBeTruthy();
+  });
+
+  it("checks if a user has permission to assign tasks", () => {
+    expect(canUserAssignTasks({ role: "Owner" })).toBe(true);
+    expect(canUserAssignTasks({ role: "Sales Manager" })).toBe(true);
+    expect(canUserAssignTasks({ role: "Coach Manager" })).toBe(true);
+    expect(canUserAssignTasks({ role: "General Manager" })).toBe(true);
+    expect(canUserAssignTasks({ role: "Sales", access: ["transfer"] })).toBe(true);
+    expect(canUserAssignTasks({ role: "Sales", access: [] })).toBe(false);
+    expect(canUserAssignTasks({ role: "Coach", access: [] })).toBe(false);
+  });
+
+  it("filters task history by query and completion status", () => {
+    const history = [
+      {
+        _id: "1",
+        status: "pending",
+        member: { name: "Ahmed", phone: "01001", systemId: 101 },
+        assignedBy: { name: "Manager Sara" },
+      },
+      {
+        _id: "2",
+        status: "completed",
+        member: { name: "Nour", phone: "01002", systemId: 102 },
+        assignedBy: { name: "Owner Bob" },
+      },
+    ];
+
+    expect(filterTaskHistory(history, "", "all")).toHaveLength(2);
+    expect(filterTaskHistory(history, "", "completed")).toHaveLength(1);
+    expect(filterTaskHistory(history, "", "completed")[0].member.name).toBe("Nour");
+    expect(filterTaskHistory(history, "01001", "all")).toHaveLength(1);
+    expect(filterTaskHistory(history, "Sara", "all")).toHaveLength(1);
+  });
+
+  it("filters members by date period from and to", () => {
+    const list = [
+      {
+        _id: "m1",
+        name: "May Expiring",
+        subscriptions: [{ endDate: "2026-05-15T00:00:00.000Z" }],
+      },
+      {
+        _id: "m2",
+        name: "July Expiring",
+        subscriptions: [{ endDate: "2026-07-20T00:00:00.000Z" }],
+      },
+    ];
+
+    const mayOnly = filterMembersAdvanced(list, {
+      dateField: "endDate",
+      dateFrom: "2026-05-01",
+      dateTo: "2026-05-31",
+    });
+    expect(mayOnly.map((m) => m._id)).toEqual(["m1"]);
+  });
+
+  it("filters members by transfer history (transferred, never, bulk)", () => {
+    const list = [
+      {
+        _id: "m1",
+        name: "Transferred Bulk",
+        userlog: [{ type: "assign", text: "Bulk transferred to Rep Sara", createdAt: "2026-04-10" }],
+      },
+      {
+        _id: "m2",
+        name: "Never Transferred",
+        userlog: [],
+      },
+      {
+        _id: "m3",
+        name: "Coach Transferred",
+        userlog: [{ type: "assign", text: "Transferred to Coach Ali", createdAt: "2026-04-12" }],
+      },
+    ];
+
+    expect(filterMembersAdvanced(list, { transferType: "transferred" })).toHaveLength(2);
+    expect(filterMembersAdvanced(list, { transferType: "never" })).toHaveLength(1);
+    expect(filterMembersAdvanced(list, { transferType: "never" })[0]._id).toBe("m2");
+    expect(filterMembersAdvanced(list, { transferType: "bulk" })).toHaveLength(1);
+    expect(filterMembersAdvanced(list, { transferType: "bulk" })[0]._id).toBe("m1");
+    expect(filterMembersAdvanced(list, { transferType: "coach" })).toHaveLength(1);
+    expect(filterMembersAdvanced(list, { transferType: "coach" })[0]._id).toBe("m3");
+  });
+
+  it("filters members by unassigned sales and unassigned coach", () => {
+    const list = [
+      { _id: "m1", name: "Has Both", assignedSales: "rep1", current_couch: "coach1" },
+      { _id: "m2", name: "No Sales", assignedSales: null, current_couch: "coach1" },
+      { _id: "m3", name: "No Coach", assignedSales: "rep1", current_couch: null },
+    ];
+
+    expect(filterMembersAdvanced(list, { kind: "unassigned_sales" }).map((m) => m._id)).toEqual(["m2"]);
+    expect(filterMembersAdvanced(list, { kind: "unassigned_coach" }).map((m) => m._id)).toEqual(["m3"]);
+  });
+
+  it("filters created tasks for assigners by role, person, member and period", () => {
+    const tasks = [
+      {
+        _id: "t1",
+        targetRole: "Sales",
+        assignedTo: { _id: "s1", name: "Sara Rep", role: "Sales" },
+        status: "pending",
+        transferType: "bulk",
+        createdAt: "2026-05-10T10:00:00Z",
+        members: [
+          { name: "Member Alpha", systemId: 101, phone: "0101111" },
+        ],
+      },
+      {
+        _id: "t2",
+        targetRole: "Coach",
+        assignedTo: { _id: "c1", name: "Coach Ali", role: "Coach" },
+        status: "completed",
+        transferType: "quick",
+        createdAt: "2026-06-15T10:00:00Z",
+        members: [
+          { name: "Member Beta", systemId: 102, phone: "0102222" },
+        ],
+      },
+    ];
+
+    expect(filterCreatedTasks(tasks, { role: "Sales" })).toHaveLength(1);
+    expect(filterCreatedTasks(tasks, { role: "Coach" })).toHaveLength(1);
+    expect(filterCreatedTasks(tasks, { personId: "s1" })).toHaveLength(1);
+    expect(filterCreatedTasks(tasks, { memberSearch: "Alpha" })).toHaveLength(1);
+    expect(filterCreatedTasks(tasks, { memberSearch: "102" })).toHaveLength(1);
+    expect(filterCreatedTasks(tasks, { dateFrom: "2026-06-01", dateTo: "2026-06-30" })).toHaveLength(1);
+    expect(filterCreatedTasks(tasks, { dateFrom: "2026-06-01", dateTo: "2026-06-30" })[0]._id).toBe("t2");
+  });
+
+  it("filters assigned history for assignees by assignedBy, package, and period", () => {
+    const history = [
+      {
+        _id: "h1",
+        assignedBy: { _id: "mgr1", name: "Manager Sara" },
+        status: "completed",
+        assignedAt: "2026-05-01T10:00:00Z",
+        completedAt: "2026-05-03T10:00:00Z",
+        member: { name: "Member One", package: "Gold Month", packageId: "pkg-1", systemId: 201 },
+      },
+      {
+        _id: "h2",
+        assignedBy: { _id: "mgr2", name: "Owner Bob" },
+        status: "pending",
+        assignedAt: "2026-06-01T10:00:00Z",
+        completedAt: null,
+        member: { name: "Member Two", package: "Silver", packageId: "pkg-2", systemId: 202 },
+      },
+    ];
+
+    expect(filterAssignedHistoryAdvanced(history, { assignedBy: "mgr1" })).toHaveLength(1);
+    expect(filterAssignedHistoryAdvanced(history, { packageId: "pkg-2" })).toHaveLength(1);
+    expect(filterAssignedHistoryAdvanced(history, { dateField: "completedAt", dateFrom: "2026-05-01", dateTo: "2026-05-10" })).toHaveLength(1);
+    expect(filterAssignedHistoryAdvanced(history, { dateField: "completedAt", dateFrom: "2026-05-01", dateTo: "2026-05-10" })[0]._id).toBe("h1");
   });
 });

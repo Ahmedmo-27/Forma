@@ -13,6 +13,14 @@ function buildMemberListFilter({
     recent,
     expiringSoon,
     currentCouch,
+    unassignedSales,
+    unassignedCoach,
+    dateFrom,
+    dateTo,
+    dateField,
+    packageId,
+    gender,
+    transferType,
 }) {
     const filter = {};
 
@@ -22,16 +30,60 @@ function buildMemberListFilter({
         filter.status = status;
     }
 
-    if (assignedSales && assignedSales !== "null" && assignedSales !== "undefined") {
+    if (unassignedSales === "true" || unassignedSales === true) {
+        filter.$or = filter.$or || [];
+        filter.assignedSales = null;
+    } else if (assignedSales && assignedSales !== "null" && assignedSales !== "undefined") {
         filter.assignedSales = assignedSales;
     }
 
-    if (currentCouch && currentCouch !== "null" && currentCouch !== "undefined") {
+    if (unassignedCoach === "true" || unassignedCoach === true) {
+        filter.current_couch = null;
+    } else if (currentCouch && currentCouch !== "null" && currentCouch !== "undefined") {
         filter.current_couch = currentCouch;
     }
 
-    if (transferred === "true" || transferred === true) {
-        filter.userlog = { $elemMatch: { type: "assign", text: /transferred/i } };
+    if (gender && gender !== "all") {
+        filter.gender = gender;
+    }
+
+    if (packageId && packageId !== "all") {
+        filter["subscriptions.package"] = packageId;
+    }
+
+    // Transfer filters
+    if (transferType === "transferred" || transferred === "true" || transferred === true) {
+        filter.userlog = { $elemMatch: { type: "assign" } };
+    } else if (transferType === "never") {
+        filter["userlog.type"] = { $ne: "assign" };
+    } else if (transferType === "bulk") {
+        filter.userlog = { $elemMatch: { type: "assign", text: /bulk/i } };
+    } else if (transferType === "coach") {
+        filter.userlog = { $elemMatch: { type: "assign", text: /coach|couch/i } };
+    } else if (transferType === "sales") {
+        filter.userlog = { $elemMatch: { type: "assign", text: /sales|salesman|sales rep/i } };
+    }
+
+    // Period / Date filters
+    if (dateFrom || dateTo) {
+        const range = {};
+        if (dateFrom) range.$gte = new Date(dateFrom);
+        if (dateTo) {
+            const end = new Date(dateTo);
+            end.setHours(23, 59, 59, 999);
+            range.$lte = end;
+        }
+
+        if (dateField === "joined" || dateField === "createdAt") {
+            filter.createdAt = range;
+        } else if (dateField === "startDate") {
+            filter["subscriptions.startDate"] = range;
+        } else if (dateField === "transferDate") {
+            filter.userlog = { $elemMatch: { type: "assign", createdAt: range } };
+        } else {
+            // Default period filter applies to subscription end date (membership period)
+            filter["subscriptions.endDate"] = range;
+        }
     }
 
     if (recent === "true" || recent === true) {
@@ -65,7 +117,12 @@ function buildMemberListFilter({
         if (num != null) {
             or.push({ systemId: num }, { memberId: num });
         }
-        filter.$or = or;
+        if (filter.$or) {
+            filter.$and = [{ $or }, { $or: filter.$or }];
+            delete filter.$or;
+        } else {
+            filter.$or = or;
+        }
     }
 
     return filter;
@@ -77,7 +134,9 @@ function statsFilterFromListFilter(filter = {}) {
     delete statsFilter.status;
     delete statsFilter.isBlocked;
     delete statsFilter["subscriptions.createdAt"];
+    delete statsFilter["subscriptions.startDate"];
     delete statsFilter["subscriptions.endDate"];
+    delete statsFilter["subscriptions.package"];
     delete statsFilter.createdAt;
     delete statsFilter.userlog;
     return statsFilter;
@@ -85,8 +144,6 @@ function statsFilterFromListFilter(filter = {}) {
 
 /**
  * Count with the same query path as the member list.
- * Aggregation skips mongoose casting, so a sales-rep ObjectId stored as a
- * string in the filter matched zero rows and every stat card stayed at 0.
  */
 async function getMemberStatusStats(Member, baseFilter = {}) {
     const statuses = ["active", "frozen", "expired", "guest"];
@@ -98,4 +155,9 @@ async function getMemberStatusStats(Member, baseFilter = {}) {
     return { total, active, frozen, expired, guest, blocked };
 }
 
-module.exports = { buildMemberListFilter, statsFilterFromListFilter, getMemberStatusStats, numericId };
+module.exports = {
+    numericId,
+    buildMemberListFilter,
+    statsFilterFromListFilter,
+    getMemberStatusStats,
+};

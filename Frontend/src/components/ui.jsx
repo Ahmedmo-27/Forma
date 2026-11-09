@@ -35,6 +35,8 @@ const BADGE_MAP = {
   blocked:  { bg: 'rgba(239,68,68,0.12)', color: '#f87171',  border: 'rgba(239,68,68,0.30)', dot: '#ef4444' },
   pending:  { bg: 'var(--amber-bg)', color: 'var(--amber)',  border: 'var(--amber-bd)', dot: '#f59e0b' },
   accepted: { bg: 'var(--green-bg)',  color: 'var(--green)',  border: 'var(--green-bd)',  dot: '#22c55e' },
+  completed: { bg: 'var(--green-bg)',  color: 'var(--green)',  border: 'var(--green-bd)',  dot: '#22c55e' },
+  in_progress: { bg: 'var(--sky-bg)',  color: 'var(--sky)',  border: 'var(--sky-bd)',  dot: '#38bdf8' },
   rejected: { bg: 'var(--red-bg)',    color: 'var(--red)',    border: 'var(--red-bd)',    dot: '#ef4444' },
 };
 export function Badge({ status }) {

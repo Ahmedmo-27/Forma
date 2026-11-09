@@ -49,4 +49,23 @@ describe("member list filters", () => {
         expect(calls.every((filter) => filter.assignedSales === "507f1f77bcf86cd799439011")).toBe(true);
         expect(Member.countDocuments).toHaveBeenCalled();
     });
+
+    it("supports date period from/to and transfer type filtering in member list", () => {
+        const periodFilter = buildMemberListFilter({
+            dateFrom: "2026-05-01",
+            dateTo: "2026-05-31",
+            dateField: "endDate",
+            transferType: "bulk",
+            unassignedSales: "true",
+            unassignedCoach: "true",
+        });
+
+        expect(periodFilter["subscriptions.endDate"].$gte).toEqual(new Date("2026-05-01"));
+        expect(periodFilter.userlog).toEqual({ $elemMatch: { type: "assign", text: /bulk/i } });
+        expect(periodFilter.assignedSales).toBeNull();
+        expect(periodFilter.current_couch).toBeNull();
+
+        const neverFilter = buildMemberListFilter({ transferType: "never" });
+        expect(neverFilter["userlog.type"]).toEqual({ $ne: "assign" });
+    });
 });

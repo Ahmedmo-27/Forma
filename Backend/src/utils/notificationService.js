@@ -34,6 +34,45 @@ async function notifyMemberAssigned({ recipientId, member, actorId }) {
     });
 }
 
+async function notifyTaskAssigned({ recipientId, members = [], member = null, actorId, taskId }) {
+    if (!recipientId) return null;
+
+    const list = Array.isArray(members) && members.length > 0
+        ? members
+        : (member ? [member] : []);
+
+    if (list.length === 0) return null;
+
+    const recipientStr = recipientId.toString();
+    if (actorId && recipientStr === actorId.toString()) return null;
+
+    const count = list.length;
+    let message = "";
+    let singleMemberId = null;
+
+    if (count === 1) {
+        const memberName = list[0]?.name || "A member";
+        message = `${memberName} has been assigned to you as a task. Check your tasks page to view this member.`;
+        singleMemberId = list[0]?._id || null;
+    } else {
+        message = `${count} members have been assigned to you as a task. Check your tasks page to view those ${count} members.`;
+    }
+
+    return Notification.create({
+        recipient: recipientId,
+        type: "task_assigned",
+        title: "Tasks",
+        message,
+        member: singleMemberId,
+        createdBy: actorId || null,
+        metadata: {
+            taskId: taskId ? taskId.toString() : null,
+            memberCount: count,
+            memberIds: list.map((m) => (m?._id ? m._id.toString() : String(m))),
+        },
+    });
+}
+
 async function notifyPackageExceptionPending({
     recipientId,
     member,
@@ -101,6 +140,7 @@ async function notifyPackageExceptionResolved({ recipientId, member, actorId, st
 
 module.exports = {
     notifyMemberAssigned,
+    notifyTaskAssigned,
     notifyPackageExceptionPending,
     notifyPackageExceptionResolved,
     notifySalesRepRequestPending,

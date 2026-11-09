@@ -8,7 +8,8 @@ const ProfileView = require("../models/ProfileView");
 const { hasAccess, hasExplicitGrant } = require("../utils/accessControl");
 const { attachCurrentPackage } = require("../utils/revenueUtils");
 const { findMemberByIdentifier, buildMemberFilter } = require("../utils/memberLookup");
-const { notifyMemberAssigned } = require("../utils/notificationService");
+const { notifyMemberAssigned, notifyTaskAssigned } = require("../utils/notificationService");
+const Task = require("../models/Task");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const { buildMemberListFilter, statsFilterFromListFilter, getMemberStatusStats } = require("../utils/memberFilters");
 const { isAssignedToRep, redactMemberForViewer } = require("../utils/memberPrivacy");
@@ -274,7 +275,7 @@ async function createMemberRecord(personData, maxAttempts = 5) {
 }
 
 // ─── 2. Get All Members ───────────────────────────────────────────────────────
-const MEMBER_LIST_SELECT = "systemId memberId barcode name phones photo status isMember gender source assignedSales createdBy current_couch couch_subscription_status subscriptions freezeDaysUsed invitationsUsed isBlocked createdAt";
+const MEMBER_LIST_SELECT = "systemId memberId barcode name phones photo status isMember gender source assignedSales createdBy current_couch couch_subscription_status subscriptions freezeDaysUsed invitationsUsed isBlocked createdAt userlog";
 const MEMBER_SEARCH_SELECT = "systemId memberId name phones photo status subscriptions assignedSales";
 const MEMBER_SORT_FIELDS = new Set(["createdAt", "systemId", "name"]);
 
@@ -300,14 +301,22 @@ const getAllMembers = async (req, res) => {
         const sortObj = memberListSort(req.query);
 
         const filter = buildMemberListFilter({
-            status:         req.query.status,
-            search:         req.query.search,
-            assignedSales:  req.query.assignedSales,
+            status:          req.query.status,
+            search:          req.query.search,
+            assignedSales:   req.query.assignedSales,
             subscribedToday: req.query.subscribedToday,
-            transferred:    req.query.transferred,
-            recent:         req.query.recent,
-            expiringSoon:   req.query.expiringSoon,
-            currentCouch:   req.query.currentCouch,
+            transferred:     req.query.transferred,
+            recent:          req.query.recent,
+            expiringSoon:    req.query.expiringSoon,
+            currentCouch:    req.query.currentCouch,
+            unassignedSales: req.query.unassignedSales,
+            unassignedCoach: req.query.unassignedCoach,
+            dateFrom:        req.query.dateFrom,
+            dateTo:          req.query.dateTo,
+            dateField:       req.query.dateField,
+            packageId:       req.query.packageId,
+            gender:          req.query.gender,
+            transferType:    req.query.transferType,
         });
 
         // Source filter (e.g. source=data entry for imported members)
@@ -345,6 +354,7 @@ const getAllMembers = async (req, res) => {
                 .populate("createdBy", "name")
                 .populate("assignedSales", "name role")
                 .populate("current_couch", "name role")
+                .populate("userlog.createdBy", "name role")
                 .sort(sortObj)
                 .skip(skip)
                 .limit(limit)
@@ -983,11 +993,40 @@ const switchSalesRep = async (req, res) => {
         });
         await member.save();
 
-        await notifyMemberAssigned({
-            recipientId: newSalesRepId,
-            member,
-            actorId: req.user.id,
-        });
+        const isTask = Boolean(req.body.isTask || req.body.source === "tasks");
+        let taskId = null;
+        if (isTask) {
+            const task = await Task.create({
+                createdBy: req.user.id,
+                assignedTo: newSalesRepId,
+                targetRole: salesUser.role,
+                transferType: "quick",
+                title: "Quick Transfer (1 member)",
+                members: [{
+                    member: member._id,
+                    name: member.name,
+                    systemId: member.systemId,
+                    phone: member.phones,
+                    status: "pending",
+                }],
+                totalCount: 1,
+                completedCount: 0,
+                status: "pending",
+            });
+            taskId = task._id;
+            await notifyTaskAssigned({
+                recipientId: newSalesRepId,
+                members: [member],
+                actorId: req.user.id,
+                taskId: task._id,
+            });
+        } else {
+            await notifyMemberAssigned({
+                recipientId: newSalesRepId,
+                member,
+                actorId: req.user.id,
+            });
+        }
 
         res.json({ message: "Sales representative updated successfully", member });
     } catch (error) {
@@ -1060,6 +1099,7 @@ const bulkTransferSalesReps = async (req, res) => {
         await Member.populate(members, { path: "assignedSales", select: "name" });
 
         const transferredIds = [];
+        const taskMemberItems = [];
         for (const member of members) {
             const prevName = member.assignedSales?.name ?? null;
             member.assignedSales = toSalesRepId;
@@ -1074,18 +1114,40 @@ const bulkTransferSalesReps = async (req, res) => {
                 createdBy: req.user.id,
             });
             await member.save();
-            await notifyMemberAssigned({
-                recipientId: toSalesRepId,
-                member,
-                actorId: req.user.id,
-            });
             transferredIds.push(member._id);
+            taskMemberItems.push({
+                member: member._id,
+                name: member.name,
+                systemId: member.systemId,
+                phone: member.phones,
+                status: "pending",
+            });
         }
+
+        const task = await Task.create({
+            createdBy: req.user.id,
+            assignedTo: toSalesRepId,
+            targetRole: toUser.role,
+            transferType: "bulk",
+            title: `Bulk Transfer (${transferredIds.length} members)`,
+            members: taskMemberItems,
+            totalCount: transferredIds.length,
+            completedCount: 0,
+            status: "pending",
+        });
+
+        await notifyTaskAssigned({
+            recipientId: toSalesRepId,
+            members,
+            actorId: req.user.id,
+            taskId: task._id,
+        });
 
         res.json({
             message: "Members transferred successfully",
             transferredCount: transferredIds.length,
             memberIds: transferredIds,
+            taskId: task._id,
         });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
@@ -2024,11 +2086,40 @@ const switchCoach = async (req, res) => {
         });
         await member.save();
 
-        await notifyMemberAssigned({
-            recipientId: newCoachId,
-            member,
-            actorId: req.user.id,
-        });
+        const isTask = Boolean(req.body.isTask || req.body.source === "tasks");
+        let taskId = null;
+        if (isTask) {
+            const task = await Task.create({
+                createdBy: req.user.id,
+                assignedTo: newCoachId,
+                targetRole: coachUser.role,
+                transferType: "quick",
+                title: "Quick Transfer (1 member)",
+                members: [{
+                    member: member._id,
+                    name: member.name,
+                    systemId: member.systemId,
+                    phone: member.phones,
+                    status: "pending",
+                }],
+                totalCount: 1,
+                completedCount: 0,
+                status: "pending",
+            });
+            taskId = task._id;
+            await notifyTaskAssigned({
+                recipientId: newCoachId,
+                members: [member],
+                actorId: req.user.id,
+                taskId: task._id,
+            });
+        } else {
+            await notifyMemberAssigned({
+                recipientId: newCoachId,
+                member,
+                actorId: req.user.id,
+            });
+        }
 
         res.json({ message: "Coach updated successfully", member });
     } catch (error) {
@@ -2135,21 +2226,44 @@ const bulkTransferCoach = async (req, res) => {
         const result = await Member.bulkWrite(bulkOps);
         const transferredCount = result.modifiedCount || 0;
 
-        // Send one notification to the coach
+        let createdTaskId = null;
         if (transferredCount > 0) {
-            const Notification = require("../models/Notification");
-            await Notification.create({
-                recipient: coachId,
-                type: "member_assigned",
-                title: "Members Assigned",
-                message: `${transferredCount} member(s) have been bulk-assigned to you`,
+            const transferredMembers = await Member.find({ _id: { $in: memberIds } })
+                .select("name systemId phones");
+
+            const taskMemberItems = transferredMembers.map((m) => ({
+                member: m._id,
+                name: m.name,
+                systemId: m.systemId,
+                phone: m.phones,
+                status: "pending",
+            }));
+
+            const task = await Task.create({
                 createdBy: req.user.id,
-            }).catch(() => {}); // don't fail if notification fails
+                assignedTo: coachId,
+                targetRole: coachUser.role,
+                transferType: "bulk",
+                title: `Bulk Transfer (${transferredCount} members)`,
+                members: taskMemberItems,
+                totalCount: transferredCount,
+                completedCount: 0,
+                status: "pending",
+            });
+            createdTaskId = task._id;
+
+            await notifyTaskAssigned({
+                recipientId: coachId,
+                members: transferredMembers,
+                actorId: req.user.id,
+                taskId: task._id,
+            }).catch(() => {});
         }
 
         res.json({
             message: "Members transferred successfully",
             transferredCount,
+            taskId: createdTaskId,
         });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });

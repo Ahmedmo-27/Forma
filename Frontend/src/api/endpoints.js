@@ -52,8 +52,8 @@ export const updateCoachRepAbilities = (id, abilities) =>
 export const getTodayCoachTransfers = () => api.get('/members/today-coach-transfers');
 export const assignCoach     = (memberId, coachId) =>
   api.patch(`/members/${memberId}/assign-coach`, { coachId });
-export const switchCoach     = (memberId, newCoachId) =>
-  api.put(`/members/${memberId}/coach-rep`, { newCoachId });
+export const switchCoach     = (memberId, newCoachId, payload = {}) =>
+  api.put(`/members/${memberId}/coach-rep`, { newCoachId, ...payload });
 export const updateSalesRepTarget = (id, monthlyTarget) =>
   api.patch(`/users/${id}/target`, { monthlyTarget });
 export const updateSalesRepAbilities = (id, abilities) =>
@@ -98,8 +98,8 @@ export const bulkTransferSalesReps = (data) =>
   api.post('/members/bulk-transfer-sales', data);
 export const bulkTransferCoach = (data) =>
   api.post('/members/bulk-transfer-coach', data);
-export const switchSalesRep = (id, newSalesRepId) =>
-  api.put(`/members/${id}/sales-rep`, { newSalesRepId });
+export const switchSalesRep = (id, newSalesRepId, payload = {}) =>
+  api.put(`/members/${id}/sales-rep`, { newSalesRepId, ...payload });
 export const freezeMember      = (id, data) =>
   api.patch(`/members/${id}/freeze`, data);
 export const blockMember       = (id, reason) =>
@@ -196,3 +196,10 @@ export const getBillingPrices = () => api.get('/tenant/billing/prices');
 export const checkoutLifetimeBilling = (data) => api.post('/tenant/billing/lifetime/checkout', data);
 export const confirmLifetimeBilling = (data) => api.post('/tenant/billing/lifetime/confirm', data);
 export const upgradeLifetimeBilling = (data) => api.post('/tenant/billing/lifetime/upgrade', data);
+
+// ── Tasks ──────────────────────────────────────────────────────────────────────
+export const getCreatedTasks = (params) => api.get('/tasks/created', { params });
+export const getAssignedTasks = (params) => api.get('/tasks/assigned', { params });
+export const getAssignedTaskHistory = (params) => api.get('/tasks/history', { params });
+export const completeMemberTask = (taskId, memberId) =>
+  api.patch(`/tasks/${taskId}/members/${memberId}/complete`);
