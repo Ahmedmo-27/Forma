@@ -455,20 +455,6 @@ export default function AssigningTasksPage() {
     <Layout>
       <PageHeader title="Tasks Management">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{
-            fontSize: 12,
-            padding: '4px 10px',
-            borderRadius: 6,
-            background: 'var(--navy-subtle, rgba(59, 130, 246, 0.12))',
-            color: 'var(--primary, #3b82f6)',
-            fontWeight: 600,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-          }}>
-            <span>👑</span> Player Type: Assigning Manager ({user?.role || 'Sales Manager'})
-          </span>
-
           <Btn variant="outline" size="sm" onClick={openTasksHistoryModal}>
             📋 View Created Tasks
           </Btn>

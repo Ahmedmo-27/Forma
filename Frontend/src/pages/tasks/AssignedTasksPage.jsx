@@ -517,19 +517,6 @@ export default function AssignedTasksPage({ embedded = false }) {
     <Layout>
       <PageHeader title="My Tasks">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{
-            fontSize: 12,
-            padding: '4px 10px',
-            borderRadius: 6,
-            background: 'var(--navy-subtle, rgba(59, 130, 246, 0.12))',
-            color: 'var(--primary, #3b82f6)',
-            fontWeight: 600,
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: 6,
-          }}>
-            <span>👤</span> Player Type: Assigned Rep ({user?.role || 'Sales'})
-          </span>
           <Btn size="sm" variant="outline" onClick={fetchAssignedHistory} disabled={loadingAssigned}>
             ↻ Refresh
           </Btn>
