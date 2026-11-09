@@ -18,7 +18,7 @@ import { applyWhatsAppPlaceholders, composeWhatsAppTemplateMessage, toWhatsAppUr
 import {
   EXPORT_COLUMNS, buildExcel, columnsForExport,
   columnValue, memberPhone, taskPermissions, toggleId, toggleIds,
-  canUserAssignTasks, formatTaskDateTime, filterTaskHistory, filterMembersAdvanced,
+  canUserAssignTasks, canUserReceiveTasks, formatTaskDateTime, filterTaskHistory, filterMembersAdvanced,
   filterCreatedTasks, filterAssignedHistoryAdvanced, packageName,
   toLocalDateString, parseDateBoundary,
   SELECTION_TEMPLATES, applySelectionTemplate, invertSelection, getTransferLogs,
@@ -451,6 +451,8 @@ export default function AssigningTasksPage() {
     downloadExcel(`tasks-schedule-${toLocalDateString(new Date())}.xls`, cols, filtered);
   };
 
+  const canReceiveTasks = canUserReceiveTasks(user);
+
   return (
     <Layout>
       <PageHeader title="Tasks Management">
@@ -491,25 +493,27 @@ export default function AssigningTasksPage() {
           </div>
         )}
 
-        {/* Tab switcher: Schedule / Assigning vs Manager's Own Assigned Tasks */}
-        <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
-          <Btn
-            size="sm"
-            variant={activeTab === 'schedule' ? 'primary' : 'ghost'}
-            onClick={() => setActiveTab('schedule')}
-          >
-            Assign Tasks & Member Schedule
-          </Btn>
-          <Btn
-            size="sm"
-            variant={activeTab === 'my_tasks' ? 'primary' : 'ghost'}
-            onClick={() => setActiveTab('my_tasks')}
-          >
-            My Assigned Tasks
-          </Btn>
-        </div>
+        {/* Tab switcher: Only shown for users who can actually receive assigned tasks (e.g. Coach Manager) */}
+        {canReceiveTasks && (
+          <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
+            <Btn
+              size="sm"
+              variant={activeTab === 'schedule' ? 'primary' : 'ghost'}
+              onClick={() => setActiveTab('schedule')}
+            >
+              Assign Tasks & Member Schedule
+            </Btn>
+            <Btn
+              size="sm"
+              variant={activeTab === 'my_tasks' ? 'primary' : 'ghost'}
+              onClick={() => setActiveTab('my_tasks')}
+            >
+              My Assigned Tasks
+            </Btn>
+          </div>
+        )}
 
-        {activeTab === 'my_tasks' ? (
+        {canReceiveTasks && activeTab === 'my_tasks' ? (
           <AssignedTasksPage embedded={true} />
         ) : (
           <>

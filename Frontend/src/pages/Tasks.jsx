@@ -1,20 +1,22 @@
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { canUserAssignTasks, getTaskPlayerType, TASK_PLAYER_TYPES } from './tasks/taskMembers';
+import { canUserAssignTasks, canUserReceiveTasks, getTaskPlayerType, TASK_PLAYER_TYPES } from './tasks/taskMembers';
 import AssigningTasksPage from './tasks/AssigningTasksPage';
 import AssignedTasksPage from './tasks/AssignedTasksPage';
 
 /**
  * Tasks Page Router
  * Automatically determines and renders the appropriate page interface
- * based on the user's player type:
+ * based on the user's role and capability:
  *
- * 1. Assigning Player (Sales Manager, Coach Manager, Owner, General Manager):
- *    Renders the AssigningTasksPage with task creation, member scheduling, and created tasks history.
+ * 1. Roles that only assign tasks (Owner, General Manager, Sales Manager):
+ *    Never receive tasks; rendered exclusively with AssigningTasksPage.
  *
- * 2. Assigned Player (Regular Sales, Coach):
- *    Renders the AssignedTasksPage with active assigned tasks and completion history,
- *    strictly isolated from assigner endpoints to prevent permission errors.
+ * 2. Assigning Players who also can receive tasks (e.g. Coach Manager):
+ *    Rendered with AssigningTasksPage with switching capability.
+ *
+ * 3. Assigned Players (Regular Sales, Coach):
+ *    Rendered with AssignedTasksPage for active tasks and history.
  */
 export default function Tasks() {
   const { user } = useAuth();
@@ -22,10 +24,11 @@ export default function Tasks() {
   const requestedView = searchParams.get('view'); // e.g. ?view=assigned or ?view=assigning
 
   const canAssign = canUserAssignTasks(user);
+  const canReceive = canUserReceiveTasks(user);
   const playerType = getTaskPlayerType(user);
 
-  // If a manager explicitly asks to view their assigned tasks via URL param, honor it
-  if (canAssign && (requestedView === 'assigned' || requestedView === 'my_tasks')) {
+  // If a user can receive tasks and explicitly asks to view their assigned tasks via URL param, honor it
+  if (canReceive && (requestedView === 'assigned' || requestedView === 'my_tasks')) {
     return <AssignedTasksPage />;
   }
 

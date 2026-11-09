@@ -3,6 +3,8 @@ import {
   assignChoices,
   buildCsv,
   canUserAssignTasks,
+  canUserReceiveTasks,
+  NON_RECEIVING_TASK_ROLES,
   filterAssignedHistoryAdvanced,
   filterCreatedTasks,
   filterMembersAdvanced,
@@ -174,6 +176,19 @@ describe("tasks member groups", () => {
     expect(canUserAssignTasks({ role: "Sales", access: ["transfer"] })).toBe(true);
     expect(canUserAssignTasks({ role: "Sales", access: [] })).toBe(false);
     expect(canUserAssignTasks({ role: "Coach", access: [] })).toBe(false);
+  });
+
+  it("checks that Owner, General Manager, and Sales Manager never receive assigned tasks", () => {
+    expect(NON_RECEIVING_TASK_ROLES).toEqual(["Owner", "General Manager", "Sales Manager"]);
+    expect(canUserReceiveTasks({ role: "Owner" })).toBe(false);
+    expect(canUserReceiveTasks({ role: "General Manager" })).toBe(false);
+    expect(canUserReceiveTasks({ role: "Sales Manager" })).toBe(false);
+    expect(canUserReceiveTasks({ role: "Accountant" })).toBe(false);
+    expect(canUserReceiveTasks({ role: "Receptionist" })).toBe(false);
+    expect(canUserReceiveTasks({ role: "Sales" })).toBe(true);
+    expect(canUserReceiveTasks({ role: "Coach" })).toBe(true);
+    expect(canUserReceiveTasks({ role: "Coach Manager" })).toBe(true);
+    expect(canUserReceiveTasks(null)).toBe(false);
   });
 
   it("filters task history by query and completion status", () => {

@@ -167,8 +167,8 @@ function TenantAppRoutes() {
       } />
       <Route path="/tasks/assigned" element={
         <PrivateRoute
-          roles={['Sales', 'Coach', 'Sales Manager', 'Coach Manager', 'Owner', 'General Manager', 'Accountant']}
-          access={['sales_members', 'coach_members', 'my_transfers', 'members', 'transfer', 'coach_transfer']}
+          roles={['Sales', 'Coach', 'Coach Manager']}
+          access={['sales_members', 'coach_members', 'my_transfers', 'members']}
         >
           <AssignedTasksPage />
         </PrivateRoute>
