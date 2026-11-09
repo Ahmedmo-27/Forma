@@ -257,6 +257,7 @@ const tenantSettingsSchema = z.object({
         logoKey: z.string().nullable().optional(),
         displayName: z.string().nullable().optional(),
         palette: z.object({
+            navbar: z.string().optional(),
             primary: z.string().optional(),
             secondary: z.string().optional(),
             accent: z.string().optional(),
@@ -281,6 +282,7 @@ const tenantSettingsSchema = z.object({
             logoKey: z.string().nullable().optional(),
             displayName: z.string().nullable().optional(),
             palette: z.object({
+                navbar: z.string().optional(),
                 primary: z.string().optional(),
                 secondary: z.string().optional(),
                 accent: z.string().optional(),

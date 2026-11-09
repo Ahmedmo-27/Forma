@@ -70,8 +70,8 @@ const BOTTOM_NAV_CONFIG = {
   ],
 };
 
-const NAVBAR_BG = '#1E1535';   /* deep violet-dark — complements the logo */
-const TAB_BG    = '#160F2A';   /* slightly darker/cooler for the tab row */
+const NAVBAR_BG = 'var(--nav-bg, #1E1535)';   /* complements the logo */
+const TAB_BG    = 'var(--nav-tab-bg, #160F2A)';   /* slightly darker/cooler for the tab row */
 
 function ini(name = '') {
   return name.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
@@ -349,7 +349,7 @@ export default function Layout({ children }) {
               lineHeight: 0,
               boxShadow: '0 3px 12px color-mix(in srgb, var(--navy) 50%, transparent)',
               overflow: 'hidden',
-              background: '#2b1c4d',
+              background: 'color-mix(in srgb, var(--nav-bg, #1E1535) 75%, #ffffff)',
             }}>
               <img key={logoUrl} src={logoUrl} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
@@ -585,7 +585,7 @@ export default function Layout({ children }) {
         position: 'fixed', bottom: 0, left: 0, right: 0,
         height: 'calc(60px + env(safe-area-inset-bottom, 0px))',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        background: 'rgba(26, 18, 48, 0.96)',
+        background: 'color-mix(in srgb, var(--nav-bg, #1a1230) 96%, transparent)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         borderTop: '1px solid rgba(255,255,255,0.10)',

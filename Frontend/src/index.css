@@ -10,6 +10,10 @@
    Content: clean light theme below
 ═══════════════════════════════════════════════════════════════ */
 :root {
+  /* Navigation Bar */
+  --nav-bg:     #1E1535;
+  --nav-tab-bg: #160F2A;
+
   /* Brand */
   --navy:       #44298C;
   --navy-2:     #5B38BA;

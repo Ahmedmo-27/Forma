@@ -24,9 +24,27 @@ export function isValidPhone(phone) {
   return trimmed.length >= 5 && trimmed.length <= 40 && PHONE_CHARS_REGEX.test(trimmed);
 }
 
+export function normalizeHexColor(color) {
+  if (!color || typeof color !== 'string') return null;
+  let str = color.trim();
+  if (!str.startsWith('#')) str = '#' + str;
+  if (/^#([0-9a-fA-F]{3})$/.test(str)) {
+    return `#${str[1]}${str[1]}${str[2]}${str[2]}${str[3]}${str[3]}`.toUpperCase();
+  }
+  if (/^#([0-9a-fA-F]{6})$/.test(str)) {
+    return str.toUpperCase();
+  }
+  return null;
+}
+
+export function toColorPickerValue(color, fallback = '#000000') {
+  const norm = normalizeHexColor(color);
+  return norm ? norm.toLowerCase() : fallback;
+}
+
 export function isValidHexColor(color) {
   if (!color || typeof color !== 'string') return false;
-  return HEX_COLOR_REGEX.test(color.trim());
+  return Boolean(normalizeHexColor(color));
 }
 
 export function isValidDate(dateStr) {

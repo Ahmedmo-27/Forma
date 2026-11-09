@@ -18,17 +18,35 @@ import {
 } from '../../components/ui';
 import LifetimeCheckoutModal from '../../components/billing/LifetimeCheckoutModal';
 import LifetimeUpgradeModal from '../../components/billing/LifetimeUpgradeModal';
-import { isValidHexColor, validateFile, LOGO_EXTENSIONS, LOGO_ACCEPT, UPLOAD_INTAKE_MB } from '../../lib/validation';
+import {
+  isValidHexColor,
+  normalizeHexColor,
+  toColorPickerValue,
+  validateFile,
+  LOGO_EXTENSIONS,
+  LOGO_ACCEPT,
+  UPLOAD_INTAKE_MB,
+} from '../../lib/validation';
 
 const KNOWN_ACTIVITIES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 
 const DEFAULT_PALETTE = {
+  navbar: '#1E1535',
   primary: '#44298C',
   secondary: '#5B38BA',
   accent: '#6D47CC',
   background: '#F4F5F7',
   text: '#111827',
 };
+
+const PALETTE_FIELDS = [
+  { key: 'navbar', label: 'Nav Bar / Header', default: '#1E1535', hint: 'Top navigation bar, mobile drawer, and bottom nav' },
+  { key: 'primary', label: 'Primary Brand', default: '#44298C', hint: 'Main buttons, active focus rings, and primary highlights' },
+  { key: 'secondary', label: 'Secondary / Sub-nav', default: '#5B38BA', hint: 'Sub-nav active pills and secondary action buttons' },
+  { key: 'accent', label: 'Accent Highlight', default: '#6D47CC', hint: 'Special badges, active tags, and accent chips' },
+  { key: 'background', label: 'Page Background', default: '#F4F5F7', hint: 'Workspace surface and canvas background' },
+  { key: 'text', label: 'Primary Text', default: '#111827', hint: 'Headings, labels, and readable body text' },
+];
 
 export default function TenantSettings() {
   usePageTitle('Gym Settings');
@@ -179,6 +197,24 @@ export default function TenantSettings() {
     }
   };
 
+  const handleColorChange = (key, rawValue) => {
+    setPalette(prev => ({
+      ...prev,
+      [key]: rawValue,
+    }));
+  };
+
+  const handleColorBlur = (key) => {
+    const raw = palette[key];
+    const normalized = normalizeHexColor(raw);
+    if (normalized) {
+      setPalette(prev => ({
+        ...prev,
+        [key]: normalized,
+      }));
+    }
+  };
+
   const handleResetPalette = () => {
     setPalette(savedPalette);
     if (applyBranding) applyBranding({ palette: savedPalette });
@@ -199,11 +235,16 @@ export default function TenantSettings() {
       return;
     }
 
+    const normalizedPalette = {};
     if (palette) {
       for (const [key, color] of Object.entries(palette)) {
-        if (color && !isValidHexColor(color)) {
-          toast.error(`Invalid hex color format for ${key}: ${color}`);
-          return;
+        if (color) {
+          const norm = normalizeHexColor(color);
+          if (!norm) {
+            toast.error(`Invalid hex color format for ${key}: "${color}". Example: #44298C`);
+            return;
+          }
+          normalizedPalette[key] = norm;
         }
       }
     }
@@ -218,7 +259,7 @@ export default function TenantSettings() {
       const payload = {
         branding: {
           displayName: displayName.trim() || undefined,
-          palette,
+          palette: normalizedPalette,
         },
         locale: {
           currency: 'EGP',
@@ -229,7 +270,7 @@ export default function TenantSettings() {
         settings: {
           branding: {
             displayName: displayName.trim() || undefined,
-            palette,
+            palette: normalizedPalette,
           },
           locale: {
             currency: 'EGP',
@@ -243,8 +284,9 @@ export default function TenantSettings() {
       const res = await updateTenantMe(payload);
       const nextTenant = res.data?.tenant;
       if (nextTenant) applyTenant(nextTenant);
-      if (applyBranding) applyBranding({ palette });
-      setSavedPalette(palette);
+      if (applyBranding) applyBranding({ palette: normalizedPalette });
+      setPalette(normalizedPalette);
+      setSavedPalette(normalizedPalette);
       toast.success('Gym settings saved successfully!');
       await refreshTenant();
     } catch (err) {
@@ -452,32 +494,53 @@ export default function TenantSettings() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginTop: 20 }}>
-                {[
-                  { key: 'primary', label: 'Primary Brand' },
-                  { key: 'secondary', label: 'Secondary / Sub-nav' },
-                  { key: 'accent', label: 'Accent Highlight' },
-                  { key: 'background', label: 'Page Background' },
-                  { key: 'text', label: 'Primary Text' },
-                ].map(c => (
-                  <div key={c.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: '#4B5563' }}>{c.label}</label>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <input
-                        type="color"
-                        value={palette[c.key]}
-                        onChange={e => setPalette(p => ({ ...p, [c.key]: e.target.value }))}
-                        style={{ width: 40, height: 36, border: '1px solid #D1D5DB', borderRadius: 6, cursor: 'pointer', padding: 2 }}
-                      />
-                      <input
-                        type="text"
-                        value={palette[c.key]}
-                        onChange={e => setPalette(p => ({ ...p, [c.key]: e.target.value }))}
-                        style={{ width: 90, padding: '7px 8px', fontSize: 12, border: '1px solid #D1D5DB', borderRadius: 6 }}
-                      />
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 16, marginTop: 20 }}>
+                {PALETTE_FIELDS.map(c => {
+                  const currentValue = palette[c.key] ?? c.default;
+                  const pickerValue = toColorPickerValue(currentValue, c.default);
+                  const isInvalid = currentValue && !normalizeHexColor(currentValue);
+
+                  return (
+                    <div key={c.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: '#4B5563' }}>{c.label}</label>
+                        {isInvalid && (
+                          <span style={{ fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>Invalid Hex</span>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input
+                          type="color"
+                          value={pickerValue}
+                          onChange={e => handleColorChange(c.key, e.target.value.toUpperCase())}
+                          style={{
+                            width: 40, height: 36,
+                            border: '1px solid #D1D5DB', borderRadius: 6,
+                            cursor: 'pointer', padding: 2, background: '#fff',
+                          }}
+                          title={`Pick ${c.label}`}
+                        />
+                        <input
+                          type="text"
+                          value={palette[c.key] ?? ''}
+                          onChange={e => handleColorChange(c.key, e.target.value)}
+                          onBlur={() => handleColorBlur(c.key)}
+                          placeholder={c.default}
+                          maxLength={9}
+                          style={{
+                            width: 105, padding: '7px 8px', fontSize: 12,
+                            fontFamily: 'monospace',
+                            border: `1px solid ${isInvalid ? 'var(--red)' : '#D1D5DB'}`,
+                            borderRadius: 6,
+                            outline: 'none',
+                            textTransform: 'uppercase',
+                          }}
+                        />
+                      </div>
+                      <span style={{ fontSize: 11, color: '#9CA3AF' }}>{c.hint}</span>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* Live Preview Container Box */}
@@ -501,7 +564,7 @@ export default function TenantSettings() {
                       boxShadow: `0 0 6px ${palette.primary}`,
                     }} />
                     <span style={{ fontSize: 12, fontWeight: 700, color: palette.text, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Interactive Live Preview
+                      Interactive Live Workspace Preview
                     </span>
                   </div>
                   <span style={{
@@ -513,6 +576,80 @@ export default function TenantSettings() {
                     color: '#FFFFFF',
                   }}>
                     Active Accent
+                  </span>
+                </div>
+
+                {/* Simulated Top Navigation Bar */}
+                <div style={{
+                  background: palette.navbar || '#1E1535',
+                  borderRadius: '10px 10px 0 0',
+                  padding: '12px 18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  boxShadow: '0 3px 12px rgba(0,0,0,0.25)',
+                  borderBottom: '1px solid rgba(255,255,255,0.08)',
+                  transition: 'background 0.2s ease',
+                }}>
+                  {/* Brand Logo & Name */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 32, height: 32, borderRadius: 8,
+                      background: 'color-mix(in srgb, var(--navy) 40%, #ffffff)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: '#FFFFFF', fontWeight: 800, fontSize: 12,
+                    }}>
+                      L
+                    </div>
+                    <span style={{ fontSize: 14, fontWeight: 800, color: '#FFFFFF', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                      {displayName || 'GYM WORKSPACE'}
+                    </span>
+                  </div>
+
+                  {/* Nav Links / Tabs */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{
+                      padding: '6px 12px',
+                      borderRadius: 6,
+                      background: palette.secondary || '#5B38BA',
+                      color: '#FFFFFF',
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}>
+                      Active Tab
+                    </div>
+                    <div style={{ padding: '6px 12px', fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                      Members
+                    </div>
+                    <div style={{ padding: '6px 12px', fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
+                      Reports
+                    </div>
+                  </div>
+                </div>
+
+                {/* Simulated Sub-nav Tab Row */}
+                <div style={{
+                  background: `color-mix(in srgb, ${palette.navbar || '#1E1535'} 82%, #000000)`,
+                  padding: '8px 18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  borderBottom: '1px solid rgba(255,255,255,0.06)',
+                  marginBottom: 16,
+                  transition: 'background 0.2s ease',
+                }}>
+                  <span style={{
+                    fontSize: 11, fontWeight: 700, color: '#FFFFFF',
+                    background: palette.secondary || '#5B38BA',
+                    padding: '3px 8px', borderRadius: 6,
+                  }}>
+                    Sub-nav Tab
+                  </span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
+                    Overview
+                  </span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
+                    Activity Logs
                   </span>
                 </div>
 
@@ -528,7 +665,7 @@ export default function TenantSettings() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: palette.text }}>
-                      {displayName || 'Gym Workspace Preview'}
+                      Live Workspace Content
                     </h4>
                     <span style={{
                       fontSize: 11,
@@ -543,7 +680,7 @@ export default function TenantSettings() {
                   </div>
 
                   <p style={{ margin: 0, fontSize: 13, color: palette.text, opacity: 0.85, lineHeight: 1.5 }}>
-                    Adjusting the color pickers above immediately re-themes this preview and dynamically injects CSS variables into the active interface across your application.
+                    Adjusting the color pickers or hex codes above immediately updates this preview, the navigation bar above, and the actual live application layout.
                   </p>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
@@ -593,7 +730,7 @@ export default function TenantSettings() {
                 </div>
 
                 <div style={{ marginTop: 12, fontSize: 12, color: palette.text, opacity: 0.75 }}>
-                  ✓ Colors chosen here are injected live into the app CSS variables (<code>--navy</code>, <code>--navy-2</code>, <code>--accent</code>, <code>--bg</code>, <code>--t1</code>). Click &ldquo;Save Settings&rdquo; to permanently apply them.
+                  ✓ Colors chosen here are injected live into the app CSS variables (<code>--nav-bg</code>, <code>--navy</code>, <code>--navy-2</code>, <code>--accent</code>, <code>--bg</code>, <code>--t1</code>). Click &ldquo;Save Settings&rdquo; to permanently apply them.
                 </div>
               </div>
             </Card>

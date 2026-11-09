@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getTenantMe } from '../api/endpoints';
 import { useAuth } from './AuthContext';
-import { isValidHexColor } from '../lib/validation';
+import { isValidHexColor, normalizeHexColor } from '../lib/validation';
 
 const TenantContext = createContext(null);
 
@@ -16,31 +16,41 @@ export function TenantProvider({ children }) {
 
   const applyBranding = useCallback((branding) => {
     if (!branding?.palette) return;
-    const { primary, secondary, accent, background, text } = branding.palette;
+    const { navbar, primary, secondary, accent, background, text } = branding.palette;
     const root = document.documentElement;
 
-    if (primary && isValidHexColor(primary)) {
-      root.style.setProperty('--navy', primary);
-      root.style.setProperty('--blue', primary);
+    const normNav = normalizeHexColor(navbar);
+    if (normNav) {
+      root.style.setProperty('--nav-bg', normNav);
+      root.style.setProperty('--nav-tab-bg', `color-mix(in srgb, ${normNav} 82%, #000000)`);
     }
-    if (secondary && isValidHexColor(secondary)) {
-      root.style.setProperty('--navy-2', secondary);
-      root.style.setProperty('--navy-3', secondary);
-      root.style.setProperty('--blue-dark', secondary);
+    const normPrimary = normalizeHexColor(primary);
+    if (normPrimary) {
+      root.style.setProperty('--navy', normPrimary);
+      root.style.setProperty('--blue', normPrimary);
     }
-    if (accent && isValidHexColor(accent)) {
-      root.style.setProperty('--accent', accent);
+    const normSecondary = normalizeHexColor(secondary);
+    if (normSecondary) {
+      root.style.setProperty('--navy-2', normSecondary);
+      root.style.setProperty('--navy-3', normSecondary);
+      root.style.setProperty('--blue-dark', normSecondary);
     }
-    if (background && isValidHexColor(background)) {
-      root.style.setProperty('--bg', background);
+    const normAccent = normalizeHexColor(accent);
+    if (normAccent) {
+      root.style.setProperty('--accent', normAccent);
+    }
+    const normBg = normalizeHexColor(background);
+    if (normBg) {
+      root.style.setProperty('--bg', normBg);
       if (document.body) {
-        document.body.style.backgroundColor = background;
+        document.body.style.backgroundColor = normBg;
       }
     }
-    if (text && isValidHexColor(text)) {
-      root.style.setProperty('--t1', text);
+    const normText = normalizeHexColor(text);
+    if (normText) {
+      root.style.setProperty('--t1', normText);
       if (document.body) {
-        document.body.style.color = text;
+        document.body.style.color = normText;
       }
     }
   }, []);

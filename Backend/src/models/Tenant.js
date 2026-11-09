@@ -7,6 +7,7 @@ const brandingSchema = new mongoose.Schema(
         logoKey: { type: String, default: null }, // Storage key, e.g. "tenant-123/branding/logo.png"
         displayName: { type: String, default: null },
         palette: {
+            navbar: { type: String, default: "#1E1535" },
             primary: { type: String, default: "#44298C" },
             secondary: { type: String, default: "#5B38BA" },
             accent: { type: String, default: "#6D47CC" },
