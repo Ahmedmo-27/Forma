@@ -63,7 +63,7 @@ export default function CoachDashboard() {
         ) : (
           <>
             {/* KPIs */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12, marginBottom: 20 }}>
               <StatCard label="My Members" value={coachMembers.length} color="brand" onClick={() => navigate('/coach/members')} />
               <StatCard label="Active" value={activeCount} color="success" />
               <StatCard label="Interested" value={interestedCount} color="warning" />

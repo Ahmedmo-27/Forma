@@ -121,13 +121,13 @@ export default function CoachCheckin() {
             {/* Search */}
             <Card>
               <CardHeader title="Find Member" />
-              <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8 }}>
+              <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 <input
                   value={query} onChange={e => setQuery(e.target.value)}
                   placeholder="System ID, Member ID, or phone…"
                   autoFocus
                   style={{
-                    flex: 1, padding: '10px 13px', fontSize: 14,
+                    flex: '1 1 200px', minWidth: 150, padding: '10px 13px', fontSize: 14, minHeight: 44,
                     border: '1px solid var(--border)', borderRadius: 8,
                     outline: 'none', color: 'var(--t1)', background: 'var(--card)', fontFamily: 'inherit',
                     transition: 'border-color 0.12s, box-shadow 0.12s',
@@ -135,7 +135,7 @@ export default function CoachCheckin() {
                   onFocus={e => { e.target.style.borderColor = 'var(--blue)'; e.target.style.boxShadow = '0 0 0 3px rgba(37,99,235,0.08)'; }}
                   onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
                 />
-                <Btn type="submit" disabled={searching || !query.trim()} size="md">
+                <Btn type="submit" disabled={searching || !query.trim()} size="md" style={{ minHeight: 44 }}>
                   {searching ? <Spinner size="sm" /> : 'Search'}
                 </Btn>
               </form>

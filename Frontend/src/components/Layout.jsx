@@ -1,6 +1,6 @@
 import { apiOrigin } from '../api/axios';
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
@@ -20,6 +20,56 @@ const NAV = {
   'Coach Manager': [{ to: '/coach/dashboard', label: 'Dashboard', access: 'coach_dashboard' }, { to: '/coach/members', label: 'Members', access: 'coach_members' }, { to: '/tasks', label: 'Tasks', access: 'members' }, { to: '/coach/checkin', label: 'Check In', access: 'coach_checkin' }, { to: '/reports', label: 'Reports', access: 'reports' }, { to: '/management', label: 'Management', access: 'management' }, { to: '/contacts', label: 'Contacts' }],
 };
 
+const BOTTOM_NAV_CONFIG = {
+  Receptionist: [
+    { to: '/checkin', label: 'Check In', icon: 'checkin' },
+    { to: '/members', label: 'Members', icon: 'members' },
+    { to: '/contacts', label: 'Contacts', icon: 'contacts' },
+  ],
+  Sales: [
+    { to: '/sales/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/sales/members', label: 'Members', icon: 'members' },
+    { to: '/checkin', label: 'Check In', icon: 'checkin' },
+    { to: '/sales/my-callcenter', label: 'Calls', icon: 'callcenter' },
+  ],
+  'Sales Manager': [
+    { to: '/sales/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/members', label: 'Members', icon: 'members' },
+    { to: '/checkin', label: 'Check In', icon: 'checkin' },
+    { to: '/tasks', label: 'Tasks', icon: 'tasks' },
+  ],
+  Coach: [
+    { to: '/coach/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/coach/members', label: 'Trainees', icon: 'members' },
+    { to: '/coach/checkin', label: 'Check In', icon: 'checkin' },
+    { to: '/coach/my-transfers', label: 'Transfers', icon: 'transfer' },
+  ],
+  'Coach Manager': [
+    { to: '/coach/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/coach/members', label: 'Trainees', icon: 'members' },
+    { to: '/coach/checkin', label: 'Check In', icon: 'checkin' },
+    { to: '/tasks', label: 'Tasks', icon: 'tasks' },
+  ],
+  Accountant: [
+    { to: '/accounting/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/members', label: 'Members', icon: 'members' },
+    { to: '/checkin', label: 'Check In', icon: 'checkin' },
+    { to: '/accounting/contract-history', label: 'Contracts', icon: 'contracts' },
+  ],
+  Owner: [
+    { to: '/owner/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/members', label: 'Members', icon: 'members' },
+    { to: '/checkin', label: 'Check In', icon: 'checkin' },
+    { to: '/tasks', label: 'Tasks', icon: 'tasks' },
+  ],
+  'General Manager': [
+    { to: '/owner/dashboard', label: 'Dashboard', icon: 'dashboard' },
+    { to: '/members', label: 'Members', icon: 'members' },
+    { to: '/checkin', label: 'Check In', icon: 'checkin' },
+    { to: '/tasks', label: 'Tasks', icon: 'tasks' },
+  ],
+};
+
 const NAVBAR_BG = '#1E1535';   /* deep violet-dark — complements the logo */
 const TAB_BG    = '#160F2A';   /* slightly darker/cooler for the tab row */
 
@@ -27,7 +77,66 @@ function ini(name = '') {
   return name.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
 }
 
-// ── Tab button (second row) ───────────────────────────────────────────────────
+function NavIcon({ name, size = 20 }) {
+  switch (name) {
+    case 'dashboard':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>
+        </svg>
+      );
+    case 'members':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+        </svg>
+      );
+    case 'checkin':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
+        </svg>
+      );
+    case 'tasks':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/>
+        </svg>
+      );
+    case 'contacts':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
+        </svg>
+      );
+    case 'contracts':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>
+        </svg>
+      );
+    case 'callcenter':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a9 9 0 0 1 18 0v10a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>
+        </svg>
+      );
+    case 'transfer':
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>
+        </svg>
+      );
+    default:
+      return (
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
+        </svg>
+      );
+  }
+}
+
+// ── Tab button (second row on desktop) ─────────────────────────────────────────
 function TabItem({ item }) {
   return (
     <NavLink to={item.to} style={{ textDecoration: 'none', flexShrink: 0 }}>
@@ -73,12 +182,14 @@ function DrawerItem({ item, onNavigate }) {
     <NavLink to={item.to} onClick={onNavigate} style={{ textDecoration: 'none', display: 'block' }}>
       {({ isActive }) => (
         <div style={{
-          padding: '9px 12px', borderRadius: 6, margin: '2px 0',
+          padding: '11px 14px', borderRadius: 8, margin: '3px 0',
           background: isActive ? 'rgba(91,56,186,0.5)' : 'transparent',
           border: `1px solid ${isActive ? 'rgba(255,255,255,0.15)' : 'transparent'}`,
-          color: isActive ? '#fff' : 'rgba(255,255,255,0.55)',
-          fontSize: 13, fontWeight: isActive ? 600 : 400,
+          color: isActive ? '#fff' : 'rgba(255,255,255,0.65)',
+          fontSize: 14, fontWeight: isActive ? 600 : 400,
+          display: 'flex', alignItems: 'center', gap: 10,
           transition: 'all 0.12s',
+          minHeight: 44,
         }}>
           {item.label}
         </div>
@@ -92,8 +203,10 @@ export default function Layout({ children }) {
   const { user, signOut } = useAuth();
   const { tenant, branding, hasFeature } = useTenant();
   const navigate = useNavigate();
+  const location = useLocation();
   const [mob, setMob]         = useState(false);
   const [drop, setDrop]       = useState(false);
+  const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [editProfile, setEditProfile] = useState(false);
   const [profileForm, setProfileForm] = useState({ name: '', currentPassword: '', newPassword: '', confirmPassword: '' });
   const [profileErrors, setProfileErrors] = useState({});
@@ -140,7 +253,12 @@ export default function Layout({ children }) {
     return visible;
   }, [rawItems, hasFeature, user]);
 
-  const showNotif       = ['Sales', 'Sales Manager', 'Accountant'].includes(user?.role);
+  const bottomNavItems = useMemo(() => {
+    const roleNav = BOTTOM_NAV_CONFIG[user?.role] || BOTTOM_NAV_CONFIG.Receptionist;
+    return roleNav.slice(0, 4);
+  }, [user?.role]);
+
+  const showNotif = ['Sales', 'Sales Manager', 'Accountant'].includes(user?.role);
 
   const logoKey = branding?.logoKey;
   const logoFile = logoKey ? String(logoKey).split(/[\/\\]/).pop() : null;
@@ -158,6 +276,11 @@ export default function Layout({ children }) {
     return () => { document.body.style.overflow = ''; };
   }, [mob]);
 
+  // Close mobile search when route changes
+  useEffect(() => {
+    setShowMobileSearch(false);
+  }, [location.pathname]);
+
   const logout = () => { signOut(); navigate('/'); };
 
   return (
@@ -169,24 +292,19 @@ export default function Layout({ children }) {
           position: 'sticky', top: 0, zIndex: 100,
           background: 'linear-gradient(90deg, #d97706, #b45309)',
           color: '#ffffff',
-          padding: '8px 24px',
+          padding: '8px 16px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          fontSize: 13,
+          fontSize: 12,
           fontWeight: 600,
           boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 16 }}>⚠️</span>
-            <span>
-              Platform Support Session Active (Admin: {user?.impersonatedBy?.name || user?.impersonatedBy?.email || 'Operator'}) — Mode: <strong>{user?.readOnly ? 'READ-ONLY' : 'READ-WRITE'}</strong>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, overflow: 'hidden' }}>
+            <span style={{ fontSize: 14 }}>⚠️</span>
+            <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              Support Mode ({user?.readOnly ? 'READ-ONLY' : 'READ-WRITE'})
             </span>
-            {user?.readOnly && (
-              <span style={{ fontSize: 11, background: 'rgba(0,0,0,0.25)', padding: '2px 8px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Mutations Blocked
-              </span>
-            )}
           </div>
           <button
             onClick={() => {
@@ -197,72 +315,100 @@ export default function Layout({ children }) {
               background: '#111827',
               color: '#f9fafb',
               border: 'none',
-              padding: '5px 14px',
+              padding: '4px 10px',
               borderRadius: 6,
-              fontSize: 12,
+              fontSize: 11,
               fontWeight: 700,
               cursor: 'pointer',
-              transition: 'background 0.15s',
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
             }}
-            onMouseEnter={e => e.currentTarget.style.background = '#000'}
-            onMouseLeave={e => e.currentTarget.style.background = '#111827'}
           >
-            Exit Impersonation
+            Exit
           </button>
         </div>
       )}
 
       {/* ── ROW 1 — sticky top bar ─────────────────────────────── */}
-      <div style={{
+      <header className="app-topbar" style={{
         position: 'sticky', top: 0, zIndex: 50,
         background: NAVBAR_BG,
         boxShadow: '0 2px 12px rgba(0,0,0,0.45)',
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, height: 96, padding: '0 28px' }}>
+        <div className="topbar-inner" style={{
+          display: 'flex', alignItems: 'center', gap: 12,
+          height: 72, padding: '0 24px',
+        }}>
 
           {/* Logo */}
-          <div onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: 14, cursor: 'pointer', flexShrink: 0, marginRight: 12 }}>
-            <div style={{
-              width: 68, height: 68, borderRadius: 16,
+          <div onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexShrink: 0 }}>
+            <div className="nav-logo-box" style={{
+              width: 44, height: 44, borderRadius: 12,
               flexShrink: 0,
-              padding: 0,
               lineHeight: 0,
-              boxShadow: '0 4px 16px rgba(68,41,140,0.6)',
+              boxShadow: '0 3px 12px rgba(68,41,140,0.5)',
               overflow: 'hidden',
+              background: '#2b1c4d',
             }}>
               <img key={logoUrl} src={logoUrl} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
-            <span className="nav-logo-text" style={{ fontSize: 22, fontWeight: 900, color: '#fff', letterSpacing: '2.5px', textTransform: 'uppercase' }}>{displayName}</span>
+            <span className="nav-logo-text" style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '2px', textTransform: 'uppercase' }}>{displayName}</span>
           </div>
 
-          {/* Search */}
-          <div id="desk-search" style={{ flex: '1 1 auto', maxWidth: 500, minWidth: 0 }}>
+          {/* Desktop Search */}
+          <div id="desk-search" style={{ flex: '1 1 auto', maxWidth: 460, minWidth: 0, marginLeft: 8 }}>
             <GlobalSearch />
           </div>
 
-          {/* Right */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginLeft: 'auto', flexShrink: 0 }}>
-            <div id="desk-notif" className="desk-notif">
-              {showNotif && <NotificationBell />}
-            </div>
+          {/* Right Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexShrink: 0 }}>
+            {/* Mobile Search Toggle Button */}
+            <button
+              id="mob-search-btn"
+              onClick={() => setShowMobileSearch(p => !p)}
+              aria-label="Search members"
+              style={{
+                display: 'none',
+                background: showMobileSearch ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
+                border: '1px solid rgba(255,255,255,0.14)',
+                borderRadius: 8, width: 40, height: 40, cursor: 'pointer',
+                alignItems: 'center', justifyContent: 'center',
+                color: '#fff',
+                transition: 'background 0.15s',
+              }}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+              </svg>
+            </button>
 
-            {/* Profile */}
+            {/* Notification Bell (Visible on both desktop & mobile) */}
+            {showNotif && (
+              <div className="topbar-notif" style={{ display: 'flex', alignItems: 'center' }}>
+                <NotificationBell />
+              </div>
+            )}
+
+            {/* Profile Menu */}
             <div ref={dropRef} style={{ position: 'relative' }}>
               <button onClick={() => setDrop(p => !p)} style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)',
-                borderRadius: 8, padding: '6px 12px 6px 6px',
+                borderRadius: 8, padding: '5px 10px 5px 5px',
                 cursor: 'pointer', transition: 'background 0.12s',
+                minHeight: 40,
               }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.13)'}
                 onMouseLeave={e => { if (!drop) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
+                aria-label="User Profile Menu"
               >
                 <div style={{
-                  width: 42, height: 42, borderRadius: '50%',
+                  width: 34, height: 34, borderRadius: '50%',
                   background: 'linear-gradient(135deg,#44298C,#5B38BA)',
                   border: '2px solid rgba(255,255,255,0.20)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 14, fontWeight: 800, color: '#fff', flexShrink: 0,
+                  fontSize: 12, fontWeight: 800, color: '#fff', flexShrink: 0,
                 }}>
                   {ini(user?.name)}
                 </div>
@@ -270,7 +416,7 @@ export default function Layout({ children }) {
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{user?.name}</div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.50)' }}>{user?.role}</div>
                 </div>
-                <svg id="prof-arrow" width="11" height="11" viewBox="0 0 10 10" fill="none" style={{ color: 'rgba(255,255,255,0.40)', transition: 'transform 0.15s', transform: drop ? 'rotate(180deg)' : 'none' }}>
+                <svg id="prof-arrow" width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ color: 'rgba(255,255,255,0.40)', transition: 'transform 0.15s', transform: drop ? 'rotate(180deg)' : 'none' }}>
                   <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </button>
@@ -344,26 +490,37 @@ export default function Layout({ children }) {
               )}
             </div>
 
-            {/* Mobile burger */}
+            {/* Mobile burger button */}
             <button id="mob-btn" onClick={() => setMob(true)} style={{
               display: 'none', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)',
-              borderRadius: 8, width: 44, height: 44, cursor: 'pointer', alignItems: 'center', justifyContent: 'center',
-            }} aria-label="Menu">
+              borderRadius: 8, width: 40, height: 40, cursor: 'pointer', alignItems: 'center', justifyContent: 'center',
+            }} aria-label="Open Navigation Menu">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2" strokeLinecap="round">
                 <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
               </svg>
             </button>
           </div>
         </div>
-      </div>
+
+        {/* Mobile Search Dropdown Bar */}
+        {showMobileSearch && (
+          <div className="fade-up" style={{
+            padding: '10px 16px 14px',
+            background: '#160F2A',
+            borderTop: '1px solid rgba(255,255,255,0.08)',
+          }}>
+            <GlobalSearch />
+          </div>
+        )}
+      </header>
       {/* END sticky row 1 */}
 
-      {/* ── ROW 2 — tab nav (scrolls away with page) ───────────── */}
+      {/* ── ROW 2 — tab nav (scrolls away with page on desktop) ── */}
       <div id="tab-nav-bar" style={{
         background: TAB_BG,
         borderTop: '1px solid rgba(255,255,255,0.06)',
-        padding: '0 28px',
-        height: 64,
+        padding: '0 24px',
+        height: 56,
         display: 'flex', alignItems: 'center',
         gap: 6,
         overflowX: 'auto', scrollbarWidth: 'none',
@@ -375,65 +532,127 @@ export default function Layout({ children }) {
       {/* ── MOBILE DRAWER ──────────────────────────────────────── */}
       {mob && <div onClick={() => setMob(false)} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }} />}
       <div style={{
-        position: 'fixed', top: 0, left: 0, bottom: 0, width: 260, zIndex: 100,
+        position: 'fixed', top: 0, left: 0, bottom: 0, width: 280, maxWidth: '85vw', zIndex: 100,
         background: NAVBAR_BG,
         borderRight: '1px solid rgba(255,255,255,0.06)',
         transform: mob ? 'translateX(0)' : 'translateX(-100%)',
         transition: 'transform 0.24s cubic-bezier(.4,0,.2,1)',
         display: 'flex', flexDirection: 'column',
         boxShadow: '4px 0 32px rgba(0,0,0,0.4)',
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 14px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 28, height: 28, borderRadius: 7, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <img src="/leap-logo.svg" alt="LEAP" style={{ width: 22, height: 22 }} />
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+              <img src={logoUrl} alt="LEAP" style={{ width: 26, height: 26, objectFit: 'contain' }} />
             </div>
-            <span style={{ fontSize: 14, fontWeight: 900, color: '#fff', letterSpacing: '2px', textTransform: 'uppercase' }}>LEAP</span>
+            <span style={{ fontSize: 15, fontWeight: 900, color: '#fff', letterSpacing: '2px', textTransform: 'uppercase' }}>{displayName}</span>
           </div>
-          <button onClick={() => setMob(false)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 5, width: 28, height: 28, cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          <button onClick={() => setMob(false)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 6, width: 32, height: 32, cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
-        <div style={{ padding: '10px 12px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <GlobalSearch />
         </div>
-        {showNotif && (
-          <div className="mob-drawer-notif" style={{ padding: '6px 12px 8px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-            <NotificationBell variant="drawer" />
-          </div>
-        )}
-        <nav style={{ flex: 1, padding: '8px 10px', overflowY: 'auto' }}>
+        <nav style={{ flex: 1, padding: '10px 12px', overflowY: 'auto' }}>
           {items.map(item => <DrawerItem key={item.to} item={item} onNavigate={() => setMob(false)} />)}
         </nav>
-        <div style={{ padding: '12px 14px 18px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 9, marginBottom: 10 }}>
-            <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(255,255,255,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
+        <div style={{ padding: '14px 16px 18px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'rgba(255,255,255,0.20)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 700, color: '#fff', flexShrink: 0 }}>
               {ini(user?.name)}
             </div>
-            <div>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{user?.name}</p>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <p style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name}</p>
               <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>{user?.role}</p>
             </div>
           </div>
-          <button onClick={() => { setMob(false); navigate('/account/whatsapp'); }} style={{ width: '100%', padding: '8px 12px', borderRadius: 6, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <button onClick={() => { setMob(false); navigate('/account/whatsapp'); }} style={{ width: '100%', minHeight: 42, padding: '9px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
             Connect WhatsApp
           </button>
-          <button onClick={logout} style={{ width: '100%', padding: '8px 12px', borderRadius: 6, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.30)', color: '#f87171', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <button onClick={logout} style={{ width: '100%', minHeight: 42, padding: '9px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.30)', color: '#f87171', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
             Sign Out
           </button>
         </div>
       </div>
 
       {/* ── PAGE CONTENT ───────────────────────────────────────── */}
-      <main style={{ flex: 1, paddingTop: 8, paddingBottom: 40 }}>{children}</main>
+      <main className="app-main-content">{children}</main>
+
+      {/* ── MOBILE BOTTOM NAVIGATION BAR (1-Thumb Ergonomics) ────── */}
+      <nav className="mobile-bottom-nav" aria-label="Quick Navigation" style={{
+        position: 'fixed', bottom: 0, left: 0, right: 0,
+        height: 'calc(60px + env(safe-area-inset-bottom, 0px))',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+        background: 'rgba(26, 18, 48, 0.96)',
+        backdropFilter: 'blur(12px)',
+        WebkitBackdropFilter: 'blur(12px)',
+        borderTop: '1px solid rgba(255,255,255,0.10)',
+        zIndex: 45,
+        display: 'none',
+        alignItems: 'center',
+        justifyContent: 'space-around',
+        boxShadow: '0 -4px 20px rgba(0,0,0,0.35)',
+      }}>
+        {bottomNavItems.map(item => (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}
+          >
+            {({ isActive }) => (
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                height: 56, gap: 3,
+                color: isActive ? '#a78bfa' : 'rgba(255,255,255,0.60)',
+                transition: 'color 0.12s, transform 0.12s',
+                position: 'relative',
+              }}>
+                <NavIcon name={item.icon} size={20} />
+                <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, letterSpacing: '0.2px' }}>
+                  {item.label}
+                </span>
+                {isActive && (
+                  <span style={{
+                    position: 'absolute', bottom: 2, width: 14, height: 2.5,
+                    borderRadius: 2, background: '#a78bfa',
+                    boxShadow: '0 0 8px rgba(167,139,250,0.8)',
+                  }} />
+                )}
+              </div>
+            )}
+          </NavLink>
+        ))}
+
+        {/* Quick Menu Button to open Drawer */}
+        <button
+          type="button"
+          onClick={() => setMob(true)}
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer',
+            flex: 1, minWidth: 0, height: 56,
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3,
+            color: 'rgba(255,255,255,0.60)',
+            fontFamily: 'inherit',
+          }}
+          aria-label="More Options"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+            <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>
+          </svg>
+          <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.2px' }}>More</span>
+        </button>
+      </nav>
 
       {/* ── Edit Profile Modal ───────────────────────────────── */}
       {editProfile && (
         <div onClick={() => !profileSaving && setEditProfile(false)} style={{
           position: 'fixed', inset: 0, zIndex: 200,
           background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
         }}>
-          <div onClick={e => e.stopPropagation()} className="fade-up" style={{
+          <div onClick={e => e.stopPropagation()} className="fade-up modal-panel" style={{
             background: 'var(--card)', border: '1px solid var(--border)',
             borderRadius: 14, width: '100%', maxWidth: 440,
             boxShadow: '0 8px 40px rgba(0,0,0,0.15)', overflow: 'hidden',
@@ -544,8 +763,15 @@ export default function Layout({ children }) {
         #tab-nav-bar::-webkit-scrollbar { display: none; }
         #desk-search > * { width: 100% !important; max-width: 100% !important; flex: none !important; }
         @media (max-width: 1280px) { #prof-text, #prof-arrow { display: none !important; } }
-        @media (max-width: 1024px) { #tab-nav-bar, #desk-search, .desk-notif { display: none !important; } #mob-btn { display: flex !important; } }
-        @media (max-width: 480px) { .nav-logo-text { display: none !important; } }
+        @media (max-width: 1024px) {
+          .topbar-inner { height: 56px !important; padding: 0 14px !important; }
+          .nav-logo-box { width: 34px !important; height: 34px !important; border-radius: 8px !important; }
+          #tab-nav-bar, #desk-search { display: none !important; }
+          #mob-btn, #mob-search-btn, .mobile-bottom-nav { display: flex !important; }
+        }
+        @media (max-width: 480px) {
+          .nav-logo-text { display: none !important; }
+        }
       `}</style>
     </div>
   );

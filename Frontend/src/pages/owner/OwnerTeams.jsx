@@ -108,7 +108,7 @@ export default function OwnerTeams() {
         </div>
 
         {/* ── Filter tabs ──────────────────────────────────────── */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
+        <div className="tabs-scroll" style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
           {TABS.map(t => (
             <button key={t.id} onClick={() => setTab(t.id)} style={{
               padding: '8px 18px', background: 'none', border: 'none',
@@ -135,7 +135,7 @@ export default function OwnerTeams() {
         ) : currentList.length === 0 ? (
           <EmptyState message={`No ${TABS.find(t => t.id === tab)?.label ?? ''} members found`} />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
             {currentList.map(member => (
               <UserCard
                 key={member._id}

@@ -246,8 +246,8 @@ export default function HealthSettingsPage() {
       </div>
 
       {/* Real-Time Telemetry Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="p-4 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
+        <div className="p-3 sm:p-4 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
           <div className="flex items-center justify-between text-xs text-[var(--platform-text-muted)] mb-1">
             <span>MongoDB Cluster</span>
             <Database
@@ -386,7 +386,7 @@ export default function HealthSettingsPage() {
                   Seller identity is not saved yet. Invoices currently fall back to these defaults until you save them.
                 </Callout>
               )}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
                     Legal Company Name <span className="text-[var(--platform-danger)]">*</span>

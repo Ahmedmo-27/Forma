@@ -31,7 +31,7 @@ export default function ExecutiveSummary() {
             <p style={{ fontSize: 15, lineHeight: 1.6, color: 'var(--t1)', margin: 0 }}>{data.narrative}</p>
             <p style={{ fontSize: 12, color: 'var(--t4)', marginTop: 8, marginBottom: 0 }}>These figures cover the whole gym.</p>
           </Card>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12 }}>
             <StatCard label="Active members" value={data.activeMembers} color="brand" onClick={() => navigate('/members')} />
             <StatCard label="New members" value={data.newMembersThisMonth} sub="First subscription this month" color="brand" />
             <StatCard

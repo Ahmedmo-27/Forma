@@ -61,23 +61,25 @@ function LineChart({ points, unit }) {
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Trend" style={{ width: '100%', height: 180 }}>
         <polyline fill="none" stroke="#44298C" strokeWidth="3" points={coords} />
       </svg>
-      <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
-        <caption style={{ textAlign: 'start', marginBottom: 6 }}>Same numbers as the chart, {unit}</caption>
-        <thead>
-          <tr>
-            <th style={{ textAlign: 'start' }}>Date</th>
-            <th style={{ textAlign: 'end' }}>Value</th>
-          </tr>
-        </thead>
-        <tbody>
-          {points.slice(-14).map((point) => (
-            <tr key={point.date}>
-              <td>{point.date}</td>
-              <td style={{ textAlign: 'end' }}>{unit === 'piasters' ? formatPiasters(point.value) : point.value}</td>
+      <div className="table-responsive-container" style={{ marginTop: 8 }}>
+        <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
+          <caption style={{ textAlign: 'start', marginBottom: 6 }}>Same numbers as the chart, {unit}</caption>
+          <thead>
+            <tr>
+              <th style={{ textAlign: 'start' }}>Date</th>
+              <th style={{ textAlign: 'end' }}>Value</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {points.slice(-14).map((point) => (
+              <tr key={point.date}>
+                <td>{point.date}</td>
+                <td style={{ textAlign: 'end' }}>{unit === 'piasters' ? formatPiasters(point.value) : point.value}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
@@ -152,7 +154,7 @@ export default function AnalyticsHome() {
         )}
         {data && !data.empty && (
           <>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12 }}>
               {data.kpis.map((kpi) => (
                 <div key={kpi.key}>
                   <StatCard label={kpi.name} value={formatValue(kpi)} sub={deltaText(kpi) || kpi.grain} />
@@ -178,7 +180,7 @@ export default function AnalyticsHome() {
                 )}
               </Card>
             )}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: 12 }}>
               <MemberList title="Expiring soon" rows={data.lists?.expiring} empty="No memberships end in the next 14 days." />
               {hasFeature('exec_analytics') && <MemberList title="At risk" rows={data.lists?.atRisk} empty="No one matches the quiet or low-visit rule." />}
               {hasFeature('pt_tracking') && <MemberList title="PT sessions expiring" rows={data.lists?.ptExpiring} empty="No unused sessions expire in the next 30 days." />}
@@ -194,7 +196,7 @@ export default function AnalyticsHome() {
               <article key={insight._id} style={{ paddingBlock: 12, borderBottom: '1px solid var(--border)' }}>
                 <h3 style={{ fontSize: 15, margin: '0 0 6px' }}>{insight.title}</h3>
                 <p style={{ margin: '0 0 8px' }}>{insight.action}</p>
-                <button type="button" onClick={() => dismissBiInsight(insight._id, 'Not useful').then(load)}>Dismiss</button>
+                <button type="button" className="btn-outline" style={{ minHeight: 40, padding: '6px 14px', fontSize: 13 }} onClick={() => dismissBiInsight(insight._id, 'Not useful').then(load)}>Dismiss</button>
               </article>
             ))}
             <h3 style={{ fontSize: 15 }}>Suggested goals</h3>
@@ -206,6 +208,8 @@ export default function AnalyticsHome() {
                 {!suggestion.linked && (
                   <button
                     type="button"
+                    className="btn-primary"
+                    style={{ minHeight: 40, padding: '6px 14px', fontSize: 13 }}
                     onClick={() => createBiObjective({
                       templateKey: suggestion.key,
                       target: suggestion.achievable,

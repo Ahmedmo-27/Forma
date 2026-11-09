@@ -77,7 +77,7 @@ export function KpiCard({
             trigger={
               <button
                 type="button"
-                className="inline-flex items-center justify-center min-w-6 min-h-6 text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] cursor-pointer rounded"
+                className="inline-flex items-center justify-center min-w-[36px] min-h-[36px] sm:min-w-6 sm:min-h-6 text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] cursor-pointer rounded"
                 title="How this metric is computed"
                 aria-label={`How ${title} is calculated`}
               >

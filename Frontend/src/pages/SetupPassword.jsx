@@ -97,7 +97,7 @@ export function AuthCard({ title, subtitle, children }) {
         border: '1px solid #E5E7EB',
         borderRadius: 20,
         boxShadow: '0 4px 24px rgba(0,0,0,0.07)',
-        padding: '40px 36px',
+        padding: 'clamp(28px, 6vw, 40px) clamp(18px, 5vw, 36px)',
       }}>
         <h1 style={{ fontSize: 22, fontWeight: 800, color: '#111827', margin: '0 0 6px' }}>{title}</h1>
         <p style={{ fontSize: 14, color: '#6B7280', margin: '0 0 24px' }}>{subtitle}</p>

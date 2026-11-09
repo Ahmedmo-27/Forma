@@ -33,7 +33,7 @@ function formatRole(role) {
 }
 
 const iconButtonClass =
-  "inline-flex items-center justify-center min-w-8 min-h-8 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)] transition-colors cursor-pointer";
+  "inline-flex items-center justify-center min-w-[44px] min-h-[44px] sm:min-w-8 sm:min-h-8 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)] transition-colors cursor-pointer";
 
 function SidebarFrame({ collapsed, showMobileClose, onToggleCollapse, onCloseMobile }) {
   const { user, logout } = usePlatformAuth();
@@ -171,7 +171,7 @@ function SidebarFrame({ collapsed, showMobileClose, onToggleCollapse, onCloseMob
                     title={collapsed ? item.label : undefined}
                     className={({ isActive }) =>
                       cn(
-                        "flex items-center gap-2.5 min-h-9 px-2.5 py-2 rounded-[var(--platform-radius-md)] text-[13px] font-medium transition-colors group relative",
+                        "flex items-center gap-2.5 min-h-11 sm:min-h-9 px-3 sm:px-2.5 py-2.5 sm:py-2 rounded-[var(--platform-radius-md)] text-[13px] font-medium transition-colors group relative",
                         isActive
                           ? "bg-[var(--platform-accent-subtle)] text-[var(--platform-accent)] font-semibold before:absolute before:left-0 before:top-2 before:bottom-2 before:w-0.5 before:bg-[var(--platform-accent)] before:rounded-full"
                           : "text-[var(--platform-text-secondary)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)]",
@@ -210,7 +210,7 @@ function SidebarFrame({ collapsed, showMobileClose, onToggleCollapse, onCloseMob
             type="button"
             onClick={logout}
             aria-label="Log out of the console"
-            className="inline-flex items-center justify-center min-w-8 min-h-8 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-danger)] hover:bg-[var(--platform-danger-subtle)] transition-colors cursor-pointer"
+            className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] sm:min-w-8 sm:min-h-8 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-danger)] hover:bg-[var(--platform-danger-subtle)] transition-colors cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
           </button>

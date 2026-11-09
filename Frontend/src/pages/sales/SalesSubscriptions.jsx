@@ -91,6 +91,7 @@ export default function SalesSubscriptions() {
           ) : entries.length === 0 ? (
             <EmptyState icon="📋" message="No subscriptions in this period" sub="Try adjusting the date range" />
           ) : (
+            <div className="table-responsive-container">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
@@ -151,6 +152,7 @@ export default function SalesSubscriptions() {
                 </tr>
               </tfoot>
             </table>
+            </div>
           )}
         </Card>
       </div>

@@ -8,7 +8,7 @@ import { Breadcrumbs } from "../ui/Breadcrumbs";
 import { modifierKeyLabel } from "../lib/utils/shortcut";
 
 const iconButtonClass =
-  "inline-flex items-center justify-center min-w-8 min-h-8 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)] transition-colors cursor-pointer";
+  "inline-flex items-center justify-center min-w-[44px] min-h-[44px] sm:min-w-8 sm:min-h-8 rounded-[var(--platform-radius-sm)] text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface-subtle)] transition-colors cursor-pointer";
 
 function themeCycle(theme) {
   if (theme === "system") return "light";
@@ -94,7 +94,7 @@ export function TopBar({ onOpenMobile, onOpenCommandPalette, breadcrumbs = [], s
           type="button"
           onClick={toggleDensity}
           aria-label={`Density is ${density}. Switch to ${density === "comfortable" ? "compact" : "comfortable"} density.`}
-          className={iconButtonClass}
+          className={`hidden sm:inline-flex ${iconButtonClass}`}
         >
           <span className="text-[11px] font-semibold tracking-wide">
             {density === "comfortable" ? "Comfort" : "Compact"}
@@ -121,7 +121,7 @@ export function TopBar({ onOpenMobile, onOpenCommandPalette, breadcrumbs = [], s
             <button
               type="button"
               aria-label="Operator account menu"
-              className="inline-flex items-center justify-center min-w-8 min-h-8 rounded-full cursor-pointer hover:ring-2 hover:ring-[var(--platform-accent)]/30 transition-all outline-none focus-visible:ring-2 focus-visible:ring-[var(--platform-accent)]"
+              className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] sm:min-w-8 sm:min-h-8 rounded-full cursor-pointer hover:ring-2 hover:ring-[var(--platform-accent)]/30 transition-all outline-none focus-visible:ring-2 focus-visible:ring-[var(--platform-accent)]"
             >
               <Avatar name={user?.name || "Operator"} size="sm" />
             </button>

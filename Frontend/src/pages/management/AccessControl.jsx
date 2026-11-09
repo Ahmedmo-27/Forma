@@ -34,7 +34,7 @@ function Toggle({ checked, onChange, disabled }) {
       disabled={disabled}
       onClick={() => !disabled && onChange(!checked)}
       style={{
-        position: 'relative', width: 40, height: 22, borderRadius: 11,
+        position: 'relative', width: 46, height: 28, borderRadius: 14,
         border: 'none', padding: 0, flexShrink: 0,
         background: checked ? 'var(--blue)' : '#cbd5e1',
         cursor: disabled ? 'not-allowed' : 'pointer',
@@ -44,7 +44,7 @@ function Toggle({ checked, onChange, disabled }) {
     >
       <span style={{
         position: 'absolute', top: 3, left: checked ? 21 : 3,
-        width: 16, height: 16, borderRadius: '50%',
+        width: 22, height: 22, borderRadius: '50%',
         background: 'var(--card)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
         transition: 'left 0.18s',
       }} />

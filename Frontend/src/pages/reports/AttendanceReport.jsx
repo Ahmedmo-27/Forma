@@ -30,9 +30,11 @@ export default function AttendanceReport() {
       )}
       {data && data.totalCheckIns > 0 && (
         <>
-          <p style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 12 }}>
+          <p style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 8 }}>
             {data.totalCheckIns} check-ins
           </p>
+          <p className="sm:hidden" style={{ fontSize: 11, color: 'var(--t4)', marginBottom: 6 }}>👉 Swipe horizontally to view all 24 hours</p>
+          <div className="table-responsive-container">
           <Card style={{ overflowX: 'auto', marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(24, minmax(28px, 1fr))', gap: 3, minWidth: 760 }}>
               <div />
@@ -66,6 +68,7 @@ export default function AttendanceReport() {
               ))}
             </div>
           </Card>
+          </div>
           <Card>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 10 }}>Daily totals</div>
             <div style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 88, overflowX: 'auto' }}>

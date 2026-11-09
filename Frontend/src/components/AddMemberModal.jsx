@@ -97,7 +97,7 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
           </Btn>
         </>
       }>
-      <div className="grid-2-form" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+      <div className="grid-2-form">
         <Input label="Full Name *" value={form.name} onChange={e => set('name', e.target.value)} error={errors.name} />
         <Input label="Phone *" value={form.phones} onChange={e => set('phones', e.target.value)} error={errors.phones} />
         <Select label="Gender" value={form.gender} onChange={e => set('gender', e.target.value)}>
@@ -113,7 +113,7 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
           )}
         </Select>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px', marginTop: 12 }}>
+      <div className="grid-2-form" style={{ marginTop: 12 }}>
         <div>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 5 }}>
             Assign Sales Rep

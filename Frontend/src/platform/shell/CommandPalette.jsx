@@ -204,7 +204,7 @@ export function CommandPalette({ isOpen, onClose }) {
   return (
     <div
       role="presentation"
-      className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-8 sm:pt-20 p-2 sm:p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
       onClick={() => onClose?.(false)}
     >
       <div
@@ -239,7 +239,15 @@ export function CommandPalette({ isOpen, onClose }) {
             placeholder="Search commands or gyms"
             className="w-full bg-transparent text-sm text-[var(--platform-text-primary)] placeholder-[var(--platform-text-muted)] outline-none"
           />
-          <Kbd>Esc</Kbd>
+          <button
+            type="button"
+            onClick={() => onClose?.(false)}
+            aria-label="Close command palette"
+            className="sm:hidden min-w-[36px] min-h-[36px] flex items-center justify-center text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          <span className="hidden sm:inline-block"><Kbd>Esc</Kbd></span>
         </div>
 
         {/* Results List */}

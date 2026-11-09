@@ -544,7 +544,7 @@ export default function TenantDetailPage() {
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] block">
                   Active Features ({effectiveFeatures.length})
                 </span>
-                <div className="grid grid-cols-2 gap-2 text-xs max-h-52 overflow-y-auto pr-1">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs max-h-52 overflow-y-auto pr-1">
                   {effectiveFeatures.length === 0 ? (
                     <span className="text-xs text-[var(--platform-text-muted)] col-span-2">
                       No active features enabled.
@@ -816,7 +816,7 @@ export default function TenantDetailPage() {
                 </div>
               ) : (
                 recentAudit.map((log) => (
-                  <div key={log._id} className="p-3.5 flex items-start justify-between gap-4">
+                  <div key={log._id} className="p-3.5 flex flex-col sm:flex-row sm:items-start justify-between gap-2 sm:gap-4">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <Badge variant="accent" size="sm">

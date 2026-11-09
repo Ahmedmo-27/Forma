@@ -182,7 +182,7 @@ export default function PlansFeaturesPage() {
       </div>
 
       {/* KPI Metric Strip */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5 sm:gap-4">
         <div className="p-4 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
           <div className="flex items-center justify-between text-xs text-[var(--platform-text-muted)] mb-1">
             <span>Active Plans</span>
@@ -436,7 +436,7 @@ export default function PlansFeaturesPage() {
         <TabContent value="matrix" className="space-y-4 mt-4">
           {/* Matrix Header Filters & Actions */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3.5 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
-            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 w-full sm:w-auto">
               <Input
                 placeholder="Filter capabilities, roles, or limits..."
                 value={matrixSearch}
@@ -816,7 +816,7 @@ export default function PlansFeaturesPage() {
         <TabContent value="features" className="space-y-4 mt-4">
           {/* Feature Filters */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
-            <div className="flex items-center gap-2 w-full sm:w-auto">
+            <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
               <Input
                 placeholder="Search feature key or title..."
                 value={featureSearch}
@@ -856,7 +856,7 @@ export default function PlansFeaturesPage() {
               description="Try adjusting your filter query or register a new feature."
             />
           ) : (
-            <div className="rounded-lg border border-[var(--platform-border-subtle)] bg-[var(--platform-surface-raised)] overflow-hidden">
+            <div className="rounded-lg border border-[var(--platform-border-subtle)] bg-[var(--platform-surface-raised)] overflow-x-auto">
               <table className="w-full text-left border-collapse text-xs">
                 <thead>
                   <tr className="border-b border-[var(--platform-border-subtle)] bg-[var(--platform-canvas)] text-[var(--platform-text-muted)] font-semibold uppercase tracking-wider text-[11px]">

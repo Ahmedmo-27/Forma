@@ -78,16 +78,16 @@ export default function SalesCallCenter() {
           borderRadius: 10, padding: '14px 18px',
           display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap',
         }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: '1 1 140px' }}>
             <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>From Date</label>
             <input type="date" value={dateFrom} max={dateTo || TODAY}
-              onChange={e => setDateFrom(e.target.value)} style={inputStyle} />
+              onChange={e => setDateFrom(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
           </div>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: '1 1 140px' }}>
             <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>To Date</label>
             <input type="date" value={dateTo} min={dateFrom || undefined} max={TODAY}
-              onChange={e => setDateTo(e.target.value)} style={inputStyle} />
+              onChange={e => setDateTo(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 2 }}>

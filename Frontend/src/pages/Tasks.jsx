@@ -196,7 +196,7 @@ export default function Tasks() {
       <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 16 }}>
         <Card>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
-            <div style={{ minWidth: 180 }}>
+            <div style={{ flex: '1 1 180px', minWidth: 160 }}>
               <Select
                 label="Show members for"
                 value={kind}
@@ -208,7 +208,7 @@ export default function Tasks() {
               </Select>
             </div>
             {kind && (
-              <div style={{ minWidth: 220 }}>
+              <div style={{ flex: '1 1 220px', minWidth: 160 }}>
                 <Select
                   label={kind === 'sales' ? 'Sales rep' : 'Coach'}
                   value={personId}
@@ -266,7 +266,7 @@ export default function Tasks() {
                   placeholder="Name, phone, ID…"
                   aria-label="Search members"
                   style={{
-                    width: 240, padding: '8px 12px', borderRadius: 8,
+                    width: 240, maxWidth: '100%', padding: '8px 12px', borderRadius: 8,
                     border: '1px solid var(--border)', background: 'var(--card)',
                     color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
                   }}
@@ -280,7 +280,7 @@ export default function Tasks() {
               ) : filtered.length === 0 ? (
                 <EmptyState message="No members for this person" />
               ) : (
-                <div style={{ overflowX: 'auto' }}>
+                <div className="table-responsive-container">
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>

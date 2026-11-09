@@ -53,7 +53,7 @@ export function TabTrigger({ value, children, icon: Icon, badge, className = "" 
       aria-selected={isActive}
       onClick={() => setActiveTab(value)}
       className={cn(
-        "inline-flex items-center gap-2 shrink-0 whitespace-nowrap min-h-9 px-3 py-1.5 text-xs font-medium rounded-[var(--platform-radius-sm)] transition-colors cursor-pointer select-none",
+        "inline-flex items-center gap-2 shrink-0 whitespace-nowrap min-h-[40px] sm:min-h-9 px-3.5 sm:px-3 py-1.5 text-xs font-medium rounded-[var(--platform-radius-sm)] transition-colors cursor-pointer select-none",
         isActive
           ? "bg-[var(--platform-surface)] text-[var(--platform-text-primary)] font-semibold shadow-xs border border-[var(--platform-border-subtle)]"
           : "text-[var(--platform-text-muted)] hover:text-[var(--platform-text-primary)] hover:bg-[var(--platform-surface)]/50",

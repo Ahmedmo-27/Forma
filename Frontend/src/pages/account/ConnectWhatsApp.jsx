@@ -126,7 +126,7 @@ export default function ConnectWhatsApp() {
                     Open WhatsApp on your phone, go to Linked devices, and scan this code. It can change once just after it appears. Scan the code that is on the screen.
                   </p>
                   {qrUrl ? (
-                    <img src={qrUrl} alt="WhatsApp QR code" width={280} height={280} style={{ borderRadius: 12, background: '#fff' }} />
+                    <img src={qrUrl} alt="WhatsApp QR code" width={280} height={280} style={{ borderRadius: 12, background: '#fff', maxWidth: '100%', height: 'auto' }} />
                   ) : (
                     <Spinner />
                   )}

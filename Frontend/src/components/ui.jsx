@@ -639,7 +639,7 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 200,
-        background: 'rgba(0,0,0,0.35)', backdropFilter: 'blur(6px)',
+        background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
       }}
     >
@@ -653,30 +653,38 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
           width: '100%', maxWidth: MW[size] ?? 540,
           maxHeight: '90svh', overflowY: 'auto',
           boxShadow: '0 4px 20px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.05)',
+          display: 'flex', flexDirection: 'column',
         }}
       >
+        {/* Mobile bottom-sheet drag indicator */}
+        <div style={{ display: 'none', justifyContent: 'center', padding: '8px 0 2px' }} className="modal-drag-indicator">
+          <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--border-md)' }} />
+        </div>
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '18px 22px', borderBottom: '1px solid var(--border)',
-          position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1,
+          padding: '16px 20px', borderBottom: '1px solid var(--border)',
+          position: 'sticky', top: 0, background: 'var(--card)', zIndex: 2,
         }}>
-          <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>{title}</h2>
+          <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', margin: 0 }}>{title}</h2>
           <button onClick={onClose} style={{
-          background: 'none', border: '1px solid var(--border)', borderRadius: 6,
-            width: 28, height: 28, cursor: 'pointer', color: 'var(--t3)',
-            fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'none', border: '1px solid var(--border)', borderRadius: 6,
+            width: 32, height: 32, cursor: 'pointer', color: 'var(--t3)',
+            fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
             transition: 'all 0.15s',
           }}
+            aria-label="Close dialog"
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = 'var(--red)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--t3)'; }}
           >✕</button>
         </div>
-        <div style={{ padding: '20px 22px' }}>{children}</div>
+        <div style={{ padding: '18px 20px', flex: 1, overflowY: 'auto' }}>{children}</div>
         {footer && (
           <div style={{
-            padding: '14px 22px', borderTop: '1px solid var(--border)',
+            padding: '12px 20px',
+            paddingBottom: 'max(12px, env(safe-area-inset-bottom, 12px))',
+            borderTop: '1px solid var(--border)',
             display: 'flex', justifyContent: 'flex-end', gap: 8,
-            background: 'var(--bg)',
+            background: 'var(--bg)', flexWrap: 'wrap',
           }}>{footer}</div>
         )}
       </div>
@@ -687,13 +695,13 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
 // ── Table ─────────────────────────────────────────────────────────────────────
 export function Table({ headers, children, loading, skeletonRows = 5 }) {
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+    <div className="table-responsive-container" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 600 }}>
         <thead>
           <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
             {headers.map(h => (
               <th key={h} style={{
-                padding: '11px 16px', textAlign: 'left', background: 'transparent',
+                padding: '10px 14px', textAlign: 'left', background: 'transparent',
                 fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
                 letterSpacing: '0.8px', color: 'var(--t4)', whiteSpace: 'nowrap',
                 borderBottom: '1px solid var(--border)',
@@ -714,16 +722,16 @@ export function Table({ headers, children, loading, skeletonRows = 5 }) {
 // ── Tabs ──────────────────────────────────────────────────────────────────────
 export function Tabs({ tabs, active, onChange }) {
   return (
-    <div className="tabs-scroll" style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20, gap: 0, overflowX: 'auto' }}>
+    <div className="tabs-scroll" style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20, gap: 0, overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
       {tabs.map(t => (
         <button key={t.id} onClick={() => onChange(t.id)} style={{
-          padding: '10px 18px', background: 'none', border: 'none',
+          padding: '10px 16px', background: 'none', border: 'none',
           borderBottom: `2px solid ${active === t.id ? 'var(--navy)' : 'transparent'}`,
           marginBottom: -1,
           color: active === t.id ? 'var(--t1)' : 'var(--t4)',
-          fontSize: 13, fontWeight: active === t.id ? 700 : 400,
+          fontSize: 13, fontWeight: active === t.id ? 700 : 500,
           cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit',
-          transition: 'color 0.12s',
+          transition: 'color 0.12s', flexShrink: 0,
         }}
           onMouseEnter={e => { if (active !== t.id) e.currentTarget.style.color = 'var(--t2)'; }}
           onMouseLeave={e => { if (active !== t.id) e.currentTarget.style.color = 'var(--t4)'; }}
@@ -736,18 +744,23 @@ export function Tabs({ tabs, active, onChange }) {
 // ── Filter Tabs ───────────────────────────────────────────────────────────────
 export function FilterTabs({ options, active, onChange }) {
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 6,
+      overflowX: 'auto', WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none',
+      paddingBottom: 2, maxWidth: '100%',
+    }}>
       {options.map(o => (
         <button key={o.value} onClick={() => onChange(o.value)} style={{
-          padding: '5px 12px', borderRadius: 20,
-          background: active === o.value ? '#44298C' : 'transparent',
+          padding: '6px 12px', borderRadius: 20,
+          background: active === o.value ? '#44298C' : 'var(--card)',
           border: `1px solid ${active === o.value ? '#44298C' : 'var(--border)'}`,
-          color: active === o.value ? '#fff' : 'var(--t3)',
+          color: active === o.value ? '#fff' : 'var(--t2)',
           fontSize: 12, fontWeight: 600, cursor: 'pointer',
           fontFamily: 'inherit', transition: 'all 0.12s',
+          whiteSpace: 'nowrap', flexShrink: 0,
         }}
-          onMouseEnter={e => { if (active !== o.value) { e.currentTarget.style.borderColor = 'var(--border-md)'; e.currentTarget.style.color = 'var(--t2)'; } }}
-          onMouseLeave={e => { if (active !== o.value) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--t3)'; } }}
+          onMouseEnter={e => { if (active !== o.value) { e.currentTarget.style.borderColor = 'var(--border-md)'; e.currentTarget.style.color = 'var(--t1)'; } }}
+          onMouseLeave={e => { if (active !== o.value) { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--t2)'; } }}
         >{o.label}</button>
       ))}
     </div>
@@ -774,7 +787,7 @@ export function StatCard({ label, value, color = 'default', sub, onClick }) {
         border: '1px solid var(--border)',
         borderRadius: 12,
         borderTop: `3px solid ${c.accent}`,
-        padding: '18px 20px',
+        padding: '14px 16px',
         cursor: onClick ? 'pointer' : 'default',
         transition: 'all 0.15s cubic-bezier(0.16,1,0.3,1)',
         boxShadow: '0 1px 2px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.06)',
@@ -782,9 +795,9 @@ export function StatCard({ label, value, color = 'default', sub, onClick }) {
       onMouseEnter={e => { if (onClick) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.4),0 8px 32px rgba(0,0,0,0.25)'; } }}
       onMouseLeave={e => { if (onClick) { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3),0 4px 16px rgba(0,0,0,0.15)'; } }}
     >
-      <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--t4)', marginBottom: 6 }}>{label}</p>
-      <p style={{ fontSize: 28, fontWeight: 800, color: c.val, letterSpacing: '-0.5px', lineHeight: 1 }}>{value}</p>
-      {sub && <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 5 }}>{sub}</p>}
+      <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.8px', color: 'var(--t4)', marginBottom: 4 }}>{label}</p>
+      <p style={{ fontSize: 'clamp(20px, 3.5vw, 26px)', fontWeight: 800, color: c.val, letterSpacing: '-0.5px', lineHeight: 1.1 }}>{value}</p>
+      {sub && <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 4 }}>{sub}</p>}
     </div>
   );
 }
@@ -793,7 +806,7 @@ export function StatCard({ label, value, color = 'default', sub, onClick }) {
 export function PageHeader({ title, children }) {
   return (
     <div style={{ padding: '0 0 4px 0' }}>
-      <div className="wrap page-header-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, height: 52 }}>
+      <div className="wrap page-header-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 48 }}>
         <h1 style={{ fontSize: 16, fontWeight: 800, color: 'var(--t1)', letterSpacing: '-0.3px', flexShrink: 0 }}>{title}</h1>
         {children && <div className="page-header-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{children}</div>}
       </div>

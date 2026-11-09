@@ -233,7 +233,7 @@ export default function SalesDashboard() {
         ) : (
           <>
             {/* KPI Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12, marginBottom: 20 }}>
               {isManager && revenue && (
                 <StatCard label="Today's Revenue" value={`${fmt(revenue.todayRevenue)} EGP`} color="brand"
                   sub={`${todaySubscriptions.length} contract${todaySubscriptions.length !== 1 ? 's' : ''} today`}

@@ -90,10 +90,10 @@ export function DataTable({
     >
       {/* Top Controls Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-3 border-b border-[var(--platform-border-subtle)] bg-[var(--platform-surface-subtle)]/40">
-        <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
+        <div className="flex flex-wrap items-center gap-2 flex-1 w-full sm:w-auto">
           {/* Search Box */}
           {onSearch && (
-            <div className="flex items-center gap-2 flex-1 min-w-[200px] max-w-md">
+            <div className="flex items-center gap-2 flex-1 w-full sm:w-auto sm:min-w-[200px] max-w-md">
               <label htmlFor={searchId} className="text-xs font-medium text-[var(--platform-text-secondary)] shrink-0">
                 Search
               </label>

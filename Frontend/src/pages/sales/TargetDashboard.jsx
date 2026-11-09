@@ -180,6 +180,7 @@ function MonthlyTab({ data, loading }) {
         ) : months.length === 0 ? (
           <EmptyState message="No data available" />
         ) : (
+          <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
@@ -228,6 +229,7 @@ function MonthlyTab({ data, loading }) {
               </tr>
             </tfoot>
           </table>
+          </div>
         )}
       </Card>
     </div>
@@ -259,6 +261,7 @@ function AnnualTab({ data, loading }) {
         ) : yearMonths.length === 0 ? (
           <EmptyState message="No data for this year" />
         ) : (
+          <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
@@ -297,6 +300,7 @@ function AnnualTab({ data, loading }) {
               </tr>
             </tfoot>
           </table>
+          </div>
         )}
       </Card>
     </div>
@@ -477,6 +481,7 @@ function SalesSubscriptionsContent() {
         ) : packageStats.length === 0 ? (
           <EmptyState icon="📦" message="No packages sold in this range" sub="Try This month or widen the dates" />
         ) : (
+          <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
@@ -518,6 +523,7 @@ function SalesSubscriptionsContent() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </Card>
 
@@ -543,6 +549,7 @@ function SalesSubscriptionsContent() {
         ) : entries.length === 0 ? (
           <EmptyState icon="📋" message="No subscriptions found" sub="Try adjusting the date range, package, or sales rep filter" />
         ) : (
+          <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
@@ -605,6 +612,7 @@ function SalesSubscriptionsContent() {
               </tr>
             </tfoot>
           </table>
+          </div>
         )}
       </Card>
     </div>
@@ -695,6 +703,7 @@ function CoachSessionsContent() {
         ) : ptMembers.length === 0 ? (
           <EmptyState icon="🏋️" message="No members with private sessions" sub="Adjust the coach filter or add PT sessions to members" />
         ) : (
+          <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
@@ -752,6 +761,7 @@ function CoachSessionsContent() {
               </tr>
             </tfoot>
           </table>
+          </div>
         )}
       </Card>
     </div>

@@ -191,7 +191,7 @@ export default function TenantSettings() {
         />
 
         {/* Navigation Tabs */}
-        <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid #E5E7EB', marginBottom: 24 }}>
+        <div className="tabs-scroll" style={{ display: 'flex', gap: 8, borderBottom: '1px solid #E5E7EB', marginBottom: 24 }}>
           {[
             { id: 'branding', label: 'Branding & Palette' },
             { id: 'locale', label: 'Locale & Activities' },
@@ -224,7 +224,7 @@ export default function TenantSettings() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <Card>
               <CardHeader title="Gym Brand Identity" sub="Customize the name and logo that appear across your workspace" />
-              <div style={{ display: 'flex', gap: 24, alignItems: 'center', marginTop: 16 }}>
+              <div style={{ display: 'flex', gap: 24, alignItems: 'center', marginTop: 16, flexWrap: 'wrap' }}>
                 <div style={{
                   width: 90, height: 90, borderRadius: 16,
                   border: '1px solid #E5E7EB',

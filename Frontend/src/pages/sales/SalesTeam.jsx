@@ -47,7 +47,7 @@ export default function SalesTeam() {
       <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
 
         {/* ── Tabs ──────────────────────────────────────────────── */}
-        <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
+        <div className="tabs-scroll" style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
           {[
             { id: 'sales', label: `Sales (${salesTeam.length})` },
             { id: 'receptionists', label: `Receptionists (${receptionists.length})` },
@@ -89,7 +89,7 @@ export default function SalesTeam() {
             ) : !salesTeam.length ? (
               <EmptyState message="No sales team members found" />
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
                 {salesTeam.map(member => (
                   <SalesCard key={member._id} member={member} onClick={() => navigate(`/sales/team/${member._id}`)} />
                 ))}
@@ -106,7 +106,7 @@ export default function SalesTeam() {
             ) : !receptionists.length ? (
               <EmptyState message="No receptionists found" />
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 12 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
                 {receptionists.map(member => (
                   <ReceptionistCard key={member._id} member={member} onClick={() => navigate(`/sales/team/receptionist/${member._id}`)} />
                 ))}

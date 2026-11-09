@@ -118,21 +118,21 @@ export default function ImportedMembers() {
         <Card>
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 14, flexWrap: 'wrap' }}>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: '1 1 140px' }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>From Date</label>
               <input type="date" value={dateFrom} max={dateTo || TODAY}
-                onChange={e => setDateFrom(e.target.value)} style={{ ...inputStyle, width: 150 }} />
+                onChange={e => setDateFrom(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: '1 1 140px' }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>To Date</label>
               <input type="date" value={dateTo} min={dateFrom || undefined} max={TODAY}
-                onChange={e => setDateTo(e.target.value)} style={{ ...inputStyle, width: 150 }} />
+                onChange={e => setDateTo(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: '1 1 160px' }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Sales Rep</label>
-              <select value={salesMan} onChange={e => setSalesMan(e.target.value)} style={{ ...selectStyle, width: 180 }}>
+              <select value={salesMan} onChange={e => setSalesMan(e.target.value)} style={{ ...selectStyle, width: '100%' }}>
                 <option value="all">All Reps</option>
                 {salesUsers.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
               </select>
@@ -184,7 +184,7 @@ export default function ImportedMembers() {
               sub={hasFilters ? 'Try adjusting your filters.' : 'Import an Excel file to add members.'} />
           ) : (
             <>
-              <div style={{ overflowX: 'auto' }}>
+              <div className="table-responsive-container">
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>

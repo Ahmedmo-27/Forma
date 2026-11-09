@@ -188,7 +188,7 @@ export default function PersonalTab({ member, user, onRefresh }) {
         )}
       >
         {editForm && (
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
+          <div className="grid-2-form">
             <Input label="Full Name *" value={editForm.name} onChange={(e) => setEdit('name', e.target.value)} error={editErrors.name} />
             {canEditPhone ? (
               <Input label="Phone *" value={editForm.phones} onChange={(e) => setEdit('phones', e.target.value)} error={editErrors.phones} />

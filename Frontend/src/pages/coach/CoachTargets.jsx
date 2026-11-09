@@ -56,7 +56,7 @@ export default function CoachTargets() {
         ) : team.length === 0 ? (
           <EmptyState message="No coaches found" />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 14 }}>
             {team.map(coach => (
               <CoachCard key={coach._id} coach={coach} onClick={() => navigate(`/coach/team/${coach._id}`)} />
             ))}

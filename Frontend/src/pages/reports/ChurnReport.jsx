@@ -26,7 +26,8 @@ export default function ChurnReport() {
       {data && !hasCoverage && <EmptyState message="No membership coverage in this window yet" />}
       {data && hasCoverage && (
         <>
-          <Card noPad style={{ marginBottom: 16, overflowX: 'auto' }}>
+          <Card noPad style={{ marginBottom: 16 }}>
+            <div className="table-responsive-container">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
@@ -47,6 +48,7 @@ export default function ChurnReport() {
                 ))}
               </tbody>
             </table>
+            </div>
           </Card>
           <Card noPad>
             <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>

@@ -72,7 +72,7 @@ function ContactCard({ person }) {
                 fontSize: 13, fontWeight: 700, color: 'var(--t1)',
                 textDecoration: 'none', fontFamily: 'monospace',
                 background: 'var(--bg)', border: '1px solid var(--border)',
-                padding: '4px 10px', borderRadius: 7,
+                padding: '8px 12px', minHeight: 44, boxSizing: 'border-box', borderRadius: 7,
                 display: 'flex', alignItems: 'center', gap: 5,
                 transition: 'all 0.12s',
               }}
@@ -191,7 +191,7 @@ export default function ReceptionContacts() {
         ) : sorted.length === 0 ? (
           <EmptyState icon="📞" message="No contacts found" sub="Try adjusting your search or filter." />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 14 }}>
             {sorted.map(person => <ContactCard key={person._id} person={person} />)}
           </div>
         )}

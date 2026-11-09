@@ -143,7 +143,7 @@ export default function AccountantDashboard() {
           )}
         </Card>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12 }}>
           <StatCard
             label="Pending Requests"
             value={loading ? '—' : pendingTotal}
@@ -174,7 +174,7 @@ export default function AccountantDashboard() {
           />
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 16 }}>
           <Card noPad>
             <div style={{
               padding: '12px 18px', borderBottom: '1px solid var(--border)',

@@ -115,7 +115,7 @@ export default function Login() {
         border: '1px solid #E5E7EB',
         borderRadius: 20,
         boxShadow: '0 4px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04)',
-        padding: '44px 40px',
+        padding: 'clamp(28px, 6vw, 44px) clamp(18px, 5vw, 40px)',
       }}>
 
         {/* Logo + Brand */}
@@ -267,10 +267,10 @@ export default function Login() {
                 type="button"
                 onClick={() => setShowPwd((s) => !s)}
                 style={{
-                  position: 'absolute', right: 13, top: '50%', transform: 'translateY(-50%)',
+                  position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
                   background: 'none', border: 'none', cursor: 'pointer',
-                  color: '#9CA3AF', padding: 2,
-                  display: 'flex', alignItems: 'center', transition: 'color 0.15s',
+                  color: '#9CA3AF', width: 44, height: 44,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s',
                 }}
                 onMouseEnter={e => e.currentTarget.style.color = '#44298C'}
                 onMouseLeave={e => e.currentTarget.style.color = '#9CA3AF'}
@@ -305,7 +305,7 @@ export default function Login() {
             type="submit"
             disabled={loading}
             style={{
-              width: '100%', padding: '14px', fontSize: 15, fontWeight: 700,
+              width: '100%', minHeight: 48, padding: '14px', fontSize: 15, fontWeight: 700,
               background: loading
                 ? 'rgba(68,41,140,0.45)'
                 : 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)',

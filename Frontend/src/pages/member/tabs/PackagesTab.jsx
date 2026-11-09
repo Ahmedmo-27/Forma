@@ -233,7 +233,7 @@ function PTSessionsContent({ member, user, onRefresh }) {
         <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16, lineHeight: 1.6 }}>
           Add PT sessions to <strong>{member.name}</strong>. Duration in months (e.g. 1, 2.5, 3). Half months = 15 days.
         </p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+        <div className="grid-2-form">
           <Input
             label="Number of Sessions *"
             type="number" min="1"

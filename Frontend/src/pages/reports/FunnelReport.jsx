@@ -95,7 +95,8 @@ export default function FunnelReport() {
               );
             })}
           </Card>
-          <Card noPad style={{ overflowX: 'auto' }}>
+          <Card noPad>
+            <div className="table-responsive-container">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
@@ -118,6 +119,7 @@ export default function FunnelReport() {
                 ))}
               </tbody>
             </table>
+            </div>
           </Card>
         </>
       )}

@@ -12,11 +12,11 @@ const MONTH_START = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
 // ── Reusable filter row ───────────────────────────────────────────────────────
 function FilterRow({ label, required, children }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
       <label style={{ width: 120, flexShrink: 0, fontSize: 13, fontWeight: 600, color: 'var(--t2)' }}>
         {label}{required && <span style={{ color: 'var(--red)', marginLeft: 2 }}>*</span>}
       </label>
-      <div style={{ flex: 1, maxWidth: 380 }}>{children}</div>
+      <div style={{ flex: '1 1 220px', maxWidth: 380 }}>{children}</div>
     </div>
   );
 }
@@ -263,7 +263,7 @@ export default function ExpiredMembers() {
             ) : results.length === 0 ? (
               <EmptyState icon="📅" message="No members found" sub="Try adjusting your filters." />
             ) : (
-              <div style={{ overflowX: 'auto' }}>
+              <div className="table-responsive-container">
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>

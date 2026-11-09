@@ -137,7 +137,7 @@ export default function OwnerDashboard() {
             </Card>
 
             {/* KPI row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12, marginBottom: 20 }}>
               <StatCard label="Total Members"    value={members.length}   color="brand"    onClick={hasAccess(user, 'members') ? () => navigate('/members') : undefined} />
               <StatCard label="Today's Revenue"  value={`${fmt(revenue?.todayRevenue ?? 0)} EGP`} color="success" onClick={hasAccess(user, 'targets') ? () => navigate('/sales/targets') : undefined} />
               <StatCard label="This Month"       value={`${fmt(monthRevenue)} EGP`}             color="brand"   onClick={hasAccess(user, 'targets') ? () => navigate('/sales/targets') : undefined} />
@@ -147,7 +147,7 @@ export default function OwnerDashboard() {
             </div>
 
             {/* Main grid */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16, marginBottom: 20 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 16, marginBottom: 20 }}>
 
               {/* Expiring soon */}
               <Card noPad>
@@ -219,7 +219,7 @@ export default function OwnerDashboard() {
             </div>
 
             {/* Team summary + quick links */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 16 }}>
 
               {/* Team overview */}
               <Card>

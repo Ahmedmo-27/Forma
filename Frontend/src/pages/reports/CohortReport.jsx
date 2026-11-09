@@ -29,7 +29,8 @@ export default function CohortReport() {
     >
       {data && !hasCohorts && <EmptyState message="No first subscriptions in this window yet" />}
       {data && hasCohorts && (
-        <Card noPad style={{ overflowX: 'auto' }}>
+        <Card noPad>
+          <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
@@ -62,6 +63,7 @@ export default function CohortReport() {
               ))}
             </tbody>
           </table>
+          </div>
         </Card>
       )}
     </ReportFrame>
