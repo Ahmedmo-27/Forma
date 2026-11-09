@@ -181,7 +181,7 @@ export default function CheckIn() {
     if (alerts.length) { setAlertPopup(alerts.map(a => a.text)); setTimeout(() => setAlertPopup(null), 5000); }
   };
 
-  const recordScan = async (raw, sourceRaw, mode = 'auto') => {
+  const recordScan = useCallback(async (raw, sourceRaw, mode = 'auto') => {
     const identifier = parseScannedIdentifier(raw, mode);
     if (!identifier) return;
     setSearching(true);
@@ -236,7 +236,7 @@ export default function CheckIn() {
         inputRef.current?.focus();
       }
     }
-  };
+  }, [activeTab, refreshBoard]);
 
   // Global hardware scanner listener: automatically detects scans from any USB / Bluetooth barcode & QR scanner
   useHardwareScanner({

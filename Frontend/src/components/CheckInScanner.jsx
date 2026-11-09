@@ -16,11 +16,23 @@ export default function CheckInScanner({
   const scannerRef = useRef(null);
   const lastCodeRef = useRef({ code: '', time: 0 });
 
+  const onScanRef = useRef(onScan);
+  onScanRef.current = onScan;
+
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   const [isScanning, setIsScanning] = useState(false);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
   const [scanMode, setScanMode] = useState('auto'); // 'auto' | 'systemId' | 'memberId'
+  const scanModeRef = useRef(scanMode);
+  scanModeRef.current = scanMode;
+
   const [facingMode, setFacingMode] = useState('environment'); // 'environment' | 'user'
+  const facingModeRef = useRef(facingMode);
+  facingModeRef.current = facingMode;
+
   const [flashSuccess, setFlashSuccess] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [manualLoading, setManualLoading] = useState(false);
@@ -44,12 +56,12 @@ export default function CheckInScanner({
     }
     setIsScanning(false);
     setStarting(false);
-    if (onClose) {
-      onClose();
+    if (onCloseRef.current) {
+      onCloseRef.current();
     }
-  }, [onClose]);
+  }, []);
 
-  // Handle a detected scan — NEVER closes the camera automatically
+  // Handle a detected scan: closes camera upon scanning a QR code or stops on Stop Camera
   const handleDecoded = useCallback(async (rawText) => {
     const raw = String(rawText || '').trim();
     if (!raw) return;
@@ -61,7 +73,8 @@ export default function CheckInScanner({
     }
     lastCodeRef.current = { code: raw, time: now };
 
-    const identifier = parseScannedIdentifier(raw, scanMode);
+    const mode = scanModeRef.current || 'auto';
+    const identifier = parseScannedIdentifier(raw, mode);
     if (!identifier) return;
 
     // Visual pulse & audio chime
@@ -69,17 +82,21 @@ export default function CheckInScanner({
     setTimeout(() => setFlashSuccess(false), 900);
     playCheckInSound('success');
 
-    if (onScan) {
+    // Close camera upon scanning a QR code, as requested
+    await stopScanner();
+
+    if (onScanRef.current) {
       try {
-        await onScan(identifier, raw, scanMode);
+        await onScanRef.current(identifier, raw, mode);
       } catch {
         playCheckInSound('error');
       }
     }
-  }, [onScan, scanMode]);
+  }, [stopScanner]);
 
   // Start the scanner — accessible by all camera types (laptop webcams, phone rear/front cameras, USB cams)
-  const startScanner = useCallback(async (desiredFacing = facingMode) => {
+  const startScanner = useCallback(async (desiredFacing) => {
+    const targetFacing = desiredFacing || facingModeRef.current || 'environment';
     setError('');
     setStarting(true);
 
@@ -116,7 +133,7 @@ export default function CheckInScanner({
       const candidates = [];
 
       if (devices && devices.length > 0) {
-        if (desiredFacing === 'environment') {
+        if (targetFacing === 'environment') {
           // On mobile: prioritize standard main rear camera (avoiding ultra-wide/telephoto/depth)
           const backCameras = devices.filter(d => /back|rear|environment/i.test(d.label));
           if (backCameras.length > 0) {
@@ -140,8 +157,8 @@ export default function CheckInScanner({
       }
 
       // Add generic WebRTC constraints as universal fallbacks
-      candidates.push({ facingMode: desiredFacing });
-      candidates.push({ facingMode: desiredFacing === 'environment' ? 'user' : 'environment' });
+      candidates.push({ facingMode: targetFacing });
+      candidates.push({ facingMode: targetFacing === 'environment' ? 'user' : 'environment' });
 
       const qrConfig = {
         fps: 10,
@@ -180,7 +197,7 @@ export default function CheckInScanner({
             () => {}
           );
           success = true;
-          setFacingMode(desiredFacing);
+          setFacingMode(targetFacing);
           break;
         } catch (err) {
           lastErr = err;
@@ -217,24 +234,35 @@ export default function CheckInScanner({
     } finally {
       setStarting(false);
     }
-  }, [containerId, facingMode, handleDecoded]);
+  }, [containerId, handleDecoded]);
 
   // Flip camera between front (laptop/selfie) and rear (main camera)
   const handleFlipCamera = async () => {
-    const nextFacing = facingMode === 'environment' ? 'user' : 'environment';
+    const nextFacing = facingModeRef.current === 'environment' ? 'user' : 'environment';
     await stopScanner();
     await startScanner(nextFacing);
   };
 
-  // Clean up on unmount
+  // Clean up ONLY on unmount — never during component re-renders
   useEffect(() => {
     if (autoStart) {
       startScanner();
     }
     return () => {
-      stopScanner();
+      const sc = scannerRef.current;
+      if (sc) {
+        try {
+          if (sc.isScanning) {
+            sc.stop().catch(() => {});
+          }
+          sc.clear();
+        } catch {
+          // ignore
+        }
+      }
     };
-  }, [autoStart, startScanner, stopScanner]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleManualSubmit = async (e) => {
     e.preventDefault();
@@ -492,7 +520,7 @@ export default function CheckInScanner({
               QR Code Scanner Ready
             </div>
             <div style={{ fontSize: 12, color: '#94a3b8', maxWidth: 340, lineHeight: 1.4, marginBottom: 14 }}>
-              Works with all cameras (laptop webcams, phone cameras, and USB cameras). The camera stays open so you can scan multiple codes continuously.
+              Works with all cameras (laptop webcams, phone cameras, and USB cameras). The camera stays open until a QR code is scanned or you click close.
             </div>
             <button
               type="button"
@@ -571,7 +599,7 @@ export default function CheckInScanner({
               fontWeight: 600,
             }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
-              Camera Active · Stays Open For Multiple Scans
+              Camera Active · Ready to Scan
             </div>
           </div>
         )}
