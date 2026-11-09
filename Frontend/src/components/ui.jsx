@@ -58,28 +58,28 @@ export function Badge({ status }) {
 // ── Button ────────────────────────────────────────────────────────────────────
 const BV = {
   primary: {
-    bg: 'linear-gradient(135deg,#44298C,#5B38BA)',
+    bg: 'linear-gradient(135deg, var(--navy), var(--navy-2))',
     color: '#fff',
-    border: 'rgba(91,56,186,0.6)',
-    hbg: 'linear-gradient(135deg,#5B38BA,#6D47CC)',
-    shadow: '0 2px 12px rgba(68,41,140,0.35)',
-    hShadow: '0 4px 18px rgba(68,41,140,0.5)',
+    border: 'var(--navy-2)',
+    hbg: 'linear-gradient(135deg, var(--navy-2), var(--navy-3, var(--navy-2)))',
+    shadow: '0 2px 12px color-mix(in srgb, var(--navy) 35%, transparent)',
+    hShadow: '0 4px 18px color-mix(in srgb, var(--navy) 50%, transparent)',
   },
   blue: {
-    bg: 'linear-gradient(135deg,#44298C,#5B38BA)',
+    bg: 'linear-gradient(135deg, var(--navy), var(--navy-2))',
     color: '#fff',
-    border: '#44298C',
-    hbg: 'linear-gradient(135deg,#5B38BA,#6D47CC)',
-    shadow: '0 2px 12px rgba(68,41,140,0.30)',
-    hShadow: '0 4px 18px rgba(68,41,140,0.45)',
+    border: 'var(--navy)',
+    hbg: 'linear-gradient(135deg, var(--navy-2), var(--navy-3, var(--navy-2)))',
+    shadow: '0 2px 12px color-mix(in srgb, var(--navy) 30%, transparent)',
+    hShadow: '0 4px 18px color-mix(in srgb, var(--navy) 45%, transparent)',
   },
   outline: {
     bg: 'transparent',
     color: 'var(--t2)',
     border: 'var(--border-md)',
-    hbg: 'rgba(68,41,140,0.06)',
-    hborder: 'rgba(68,41,140,0.4)',
-    hcolor: '#44298C',
+    hbg: 'color-mix(in srgb, var(--navy) 6%, transparent)',
+    hborder: 'color-mix(in srgb, var(--navy) 40%, transparent)',
+    hcolor: 'var(--navy)',
     shadow: 'none',
     hShadow: 'none',
   },
@@ -87,8 +87,8 @@ const BV = {
     bg: 'transparent',
     color: 'var(--t3)',
     border: 'transparent',
-    hbg: 'rgba(68,41,140,0.06)',
-    hcolor: 'var(--t1)',
+    hbg: 'color-mix(in srgb, var(--navy) 6%, transparent)',
+    hcolor: 'var(--navy)',
     shadow: 'none',
     hShadow: 'none',
   },
@@ -137,8 +137,8 @@ export function Btn({ children, variant = 'primary', size = 'md', onClick, disab
       onMouseEnter={e => {
         if (!disabled) {
           e.currentTarget.style.background = v.hbg;
-          if (variant === 'outline') { e.currentTarget.style.borderColor = 'rgba(68,41,140,0.4)'; e.currentTarget.style.color = '#44298C'; }
-          if (variant === 'ghost') { e.currentTarget.style.color = v.hcolor ?? v.color; }
+          if (variant === 'outline') { e.currentTarget.style.borderColor = 'color-mix(in srgb, var(--navy) 40%, transparent)'; e.currentTarget.style.color = 'var(--navy)'; }
+          if (variant === 'ghost') { e.currentTarget.style.color = v.hcolor ?? 'var(--navy)'; }
           e.currentTarget.style.boxShadow = v.hShadow;
         }
       }}
@@ -186,7 +186,7 @@ export function Input({ label, error, hint, ...props }) {
       <input
         {...props}
         style={inputBase(error)}
-        onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+        onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
         onBlur={e  => { e.target.style.borderColor = error ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }}
       />
     </Field>
@@ -396,7 +396,7 @@ function SearchableSelect({
     setCursor(-1);
     onFocus?.(e);
     e.target.style.borderColor = 'var(--navy)';
-    e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)';
+    e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)';
   };
 
   const handleBlur = (e) => {
@@ -470,7 +470,7 @@ function SearchableSelect({
               width: '100%', textAlign: 'left', border: 'none',
               padding: '8px 12px', fontSize: 13, fontFamily: 'inherit',
               cursor: opt.disabled ? 'not-allowed' : 'pointer',
-              background: active ? 'rgba(68,41,140,0.08)' : isSelected ? 'rgba(68,41,140,0.06)' : 'var(--card)',
+              background: active ? 'color-mix(in srgb, var(--navy) 8%, transparent)' : isSelected ? 'color-mix(in srgb, var(--navy) 6%, transparent)' : 'var(--card)',
               color: opt.disabled ? 'var(--t4)' : isSelected ? 'var(--navy)' : 'var(--t1)',
               fontWeight: isSelected ? 600 : 400,
               borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none',
@@ -535,7 +535,7 @@ export function Textarea({ label, error, hint, ...props }) {
       <textarea
         {...props}
         style={{ ...inputBase(error), minHeight: 88, resize: 'vertical' }}
-        onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+        onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
         onBlur={e  => { e.target.style.borderColor = error ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }}
       />
     </Field>
@@ -767,8 +767,8 @@ export function FilterTabs({ options, active, onChange }) {
             onClick={() => onChange(val)}
             style={{
               padding: '6px 12px', borderRadius: 20,
-              background: isSelected ? '#44298C' : 'var(--card)',
-              border: `1px solid ${isSelected ? '#44298C' : 'var(--border)'}`,
+              background: isSelected ? 'var(--navy)' : 'var(--card)',
+              border: `1px solid ${isSelected ? 'var(--navy)' : 'var(--border)'}`,
               color: isSelected ? '#fff' : 'var(--t2)',
               fontSize: 12, fontWeight: 600, cursor: 'pointer',
               fontFamily: 'inherit', transition: 'all 0.12s',
@@ -889,11 +889,11 @@ export function Avatar({ name = '', size = 'md', photo = null, style: ex = {} })
   return (
     <div style={{
       width: sz, height: sz, borderRadius: '50%', flexShrink: 0,
-      background: 'linear-gradient(135deg,#44298C,#5B38BA)', color: '#fff',
+      background: 'linear-gradient(135deg, var(--navy), var(--navy-2))', color: '#fff',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: fs, fontWeight: 700, letterSpacing: '0.5px',
       overflow: 'hidden', position: 'relative',
-      boxShadow: '0 2px 8px rgba(68,41,140,0.20)',
+      boxShadow: '0 2px 8px color-mix(in srgb, var(--navy) 20%, transparent)',
       ...ex,
     }}>
       {src ? (
@@ -943,7 +943,7 @@ export function SearchInput({ value, onChange, placeholder = 'Search…', width 
           fontSize: 13, color: 'var(--t1)', outline: 'none', fontFamily: 'inherit',
           transition: 'border-color 0.12s, box-shadow 0.12s',
         }}
-        onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+        onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
         onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
       />
     </div>

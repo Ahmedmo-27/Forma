@@ -21,6 +21,7 @@ const { encryptSecret } = require("../utils/tenantCrypto");
 const { writeAudit } = require("../utils/audit");
 const { assertAllowedLogo, MIME_TO_EXT } = require("../utils/fileMagic");
 const { BILLING_CURRENCY } = require("../config/currency");
+const { countMonthlyWhatsAppMessages } = require("../utils/whatsappTracking");
 
 function sanitizeTenantResponse(tenant, plan, usage = {}) {
     const effectiveFeatures = getEffectiveFeatures(tenant, plan);
@@ -60,13 +61,17 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
         effectiveFeatures,
         limits: {
             ...limits,
-            storageGb: isLifetime ? (tenant.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25) : 5,
-            whatsappMonthlyMessages: isLifetime ? (tenant.billing?.lifetime?.fairUseLimits?.whatsappMessagesMonthlyLimit || 2000) : 500,
+            storageGb: isLifetime
+                ? (tenant.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25)
+                : (plan?.fairUseCaps?.storageGb ?? 25),
+            whatsappMonthlyMessages: isLifetime
+                ? (tenant.billing?.lifetime?.fairUseLimits?.whatsappMessagesMonthlyLimit || 2000)
+                : (plan?.fairUseCaps?.whatsappMessagesMonthly ?? 2000),
         },
         usage: {
             members: usage.members ?? 0,
             staff: usage.staff ?? 0,
-            storageGb: usage.storageGb ?? 0.5,
+            storageGb: usage.storageGb ?? 0,
             whatsappMonthlyMessages: usage.whatsappMonthlyMessages ?? 0,
         },
         settings: {
@@ -108,9 +113,12 @@ const getMyTenant = async (req, res) => {
             return res.status(404).json({ message: "Tenant not found" });
         }
 
-        const [membersCount, staffCount, announcements] = await Promise.all([
+        const timezone = tenant.settings?.locale?.timezone || "Africa/Cairo";
+
+        const [membersCount, staffCount, whatsappMonthlyCount, announcements] = await Promise.all([
             Member.countDocuments(),
             User.countDocuments(),
+            countMonthlyWhatsAppMessages(tenantId, timezone),
             runAsPlatform(async () => {
                 const now = new Date();
                 return await Announcement.find({
@@ -121,9 +129,19 @@ const getMyTenant = async (req, res) => {
             }),
         ]);
 
+        let storageGb = 0;
+        try {
+            const bytes = await storageService.sumTenantBytes(tenant._id);
+            storageGb = Math.round((bytes / (1024 * 1024 * 1024)) * 100) / 100;
+        } catch (_) {
+            storageGb = 0;
+        }
+
         const response = sanitizeTenantResponse(tenant, tenant.planId, {
             members: membersCount,
             staff: staffCount,
+            storageGb,
+            whatsappMonthlyMessages: whatsappMonthlyCount,
         });
 
         response.announcements = announcements || [];
@@ -165,7 +183,8 @@ const updateMyTenantSettings = async (req, res) => {
             return res.status(404).json({ message: "Tenant not found" });
         }
 
-        const { branding, locale, enabledActivities, whatsapp, featureConfig } = req.body;
+        const raw = req.body.settings ? { ...req.body.settings, ...req.body } : req.body;
+        const { branding, locale, enabledActivities, whatsapp, featureConfig } = raw;
 
         if (branding) {
             const currentBranding = tenant.settings?.branding?.toObject?.()
@@ -178,7 +197,14 @@ const updateMyTenantSettings = async (req, res) => {
             if (branding.logoKey === undefined) {
                 nextBranding.logoKey = currentBranding.logoKey ?? null;
             }
+            if (branding.palette) {
+                nextBranding.palette = {
+                    ...(currentBranding.palette || {}),
+                    ...branding.palette,
+                };
+            }
             tenant.settings.branding = nextBranding;
+            tenant.markModified("settings.branding");
         }
 
         if (locale) {
@@ -187,10 +213,12 @@ const updateMyTenantSettings = async (req, res) => {
                 ...locale,
                 currency: BILLING_CURRENCY,
             };
+            tenant.markModified("settings.locale");
         }
 
         if (Array.isArray(enabledActivities)) {
             tenant.settings.enabledActivities = enabledActivities;
+            tenant.markModified("settings.enabledActivities");
         }
 
         if (whatsapp) {
@@ -203,6 +231,7 @@ const updateMyTenantSettings = async (req, res) => {
             if (whatsapp.accessToken) {
                 tenant.settings.whatsapp.accessToken = encryptSecret(whatsapp.accessToken);
             }
+            tenant.markModified("settings.whatsapp");
         }
 
         if (featureConfig) {
@@ -210,7 +239,10 @@ const updateMyTenantSettings = async (req, res) => {
                 ...tenant.settings.featureConfig,
                 ...featureConfig,
             };
+            tenant.markModified("settings.featureConfig");
         }
+
+        tenant.markModified("settings");
 
         await runAsPlatform(async () => {
             await tenant.save();

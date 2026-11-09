@@ -1,13 +1,20 @@
 import { apiOrigin } from '../../api/axios';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
 import usePageTitle from '../../hooks/usePageTitle';
 import { useTenant } from '../../context/TenantContext';
-import { updateTenantMe, uploadTenantLogo } from '../../api/endpoints';
 import {
-  PageHeader, Card, CardHeader, Input, Select, Btn, Spinner,
+  updateTenantMe,
+  uploadTenantLogo,
+  getWhatsAppSession,
+  startWhatsAppSession,
+  logoutWhatsAppSession,
+} from '../../api/endpoints';
+import {
+  PageHeader, Card, CardHeader, Input, Select, Btn, Spinner, Badge,
 } from '../../components/ui';
 import LifetimeCheckoutModal from '../../components/billing/LifetimeCheckoutModal';
 import LifetimeUpgradeModal from '../../components/billing/LifetimeUpgradeModal';
@@ -15,9 +22,17 @@ import { isValidHexColor, validateFile, LOGO_EXTENSIONS, LOGO_ACCEPT, UPLOAD_INT
 
 const KNOWN_ACTIVITIES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 
+const DEFAULT_PALETTE = {
+  primary: '#44298C',
+  secondary: '#5B38BA',
+  accent: '#6D47CC',
+  background: '#F4F5F7',
+  text: '#111827',
+};
+
 export default function TenantSettings() {
   usePageTitle('Gym Settings');
-  const { tenant, refreshTenant, applyTenant, loading: tenantLoading } = useTenant();
+  const { tenant, refreshTenant, applyTenant, applyBranding, loading: tenantLoading } = useTenant();
 
   const [activeTab, setActiveTab] = useState('branding');
   const [saving, setSaving] = useState(false);
@@ -27,23 +42,27 @@ export default function TenantSettings() {
 
   // Form states initialized from tenant
   const [displayName, setDisplayName] = useState('');
-  const [palette, setPalette] = useState({
-    primary: '#44298C',
-    secondary: '#5B38BA',
-    accent: '#44298C',
-    background: '#F4F5F7',
-    text: '#111827',
-  });
+  const [palette, setPalette] = useState(DEFAULT_PALETTE);
+  const [savedPalette, setSavedPalette] = useState(DEFAULT_PALETTE);
   const [timezone, setTimezone] = useState('Africa/Cairo');
   const [language, setLanguage] = useState('en');
   const [activities, setActivities] = useState(KNOWN_ACTIVITIES);
   const [customActivity, setCustomActivity] = useState('');
 
+  // WhatsApp connection states
+  const [waSession, setWaSession] = useState(null);
+  const [waLoading, setWaLoading] = useState(true);
+  const [waBusy, setWaBusy] = useState(false);
+  const [waQrUrl, setWaQrUrl] = useState('');
+
+  // Initialize from tenant
   useEffect(() => {
     if (tenant?.settings) {
       setDisplayName(tenant.settings.branding?.displayName || tenant.name || '');
       if (tenant.settings.branding?.palette) {
-        setPalette(prev => ({ ...prev, ...tenant.settings.branding.palette }));
+        const nextPalette = { ...DEFAULT_PALETTE, ...tenant.settings.branding.palette };
+        setPalette(nextPalette);
+        setSavedPalette(nextPalette);
       }
       if (tenant.settings.locale) {
         setTimezone(tenant.settings.locale.timezone || 'Africa/Cairo');
@@ -54,6 +73,123 @@ export default function TenantSettings() {
       }
     }
   }, [tenant]);
+
+  // Live preview effect: immediately inject chosen palette into actual UI document variables
+  useEffect(() => {
+    if (palette && applyBranding) {
+      applyBranding({ palette });
+    }
+  }, [palette, applyBranding]);
+
+  // If user navigates away without saving, restore saved branding
+  useEffect(() => {
+    return () => {
+      if (tenant?.settings?.branding && applyBranding) {
+        applyBranding(tenant.settings.branding);
+      }
+    };
+  }, [tenant, applyBranding]);
+
+  // WhatsApp status checker
+  const checkWhatsAppStatus = useCallback(async (quiet = false) => {
+    try {
+      if (!quiet) setWaLoading(true);
+      const res = await getWhatsAppSession();
+      setWaSession(res.data);
+      return res.data;
+    } catch (err) {
+      console.warn('Failed to fetch WhatsApp status', err);
+    } finally {
+      if (!quiet) setWaLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    checkWhatsAppStatus()
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setWaLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [checkWhatsAppStatus]);
+
+  // Poll WhatsApp session status while QR or connecting, or every 15s otherwise
+  useEffect(() => {
+    const status = waSession?.status;
+    if (!status) return undefined;
+    const pollDelay = status === 'qr' || status === 'connecting' ? 2500 : 15000;
+    const timer = setInterval(() => {
+      checkWhatsAppStatus(true).catch(() => {});
+    }, pollDelay);
+    return () => clearInterval(timer);
+  }, [waSession?.status, checkWhatsAppStatus]);
+
+  // Convert QR code text to data URL image
+  useEffect(() => {
+    if (!waSession?.qr) {
+      setWaQrUrl('');
+      return undefined;
+    }
+    let cancelled = false;
+    QRCode.toDataURL(waSession.qr, { width: 220, margin: 1, errorCorrectionLevel: 'M' })
+      .then(url => {
+        if (!cancelled) setWaQrUrl(url);
+      })
+      .catch(() => {
+        if (!cancelled) setWaQrUrl('');
+      });
+    return () => { cancelled = true; };
+  }, [waSession?.qr]);
+
+  const handleConnectWhatsApp = async () => {
+    setWaBusy(true);
+    try {
+      const res = await startWhatsAppSession();
+      setWaSession(res.data);
+      toast.success('WhatsApp session initiated. Scan the QR code.');
+    } catch (err) {
+      toast.error(err.normalized?.message || err.response?.data?.message || 'Failed to start WhatsApp session');
+    } finally {
+      setWaBusy(false);
+    }
+  };
+
+  const handleDisconnectWhatsApp = async () => {
+    setWaBusy(true);
+    try {
+      const res = await logoutWhatsAppSession();
+      setWaSession(res.data);
+      setWaQrUrl('');
+      toast.success('WhatsApp account disconnected successfully');
+    } catch (err) {
+      toast.error(err.normalized?.message || err.response?.data?.message || 'Failed to disconnect WhatsApp');
+    } finally {
+      setWaBusy(false);
+    }
+  };
+
+  const handleRefreshWhatsApp = async () => {
+    setWaBusy(true);
+    try {
+      await checkWhatsAppStatus(false);
+      toast.success('WhatsApp status refreshed');
+    } finally {
+      setWaBusy(false);
+    }
+  };
+
+  const handleResetPalette = () => {
+    setPalette(savedPalette);
+    if (applyBranding) applyBranding({ palette: savedPalette });
+    toast.success('Reset to saved palette');
+  };
+
+  const handleDefaultPalette = () => {
+    setPalette(DEFAULT_PALETTE);
+    if (applyBranding) applyBranding({ palette: DEFAULT_PALETTE });
+    toast.success('Restored default theme colors');
+  };
 
   const handleSaveSettings = async (e) => {
     e?.preventDefault();
@@ -80,6 +216,16 @@ export default function TenantSettings() {
     setSaving(true);
     try {
       const payload = {
+        branding: {
+          displayName: displayName.trim() || undefined,
+          palette,
+        },
+        locale: {
+          currency: 'EGP',
+          timezone: timezone.trim() || 'Africa/Cairo',
+          language: language.trim() || 'en',
+        },
+        enabledActivities: activities,
         settings: {
           branding: {
             displayName: displayName.trim() || undefined,
@@ -94,7 +240,11 @@ export default function TenantSettings() {
         },
       };
 
-      await updateTenantMe(payload);
+      const res = await updateTenantMe(payload);
+      const nextTenant = res.data?.tenant;
+      if (nextTenant) applyTenant(nextTenant);
+      if (applyBranding) applyBranding({ palette });
+      setSavedPalette(palette);
       toast.success('Gym settings saved successfully!');
       await refreshTenant();
     } catch (err) {
@@ -195,28 +345,51 @@ export default function TenantSettings() {
           {[
             { id: 'branding', label: 'Branding & Palette' },
             { id: 'locale', label: 'Locale & Activities' },
-            { id: 'whatsapp', label: 'WhatsApp' },
+            {
+              id: 'whatsapp',
+              label: 'WhatsApp',
+              badge: waSession?.status === 'connected' ? 'connected' : (waSession?.status === 'qr' ? 'qr' : 'disconnected'),
+            },
             { id: 'plan', label: 'Plan & Usage' },
-          ].map(t => (
-            <button
-              key={t.id}
-              onClick={() => setActiveTab(t.id)}
-              style={{
-                padding: '10px 18px',
-                fontSize: 13,
-                fontWeight: activeTab === t.id ? 700 : 500,
-                color: activeTab === t.id ? 'var(--navy)' : '#6B7280',
-                background: 'none',
-                border: 'none',
-                borderBottom: activeTab === t.id ? '2px solid var(--navy)' : '2px solid transparent',
-                cursor: 'pointer',
-                marginBottom: -1,
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {t.label}
-            </button>
-          ))}
+          ].map(t => {
+            const isTabActive = activeTab === t.id;
+            return (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                style={{
+                  padding: '10px 18px',
+                  fontSize: 13,
+                  fontWeight: isTabActive ? 700 : 500,
+                  color: isTabActive ? 'var(--navy)' : '#6B7280',
+                  background: 'none',
+                  border: 'none',
+                  borderBottom: isTabActive ? '2px solid var(--navy)' : '2px solid transparent',
+                  cursor: 'pointer',
+                  marginBottom: -1,
+                  transition: 'all 0.15s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <span>{t.label}</span>
+                {t.badge && (
+                  <span
+                    style={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: t.badge === 'connected' ? '#16A34A' : (t.badge === 'qr' ? '#D97706' : '#9CA3AF'),
+                      boxShadow: t.badge === 'connected' ? '0 0 6px rgba(22,163,74,0.6)' : 'none',
+                      display: 'inline-block',
+                    }}
+                    title={t.badge === 'connected' ? 'WhatsApp Linked' : (t.badge === 'qr' ? 'QR Code Pending' : 'Not Linked')}
+                  />
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Tab 1: Branding */}
@@ -260,8 +433,26 @@ export default function TenantSettings() {
             </Card>
 
             <Card>
-              <CardHeader title="Theme Palette & Live Preview" sub="Colors dynamically injected into CSS variables on client load" />
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginTop: 16 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--t1)' }}>
+                    Theme Palette & Live Preview
+                  </h3>
+                  <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--t3)' }}>
+                    Colors dynamically update the actual UI in real-time and persist across the entire workspace upon saving.
+                  </p>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <Btn variant="outline" size="sm" onClick={handleResetPalette}>
+                    Revert to Saved
+                  </Btn>
+                  <Btn variant="ghost" size="sm" onClick={handleDefaultPalette}>
+                    Default Theme
+                  </Btn>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16, marginTop: 20 }}>
                 {[
                   { key: 'primary', label: 'Primary Brand' },
                   { key: 'secondary', label: 'Secondary / Sub-nav' },
@@ -289,35 +480,120 @@ export default function TenantSettings() {
                 ))}
               </div>
 
-              {/* Live Preview Box */}
+              {/* Live Preview Container Box */}
               <div style={{
                 marginTop: 24,
-                padding: 20,
-                borderRadius: 12,
+                padding: 24,
+                borderRadius: 14,
                 background: palette.background,
                 border: '1px solid #E5E7EB',
+                boxShadow: '0 2px 10px rgba(0,0,0,0.04)',
+                transition: 'background 0.2s ease',
               }}>
-                <div style={{ fontSize: 12, fontWeight: 700, color: '#6B7280', textTransform: 'uppercase', marginBottom: 12 }}>
-                  Live Preview Container
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <div style={{
-                    padding: '8px 16px', borderRadius: 8,
-                    background: palette.primary, color: '#FFFFFF',
-                    fontWeight: 700, fontSize: 13,
-                  }}>
-                    {displayName || 'Gym Primary Button'}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{
+                      display: 'inline-block',
+                      width: 8,
+                      height: 8,
+                      borderRadius: '50%',
+                      background: palette.primary,
+                      boxShadow: `0 0 6px ${palette.primary}`,
+                    }} />
+                    <span style={{ fontSize: 12, fontWeight: 700, color: palette.text, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      Interactive Live Preview
+                    </span>
                   </div>
-                  <div style={{
-                    padding: '8px 16px', borderRadius: 8,
-                    background: palette.secondary, color: '#FFFFFF',
-                    fontWeight: 600, fontSize: 13,
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    padding: '3px 8px',
+                    borderRadius: 12,
+                    background: palette.accent,
+                    color: '#FFFFFF',
                   }}>
-                    Secondary Action
-                  </div>
-                  <span style={{ color: palette.text, fontSize: 14, fontWeight: 500 }}>
-                    Sample Body Text rendered in selected color
+                    Active Accent
                   </span>
+                </div>
+
+                {/* Simulated Mini Card */}
+                <div style={{
+                  background: '#FFFFFF',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: 10,
+                  padding: 16,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: palette.text }}>
+                      {displayName || 'Gym Workspace Preview'}
+                    </h4>
+                    <span style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: palette.secondary,
+                      background: `color-mix(in srgb, ${palette.secondary} 12%, transparent)`,
+                      padding: '2px 8px',
+                      borderRadius: 6,
+                    }}>
+                      Sub-nav Pill
+                    </span>
+                  </div>
+
+                  <p style={{ margin: 0, fontSize: 13, color: palette.text, opacity: 0.85, lineHeight: 1.5 }}>
+                    Adjusting the color pickers above immediately re-themes this preview and dynamically injects CSS variables into the active interface across your application.
+                  </p>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
+                    <button
+                      type="button"
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 8,
+                        background: palette.primary,
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontWeight: 700,
+                        fontSize: 13,
+                        cursor: 'default',
+                        boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
+                      }}
+                    >
+                      Primary Button
+                    </button>
+                    <button
+                      type="button"
+                      style={{
+                        padding: '8px 16px',
+                        borderRadius: 8,
+                        background: palette.secondary,
+                        color: '#FFFFFF',
+                        border: 'none',
+                        fontWeight: 600,
+                        fontSize: 13,
+                        cursor: 'default',
+                      }}
+                    >
+                      Secondary Action
+                    </button>
+                    <span style={{
+                      padding: '4px 10px',
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      background: palette.background,
+                      color: palette.text,
+                      border: '1px solid #D1D5DB',
+                    }}>
+                      Page Surface Chip
+                    </span>
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 12, fontSize: 12, color: palette.text, opacity: 0.75 }}>
+                  ✓ Colors chosen here are injected live into the app CSS variables (<code>--navy</code>, <code>--navy-2</code>, <code>--accent</code>, <code>--bg</code>, <code>--t1</code>). Click &ldquo;Save Settings&rdquo; to permanently apply them.
                 </div>
               </div>
             </Card>
@@ -403,20 +679,266 @@ export default function TenantSettings() {
 
         {/* Tab 3: WhatsApp */}
         {activeTab === 'whatsapp' && (
-          <Card>
-            <CardHeader
-              title="WhatsApp"
-              sub="Each staff member connects their own number. Messages are sent from that number."
-            />
-            <p style={{ margin: '16px 0 0', fontSize: 14, color: '#374151', lineHeight: 1.5 }}>
-              Open the profile menu and choose Connect WhatsApp, then scan the QR code from the WhatsApp app on your phone.
-            </p>
-            <div style={{ marginTop: 16 }}>
-              <Link to="/account/whatsapp" style={{ color: 'var(--navy)', fontWeight: 700, fontSize: 14 }}>
-                Connect WhatsApp
-              </Link>
-            </div>
-          </Card>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <Card>
+              <CardHeader
+                title="WhatsApp Account Linking"
+                sub="Check and manage WhatsApp connectivity for your account to send invoices, messages, and QR passes."
+              />
+
+              {waLoading && !waSession ? (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0', gap: 10, color: 'var(--t3)' }}>
+                  <Spinner size="md" />
+                  <span>Checking WhatsApp account status…</span>
+                </div>
+              ) : (
+                <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  {/* Status Banner */}
+                  {waSession?.status === 'connected' ? (
+                    <div style={{
+                      padding: '20px 24px',
+                      borderRadius: 12,
+                      background: '#F0FDF4',
+                      border: '1px solid #BBF7D0',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 14,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{
+                            width: 10, height: 10, borderRadius: '50%', background: '#16A34A',
+                            boxShadow: '0 0 8px rgba(22, 163, 74, 0.7)',
+                          }} />
+                          <span style={{ fontSize: 15, fontWeight: 700, color: '#166534' }}>
+                            WhatsApp Account Linked & Active
+                          </span>
+                        </div>
+                        <span style={{
+                          fontSize: 12, fontWeight: 700, color: '#15803D',
+                          background: '#DCFCE7', padding: '4px 10px', borderRadius: 20,
+                          border: '1px solid #86EFAC',
+                        }}>
+                          CONNECTED
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                        <div style={{
+                          padding: '8px 16px', borderRadius: 8, background: '#FFFFFF',
+                          border: '1px solid #86EFAC', fontSize: 16, fontWeight: 800,
+                          color: '#166534', letterSpacing: '0.5px',
+                        }}>
+                          +{waSession.phone}
+                        </div>
+                        <span style={{ fontSize: 13, color: '#374151' }}>
+                          Linked to your user profile. Automated triggers and manual templates will be sent from this number.
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, flexWrap: 'wrap' }}>
+                        <Btn
+                          variant="outline"
+                          size="sm"
+                          onClick={handleDisconnectWhatsApp}
+                          disabled={waBusy}
+                          style={{ borderColor: '#F87171', color: '#DC2626' }}
+                        >
+                          {waBusy ? <><Spinner size="sm" /> Disconnecting…</> : 'Disconnect WhatsApp'}
+                        </Btn>
+                        <Btn
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRefreshWhatsApp}
+                          disabled={waBusy}
+                        >
+                          {waBusy ? <Spinner size="sm" /> : '↻ Refresh Status'}
+                        </Btn>
+                        <Link
+                          to="/account/whatsapp"
+                          style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)', marginLeft: 8 }}
+                        >
+                          Open Dedicated WhatsApp Page →
+                        </Link>
+                      </div>
+                    </div>
+                  ) : waSession?.status === 'qr' ? (
+                    <div style={{
+                      padding: '20px 24px',
+                      borderRadius: 12,
+                      background: '#FFFBEB',
+                      border: '1px solid #FDE68A',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{
+                            width: 10, height: 10, borderRadius: '50%', background: '#D97706',
+                            boxShadow: '0 0 8px rgba(217, 119, 6, 0.7)',
+                          }} />
+                          <span style={{ fontSize: 15, fontWeight: 700, color: '#92400E' }}>
+                            Waiting for WhatsApp QR Scan
+                          </span>
+                        </div>
+                        <span style={{
+                          fontSize: 12, fontWeight: 700, color: '#B45309',
+                          background: '#FEF3C7', padding: '4px 10px', borderRadius: 20,
+                          border: '1px solid #FCD34D',
+                        }}>
+                          SCAN CODE
+                        </span>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
+                        {waQrUrl ? (
+                          <div style={{
+                            padding: 12, background: '#FFFFFF', borderRadius: 12,
+                            border: '1px solid #E5E7EB', display: 'inline-block',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                          }}>
+                            <img src={waQrUrl} alt="WhatsApp QR Code" width={220} height={220} style={{ display: 'block' }} />
+                          </div>
+                        ) : (
+                          <div style={{ width: 220, height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', borderRadius: 12 }}>
+                            <Spinner size="md" />
+                          </div>
+                        )}
+
+                        <div style={{ flex: 1, minWidth: 240 }}>
+                          <h4 style={{ margin: '0 0 8px 0', fontSize: 14, fontWeight: 700, color: '#78350F' }}>
+                            Scan from WhatsApp on your phone:
+                          </h4>
+                          <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: '#4B5563', lineHeight: 1.6 }}>
+                            <li>Open <strong>WhatsApp</strong> on your mobile phone</li>
+                            <li>Navigate to <strong>Settings</strong> &gt; <strong>Linked Devices</strong></li>
+                            <li>Tap <strong>Link a Device</strong> and point your camera at this QR code</li>
+                            <li>The status will update automatically once scanned</li>
+                          </ol>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+                        <Btn variant="outline" size="sm" onClick={handleDisconnectWhatsApp} disabled={waBusy}>
+                          Cancel Connection
+                        </Btn>
+                        <Btn variant="ghost" size="sm" onClick={handleRefreshWhatsApp} disabled={waBusy}>
+                          ↻ Refresh Status
+                        </Btn>
+                      </div>
+                    </div>
+                  ) : waSession?.status === 'connecting' ? (
+                    <div style={{
+                      padding: '24px',
+                      borderRadius: 12,
+                      background: '#F0F9FF',
+                      border: '1px solid #BAE6FD',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 14,
+                    }}>
+                      <Spinner size="md" />
+                      <div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: '#0369A1' }}>
+                          Connecting to WhatsApp Servers…
+                        </div>
+                        <div style={{ fontSize: 12, color: '#0284C7', marginTop: 2 }}>
+                          Please wait while the connection handshake completes.
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '20px 24px',
+                      borderRadius: 12,
+                      background: '#F9FAFB',
+                      border: '1px solid #E5E7EB',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 14,
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          <span style={{
+                            width: 10, height: 10, borderRadius: '50%', background: '#9CA3AF',
+                          }} />
+                          <span style={{ fontSize: 15, fontWeight: 700, color: '#374151' }}>
+                            No WhatsApp Account Linked
+                          </span>
+                        </div>
+                        <span style={{
+                          fontSize: 12, fontWeight: 700, color: '#6B7280',
+                          background: '#E5E7EB', padding: '4px 10px', borderRadius: 20,
+                        }}>
+                          NOT LINKED
+                        </span>
+                      </div>
+
+                      <p style={{ margin: 0, fontSize: 13, color: '#4B5563', lineHeight: 1.5, maxWidth: 640 }}>
+                        This user account currently has no active WhatsApp connection. Connect your number so you can send WhatsApp invitations, renewals, check-in barcodes, and customer service messages directly through Leap.
+                        {waSession?.phone && (
+                          <span style={{ display: 'block', marginTop: 6, fontWeight: 600, color: '#6B7280' }}>
+                            Previously linked number: +{waSession.phone}
+                          </span>
+                        )}
+                      </p>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
+                        <Btn
+                          variant="success"
+                          size="md"
+                          onClick={handleConnectWhatsApp}
+                          disabled={waBusy}
+                        >
+                          {waBusy ? <><Spinner size="sm" /> Starting…</> : 'Link WhatsApp Account'}
+                        </Btn>
+                        <Btn
+                          variant="outline"
+                          size="md"
+                          onClick={handleRefreshWhatsApp}
+                          disabled={waBusy}
+                        >
+                          ↻ Refresh Status
+                        </Btn>
+                        <Link
+                          to="/account/whatsapp"
+                          style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)', marginLeft: 8 }}
+                        >
+                          Dedicated Connect Page →
+                        </Link>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+
+            {/* Monthly WhatsApp Allowance & Quota Meter */}
+            <Card>
+              <CardHeader
+                title="Gym-wide WhatsApp Quotas"
+                sub="Aggregated message consumption against current billing entitlement"
+              />
+              <div style={{ marginTop: 16 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
+                  <span>Messages Sent This Month</span>
+                  <span>{usage.whatsappMonthlyMessages ?? 0} / {limits.whatsappMonthlyMessages ?? 2000}</span>
+                </div>
+                <div style={{ height: 10, background: '#E5E7EB', borderRadius: 6, overflow: 'hidden' }}>
+                  <div style={{
+                    height: '100%',
+                    background: 'var(--green)',
+                    width: `${Math.min(100, ((usage.whatsappMonthlyMessages || 0) / (limits.whatsappMonthlyMessages || 2000)) * 100)}%`,
+                    transition: 'width 0.3s ease',
+                  }} />
+                </div>
+                <div style={{ marginTop: 8, fontSize: 12, color: '#6B7280' }}>
+                  Quotas reset at the start of each calendar month based on your gym&rsquo;s current plan ({plan?.name || 'Standard'}).
+                </div>
+              </div>
+            </Card>
+          </div>
         )}
 
         {/* Tab 4: Plan & Usage */}
@@ -533,13 +1055,13 @@ export default function TenantSettings() {
                 <div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
                     <span>Storage Capacity</span>
-                    <span>{usage.storageGb ?? 0.5} GB / {limits.storageGb ?? 25} GB</span>
+                    <span>{usage.storageGb ?? 0} GB / {limits.storageGb ?? 25} GB</span>
                   </div>
                   <div style={{ height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
                     <div style={{
                       height: '100%',
                       background: '#0284C7',
-                      width: `${Math.min(100, ((usage.storageGb || 0.5) / (limits.storageGb || 25)) * 100)}%`,
+                      width: `${Math.min(100, ((usage.storageGb || 0) / (limits.storageGb || 25)) * 100)}%`,
                     }} />
                   </div>
                 </div>

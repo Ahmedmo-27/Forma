@@ -1,4 +1,4 @@
-const { assignPackageSchema, addNoteSchema, createExceptionSchema, salesRequestSchema, updateMemberSchema } = require("./schemas");
+const { assignPackageSchema, addNoteSchema, createExceptionSchema, salesRequestSchema, updateMemberSchema, tenantSettingsSchema } = require("./schemas");
 
 const basePayload = {
     packageId: "507f1f77bcf86cd799439011",
@@ -74,5 +74,48 @@ describe("updateMemberSchema", () => {
     it("rejects a blank name", () => {
         const result = updateMemberSchema.safeParse({ name: "  ", phones: "01000000000" });
         expect(result.success).toBe(false);
+    });
+});
+
+
+describe("tenantSettingsSchema", () => {
+    it("accepts top-level branding with palette", () => {
+        const payload = {
+            branding: {
+                displayName: "Leap Gym Pro",
+                palette: {
+                    primary: "#123456",
+                    secondary: "#654321",
+                    accent: "#abcdef",
+                    background: "#f0f0f0",
+                    text: "#111111",
+                },
+            },
+            locale: {
+                timezone: "Africa/Cairo",
+                language: "en",
+            },
+            enabledActivities: ["gym", "crossfit"],
+        };
+        const result = tenantSettingsSchema.safeParse(payload);
+        expect(result.success).toBe(true);
+        expect(result.data.branding.palette.primary).toBe("#123456");
+    });
+
+    it("accepts nested settings.branding with palette", () => {
+        const payload = {
+            settings: {
+                branding: {
+                    displayName: "Nested Gym",
+                    palette: {
+                        primary: "#001122",
+                        secondary: "#334455",
+                    },
+                },
+            },
+        };
+        const result = tenantSettingsSchema.safeParse(payload);
+        expect(result.success).toBe(true);
+        expect(result.data.settings.branding.palette.primary).toBe("#001122");
     });
 });

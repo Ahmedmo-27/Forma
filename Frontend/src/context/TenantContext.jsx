@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getTenantMe } from '../api/endpoints';
 import { useAuth } from './AuthContext';
+import { isValidHexColor } from '../lib/validation';
 
 const TenantContext = createContext(null);
 
@@ -18,23 +19,29 @@ export function TenantProvider({ children }) {
     const { primary, secondary, accent, background, text } = branding.palette;
     const root = document.documentElement;
 
-    if (primary) {
+    if (primary && isValidHexColor(primary)) {
       root.style.setProperty('--navy', primary);
       root.style.setProperty('--blue', primary);
     }
-    if (secondary) {
+    if (secondary && isValidHexColor(secondary)) {
       root.style.setProperty('--navy-2', secondary);
       root.style.setProperty('--navy-3', secondary);
       root.style.setProperty('--blue-dark', secondary);
     }
-    if (accent) {
+    if (accent && isValidHexColor(accent)) {
       root.style.setProperty('--accent', accent);
     }
-    if (background) {
+    if (background && isValidHexColor(background)) {
       root.style.setProperty('--bg', background);
+      if (document.body) {
+        document.body.style.backgroundColor = background;
+      }
     }
-    if (text) {
+    if (text && isValidHexColor(text)) {
       root.style.setProperty('--t1', text);
+      if (document.body) {
+        document.body.style.color = text;
+      }
     }
   }, []);
 
@@ -97,6 +104,7 @@ export function TenantProvider({ children }) {
     loading,
     refreshTenant: fetchTenant,
     applyTenant,
+    applyBranding,
     hasFeature,
     enabledActivities,
     currency,

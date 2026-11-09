@@ -147,7 +147,7 @@ function TabItem({ item }) {
             padding: '10px 22px', borderRadius: 8,
             fontSize: 14, fontWeight: isActive ? 700 : 500,
             color: isActive ? '#fff' : 'rgba(255,255,255,0.62)',
-            background: isActive ? 'linear-gradient(135deg,#5B38BA,#6D47CC)' : 'rgba(0,0,0,0.22)',
+            background: isActive ? 'linear-gradient(135deg, var(--navy-2), var(--navy-3, var(--navy-2)))' : 'rgba(0,0,0,0.22)',
             border: `1px solid ${isActive ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.08)'}`,
             cursor: 'pointer',
             transition: 'all 0.15s cubic-bezier(0.16,1,0.3,1)',
@@ -347,7 +347,7 @@ export default function Layout({ children }) {
               width: 44, height: 44, borderRadius: 12,
               flexShrink: 0,
               lineHeight: 0,
-              boxShadow: '0 3px 12px rgba(68,41,140,0.5)',
+              boxShadow: '0 3px 12px color-mix(in srgb, var(--navy) 50%, transparent)',
               overflow: 'hidden',
               background: '#2b1c4d',
             }}>
@@ -405,7 +405,7 @@ export default function Layout({ children }) {
               >
                 <div style={{
                   width: 34, height: 34, borderRadius: '50%',
-                  background: 'linear-gradient(135deg,#44298C,#5B38BA)',
+                  background: 'linear-gradient(135deg, var(--navy), var(--navy-2))',
                   border: '2px solid rgba(255,255,255,0.20)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontSize: 12, fontWeight: 800, color: '#fff', flexShrink: 0,
@@ -701,7 +701,7 @@ export default function Layout({ children }) {
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Display Name</label>
                   <input value={profileForm.name} onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))} placeholder="Your name"
                     style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: `1px solid ${profileErrors.name ? 'var(--red-bd)' : 'var(--border)'}`, borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                    onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+                    onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
                     onBlur={e => { e.target.style.borderColor = profileErrors.name ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
                   {profileErrors.name && <p style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>{profileErrors.name}</p>}
                 </div>
@@ -716,7 +716,7 @@ export default function Layout({ children }) {
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>Current Password</label>
                   <input type="password" value={profileForm.currentPassword} onChange={e => setProfileForm(f => ({ ...f, currentPassword: e.target.value }))} placeholder="Enter current password"
                     style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: `1px solid ${profileErrors.currentPassword ? 'var(--red-bd)' : 'var(--border)'}`, borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                    onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+                    onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
                     onBlur={e => { e.target.style.borderColor = profileErrors.currentPassword ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
                   {profileErrors.currentPassword && <p style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>{profileErrors.currentPassword}</p>}
                 </div>
@@ -726,7 +726,7 @@ export default function Layout({ children }) {
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>New Password</label>
                   <input type="password" value={profileForm.newPassword} onChange={e => setProfileForm(f => ({ ...f, newPassword: e.target.value }))} placeholder="Min 6 characters"
                     style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: `1px solid ${profileErrors.newPassword ? 'var(--red-bd)' : 'var(--border)'}`, borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                    onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+                    onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
                     onBlur={e => { e.target.style.borderColor = profileErrors.newPassword ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
                   {profileErrors.newPassword && <p style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>{profileErrors.newPassword}</p>}
                 </div>
@@ -736,7 +736,7 @@ export default function Layout({ children }) {
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>Confirm New Password</label>
                   <input type="password" value={profileForm.confirmPassword} onChange={e => setProfileForm(f => ({ ...f, confirmPassword: e.target.value }))} placeholder="Repeat new password"
                     style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: `1px solid ${profileErrors.confirmPassword ? 'var(--red-bd)' : 'var(--border)'}`, borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                    onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+                    onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
                     onBlur={e => { e.target.style.borderColor = profileErrors.confirmPassword ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
                   {profileErrors.confirmPassword && <p style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>{profileErrors.confirmPassword}</p>}
                 </div>
@@ -747,7 +747,7 @@ export default function Layout({ children }) {
                     Cancel
                   </button>
                   <button type="submit" disabled={profileSaving}
-                    style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg,#44298C,#5B38BA)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: profileSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: profileSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, var(--navy), var(--navy-2))', color: '#fff', fontSize: 13, fontWeight: 700, cursor: profileSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: profileSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
                     {profileSaving
                       ? <><span style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite' }} />Saving…</>
                       : 'Save Changes'}

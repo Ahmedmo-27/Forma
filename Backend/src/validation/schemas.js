@@ -265,7 +265,7 @@ const tenantSettingsSchema = z.object({
         }).optional(),
     }).optional(),
     locale: z.object({
-        currency: egpCurrency,
+        currency: egpCurrency.optional(),
         timezone: z.string().trim().max(100).optional(),
         language: z.string().trim().max(10).optional(),
     }).optional(),
@@ -276,6 +276,31 @@ const tenantSettingsSchema = z.object({
         accessToken: z.string().trim().nullable().optional(),
     }).optional(),
     featureConfig: z.record(z.string(), z.any()).optional(),
+    settings: z.object({
+        branding: z.object({
+            logoKey: z.string().nullable().optional(),
+            displayName: z.string().nullable().optional(),
+            palette: z.object({
+                primary: z.string().optional(),
+                secondary: z.string().optional(),
+                accent: z.string().optional(),
+                background: z.string().optional(),
+                text: z.string().optional(),
+            }).optional(),
+        }).optional(),
+        locale: z.object({
+            currency: egpCurrency.optional(),
+            timezone: z.string().trim().max(100).optional(),
+            language: z.string().trim().max(10).optional(),
+        }).optional(),
+        enabledActivities: z.array(z.string().trim().min(1)).optional(),
+        whatsapp: z.object({
+            phoneNumberId: z.string().trim().nullable().optional(),
+            businessAccountId: z.string().trim().nullable().optional(),
+            accessToken: z.string().trim().nullable().optional(),
+        }).optional(),
+        featureConfig: z.record(z.string(), z.any()).optional(),
+    }).optional(),
 });
 
 const createTenantSchema = z.object({
