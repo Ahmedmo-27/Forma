@@ -82,6 +82,13 @@ describe("R2 storage configuration", () => {
         expect(service.getDriverName()).toBe("r2");
         expect(() => service.assertConfigured()).toThrow(/R2_ACCESS_KEY_ID/);
     });
+
+    it("safely returns 0 bytes from sumTenantBytes when bucket is not configured", async () => {
+        delete process.env.R2_BUCKET_NAME;
+        const service = new StorageService();
+        const total = await service.sumTenantBytes("tenant_123");
+        expect(total).toBe(0);
+    });
 });
 
 describe("authorized upload reads", () => {

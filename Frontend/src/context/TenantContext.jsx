@@ -121,7 +121,7 @@ export function TenantProvider({ children }) {
     timezone,
     branding: tenant?.settings?.branding || {},
     plan: tenant?.plan,
-    limits: tenant?.effectiveLimits || {},
+    limits: tenant?.limits || tenant?.effectiveLimits || {},
     usage: tenant?.usage || {},
     roleAccess: tenant?.roleAccess || EMPTY_OBJECT,
     accessCatalog: tenant?.accessCatalog || EMPTY_LIST,

@@ -86,6 +86,9 @@ describe("Tenant WhatsApp Usage & Limits in GET /api/tenant/me", () => {
         // Check limits match plan fairUseCaps, NOT hardcoded 500 or 5
         expect(responsePayload.limits.whatsappMonthlyMessages).toBe(2000);
         expect(responsePayload.limits.storageGb).toBe(25);
+        expect(responsePayload.effectiveLimits).toBeDefined();
+        expect(responsePayload.effectiveLimits.storageGb).toBe(25);
+        expect(responsePayload.effectiveLimits.whatsappMonthlyMessages).toBe(2000);
 
         // Check usage reflects accurate WhatsApp count and storage
         expect(responsePayload.usage.whatsappMonthlyMessages).toBe(137);
@@ -115,5 +118,68 @@ describe("Tenant WhatsApp Usage & Limits in GET /api/tenant/me", () => {
 
         // Verified that whatsapp_qr_sent is part of WHATSAPP_AUDIT_ACTIONS
         expect(WHATSAPP_AUDIT_ACTIONS).toContain(auditDoc.action);
+    });
+
+    it("accurately returns customized storage capacity allowance for lifetime subscribers in /api/tenant/me", async () => {
+        const tenantId = new mongoose.Types.ObjectId();
+        const mockTenant = {
+            _id: tenantId,
+            name: "Iron Box Lifetime",
+            slug: "iron-box",
+            status: "active",
+            billing: {
+                cycle: "lifetime",
+                lifetime: {
+                    fairUseLimits: {
+                        storageGbLimit: 100,
+                        whatsappMessagesMonthlyLimit: 5000,
+                    },
+                },
+            },
+            planId: {
+                _id: new mongoose.Types.ObjectId(),
+                key: "platinum",
+                name: "Platinum Plan",
+                fairUseCaps: { storageGb: 25, whatsappMessagesMonthly: 2000 },
+                limits: { maxMembers: 500, maxStaff: 10, maxBranches: 1 },
+            },
+            settings: { locale: { timezone: "Africa/Cairo" } },
+        };
+
+        vi.spyOn(Tenant, "findById").mockReturnValue({
+            populate: vi.fn().mockResolvedValue(mockTenant),
+        });
+        vi.spyOn(Member, "countDocuments").mockResolvedValue(10);
+        vi.spyOn(User, "countDocuments").mockResolvedValue(2);
+        vi.spyOn(AuditLog, "countDocuments").mockResolvedValue(5);
+        vi.spyOn(Announcement, "find").mockReturnValue({
+            select: vi.fn().mockResolvedValue([]),
+        });
+
+        const req = {
+            user: {
+                id: new mongoose.Types.ObjectId().toString(),
+                role: "Owner",
+                tenantId: String(tenantId),
+            },
+        };
+
+        let responsePayload = null;
+        const res = {
+            status: () => res,
+            json: (data) => {
+                responsePayload = data;
+                return res;
+            },
+        };
+
+        await runWithTenant({ tenantId: String(tenantId) }, async () => {
+            await getMyTenant(req, res);
+        });
+
+        expect(responsePayload.limits.storageGb).toBe(100);
+        expect(responsePayload.effectiveLimits.storageGb).toBe(100);
+        expect(responsePayload.limits.whatsappMonthlyMessages).toBe(5000);
+        expect(responsePayload.effectiveLimits.whatsappMonthlyMessages).toBe(5000);
     });
 });

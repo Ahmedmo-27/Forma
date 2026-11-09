@@ -411,7 +411,9 @@ export default function TenantDetailPage() {
             {formatBytes(usage.storageBytes || 0)}
           </div>
           <div className="text-[11px] text-[var(--platform-text-muted)]">
-            {isLifetime ? `Fair-use cap: ${usage.storageLimitGb || 25} GB` : "Standard quota"}
+            {isLifetime
+              ? `Fair-use cap: ${usage.storageLimitGb || 25} GB`
+              : `Plan allowance: ${usage.storageLimitGb || tenant.plan?.fairUseCaps?.storageGb || 25} GB`}
           </div>
         </div>
 
@@ -472,7 +474,7 @@ export default function TenantDetailPage() {
                 <UsageMeter
                   label="Disk Storage Consumption"
                   current={Math.round(((usage.storageBytes || 0) / (1024 * 1024 * 1024)) * 10) / 10}
-                  max={isLifetime ? usage.storageLimitGb || 25 : 50}
+                  max={usage.storageLimitGb || effectiveLimits.storageGb || (isLifetime ? (tenant.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25) : (tenant.plan?.fairUseCaps?.storageGb || 25))}
                   unit="GB"
                 />
               </div>

@@ -139,12 +139,16 @@ async function computeDailySnapshot(date = new Date()) {
             const bytes = await getTenantStorageBytes(t._id);
             totalStorageBytes += bytes;
 
-            if (cycle === "lifetime") {
-                const storageGb = bytes / (1024 * 1024 * 1024);
-                const limitGb = t.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25;
-                if (storageGb > limitGb) {
-                    lifetimeFairUseViolations++;
-                }
+            const isLifetime = cycle === "lifetime";
+            const storageGb = bytes / (1024 * 1024 * 1024);
+            const limitGb = t.limitOverrides?.storageGb != null
+                ? t.limitOverrides.storageGb
+                : (isLifetime
+                    ? (t.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25)
+                    : (t.planId?.fairUseCaps?.storageGb ?? 25));
+
+            if (isLifetime && storageGb > limitGb) {
+                lifetimeFairUseViolations++;
             }
         }
 

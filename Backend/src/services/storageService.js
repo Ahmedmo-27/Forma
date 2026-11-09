@@ -181,7 +181,7 @@ class StorageService {
     }
 
     async sumTenantBytes(tenantId) {
-        if (!tenantId) return 0;
+        if (!tenantId || !this.bucketName()) return 0;
         const { ListObjectsV2Command } = loadS3();
         let total = 0;
         let continuationToken;

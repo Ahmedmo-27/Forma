@@ -367,7 +367,7 @@ export default function TenantSettings() {
 
   const plan = tenant?.plan;
   const usage = tenant?.usage || {};
-  const limits = tenant?.effectiveLimits || {};
+  const limits = tenant?.limits || tenant?.effectiveLimits || {};
 
   return (
     <Layout>
@@ -1197,10 +1197,15 @@ export default function TenantSettings() {
                   <div style={{ height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
                     <div style={{
                       height: '100%',
-                      background: '#0284C7',
+                      background: (usage.storageGb || 0) > (limits.storageGb || 25) ? '#DC2626' : '#0284C7',
                       width: `${Math.min(100, ((usage.storageGb || 0) / (limits.storageGb || 25)) * 100)}%`,
                     }} />
                   </div>
+                  {(usage.storageGb || 0) > (limits.storageGb || 25) && (
+                    <div style={{ fontSize: 11, color: '#DC2626', fontWeight: 600, marginTop: 4 }}>
+                      Capacity limit exceeded. Please contact platform support or upgrade your plan.
+                    </div>
+                  )}
                 </div>
 
                 <div>

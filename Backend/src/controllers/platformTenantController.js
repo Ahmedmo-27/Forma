@@ -112,7 +112,7 @@ async function getTenants(req, res) {
 
         const [tenants, total] = await Promise.all([
             Tenant.find(filter)
-                .populate("planId", "key name priceMonthly priceYearly limits")
+                .populate("planId", "key name priceMonthly priceYearly limits fairUseCaps")
                 .populate("ownerUserId", "name email")
                 .sort(sort)
                 .skip(skip)
@@ -130,6 +130,12 @@ async function getTenants(req, res) {
 
                 const storageBytes = await getTenantStorageBytes(t._id);
                 const effectiveLimits = getEffectiveLimits(t, t.planId);
+                const isLifetime = t.billing?.cycle === "lifetime";
+                const storageLimitGb = t.limitOverrides?.storageGb != null
+                    ? t.limitOverrides.storageGb
+                    : (isLifetime
+                        ? (t.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25)
+                        : (t.planId?.fairUseCaps?.storageGb ?? 25));
 
                 // Calculate MRR contribution
                 let mrrContribution = 0;
@@ -161,6 +167,8 @@ async function getTenants(req, res) {
                         staff: staffCount,
                         maxStaff: effectiveLimits.maxStaff,
                         storageBytes,
+                        storageGb: Math.round((storageBytes / (1024 * 1024 * 1024)) * 100) / 100,
+                        storageLimitGb,
                     },
                     trialEndsAt: t.trialEndsAt,
                     currentPeriodEnd: t.currentPeriodEnd,
@@ -221,7 +229,26 @@ async function getTenantDetail(req, res) {
         const storageBytes = await getTenantStorageBytes(tenant._id);
         const effectiveFeatures = getEffectiveFeatures(tenant, tenant.planId);
         const effectiveRoles = getEffectiveRoles(tenant, tenant.planId);
-        const effectiveLimits = getEffectiveLimits(tenant, tenant.planId);
+        const baseLimits = getEffectiveLimits(tenant, tenant.planId);
+
+        const isLifetime = tenant.billing?.cycle === "lifetime";
+        const storageLimitGb = tenant.limitOverrides?.storageGb != null
+            ? tenant.limitOverrides.storageGb
+            : (isLifetime
+                ? (tenant.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25)
+                : (tenant.planId?.fairUseCaps?.storageGb ?? 25));
+
+        const whatsappLimit = tenant.limitOverrides?.whatsappMonthlyMessages != null
+            ? tenant.limitOverrides.whatsappMonthlyMessages
+            : (isLifetime
+                ? (tenant.billing?.lifetime?.fairUseLimits?.whatsappMessagesMonthlyLimit || 2000)
+                : (tenant.planId?.fairUseCaps?.whatsappMessagesMonthly ?? 2000));
+
+        const effectiveLimits = {
+            ...baseLimits,
+            storageGb: storageLimitGb,
+            whatsappMonthlyMessages: whatsappLimit,
+        };
 
         res.json({
             tenant: {
@@ -254,6 +281,8 @@ async function getTenantDetail(req, res) {
                 members: memberCount,
                 staff: staffCount,
                 storageBytes,
+                storageGb: Math.round((storageBytes / (1024 * 1024 * 1024)) * 100) / 100,
+                storageLimitGb,
                 monthlyWhatsApp: monthlyWhatsAppCount,
             },
             notes,

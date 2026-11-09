@@ -54,7 +54,7 @@ export default function UsagePage() {
   const fairUseOverages = costData?.fairUseOverages || [];
   const snapshots = snapshotsData || [];
 
-  const totalStorageBytes = topStorage.reduce((acc, t) => acc + (t.storageBytes || 0), 0);
+  const totalStorageBytes = costData?.totalStorageBytes ?? topStorage.reduce((acc, t) => acc + (t.storageBytes || 0), 0);
   const totalWhatsAppMessages = topWhatsApp.reduce((acc, t) => acc + (t.whatsappMonthly || 0), 0);
 
   const handleRecompute = async () => {
@@ -167,10 +167,10 @@ export default function UsagePage() {
         <Callout variant="danger">
           <div className="flex items-center gap-2 font-semibold">
             <ShieldAlert className="w-4 h-4" />
-            <span>Fair-Use Storage Cap Exceeded</span>
+            <span>Storage Capacity Cap Exceeded</span>
           </div>
           <p className="mt-1 text-xs">
-            {fairUseOverages.length} lifetime subscriber(s) have exceeded their contractual fair-use storage boundary.
+            {fairUseOverages.length} subscriber(s) have exceeded their contractual storage allowance.
             Automated notifications or quota expansion is recommended.
           </p>
         </Callout>
@@ -235,6 +235,9 @@ export default function UsagePage() {
                         <span className={t.isStorageOverCap ? "text-[var(--platform-danger)]" : "text-[var(--platform-text-primary)]"}>
                           {t.storageMb} MB
                         </span>
+                        <div className="text-[10px] text-[var(--platform-text-muted)] font-normal">
+                          Cap: {t.storageLimitGb ? `${t.storageLimitGb} GB` : "25 GB"}
+                        </div>
                         {t.isStorageOverCap && (
                           <span className="block text-[10px] text-[var(--platform-danger)]">
                             Over Cap

@@ -40,6 +40,24 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
         },
     } : null;
 
+    const storageGbLimit = tenant?.limitOverrides?.storageGb != null
+        ? tenant.limitOverrides.storageGb
+        : (isLifetime
+            ? (tenant.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25)
+            : (plan?.fairUseCaps?.storageGb ?? 25));
+
+    const whatsappLimit = tenant?.limitOverrides?.whatsappMonthlyMessages != null
+        ? tenant.limitOverrides.whatsappMonthlyMessages
+        : (isLifetime
+            ? (tenant.billing?.lifetime?.fairUseLimits?.whatsappMessagesMonthlyLimit || 2000)
+            : (plan?.fairUseCaps?.whatsappMessagesMonthly ?? 2000));
+
+    const resolvedLimits = {
+        ...limits,
+        storageGb: storageGbLimit,
+        whatsappMonthlyMessages: whatsappLimit,
+    };
+
     return {
         id: tenant._id,
         name: tenant.name,
@@ -59,15 +77,8 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
             allowedRoles: plan.allowedRoles || [],
         } : null,
         effectiveFeatures,
-        limits: {
-            ...limits,
-            storageGb: isLifetime
-                ? (tenant.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25)
-                : (plan?.fairUseCaps?.storageGb ?? 25),
-            whatsappMonthlyMessages: isLifetime
-                ? (tenant.billing?.lifetime?.fairUseLimits?.whatsappMessagesMonthlyLimit || 2000)
-                : (plan?.fairUseCaps?.whatsappMessagesMonthly ?? 2000),
-        },
+        limits: resolvedLimits,
+        effectiveLimits: resolvedLimits,
         usage: {
             members: usage.members ?? 0,
             staff: usage.staff ?? 0,

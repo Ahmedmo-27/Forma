@@ -132,8 +132,8 @@ async function getCostInsights(req, res) {
     try {
         return runAsPlatform(async () => {
             const tenants = await Tenant.find({ isSoftDeleted: { $ne: true } })
-                .populate("planId", "key name")
-                .select("name slug billing");
+                .populate("planId", "key name fairUseCaps")
+                .select("name slug billing limitOverrides planId");
 
             const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
@@ -148,7 +148,11 @@ async function getCostInsights(req, res) {
 
                     const isLifetime = t.billing?.cycle === "lifetime";
                     const storageGb = storageBytes / (1024 * 1024 * 1024);
-                    const storageLimitGb = isLifetime ? (t.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25) : null;
+                    const storageLimitGb = t.limitOverrides?.storageGb != null
+                        ? t.limitOverrides.storageGb
+                        : (isLifetime
+                            ? (t.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25)
+                            : (t.planId?.fairUseCaps?.storageGb ?? 25));
                     const isStorageOverCap = storageLimitGb ? storageGb > storageLimitGb : false;
 
                     return {
@@ -158,6 +162,7 @@ async function getCostInsights(req, res) {
                         cycle: t.billing?.cycle || "monthly",
                         storageBytes,
                         storageMb: Math.round((storageBytes / (1024 * 1024)) * 100) / 100,
+                        storageLimitGb,
                         whatsappMonthly,
                         isLifetime,
                         isStorageOverCap,
@@ -168,12 +173,14 @@ async function getCostInsights(req, res) {
             // Sort top consumers
             const topStorage = [...consumers].sort((a, b) => b.storageBytes - a.storageBytes).slice(0, 10);
             const topWhatsApp = [...consumers].sort((a, b) => b.whatsappMonthly - a.whatsappMonthly).slice(0, 10);
-            const fairUseOverages = consumers.filter((c) => c.isLifetime && c.isStorageOverCap);
+            const fairUseOverages = consumers.filter((c) => c.isStorageOverCap);
+            const totalStorageBytes = consumers.reduce((acc, c) => acc + (c.storageBytes || 0), 0);
 
             res.json({
                 topStorage,
                 topWhatsApp,
                 fairUseOverages,
+                totalStorageBytes,
             });
         });
     } catch (err) {
