@@ -28,6 +28,17 @@ describe("pagination utils", () => {
             expect(result.limit).toBe(50);
         });
 
+        it("supports custom defaultLimit and expanded maxLimit up to 500", () => {
+            const defaultResult = parsePagination({}, { defaultLimit: 10, maxLimit: 500 });
+            expect(defaultResult).toEqual({ page: 1, limit: 10, skip: 0, all: false });
+
+            const custom250 = parsePagination({ page: "2", limit: "250" }, { defaultLimit: 10, maxLimit: 500 });
+            expect(custom250).toEqual({ page: 2, limit: 250, skip: 250, all: false });
+
+            const clamped = parsePagination({ page: "1", limit: "800" }, { defaultLimit: 10, maxLimit: 500 });
+            expect(clamped.limit).toBe(500);
+        });
+
         it("keeps large list requests instead of clipping them to one page", () => {
             const result = parsePagination({ limit: "10000" });
             expect(result).toEqual({ page: 1, limit: 5000, skip: 0, all: true });

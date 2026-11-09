@@ -63,7 +63,7 @@ router.use(requireFeature("members"));
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 
-router.post("/", allowRoles("members", "Receptionist", "Owner", "Sales Manager", "Sales"), enforceMemberLimit, validate(createMemberSchema), autoInvalidate(["members", "revenue"]), createMember);
+router.post("/", allowRoles("members", "Receptionist", "Owner", "Sales Manager", "Sales"), enforceMemberLimit, validate(createMemberSchema), autoInvalidate(["members", "revenue", "contracts"]), createMember);
 router.post("/bulk-import", allowRoles("import_members", "Sales Manager", "Owner"), requireFeature("excel_import"), uploadSpreadsheet, bulkImportMembers);
 router.get("/bulk-import/:jobId", allowRoles("import_members", "Sales Manager", "Owner"), requireFeature("excel_import"), getMemberImportJob);
 
@@ -77,7 +77,11 @@ router.post("/check-in", allowRoles("check_in", "Receptionist", "Owner", "Sales 
 });
 
 router.get("/", protect, cacheResponse({ ttlSeconds: 60, tags: ["members"] }), (req, res, next) => {
-    const decision = memberListDecision(req.user);
+    const context = {
+        roleAccess: req.tenant?.roleAccess || null,
+        planFeatures: Array.isArray(req.planFeatures) ? req.planFeatures : null,
+    };
+    const decision = memberListDecision(req.user, context);
     if (decision === "deny") return res.status(403).json({ message: "You do not have access to this feature" });
     if (decision === "all") return getAllMembers(req, res, next);
     return getMembers(req, res, next);

@@ -6,7 +6,7 @@ const Package = require("../models/Package");
 const User = require("../models/User");
 const ProfileView = require("../models/ProfileView");
 const { hasAccess, hasExplicitGrant } = require("../utils/accessControl");
-const { attachCurrentPackage } = require("../utils/revenueUtils");
+const { attachCurrentPackage, cairoDayBounds } = require("../utils/revenueUtils");
 const { findMemberByIdentifier, buildMemberFilter } = require("../utils/memberLookup");
 const { notifyMemberAssigned, notifyTaskAssigned } = require("../utils/notificationService");
 const Task = require("../models/Task");
@@ -297,7 +297,7 @@ const getAllMembers = async (req, res) => {
         // Detect global-search / "all" call (frontend passes limit=10000)
         const isGlobalSearch = parseInt(req.query.limit, 10) >= 1000;
 
-        const { page, limit, skip } = parsePagination(req.query);
+        const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 10, maxLimit: 500 });
         const sortObj = memberListSort(req.query);
 
         const filter = buildMemberListFilter({
@@ -824,7 +824,7 @@ const getMembers = async (req, res) => {
 
         // Sales reps see their own book. A sales manager's scope is the whole gym
         // (tenant plugin), including members held by the primary sales manager.
-        const { page, limit, skip } = parsePagination(req.query);
+        const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 10, maxLimit: 500 });
         const filter = buildMemberListFilter({
             status: req.query.status,
             search: req.query.search,
@@ -1222,10 +1222,7 @@ const addInvitation = async (req, res) => {
 // ─── 10. Get today's check-ins ────────────────────────────────────────────────
 const getTodayCheckIns = async (req, res) => {
     try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        const { start: today, end: tomorrow } = cairoDayBounds();
 
         // Project today's log entries only. Populating userlog.createdBy loaded
         // every historical author for each member who checked in.
@@ -1235,7 +1232,7 @@ const getTodayCheckIns = async (req, res) => {
                     userlog: {
                         $elemMatch: {
                             type: "check-in",
-                            createdAt: { $gte: today, $lt: tomorrow },
+                            createdAt: { $gte: today, $lte: tomorrow },
                         },
                     },
                 },
@@ -1720,8 +1717,8 @@ const assignPackage = async (req, res) => {
 // ─── Upload National ID (Accountant only) ─────────────────────────────────────
 const uploadNationalId = async (req, res) => {
     try {
-        if (!["Accountant", "Owner"].includes(req.user.role)) {
-            return res.status(403).json({ message: "Only accountants and owners can upload national IDs" });
+        if (!["Accountant", "Owner", "General Manager"].includes(req.user.role)) {
+            return res.status(403).json({ message: "Only accountants, general managers, and owners can upload national IDs" });
         }
 
         const identifier = req.params.memberId;
@@ -1759,8 +1756,8 @@ const uploadNationalId = async (req, res) => {
 
 const uploadProfilePhoto = async (req, res) => {
     try {
-        if (!["Receptionist", "Accountant", "Owner"].includes(req.user.role)) {
-            return res.status(403).json({ message: "Only receptionists, accountants, and owners can upload profile photos" });
+        if (!["Receptionist", "Accountant", "Owner", "General Manager"].includes(req.user.role)) {
+            return res.status(403).json({ message: "Only receptionists, accountants, general managers, and owners can upload profile photos" });
         }
 
         const identifier = req.params.memberId;
@@ -1810,8 +1807,8 @@ const uploadProfilePhoto = async (req, res) => {
 
 const deleteProfilePhoto = async (req, res) => {
     try {
-        if (!["Receptionist", "Accountant", "Owner"].includes(req.user.role)) {
-            return res.status(403).json({ message: "Only receptionists, accountants, and owners can delete profile photos" });
+        if (!["Receptionist", "Accountant", "Owner", "General Manager"].includes(req.user.role)) {
+            return res.status(403).json({ message: "Only receptionists, accountants, general managers, and owners can delete profile photos" });
         }
 
         const member = await findMemberByIdentifier(req.params.memberId);
@@ -2288,17 +2285,14 @@ const bulkTransferCoach = async (req, res) => {
 
 const getTodayCoachTransfers = async (req, res) => {
     try {
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const tomorrow = new Date(today);
-        tomorrow.setDate(tomorrow.getDate() + 1);
+        const { start: today, end: tomorrow } = cairoDayBounds();
 
         // Find members with coach-assign userlog entries today
         const filter = {
             "userlog": {
                 $elemMatch: {
                     type: "assign",
-                    createdAt: { $gte: today, $lt: tomorrow },
+                    createdAt: { $gte: today, $lte: tomorrow },
                 },
             },
         };
@@ -2377,23 +2371,31 @@ const refund = async (req, res) => {
         }
 
         const lastSubscription = member.subscriptions[member.subscriptions.length - 1];
+        const alreadyRefunded = lastSubscription.refundAmount || 0;
+        const maxRefundable = lastSubscription.pricePaid - alreadyRefunded;
+        const currency = req.tenant?.settings?.locale?.currency || "EGP";
 
-        if (refund_amount > lastSubscription.pricePaid) {
+        if (refund_amount <= 0 || refund_amount > maxRefundable) {
             return res.status(400).json({
-                message: "Refund amount exceeds the amount paid"
+                message: `Refund amount exceeds the refundable amount. Max refundable: ${maxRefundable} ${currency}`
             });
         }
 
         // Store refund on the subscription — subscriptionSalePrice() subtracts it automatically
         // so all revenue calculations (getSalesManagerRevenue, getSalesRevenue, etc.) reflect the deduction
-        lastSubscription.refundAmount = (lastSubscription.refundAmount || 0) + Number(refund_amount);
+        const newRefundTotal = alreadyRefunded + Number(refund_amount);
+        lastSubscription.refundAmount = newRefundTotal;
         lastSubscription.refundReason = reason || null;
         lastSubscription.refundedBy   = req.user.id;
         lastSubscription.refundedAt   = new Date();
         lastSubscription.refunded     = true;
-        member.status = "guest";
 
-
+        // Revoke membership to 'guest' only if the member refunded their first ever package
+        const isFirstEverPackage = member.subscriptions.length === 1 && newRefundTotal >= lastSubscription.pricePaid;
+        if (isFirstEverPackage) {
+            member.status = "guest";
+            member.isMember = false;
+        }
 
         await member.save();
 
@@ -2435,10 +2437,11 @@ const refundPT_Sessions = async (req, res) => {
         const lastSub = member.pt_subscriptions[member.pt_subscriptions.length - 1];
         const alreadyRefunded = lastSub.refundAmount || 0;
         const maxRefundable   = lastSub.pricePaid - alreadyRefunded;
+        const currency        = req.tenant?.settings?.locale?.currency || "EGP";
 
         if (refund_amount > maxRefundable) {
             return res.status(400).json({
-                message: `Refund amount exceeds the refundable amount. Max refundable: ${maxRefundable} EGP`
+                message: `Refund amount exceeds the refundable amount. Max refundable: ${maxRefundable} ${currency}`
             });
         }
 

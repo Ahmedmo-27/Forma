@@ -46,8 +46,8 @@ describe("uploads auth protection", () => {
         expect(res.status).toHaveBeenCalledWith(403);
     });
 
-    it("allows authorized staff roles to access uploads", () => {
-        const req = { user: { role: "Accountant" } };
+    it("allows authorized staff roles including General Manager to access uploads", () => {
+        const req = { user: { role: "General Manager" } };
         const res = {
             status: vi.fn().mockReturnThis(),
             json: vi.fn(),
@@ -57,6 +57,7 @@ describe("uploads auth protection", () => {
         const allowedRoles = authorize(
             "Receptionist",
             "Owner",
+            "General Manager",
             "Sales",
             "Sales Manager",
             "Coach",

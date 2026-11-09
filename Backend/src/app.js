@@ -211,12 +211,12 @@ function canAccessMemberUpload(user, member, type) {
         return false;
     }
 
-    const profileRoles = ["Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant"];
+    const profileRoles = ["Receptionist", "Owner", "General Manager", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant"];
     if (!profileRoles.includes(user.role)) return false;
 
     if (type === "profile_photo") return true;
 
-    const sensitiveFileRoles = ["Receptionist", "Owner", "Sales Manager", "Coach Manager", "Accountant"];
+    const sensitiveFileRoles = ["Receptionist", "Owner", "General Manager", "Sales Manager", "Coach Manager", "Accountant"];
     if (sensitiveFileRoles.includes(user.role)) return true;
 
     return user.role === "Sales" && isAssignedSales(member, user);

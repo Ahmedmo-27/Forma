@@ -257,6 +257,17 @@ const updateExceptionStatus = async (req, res) => {
     try {
         const { status, reviewNote } = req.body;
 
+        const existing = await PackageExceptionRequest.findById(req.params.id);
+        if (!existing) {
+            return res.status(404).json({ message: "Request not found" });
+        }
+        if (existing.status !== "pending") {
+            return res.status(409).json({ message: "Request not found or already processed" });
+        }
+        if (status === "accepted" && String(existing.proposedBy) === String(req.user.id) && req.user.role !== "Owner") {
+            return res.status(403).json({ message: "You cannot approve a package exception you proposed" });
+        }
+
         const request = await PackageExceptionRequest.findOneAndUpdate(
             { _id: req.params.id, status: "pending" },
             {
