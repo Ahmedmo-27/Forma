@@ -7,6 +7,7 @@ import BillingEvent from "../models/BillingEvent";
 import PlatformMetricSnapshot from "../models/PlatformMetricSnapshot";
 import Member from "../models/Member";
 import User from "../models/User";
+import AuditLog from "../models/AuditLog";
 import { computeDailySnapshot } from "../services/platformAnalyticsService";
 
 describe("Phase 5: Business Analytics & Snapshots", () => {
@@ -18,6 +19,7 @@ describe("Phase 5: Business Analytics & Snapshots", () => {
         vi.spyOn(PlanPrice, "find").mockReturnValue({
             populate: vi.fn().mockResolvedValue([]),
         });
+        vi.spyOn(AuditLog, "countDocuments").mockResolvedValue(0);
     });
 
     describe("Financial Metric Computation (MRR, ARR, Lifetime)", () => {

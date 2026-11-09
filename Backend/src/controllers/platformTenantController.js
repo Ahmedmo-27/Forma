@@ -14,6 +14,7 @@ const passwordSetup = require("../services/passwordSetupService");
 const mailer = require("../services/mailer");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const { BILLING_CURRENCY } = require("../config/currency");
+const { WHATSAPP_AUDIT_ACTIONS, startOfMonth } = require("../utils/whatsappTracking");
 const logger = require("../utils/logger");
 
 const RESERVED_SLUGS = new Set([
@@ -210,9 +211,9 @@ async function getTenantDetail(req, res) {
             BillingEvent.find({ tenantId: tenant._id }).sort({ createdAt: -1 }).limit(25),
             AuditLog.countDocuments({
                 tenantId: tenant._id,
-                action: "whatsapp_template_sent",
+                action: { $in: WHATSAPP_AUDIT_ACTIONS },
                 createdAt: {
-                    $gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+                    $gte: startOfMonth(tenant?.settings?.locale?.timezone),
                 },
             }),
         ]);

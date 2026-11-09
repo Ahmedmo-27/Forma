@@ -8,6 +8,7 @@ const User = require("../models/User");
 const AuditLog = require("../models/AuditLog");
 const { runAsPlatform } = require("../context/tenantContext");
 const { getTenantStorageBytes } = require("../controllers/platformTenantController");
+const { WHATSAPP_AUDIT_ACTIONS } = require("../utils/whatsappTracking");
 const logger = require("../utils/logger");
 
 /**
@@ -226,7 +227,10 @@ async function computeDailySnapshot(date = new Date()) {
             },
             cost: {
                 totalStorageBytes,
-                totalWhatsAppMessagesPeriod: 0,
+                totalWhatsAppMessagesPeriod: await AuditLog.countDocuments({
+                    action: { $in: WHATSAPP_AUDIT_ACTIONS },
+                    createdAt: { $gte: startOfDay, $lte: endOfDay },
+                }),
                 lifetimeFairUseViolations,
             },
         };

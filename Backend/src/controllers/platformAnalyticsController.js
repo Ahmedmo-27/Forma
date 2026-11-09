@@ -6,6 +6,7 @@ const AuditLog = require("../models/AuditLog");
 const platformAnalyticsService = require("../services/platformAnalyticsService");
 const { getTenantStorageBytes } = require("./platformTenantController");
 const { runAsPlatform } = require("../context/tenantContext");
+const { WHATSAPP_AUDIT_ACTIONS } = require("../utils/whatsappTracking");
 const logger = require("../utils/logger");
 
 /**
@@ -141,7 +142,7 @@ async function getCostInsights(req, res) {
                     const storageBytes = await getTenantStorageBytes(t._id);
                     const whatsappMonthly = await AuditLog.countDocuments({
                         tenantId: t._id,
-                        action: "whatsapp_template_sent",
+                        action: { $in: WHATSAPP_AUDIT_ACTIONS },
                         createdAt: { $gte: monthStart },
                     });
 

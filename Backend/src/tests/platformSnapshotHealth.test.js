@@ -59,6 +59,7 @@ describe("platform daily snapshot definitions", () => {
             populate: vi.fn().mockResolvedValue([]),
         });
         vi.spyOn(BillingEvent, "find").mockResolvedValue([]);
+        vi.spyOn(AuditLog, "countDocuments").mockResolvedValue(0);
     });
 
     it("counts same-day logo churn, leaves NRR blank, and does not treat a silent gym as churned", async () => {
