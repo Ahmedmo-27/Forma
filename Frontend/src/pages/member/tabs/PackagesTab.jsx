@@ -5,6 +5,7 @@ import { getPackages, getMemberPendingException, createPackageException, updateP
 import api from '../../../api/axios';
 import CatalogPackageForm, { EMPTY_PACKAGE_FORM, validatePackageForm, packageFormToPayload } from '../../../components/PackageForm';
 import PackageAcceptModal from '../../../components/accounting/PackageAcceptModal';
+import { useTenant } from '../../../context/TenantContext';
 
 const ACTIVITY_TYPES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 const DURATIONS = ['1 month', '3 months', '6 months', '1 year'];
@@ -49,6 +50,7 @@ export default function PackagesTab({ member, user, onRefresh }) {
 
 // ── Private Sessions Sub-tab ──────────────────────────────────────────────────
 function PTSessionsContent({ member, user, onRefresh }) {
+  const { currency = 'EGP' } = useTenant() || {};
   const [sessions, setSessions] = useState('');
   const [startDate, setStartDate] = useState(toLocalDateString());
   const [durationMonths, setDurationMonths] = useState('');
@@ -108,7 +110,7 @@ function PTSessionsContent({ member, user, onRefresh }) {
     const lastPTSub = member.pt_subscriptions?.at(-1);
     const maxRefund = (lastPTSub?.pricePaid ?? 0) - (lastPTSub?.refundAmount ?? 0);
     if (amount > maxRefund) {
-      toast.error(`Refund amount cannot exceed maximum refundable (EGP ${maxRefund})`);
+      toast.error(`Refund amount cannot exceed maximum refundable (${currency} ${maxRefund})`);
       return;
     }
     setPTRefunding(true);
@@ -131,7 +133,7 @@ function PTSessionsContent({ member, user, onRefresh }) {
     { label: 'Start', value: ptStart ? fmtDate(ptStart) : '—' },
     { label: 'Expiry', value: ptEnd ? fmtDate(ptEnd) : '—' },
     { label: 'Duration', value: latestSub ? `${latestSub.durationMonths} month${latestSub.durationMonths !== 1 ? 's' : ''}` : '—' },
-    { label: 'Price Paid', value: latestSub?.pricePaid ? `EGP ${latestSub.pricePaid}` : '—' },
+    { label: 'Price Paid', value: latestSub?.pricePaid ? `${currency} ${latestSub.pricePaid}` : '—' },
     { label: 'Status', value: <Badge status={remaining > 0 && ptEnd && new Date(ptEnd) > new Date() ? 'active' : 'expired'} /> },
     { label: 'Coach', value: member.current_couch?.name ?? '—' },
   ] : [];
@@ -187,11 +189,11 @@ function PTSessionsContent({ member, user, onRefresh }) {
                 <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700 }}>
                   {isPTRefunded ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <span style={{ textDecoration: 'line-through', color: 'var(--t4)', fontWeight: 400 }}>{sub.pricePaid ? `EGP ${sub.pricePaid}` : '—'}</span>
-                      <span style={{ color: 'var(--green)' }}>EGP {(sub.pricePaid ?? 0) - (sub.refundAmount ?? 0)}</span>
+                      <span style={{ textDecoration: 'line-through', color: 'var(--t4)', fontWeight: 400 }}>{sub.pricePaid ? `${currency} ${sub.pricePaid}` : '—'}</span>
+                      <span style={{ color: 'var(--green)' }}>{currency} {(sub.pricePaid ?? 0) - (sub.refundAmount ?? 0)}</span>
                     </div>
                   ) : (
-                    <span style={{ color: 'var(--green)' }}>{sub.pricePaid ? `EGP ${sub.pricePaid}` : '—'}</span>
+                    <span style={{ color: 'var(--green)' }}>{sub.pricePaid ? `${currency} ${sub.pricePaid}` : '—'}</span>
                   )}
                 </td>
                 <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{member.current_couch?.name ?? '—'}</td>
@@ -255,7 +257,7 @@ function PTSessionsContent({ member, user, onRefresh }) {
             placeholder="e.g. 2.5"
           />
           <Input
-            label="Price Paid (EGP)"
+            label={`Price Paid (${currency})`}
             type="number" min="0"
             value={pricePaid}
             onChange={e => setPricePaid(e.target.value)}
@@ -305,7 +307,7 @@ function PTSessionsContent({ member, user, onRefresh }) {
           );
         })()}
         <Input
-          label="Refund Amount (EGP) *"
+          label={`Refund Amount (${currency}) *`}
           type="number" min="1"
           value={ptRefundAmount}
           onChange={e => setPTRefundAmount(e.target.value)}
@@ -324,6 +326,7 @@ function PTSessionsContent({ member, user, onRefresh }) {
 
 // ── Packages Sub-tab (original content) ───────────────────────────────────────
 function PackagesContent({ member, user, onRefresh }) {
+  const { currency = 'EGP' } = useTenant() || {};
   const [pending, setPending] = useState(null);
   const [loadingPending, setLoadingPending] = useState(true);
   const [showAddPackage, setShowAddPackage] = useState(false);
@@ -340,8 +343,9 @@ function PackagesContent({ member, user, onRefresh }) {
   const isSalesManager = user?.role === 'Sales Manager';
   const isAccountant = user?.role === 'Accountant';
   const isOwner = user?.role === 'Owner';
-  const canAddPackage = isSalesManager || isAccountant || isOwner;
-  const canRefund = isOwner || isAccountant;
+  const isGM = user?.role === 'General Manager';
+  const canAddPackage = isSalesManager || isAccountant || isOwner || isGM;
+  const canRefund = isOwner || isAccountant || isGM;
   const memberKey = member.systemId ?? member._id;
 
   const fetchPending = useCallback(async () => {
@@ -364,7 +368,7 @@ function PackagesContent({ member, user, onRefresh }) {
     const lastSub = member.subscriptions?.at(-1);
     const maxRefund = (lastSub?.pricePaid ?? 0) - (lastSub?.refundAmount ?? 0);
     if (amount > maxRefund) {
-      toast.error(`Refund amount cannot exceed maximum refundable (EGP ${maxRefund})`);
+      toast.error(`Refund amount cannot exceed maximum refundable (${currency} ${maxRefund})`);
       return;
     }
     setRefunding(true);
@@ -432,7 +436,7 @@ function PackagesContent({ member, user, onRefresh }) {
     { label: 'Created At',       value: fmtDateTime(lastSub.createdAt) },
     { label: 'Start',            value: fmtDate(lastSub.startDate) },
     { label: 'Expiry',           value: fmtDate(lastSub.endDate) },
-    { label: 'Price Paid',       value: `EGP ${lastSub.pricePaid}` },
+    { label: 'Price Paid',       value: `${currency} ${lastSub.pricePaid}` },
     { label: 'Discount',         value: lastSub.discountPercent ? `${lastSub.discountPercent}%` : 'None' },
     { label: 'Freeze Limit',     value: `${pkg.freezeLimitDays ?? 0} days` },
     { label: 'Invitation Slots', value: `${pkg.invitationLimit ?? 0}` },
@@ -542,7 +546,7 @@ function PackagesContent({ member, user, onRefresh }) {
               { label: 'Duration', value: upcomingPkg.duration },
               { label: 'Starts',   value: fmtDate(upcomingSub.startDate) },
               { label: 'Expires',  value: fmtDate(upcomingSub.endDate) },
-              { label: 'Price',    value: `EGP ${upcomingSub.pricePaid}` },
+              { label: 'Price',    value: `${currency} ${upcomingSub.pricePaid}` },
             ].map(d => (
               <div key={d.label} style={{ background: 'var(--card)', padding: '10px 14px' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{d.label}</div>
@@ -639,12 +643,12 @@ function PackagesContent({ member, user, onRefresh }) {
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 4 }}>
                 <span style={{ color: 'var(--t4)', fontWeight: 600 }}>Max Refundable</span>
-                <span style={{ color: 'var(--green)', fontWeight: 700 }}>{maxRefund} EGP</span>
+                <span style={{ color: 'var(--green)', fontWeight: 700 }}>{maxRefund} {currency}</span>
               </div>
             </div>
           );
         })()}
-        <Input label="Refund Amount (EGP) *" type="number" min="1"
+        <Input label={`Refund Amount (${currency}) *`} type="number" min="1"
           value={refundAmount} onChange={e => setRefundAmount(e.target.value)}
           placeholder="Enter amount to refund" />
         <Input label="Reason (optional)"
@@ -707,6 +711,7 @@ const PACKAGE_TERM_KEYS = new Set([
 ]);
 
 function PackageFormFields({ form, set, readOnly, makeException, allEditable }) {
+  const { currency = 'EGP' } = useTenant() || {};
   const fieldDisabled = (key) => {
     if (readOnly) return true;
     if (allEditable) return false;
@@ -723,8 +728,8 @@ function PackageFormFields({ form, set, readOnly, makeException, allEditable }) 
       <Select label="Duration" value={form.duration} onChange={e => set?.('duration', e.target.value)} disabled={fieldDisabled('duration')} readOnly={readOnly}>
         {DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}
       </Select>
-      <Input label="Price (EGP)" type="number" value={form.price} onChange={e => set?.('price', e.target.value)} disabled={fieldDisabled('price')} readOnly={readOnly} />
-      <Input label="Price Paid (EGP)" type="number" value={form.pricePaid} onChange={e => set?.('pricePaid', e.target.value)} disabled={fieldDisabled('pricePaid')} readOnly={readOnly} />
+      <Input label={`Price (${currency})`} type="number" value={form.price} onChange={e => set?.('price', e.target.value)} disabled={fieldDisabled('price')} readOnly={readOnly} />
+      <Input label={`Price Paid (${currency})`} type="number" value={form.pricePaid} onChange={e => set?.('pricePaid', e.target.value)} disabled={fieldDisabled('pricePaid')} readOnly={readOnly} />
       <Input label="Discount %" type="number" min="0" max="100" value={form.discountPercent} onChange={e => set?.('discountPercent', e.target.value)} disabled={fieldDisabled('discountPercent')} readOnly={readOnly} />
       <Input label="Freeze Limit (days)" type="number" value={form.freezeLimitDays} onChange={e => set?.('freezeLimitDays', e.target.value)} disabled={fieldDisabled('freezeLimitDays')} readOnly={readOnly} />
       <Input label="Invitation Slots" type="number" value={form.invitationLimit} onChange={e => set?.('invitationLimit', e.target.value)} disabled={fieldDisabled('invitationLimit')} readOnly={readOnly} />
@@ -974,7 +979,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
           placeholder="Search packages…"
           initialLimit={5}
         >
-          {packages.map(p => <option key={p._id} value={p._id}>{p.name} — EGP {p.price} ({p.duration})</option>)}
+          {packages.map(p => <option key={p._id} value={p._id}>{p.name} — {currency} {p.price} ({p.duration})</option>)}
         </Select>
         {form.basePackageId && (
           <div style={{ marginTop: 16 }}>
@@ -1014,7 +1019,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
             placeholder="Search packages…"
             initialLimit={5}
           >
-            {packages.map(p => <option key={p._id} value={p._id}>{p.name} — EGP {p.price} ({p.duration})</option>)}
+            {packages.map(p => <option key={p._id} value={p._id}>{p.name} — {currency} {p.price} ({p.duration})</option>)}
           </Select>
         </div>
         {!pending && (

@@ -908,18 +908,231 @@ export function Avatar({ name = '', size = 'md', photo = null, style: ex = {} })
   );
 }
 
+// ── Page Size Filter / Templates ──────────────────────────────────────────────
+export function PageSizeFilter({
+  pageSize = 10,
+  onChange,
+  options = [10, 20, 30, 50],
+  label = 'Show first:',
+}) {
+  const [isCustomOpen, setIsCustomOpen] = useState(false);
+  const [customValue, setCustomValue] = useState(String(pageSize));
+  const isCustom = !options.includes(Number(pageSize));
+
+  const applyCustom = () => {
+    const num = parseInt(customValue, 10);
+    if (Number.isFinite(num) && num > 0) {
+      const clamped = Math.min(500, Math.max(1, num));
+      onChange(clamped);
+      setIsCustomOpen(false);
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      {label && (
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+          {label}
+        </span>
+      )}
+      {options.map((opt) => {
+        const isSelected = !isCustom && Number(pageSize) === opt;
+        return (
+          <button
+            key={opt}
+            type="button"
+            onClick={() => {
+              setIsCustomOpen(false);
+              onChange(opt);
+            }}
+            style={{
+              padding: '5px 12px',
+              borderRadius: 20,
+              fontSize: 12,
+              fontWeight: isSelected ? 700 : 500,
+              border: `1px solid ${isSelected ? 'var(--navy)' : 'var(--border)'}`,
+              background: isSelected ? 'var(--navy)' : 'var(--card)',
+              color: isSelected ? '#fff' : 'var(--t2)',
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'all 0.15s',
+            }}
+          >
+            Show first {opt}
+          </button>
+        );
+      })}
+
+      {isCustomOpen ? (
+        <div style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          gap: 6,
+          background: 'var(--card)',
+          padding: '2px 8px',
+          borderRadius: 20,
+          border: '1px solid var(--navy)',
+        }}>
+          <span style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600 }}>Custom:</span>
+          <input
+            type="number"
+            min="1"
+            max="500"
+            value={customValue}
+            onChange={(e) => setCustomValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                applyCustom();
+              } else if (e.key === 'Escape') {
+                setIsCustomOpen(false);
+              }
+            }}
+            placeholder="e.g. 15"
+            autoFocus
+            style={{
+              width: 55,
+              padding: '3px 6px',
+              fontSize: 12,
+              borderRadius: 6,
+              border: '1px solid var(--border)',
+              background: 'var(--bg)',
+              color: 'var(--t1)',
+              textAlign: 'center',
+              outline: 'none',
+            }}
+          />
+          <button
+            type="button"
+            onClick={applyCustom}
+            style={{
+              padding: '3px 8px',
+              fontSize: 11,
+              fontWeight: 600,
+              borderRadius: 12,
+              background: 'var(--navy)',
+              color: '#fff',
+              border: 'none',
+              cursor: 'pointer',
+            }}
+          >
+            Apply
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsCustomOpen(false)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--t4)',
+              cursor: 'pointer',
+              fontSize: 13,
+              padding: '0 2px',
+              lineHeight: 1,
+            }}
+            title="Cancel"
+          >
+            ✕
+          </button>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => {
+            setCustomValue(String(pageSize));
+            setIsCustomOpen(true);
+          }}
+          style={{
+            padding: '5px 12px',
+            borderRadius: 20,
+            fontSize: 12,
+            fontWeight: isCustom ? 700 : 500,
+            border: `1px solid ${isCustom ? 'var(--navy)' : 'var(--border)'}`,
+            background: isCustom ? 'var(--navy)' : 'var(--card)',
+            color: isCustom ? '#fff' : 'var(--t2)',
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            transition: 'all 0.15s',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+          </svg>
+          {isCustom ? `Custom: ${pageSize}` : 'Custom…'}
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Pagination ────────────────────────────────────────────────────────────────
-export function Pagination({ page, totalPages, total, pageSize, onPageChange }) {
+export function Pagination({
+  page,
+  totalPages,
+  total,
+  pageSize,
+  pageSizeOptions = [10, 20, 30, 50],
+  onPageChange,
+  onPageSizeChange,
+}) {
   if (!total || total < 1) return null;
 
   const pages = Math.max(1, totalPages || 1);
-  const size = pageSize || 20;
+  const size = pageSize || 10;
   const start = ((page - 1) * size) + 1;
   const end = Math.min(page * size, total);
 
   return (
-    <div className="pagination-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderTop: '1px solid var(--border)' }}>
-      <span style={{ fontSize: 12, color: 'var(--t4)' }}>{start}–{end} of {total}</span>
+    <div className="pagination-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderTop: '1px solid var(--border)', flexWrap: 'wrap', gap: 10 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12, color: 'var(--t4)' }}>{start}–{end} of {total}</span>
+        {onPageSizeChange && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t3)' }}>
+            <span style={{ color: 'var(--t4)' }}>·</span>
+            <span>Per page:</span>
+            <select
+              value={pageSizeOptions.includes(Number(size)) ? Number(size) : 'custom'}
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'custom') {
+                  const input = window.prompt('Enter number of items per page (1–500):', String(size));
+                  if (input !== null) {
+                    const parsed = parseInt(input, 10);
+                    if (Number.isFinite(parsed) && parsed > 0) {
+                      onPageSizeChange(Math.min(500, Math.max(1, parsed)));
+                    }
+                  }
+                } else {
+                  onPageSizeChange(Number(val));
+                }
+              }}
+              style={{
+                fontSize: 12,
+                padding: '2px 8px',
+                borderRadius: 6,
+                border: '1px solid var(--border)',
+                background: 'var(--card)',
+                color: 'var(--t1)',
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              {pageSizeOptions.map((opt) => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+              {!pageSizeOptions.includes(Number(size)) && (
+                <option value="custom">Custom ({size})</option>
+              )}
+              {pageSizeOptions.includes(Number(size)) && (
+                <option value="custom">Custom…</option>
+              )}
+            </select>
+          </div>
+        )}
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
         <Btn variant="outline" size="xs" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>← Prev</Btn>
         <span style={{ fontSize: 12, color: 'var(--t3)', padding: '0 8px' }}>{page} / {pages}</span>
@@ -969,14 +1182,53 @@ export function Divider() {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+export const CAIRO_ZONE = 'Africa/Cairo';
+
 export function fmtDate(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(d).toLocaleDateString('en-GB', {
+    timeZone: CAIRO_ZONE,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
 }
+
 export function fmtDateTime(d) {
   if (!d) return '—';
-  return new Date(d).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  return new Date(d).toLocaleString('en-US', {
+    timeZone: CAIRO_ZONE,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
 }
+
+export function fmtTime(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleTimeString('en-US', {
+    timeZone: CAIRO_ZONE,
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+export function fmtTimeWithSeconds(d) {
+  if (!d) return '—';
+  return new Date(d).toLocaleTimeString('en-US', {
+    timeZone: CAIRO_ZONE,
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  });
+}
+
 export function initials(name = '') {
   return name.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
 }
@@ -984,12 +1236,20 @@ export function initials(name = '') {
 export { formatSystemId } from '../lib/systemId';
 
 export function toLocalDateString(value = new Date()) {
+  if (!value) return '';
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) {
+    return value.trim();
+  }
   const d = value instanceof Date ? value : new Date(value);
   if (isNaN(d.getTime())) return '';
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: CAIRO_ZONE }).format(d);
+  } catch {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
 }
 
 export function parseDateBoundary(dateStr, isEnd = false) {

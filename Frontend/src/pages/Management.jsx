@@ -67,7 +67,7 @@ export default function Management() {
     coachStaff: allow('coach_staff'),
     coachTransfers: user?.role === 'Coach Manager' && allow('my_transfers'),
     teams: allow('teams_overview'),
-    roleAccess: ['Owner', 'General Manager'].includes(user?.role) && allow('access_control'),
+    roleAccess: allow('access_control'),
     accessControl: allow('access_control'),
     packageRequests: allow('package_approvals'),
   };

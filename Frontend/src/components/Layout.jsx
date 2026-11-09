@@ -244,6 +244,13 @@ export default function Layout({ children }) {
       seen.add('/reports');
       visible.push({ to: '/reports', label: 'Reports', access: 'reports' });
     }
+    if (hasAccess(user, 'access_control') && !seen.has('/owner/access') && !seen.has('/management/access')) {
+      seen.add('/owner/access');
+      const contactsAt = visible.findIndex((item) => item.to === '/contacts');
+      const accessNav = { to: '/owner/access', label: 'Access', access: 'access_control' };
+      if (contactsAt >= 0) visible.splice(contactsAt, 0, accessNav);
+      else visible.push(accessNav);
+    }
     const extras = Array.isArray(user?.navExtras) ? user.navExtras : [];
     for (const extra of extras) {
       if (!extra?.to || seen.has(extra.to)) continue;

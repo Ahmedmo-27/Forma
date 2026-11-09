@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Spinner, EmptyState, Avatar, Badge } from '../../components/ui';
+import { PageHeader, Card, Spinner, EmptyState, Avatar, Badge, fmtTime } from '../../components/ui';
 import { getTodayCoachTransfers } from '../../api/endpoints';
 
 export default function CoachTransfers() {
@@ -82,7 +82,7 @@ export default function CoachTransfers() {
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)' }}>
-                      {new Date(t.time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                      {fmtTime(t.time)}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>by {t.by}</div>
                     <Badge status={t.member.couch_subscription_status || 'guest'} />

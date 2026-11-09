@@ -17,19 +17,21 @@ export function formatMemberId(value) {
 
 /**
  * Value encoded in a QR and accepted by check-in search.
- * Sends the numeric member ID (e.g. "100") for members, or the system ID (e.g. "S100") for non-members.
+ * Only members who have a member ID are allowed to have QR codes.
+ * Returns the numeric member ID (e.g. "100") for members.
+ * Returns "" for guests, profiles without a member ID, or system IDs.
  */
 export function memberQrPayload(memberOrId) {
   if (!memberOrId) return "";
   if (typeof memberOrId === "object") {
-    const isMember = Boolean(memberOrId.memberId != null || memberOrId.isMember);
-    if (isMember && memberOrId.memberId != null) {
-      return formatMemberId(memberOrId.memberId);
+    const isGuest = memberOrId.status === "guest" || memberOrId.isMember === false;
+    if (isGuest || memberOrId.memberId == null || String(memberOrId.memberId).trim() === "") {
+      return "";
     }
-    return formatSystemId(memberOrId.systemId);
+    return formatMemberId(memberOrId.memberId);
   }
   const raw = String(memberOrId).trim();
+  if (/^s\d+$/i.test(raw)) return "";
   if (/^m\d+$/i.test(raw)) return formatMemberId(raw);
-  if (/^s\d+$/i.test(raw)) return formatSystemId(raw);
   return raw;
 }

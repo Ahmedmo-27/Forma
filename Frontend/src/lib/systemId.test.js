@@ -52,27 +52,28 @@ describe("systemId utilities", () => {
       expect(memberQrPayload(member)).toBe("105");
     });
 
-    it("returns systemId formatted with S prefix for people who aren't members yet (guests)", () => {
+    it("returns empty string for guests (prevent guests from having QR code with systemId)", () => {
       const guest = {
         name: "John Prospect",
         isMember: false,
         status: "guest",
         systemId: 200,
       };
-      expect(memberQrPayload(guest)).toBe("S200");
+      expect(memberQrPayload(guest)).toBe("");
     });
 
-    it("falls back to systemId if isMember is true but memberId is missing", () => {
+    it("returns empty string if memberId is missing (system ID only)", () => {
       const memberWithoutId = {
         name: "Lead",
         isMember: true,
         systemId: 300,
       };
-      expect(memberQrPayload(memberWithoutId)).toBe("S300");
+      expect(memberQrPayload(memberWithoutId)).toBe("");
     });
 
-    it("accepts direct primitive systemId and memberId strings or numbers", () => {
-      expect(memberQrPayload("S100")).toBe("S100");
+    it("does not allow primitive systemId to produce a QR payload", () => {
+      expect(memberQrPayload("S100")).toBe("");
+      expect(memberQrPayload("s100")).toBe("");
       expect(memberQrPayload("M105")).toBe("105");
       expect(memberQrPayload(105)).toBe("105");
     });

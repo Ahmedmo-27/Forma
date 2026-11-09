@@ -116,12 +116,20 @@ export default function MemberQrButton({ member, onSent }) {
     }
   }, [member?.lastQrSentAt]);
 
-  const isMember = Boolean(member?.memberId != null || member?.isMember);
+  const isGuest = member?.status === "guest" || member?.isMember === false;
+  const hasMemberId = member?.memberId != null && String(member.memberId).trim() !== "";
+
+  // Prevent guests or people with only a system ID from having or sending a QR code.
+  // Allowed only for members that have a member ID.
+  if (!member || isGuest || !hasMemberId) {
+    return null;
+  }
+
   const code = memberQrPayload(member);
 
   const send = async () => {
     if (!code) {
-      toast.error(isMember ? "This member has no member id yet" : "This person has no system id yet");
+      toast.error("This member has no member id yet");
       return;
     }
     if (!toWhatsAppUrl(member?.phones)) {
@@ -143,7 +151,7 @@ export default function MemberQrButton({ member, onSent }) {
       body.append("kind", "qr_checkin");
       body.append("code", String(code));
 
-      const targetId = (isMember && member.memberId) || member.systemId || member._id;
+      const targetId = member.memberId || member._id;
       if (targetId) body.append("memberId", String(targetId));
       if (member.name) body.append("memberName", member.name);
 
@@ -179,7 +187,7 @@ export default function MemberQrButton({ member, onSent }) {
         title={lastSentAt ? `Last sent: ${fmtDateTime(lastSentAt)}` : "Send check-in QR code"}
       >
         {lastSentAt ? <CheckmarkMark /> : <WhatsAppMark />}
-        {busy ? stage : lastSentAt ? "QR Code Sent (Resend)" : isMember ? "Send QR code on WhatsApp" : "Send QR on WhatsApp"}
+        {busy ? stage : lastSentAt ? "QR Code Sent (Resend)" : "Send QR code on WhatsApp"}
       </Btn>
       {lastSentAt && (
         <span

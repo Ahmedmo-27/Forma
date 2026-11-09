@@ -4,6 +4,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Table, EmptyState, fmtDate, fmtDateTime, Pagination, toLocalDateString } from '../../components/ui';
 import { getContracts } from '../../api/endpoints';
+import { useTenant } from '../../context/TenantContext';
 import ContractDetailModal from '../../components/accounting/ContractDetailModal';
 
 const PAGE_SIZE = 10;
@@ -19,6 +20,7 @@ const TODAY = toLocalDateString();
 
 export default function ContractHistory() {
   usePageTitle('Contract History');
+  const { currency = 'EGP' } = useTenant() || {};
 
   const [contracts, setContracts] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
@@ -92,7 +94,7 @@ export default function ContractHistory() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 16 }}>
           {[
             { label: 'Contracts', value: pagination.total, color: 'var(--blue)', accent: 'var(--blue)' },
-            { label: 'Total Revenue', value: `${fmt(totalRevenue)} EGP`, color: 'var(--green)', accent: 'var(--green)' },
+            { label: 'Total Revenue', value: `${fmt(totalRevenue)} ${currency}`, color: 'var(--green)', accent: 'var(--green)' },
           ].map((s) => (
             <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderLeft: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{s.label}</div>

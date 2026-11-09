@@ -5,24 +5,33 @@ import { useAuth } from '../context/AuthContext';
 import usePageTitle from '../hooks/usePageTitle';
 import useDebounce from '../hooks/useDebounce';
 import Layout from '../components/Layout';
-import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, fmtDate, Pagination } from '../components/ui';
+import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, fmtDate, Pagination, PageSizeFilter } from '../components/ui';
 import { getAllMembers } from '../api/endpoints';
 import AddMemberModal from '../components/AddMemberModal';
 import { formatSystemId } from '../lib/systemId';
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
 
 export default function Members() {
   usePageTitle('Members');
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const saved = parseInt(localStorage.getItem('members_page_size'), 10);
+      return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_PAGE_SIZE;
+    } catch {
+      return DEFAULT_PAGE_SIZE;
+    }
+  });
   const [members, setMembers]   = useState([]);
   const [loading, setLoading]   = useState(true);
   const [filter, setFilter]     = useState('all');
   const [search, setSearch]     = useState('');
   const [page, setPage]         = useState(1);
   const [sortNewest, setSortNewest] = useState(true);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: DEFAULT_PAGE_SIZE });
   const [stats, setStats]       = useState({ total: 0, active: 0, frozen: 0, expired: 0, guest: 0 });
   const [showAdd, setShowAdd]   = useState(false);
   const debouncedSearch = useDebounce(search, 300);
@@ -33,25 +42,37 @@ export default function Members() {
     const pageNum = override.page ?? page;
     const search = override.search ?? debouncedSearch;
     const newest = override.sortNewest ?? sortNewest;
+    const currentLimit = override.limit ?? pageSize;
     setLoading(true);
     try {
       const res = await getAllMembers({
         page: pageNum,
-        limit: PAGE_SIZE,
+        limit: currentLimit,
         status,
         search: search || undefined,
         sortBy: 'createdAt',
         sortDir: newest ? -1 : 1,
       });
       setMembers(res.data.members ?? []);
-      setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
+      setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: currentLimit });
       if (res.data.stats) setStats(res.data.stats);
     } catch { toast.error('Failed to load members.'); }
     finally { setLoading(false); }
-  }, [page, filter, debouncedSearch, sortNewest]);
+  }, [page, pageSize, filter, debouncedSearch, sortNewest]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
   useEffect(() => { setPage(1); }, [filter, debouncedSearch, sortNewest]);
+
+  const handlePageSizeChange = (newSize) => {
+    const valid = Math.max(1, Math.min(500, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
+    setPageSize(valid);
+    setPage(1);
+    try {
+      localStorage.setItem('members_page_size', String(valid));
+    } catch {
+      // ignore
+    }
+  };
 
   const paginated = members;
 
@@ -100,9 +121,18 @@ export default function Members() {
           </button>
         </div>
 
+        {/* Page size templates & filters */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginTop: 12, marginBottom: 12 }}>
+          <PageSizeFilter
+            pageSize={pageSize}
+            onChange={handlePageSizeChange}
+            options={PAGE_SIZE_OPTIONS}
+          />
+        </div>
+
         {/* Table card */}
         <Card noPad>
-          <Table loading={loading} skeletonRows={8}
+          <Table loading={loading} skeletonRows={Math.min(pageSize, 8)}
             headers={['ID', 'Name', 'Status', 'Package', 'Expires', 'Sales Rep', '']}>
             {!paginated.length && !loading
               ? <tr><td colSpan={7}><EmptyState message="No members match your search" /></td></tr>
@@ -144,8 +174,10 @@ export default function Members() {
               page={pagination.page}
               totalPages={pagination.totalPages}
               total={pagination.total}
-              pageSize={pagination.limit ?? PAGE_SIZE}
+              pageSize={pagination.limit ?? pageSize}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
               onPageChange={setPage}
+              onPageSizeChange={handlePageSizeChange}
             />
           )}
         </Card>

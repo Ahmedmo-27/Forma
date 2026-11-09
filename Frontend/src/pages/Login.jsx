@@ -19,7 +19,7 @@ export default function Login() {
     if (user.role === 'Accountant') return <Navigate to="/accounting/dashboard" replace />;
     if (['Sales', 'Sales Manager'].includes(user.role)) return <Navigate to="/sales/dashboard" replace />;
     if (['Coach', 'Coach Manager'].includes(user.role)) return <Navigate to="/coach/dashboard" replace />;
-    if (user.role === 'Owner') return <Navigate to="/owner/dashboard" replace />;
+    if (['Owner', 'General Manager'].includes(user.role)) return <Navigate to="/owner/dashboard" replace />;
     return <Navigate to="/members" replace />;
   }
 
@@ -44,7 +44,7 @@ export default function Login() {
         navigate('/sales/dashboard', { replace: true });
       } else if (['Coach', 'Coach Manager'].includes(user.role)) {
         navigate('/coach/dashboard', { replace: true });
-      } else if (user.role === 'Owner') {
+      } else if (['Owner', 'General Manager'].includes(user.role)) {
         navigate('/owner/dashboard', { replace: true });
       } else {
         navigate('/members', { replace: true });

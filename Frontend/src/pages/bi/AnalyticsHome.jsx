@@ -12,29 +12,29 @@ import {
   suggestBiObjectives,
 } from '../../api/endpoints';
 
-function formatPiasters(value) {
+function formatPiasters(value, currency = 'EGP') {
   const n = Math.round(Number(value) || 0);
   const sign = n < 0 ? '-' : '';
   const abs = Math.abs(n);
   const pounds = Math.floor(abs / 100).toLocaleString('en-EG');
   const fils = String(abs % 100).padStart(2, '0');
-  return `${sign}EGP ${pounds}.${fils}`;
+  return `${sign}${currency} ${pounds}.${fils}`;
 }
 
-function formatValue(kpi) {
+function formatValue(kpi, currency = 'EGP') {
   if (kpi.value == null) return 'Not enough data';
-  if (kpi.unit === 'piasters') return formatPiasters(kpi.value);
+  if (kpi.unit === 'piasters') return formatPiasters(kpi.value, currency);
   if (kpi.unit === 'rate') return `${(Number(kpi.value) * 100).toFixed(1)}%`;
   return Number(kpi.value).toLocaleString('en-EG');
 }
 
-function deltaText(kpi) {
+function deltaText(kpi, currency = 'EGP') {
   if (kpi.delta == null) return null;
   const up = kpi.delta > 0;
   const down = kpi.delta < 0;
   const arrow = up ? '↑' : down ? '↓' : '→';
   const word = up ? 'up' : down ? 'down' : 'flat';
-  const shown = kpi.unit === 'piasters' ? formatPiasters(kpi.delta) : kpi.unit === 'rate' ? `${(kpi.delta * 100).toFixed(1)} points` : kpi.delta;
+  const shown = kpi.unit === 'piasters' ? formatPiasters(kpi.delta, currency) : kpi.unit === 'rate' ? `${(kpi.delta * 100).toFixed(1)} points` : kpi.delta;
   return `${arrow} ${word} ${shown} vs the previous window`;
 }
 
@@ -49,7 +49,7 @@ function HowCalculated({ kpi }) {
   );
 }
 
-function LineChart({ points, unit }) {
+function LineChart({ points, unit, currency = 'EGP' }) {
   const values = points.map((point) => Number(point.value) || 0);
   const max = Math.max(...values, 1);
   const width = 640;
@@ -74,7 +74,7 @@ function LineChart({ points, unit }) {
             {points.slice(-14).map((point) => (
               <tr key={point.date}>
                 <td>{point.date}</td>
-                <td style={{ textAlign: 'end' }}>{unit === 'piasters' ? formatPiasters(point.value) : point.value}</td>
+                <td style={{ textAlign: 'end' }}>{unit === 'piasters' ? formatPiasters(point.value, currency) : point.value}</td>
               </tr>
             ))}
           </tbody>
@@ -106,7 +106,7 @@ function MemberList({ title, rows, empty }) {
 
 export default function AnalyticsHome() {
   usePageTitle('Analytics');
-  const { hasFeature } = useTenant();
+  const { hasFeature, currency = 'EGP' } = useTenant() || {};
   const [data, setData] = useState(null);
   const [insights, setInsights] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
@@ -157,7 +157,7 @@ export default function AnalyticsHome() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12 }}>
               {data.kpis.map((kpi) => (
                 <div key={kpi.key}>
-                  <StatCard label={kpi.name} value={formatValue(kpi)} sub={deltaText(kpi) || kpi.grain} />
+                  <StatCard label={kpi.name} value={formatValue(kpi, currency)} sub={deltaText(kpi, currency) || kpi.grain} />
                   <HowCalculated kpi={kpi} />
                   {kpi.rate?.insufficient && <p style={{ fontSize: 12, color: 'var(--t3)' }}>Needs at least {kpi.rate.min} events. Currently {kpi.rate.sample}.</p>}
                 </div>
@@ -167,7 +167,7 @@ export default function AnalyticsHome() {
               <Card>
                 <h2 style={{ marginTop: 0, fontSize: 16 }}>Membership sales, net of refunds</h2>
                 <p style={{ fontSize: 13, color: 'var(--t3)' }}>Each point is one local day. The axis starts at zero. This is the sale date, not a separate payment date.</p>
-                <LineChart points={data.series.membershipSalesPiasters} unit="piasters" />
+                <LineChart points={data.series.membershipSalesPiasters} unit="piasters" currency={currency} />
               </Card>
             )}
             {data.forecast && (
@@ -176,7 +176,7 @@ export default function AnalyticsHome() {
                 {data.forecast.insufficient || data.forecast.revenuePiasters == null ? (
                   <p>Not enough ended memberships yet ({data.forecast.sample || 0} of 20).</p>
                 ) : (
-                  <p>{formatPiasters(data.forecast.revenuePiasters)}. {data.forecast.label}</p>
+                  <p>{formatPiasters(data.forecast.revenuePiasters, currency)}. {data.forecast.label}</p>
                 )}
               </Card>
             )}

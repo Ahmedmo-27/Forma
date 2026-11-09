@@ -197,9 +197,15 @@ export const checkoutLifetimeBilling = (data) => api.post('/tenant/billing/lifet
 export const confirmLifetimeBilling = (data) => api.post('/tenant/billing/lifetime/confirm', data);
 export const upgradeLifetimeBilling = (data) => api.post('/tenant/billing/lifetime/upgrade', data);
 
-// ── Tasks ──────────────────────────────────────────────────────────────────────
-export const getCreatedTasks = (params) => api.get('/tasks/created', { params });
-export const getAssignedTasks = (params) => api.get('/tasks/assigned', { params });
-export const getAssignedTaskHistory = (params) => api.get('/tasks/history', { params });
-export const completeMemberTask = (taskId, memberId) =>
-  api.patch(`/tasks/${taskId}/members/${memberId}/complete`);
+// ── Tasks: Two Player Types (Assigning & Assigned) ──────────────────────────
+// Player Type 1: Assigning (Sales Manager, Coach Manager, Owner, General Manager)
+export const getAssigningCreatedTasks = (params) => api.get('/tasks/assigning/created', { params });
+export const getAssigningOverview     = (params) => api.get('/tasks/assigning/overview', { params });
+export const getCreatedTasks          = (params) => api.get('/tasks/assigning/created', { params });
+
+// Player Type 2: Assigned (Regular Sales, Coach)
+export const getAssignedActiveTasks   = (params) => api.get('/tasks/assigned/active', { params });
+export const getAssignedTasks         = (params) => api.get('/tasks/assigned/active', { params });
+export const getAssignedTaskHistory   = (params) => api.get('/tasks/assigned/history', { params });
+export const completeMemberTask       = (taskId, memberId, data) =>
+  api.patch(`/tasks/assigned/${taskId}/members/${memberId}/complete`, data);

@@ -8,7 +8,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, CardHeader, StatCard, Spinner,
-  Avatar, Badge, EmptyState, fmtDate, Table, fmtDateTime, toLocalDateString,
+  Avatar, Badge, EmptyState, fmtDate, Table, fmtDateTime, fmtTimeWithSeconds, toLocalDateString,
 } from '../../components/ui';
 import {
   getAllMembers,
@@ -25,8 +25,7 @@ import {
 const fmt = (n) => Number(n ?? 0).toLocaleString();
 
 function monthStart() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  return `${toLocalDateString().slice(0, 7)}-01`;
 }
 const TODAY = toLocalDateString();
 
@@ -319,7 +318,7 @@ export default function OwnerDashboard() {
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t2)' }}>
-                        {new Date(entry.time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        {fmtTimeWithSeconds(entry.time)}
                       </div>
                       {entry.checkedInBy?.name && (
                         <div style={{ fontSize: 10, color: 'var(--t4)' }}>by {entry.checkedInBy.name}</div>

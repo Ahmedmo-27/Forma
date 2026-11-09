@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Badge, fmtDate, fmtDateTime } from '../../../components/ui';
+import { useTenant } from '../../../context/TenantContext';
 
 function daysUntil(d) {
   if (!d) return null;
@@ -78,6 +79,7 @@ function QuickActionBtn({ icon, label, sub, onClick, accent = '#44298C' }) {
 
 export default function DashboardTab({ member, user, data, onTabChange }) {
   const navigate = useNavigate();
+  const { currency = 'EGP' } = useTenant() || {};
 
   const subs = member.subscriptions ?? [];
   const now  = new Date();
@@ -165,7 +167,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
               <div className="dash-info-grid">
                 <InfoPair label="Activity"    value={pkg.activityType} />
                 <InfoPair label="Duration"    value={pkg.duration} />
-                <InfoPair label="Price Paid"  value={activeSub?.pricePaid ? `EGP ${activeSub.pricePaid}` : '—'} />
+                <InfoPair label="Price Paid"  value={activeSub?.pricePaid ? `${currency} ${activeSub.pricePaid}` : '—'} />
                 <InfoPair label="Discount"    value={activeSub?.discountPercent ? `${activeSub.discountPercent}%` : 'None'} />
                 <InfoPair label="Freeze Limit" value={`${freezeLimit} days`} />
                 <InfoPair label="Freeze Used"  value={`${freezeUsed} days`} />

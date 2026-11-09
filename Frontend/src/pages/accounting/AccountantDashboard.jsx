@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { useTenant } from '../../context/TenantContext';
 import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
@@ -16,8 +17,7 @@ const fmt = (n) => Number(n ?? 0).toLocaleString('en-EG');
 const TODAY = toLocalDateString();
 
 function monthStart() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+  return `${toLocalDateString().slice(0, 7)}-01`;
 }
 
 function ExceptionFlag() {
@@ -56,6 +56,7 @@ function QuickLink({ to, label, sub, accent, user, access }) {
 export default function AccountantDashboard() {
   usePageTitle('Dashboard');
   const { user } = useAuth();
+  const { currency = 'EGP' } = useTenant() || {};
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
@@ -115,6 +116,7 @@ export default function AccountantDashboard() {
 
   const firstName = user?.name?.split(' ')[0] ?? 'there';
   const dateLabel = new Date().toLocaleDateString('en-GB', {
+    timeZone: 'Africa/Cairo',
     weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
   });
 
@@ -153,14 +155,14 @@ export default function AccountantDashboard() {
           />
           <StatCard
             label="Today's Revenue"
-            value={loading ? '—' : `${fmt(todayRevenue)} EGP`}
+            value={loading ? '—' : `${fmt(todayRevenue)} ${currency}`}
             color="success"
             sub={`${todayContracts} contract${todayContracts !== 1 ? 's' : ''} today`}
             onClick={hasAccess(user, 'targets') ? () => navigate('/sales/targets') : undefined}
           />
           <StatCard
             label="This Month"
-            value={loading ? '—' : `${fmt(monthRevenue)} EGP`}
+            value={loading ? '—' : `${fmt(monthRevenue)} ${currency}`}
             color="brand"
             sub={`${monthContracts} contract${monthContracts !== 1 ? 's' : ''} processed`}
             onClick={hasAccess(user, 'contracts') ? () => navigate('/accounting/contract-history') : undefined}

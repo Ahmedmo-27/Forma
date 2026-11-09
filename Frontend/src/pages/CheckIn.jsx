@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
 import Layout from '../components/Layout';
-import { Badge, Avatar, Spinner, fmtDate, EmptyState } from '../components/ui';
+import { Badge, Avatar, Spinner, fmtDate, fmtTime, EmptyState } from '../components/ui';
 import { formatSystemId } from '../lib/systemId';
 import { checkInByBarcode, checkInMember, getMemberProfile, getTodayCheckIns } from '../api/endpoints';
 import { subscribeLiveEvents } from '../api/live';
@@ -285,7 +285,7 @@ export default function CheckIn() {
   const hasExpired  = member?.status === 'expired' || (expiryDays !== null && expiryDays < 0);
   const hasPackage  = Boolean(pkg);
   const canCheckIn  = Boolean(member && !member.isBlocked && !isGuest && hasPackage && (!hasExpired || member.status === 'frozen'));
-  const today       = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const today       = new Date().toLocaleDateString('en-GB', { timeZone: 'Africa/Cairo', weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
   const todayCount  = history.length;
   const activeToday = history.filter(e => String(e.member?.status).toLowerCase() === 'active' && !e.member?.isBlocked).length;
 
@@ -737,7 +737,7 @@ export default function CheckIn() {
                           padding: i === 0 ? '2px 8px' : '0',
                           borderRadius: i === 0 ? 6 : 0,
                         }}>
-                          {new Date(entry.time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                          {fmtTime(entry.time)}
                         </span>
                         {entry.checkedInBy?.name && (
                           <span style={{ fontSize: 10, color: 'var(--t4)' }}>by {entry.checkedInBy.name}</span>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Spinner, Badge } from './ui';
+import { Spinner, Badge, fmtTimeWithSeconds } from './ui';
 import { parseScannedIdentifier } from '../lib/scannerParser';
 import { formatSystemId } from '../lib/systemId';
 import { playCheckInSound } from '../lib/audioFeedback';
@@ -682,7 +682,7 @@ export default function CheckInScanner({
           </div>
           {lastScannedResult.time && (
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)' }}>
-              {new Date(lastScannedResult.time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              {fmtTimeWithSeconds(lastScannedResult.time)}
             </span>
           )}
         </div>

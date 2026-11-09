@@ -2,12 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { useTenant } from '../../context/TenantContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Tabs, Badge, Btn, Spinner, Skeleton, Modal, Input } from '../../components/ui';
+import { PageHeader, Tabs, Badge, Btn, Spinner, Skeleton, Modal, Input, fmtDateTime } from '../../components/ui';
 import { getMemberProfile, checkInMember, blockMember, unblockMember, refundMember } from '../../api/endpoints';
 import ProfilePhotoUpload from '../../components/ProfilePhotoUpload';
-import Barcode from 'react-barcode';
 import MemberQrButton from '../../components/MemberQrButton';
 import { formatSystemId } from '../../lib/systemId';
 import PersonalTab    from './tabs/PersonalTab';
@@ -38,6 +38,7 @@ export default function MemberProfile() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const { currency = 'EGP' } = useTenant() || {};
   const navigate = useNavigate();
   const [data, setData]         = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -152,6 +153,8 @@ export default function MemberProfile() {
   const currentSub = member?.subscriptions?.at(-1);
   const currentPkg = currentSub?.packageSnapshot ?? currentSub?.package;
   const isGuest = member?.status === 'guest' || member?.isMember === false;
+  const hasMemberId = member?.memberId != null && String(member.memberId).trim() !== '';
+  const canSendQr = Boolean(member && !isGuest && hasMemberId);
   const isExpired = member?.status === 'expired' || (currentSub?.endDate && new Date(currentSub.endDate) < new Date());
   const canCheckIn = Boolean(member && !member.isBlocked && !isGuest && currentPkg && (!isExpired || member.status === 'frozen'));
 
@@ -167,7 +170,7 @@ export default function MemberProfile() {
         </div>
       }>
         <div className="member-profile-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {member && <MemberQrButton member={member} onSent={fetchProfile} />}
+          {canSendQr && <MemberQrButton member={member} onSent={fetchProfile} />}
           {member && ['Receptionist', 'Owner', 'Sales Manager'].includes(user?.role) && (
             <Btn variant={canCheckIn ? 'success' : 'outline'} size="sm"
               onClick={handleCheckIn} disabled={checkingIn || !canCheckIn}
@@ -259,23 +262,23 @@ export default function MemberProfile() {
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', marginBottom: 14, fontSize: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ color: 'var(--t4)', fontWeight: 600 }}>Price Paid</span>
-                <span style={{ color: 'var(--t1)', fontWeight: 700 }}>{pricePaid} EGP</span>
+                <span style={{ color: 'var(--t1)', fontWeight: 700 }}>{pricePaid} {currency}</span>
               </div>
               {alreadyRefunded > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ color: 'var(--t4)', fontWeight: 600 }}>Already Refunded</span>
-                  <span style={{ color: 'var(--red)', fontWeight: 700 }}>{alreadyRefunded} EGP</span>
+                  <span style={{ color: 'var(--red)', fontWeight: 700 }}>{alreadyRefunded} {currency}</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 4 }}>
                 <span style={{ color: 'var(--t4)', fontWeight: 600 }}>Max Refundable</span>
-                <span style={{ color: 'var(--green)', fontWeight: 700 }}>{maxRefund} EGP</span>
+                <span style={{ color: 'var(--green)', fontWeight: 700 }}>{maxRefund} {currency}</span>
               </div>
             </div>
           );
         })()}
         <Input
-          label="Refund Amount (EGP) *"
+          label={`Refund Amount (${currency}) *`}
           type="number"
           min="1"
           value={refundAmount}
@@ -452,7 +455,7 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
           {member.gender    && <Chip icon="👤" label={member.gender.charAt(0).toUpperCase() + member.gender.slice(1)} />}
           {member.phones && <PhoneChip phone={member.phones} />}
           {lastCheckIn      && (
-            <Chip icon="🕐" label={`Last Check-In: ${new Date(lastCheckIn.createdAt).toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}`} />
+            <Chip icon="🕐" label={`Last Check-In: ${fmtDateTime(lastCheckIn.createdAt)}`} />
           )}
         </div>
 

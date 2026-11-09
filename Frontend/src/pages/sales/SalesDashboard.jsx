@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, CardHeader, StatCard, Spinner, Avatar, Badge, EmptyState, fmtDate } from '../../components/ui';
+import { PageHeader, Card, CardHeader, StatCard, Spinner, Avatar, Badge, EmptyState, fmtDate, fmtTimeWithSeconds, toLocalDateString } from '../../components/ui';
 import { getAllMembers, getSalesTeam, getRequests, getTodayCheckIns, getSalesManagerRevenue } from '../../api/endpoints';
 
 const fmt = (n) => {
@@ -21,10 +21,9 @@ function getAssignedRepId(member) {
 
 function isCurrentMonth(date) {
   if (!date) return false;
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return false;
-  const now = new Date();
-  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  const dStr = toLocalDateString(date);
+  if (!dStr) return false;
+  return dStr.slice(0, 7) === toLocalDateString().slice(0, 7);
 }
 
 /** Derive per-rep counts/revenue from the members list (authoritative for the dashboard). */
@@ -475,7 +474,7 @@ export default function SalesDashboard() {
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t2)' }}>
-                        {new Date(entry.time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        {fmtTimeWithSeconds(entry.time)}
                       </div>
                       {entry.checkedInBy?.name && (
                         <div style={{ fontSize: 10, color: 'var(--t4)' }}>by {entry.checkedInBy.name}</div>

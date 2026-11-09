@@ -1,4 +1,5 @@
 import { fmtDate } from '../ui';
+import { useTenant } from '../../context/TenantContext';
 
 function DetailRow({ label, value }) {
   return (
@@ -25,6 +26,7 @@ function ExceptionFlag() {
  * Renders package terms from either a pending PackageExceptionRequest or a contract/subscription record.
  */
 export default function PackageTermsGrid({ data, title, showEndDate = false }) {
+  const { currency = 'EGP' } = useTenant() || {};
   if (!data) return null;
 
   // Prefer purchase-time snapshot so catalog edits never rewrite payment history
@@ -65,8 +67,8 @@ export default function PackageTermsGrid({ data, title, showEndDate = false }) {
         {basePackageName && <DetailRow label="Based On" value={basePackageName} />}
         <DetailRow label="Activity" value={activityType} />
         <DetailRow label="Duration" value={duration} />
-        <DetailRow label="Price (EGP)" value={price?.toLocaleString?.() ?? price} />
-        <DetailRow label="Price Paid (EGP)" value={pricePaid?.toLocaleString?.() ?? pricePaid} />
+        <DetailRow label={`Price (${currency})`} value={price?.toLocaleString?.() ?? price} />
+        <DetailRow label={`Price Paid (${currency})`} value={pricePaid?.toLocaleString?.() ?? pricePaid} />
         <DetailRow label="Discount %" value={discountPercent ? `${discountPercent}%` : '0%'} />
         <DetailRow label="Freeze Limit" value={`${freezeLimitDays ?? 0} days`} />
         <DetailRow label="Invitation Slots" value={invitationLimit ?? 0} />

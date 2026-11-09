@@ -5,23 +5,32 @@ import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, fmtDate, Pagination, Select } from '../../components/ui';
+import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, fmtDate, Pagination, Select, PageSizeFilter } from '../../components/ui';
 import { formatSystemId } from '../../lib/systemId';
 import { getAllMembers } from '../../api/endpoints';
 import AddMemberModal from '../../components/AddMemberModal';
 
-const PAGE_SIZE = 20;
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
 
 export default function SalesMembers() {
   usePageTitle('Members');
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const saved = parseInt(localStorage.getItem('members_page_size'), 10);
+      return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_PAGE_SIZE;
+    } catch {
+      return DEFAULT_PAGE_SIZE;
+    }
+  });
   const [members,  setMembers]  = useState([]);
   const [loading,  setLoading]  = useState(true);
   const [filter,   setFilter]   = useState('all');
   const [search,   setSearch]   = useState('');
   const [page,     setPage]     = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: DEFAULT_PAGE_SIZE });
   const [stats, setStats] = useState({ total: 0, active: 0, frozen: 0, expired: 0, guest: 0 });
   const [showAdd,  setShowAdd]  = useState(false);
   const [extra, setExtra] = useState('');
@@ -32,11 +41,12 @@ export default function SalesMembers() {
     const pageNum = override.page ?? page;
     const search = override.search ?? debouncedSearch;
     const extraFilter = override.extra ?? extra;
+    const currentLimit = override.limit ?? pageSize;
     setLoading(true);
     try {
       const res = await getAllMembers({
         page: pageNum,
-        limit: PAGE_SIZE,
+        limit: currentLimit,
         status,
         search: search || undefined,
         sortBy: 'createdAt',
@@ -46,14 +56,25 @@ export default function SalesMembers() {
         expiringSoon: extraFilter === 'expiring' ? 'true' : undefined,
       });
       setMembers(res.data.members ?? []);
-      setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
+      setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: currentLimit });
       if (res.data.stats) setStats(res.data.stats);
     } catch { toast.error('Failed to load data.'); }
     finally { setLoading(false); }
-  }, [page, filter, debouncedSearch, extra]);
+  }, [page, pageSize, filter, debouncedSearch, extra]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
   useEffect(() => { setPage(1); }, [filter, debouncedSearch, extra]);
+
+  const handlePageSizeChange = (newSize) => {
+    const valid = Math.max(1, Math.min(500, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
+    setPageSize(valid);
+    setPage(1);
+    try {
+      localStorage.setItem('members_page_size', String(valid));
+    } catch {
+      // ignore
+    }
+  };
 
   const paginated = members;
 
@@ -91,8 +112,17 @@ export default function SalesMembers() {
           { value: 'blocked', label: `Blocked (${stats.blocked ?? 0})` },
         ]} />
 
+        {/* Page size templates & filters */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginTop: 12, marginBottom: 12 }}>
+          <PageSizeFilter
+            pageSize={pageSize}
+            onChange={handlePageSizeChange}
+            options={PAGE_SIZE_OPTIONS}
+          />
+        </div>
+
         <Card noPad>
-          <Table loading={loading} skeletonRows={8} headers={['ID', 'Name', 'Status', 'Package', 'Expires', '']}>
+          <Table loading={loading} skeletonRows={Math.min(pageSize, 8)} headers={['ID', 'Name', 'Status', 'Package', 'Expires', '']}>
             {!paginated.length && !loading
               ? <tr><td colSpan={6}><EmptyState message="No members found" /></td></tr>
               : paginated.map(m => {
@@ -123,8 +153,10 @@ export default function SalesMembers() {
               page={pagination.page}
               totalPages={pagination.totalPages}
               total={pagination.total}
-              pageSize={pagination.limit ?? PAGE_SIZE}
+              pageSize={pagination.limit ?? pageSize}
+              pageSizeOptions={PAGE_SIZE_OPTIONS}
               onPageChange={setPage}
+              onPageSizeChange={handlePageSizeChange}
             />
           )}
         </Card>

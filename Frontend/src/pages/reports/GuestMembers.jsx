@@ -7,7 +7,7 @@ import { getAllMembers, getSalesUsers, getCoachTeam } from '../../api/endpoints'
 import { useAuth } from '../../context/AuthContext';
 
 const TODAY      = toLocalDateString();
-const MONTH_START = toLocalDateString(new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+const MONTH_START = `${TODAY.slice(0, 7)}-01`;
 
 const SOURCES = ['All', 'Social media', 'Walk in', 'Word of mouth', 'referral', 'sales call', 'data entry', 'others'];
 

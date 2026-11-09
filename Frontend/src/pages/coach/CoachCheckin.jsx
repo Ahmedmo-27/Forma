@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, CardHeader, Btn, Spinner, Badge, Avatar, Input, EmptyState } from '../../components/ui';
+import { PageHeader, Card, CardHeader, Btn, Spinner, Badge, Avatar, Input, EmptyState, fmtTimeWithSeconds } from '../../components/ui';
 import { getMemberProfile, getAllMembers } from '../../api/endpoints';
 import api from '../../api/axios';
 
@@ -270,7 +270,7 @@ export default function CoachCheckin() {
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>
                         <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t2)' }}>
-                          {new Date(entry.time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                          {fmtTimeWithSeconds(entry.time)}
                         </div>
                         {entry.by && <div style={{ fontSize: 10, color: 'var(--t4)' }}>by {entry.by}</div>}
                       </div>
