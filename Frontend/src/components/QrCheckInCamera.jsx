@@ -14,6 +14,7 @@ export default function QrCheckInCamera({ open, onClose, onScan, lastScannedResu
         onScan={onScan}
         lastScannedResult={lastScannedResult}
         embedded={false}
+        onClose={onClose}
       />
     </Modal>
   );

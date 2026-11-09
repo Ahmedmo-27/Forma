@@ -3,45 +3,14 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Spinner, Badge } from './ui';
 import { parseScannedIdentifier } from '../lib/scannerParser';
 import { formatSystemId } from '../lib/systemId';
-
-function playBeep(type = 'success') {
-  try {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-
-    const now = ctx.currentTime;
-    if (type === 'success') {
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(587.33, now); // D5
-      osc.frequency.setValueAtTime(880.00, now + 0.1); // A5
-      gain.gain.setValueAtTime(0.18, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-      osc.start(now);
-      osc.stop(now + 0.35);
-    } else {
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(220, now); // A3
-      osc.frequency.setValueAtTime(164.81, now + 0.12); // E3
-      gain.gain.setValueAtTime(0.2, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
-      osc.start(now);
-      osc.stop(now + 0.35);
-    }
-  } catch {
-    // Ignore audio restriction errors
-  }
-}
+import { playCheckInSound } from '../lib/audioFeedback';
 
 export default function CheckInScanner({
   onScan,
   autoStart = false,
   lastScannedResult = null,
   embedded = true,
+  onClose = null,
 }) {
   const containerId = useRef(`checkin-scanner-${Math.random().toString(36).substring(2, 9)}`).current;
   const scannerRef = useRef(null);
@@ -51,6 +20,7 @@ export default function CheckInScanner({
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
   const [scanMode, setScanMode] = useState('auto'); // 'auto' | 'systemId' | 'memberId'
+  const [facingMode, setFacingMode] = useState('environment'); // 'environment' | 'user'
   const [flashSuccess, setFlashSuccess] = useState(false);
   const [manualCode, setManualCode] = useState('');
   const [manualLoading, setManualLoading] = useState(false);
@@ -74,16 +44,19 @@ export default function CheckInScanner({
     }
     setIsScanning(false);
     setStarting(false);
-  }, []);
+    if (onClose) {
+      onClose();
+    }
+  }, [onClose]);
 
-  // Handle a detected scan
+  // Handle a detected scan — NEVER closes the camera automatically
   const handleDecoded = useCallback(async (rawText) => {
     const raw = String(rawText || '').trim();
     if (!raw) return;
 
     const now = Date.now();
-    // 3 second anti-duplicate spam cooldown for the identical string
-    if (lastCodeRef.current.code === raw && (now - lastCodeRef.current.time) < 3000) {
+    // 2.5s anti-duplicate spam cooldown for the identical string
+    if (lastCodeRef.current.code === raw && (now - lastCodeRef.current.time) < 2500) {
       return;
     }
     lastCodeRef.current = { code: raw, time: now };
@@ -94,19 +67,19 @@ export default function CheckInScanner({
     // Visual pulse & audio chime
     setFlashSuccess(true);
     setTimeout(() => setFlashSuccess(false), 900);
-    playBeep('success');
+    playCheckInSound('success');
 
     if (onScan) {
       try {
         await onScan(identifier, raw, scanMode);
       } catch {
-        playBeep('error');
+        playCheckInSound('error');
       }
     }
   }, [onScan, scanMode]);
 
-  // Start the scanner using the single main back camera
-  const startScanner = useCallback(async () => {
+  // Start the scanner — accessible by all camera types (laptop webcams, phone rear/front cameras, USB cams)
+  const startScanner = useCallback(async (desiredFacing = facingMode) => {
     setError('');
     setStarting(true);
 
@@ -127,6 +100,7 @@ export default function CheckInScanner({
 
     try {
       region.replaceChildren();
+
       if (!window.isSecureContext && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
         throw new Error('SECURE_CONTEXT_REQUIRED');
       }
@@ -135,46 +109,92 @@ export default function CheckInScanner({
         throw new Error('NO_MEDIA_DEVICES');
       }
 
-      const scanner = new Html5Qrcode(containerId, {
-        formatsToSupport: [
-          Html5QrcodeSupportedFormats.QR_CODE,
-          Html5QrcodeSupportedFormats.CODE_128,
-          Html5QrcodeSupportedFormats.CODE_39,
-          Html5QrcodeSupportedFormats.EAN_13,
-          Html5QrcodeSupportedFormats.EAN_8,
-          Html5QrcodeSupportedFormats.UPC_A,
-          Html5QrcodeSupportedFormats.UPC_E,
-        ],
-        verbose: false,
-      });
-      scannerRef.current = scanner;
+      // 1. Detect all available camera devices
+      const devices = await Html5Qrcode.getCameras().catch(() => []);
+
+      // 2. Build prioritized candidate list for all camera types
+      const candidates = [];
+
+      if (devices && devices.length > 0) {
+        if (desiredFacing === 'environment') {
+          // On mobile: prioritize standard main rear camera (avoiding ultra-wide/telephoto/depth)
+          const backCameras = devices.filter(d => /back|rear|environment/i.test(d.label));
+          if (backCameras.length > 0) {
+            const mainBack = backCameras.find(d => !/ultra|tele|depth|wide\s*camera/i.test(d.label)) || backCameras[0];
+            candidates.push(mainBack.id);
+          }
+        } else {
+          // If user requested front / laptop webcam
+          const frontCameras = devices.filter(d => /front|user|facetime|integrated/i.test(d.label));
+          if (frontCameras.length > 0) {
+            candidates.push(frontCameras[0].id);
+          }
+        }
+
+        // Add any remaining physical devices (laptop built-in camera, USB webcam, etc.)
+        for (const d of devices) {
+          if (!candidates.includes(d.id)) {
+            candidates.push(d.id);
+          }
+        }
+      }
+
+      // Add generic WebRTC constraints as universal fallbacks
+      candidates.push({ facingMode: desiredFacing });
+      candidates.push({ facingMode: desiredFacing === 'environment' ? 'user' : 'environment' });
 
       const qrConfig = {
         fps: 10,
         qrbox: (viewfinderWidth, viewfinderHeight) => {
           const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
-          const size = Math.max(140, Math.min(Math.floor(minEdge * 0.72), 260));
+          const size = Math.max(150, Math.min(Math.floor(minEdge * 0.75), 280));
           return { width: size, height: size };
         },
       };
 
-      // Always request the single main rear camera ({ facingMode: "environment" })
-      try {
-        await scanner.start(
-          { facingMode: 'environment' },
-          qrConfig,
-          (decodedText) => handleDecoded(decodedText),
-          () => {}
-        );
-      } catch (envErr) {
-        console.warn('Environment camera failed, falling back to default/front camera:', envErr);
-        // Fallback for laptops / desktop webcams
-        await scanner.start(
-          { facingMode: 'user' },
-          qrConfig,
-          (decodedText) => handleDecoded(decodedText),
-          () => {}
-        );
+      // 3. Try each candidate in sequence until camera opens
+      let success = false;
+      let lastErr = null;
+
+      for (const cam of candidates) {
+        try {
+          region.replaceChildren();
+          const scanner = new Html5Qrcode(containerId, {
+            formatsToSupport: [
+              Html5QrcodeSupportedFormats.QR_CODE,
+              Html5QrcodeSupportedFormats.CODE_128,
+              Html5QrcodeSupportedFormats.CODE_39,
+              Html5QrcodeSupportedFormats.EAN_13,
+              Html5QrcodeSupportedFormats.EAN_8,
+              Html5QrcodeSupportedFormats.UPC_A,
+              Html5QrcodeSupportedFormats.UPC_E,
+            ],
+            verbose: false,
+          });
+          scannerRef.current = scanner;
+
+          await scanner.start(
+            cam,
+            qrConfig,
+            (decodedText) => handleDecoded(decodedText),
+            () => {}
+          );
+          success = true;
+          setFacingMode(desiredFacing);
+          break;
+        } catch (err) {
+          lastErr = err;
+          try {
+            if (scannerRef.current?.isScanning) {
+              await scannerRef.current.stop().catch(() => {});
+            }
+            scannerRef.current?.clear();
+          } catch {}
+        }
+      }
+
+      if (!success) {
+        throw lastErr || new Error('CAMERA_START_FAILED');
       }
 
       setIsScanning(true);
@@ -191,13 +211,20 @@ export default function CheckInScanner({
       } else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
         setError('Camera is currently in use by another app. Please close other camera apps and retry.');
       } else {
-        setError('Could not open the camera. Please check camera permissions and tap retry.');
+        setError('Could not open camera. Please check camera permissions and tap retry.');
       }
       setIsScanning(false);
     } finally {
       setStarting(false);
     }
-  }, [containerId, handleDecoded]);
+  }, [containerId, facingMode, handleDecoded]);
+
+  // Flip camera between front (laptop/selfie) and rear (main camera)
+  const handleFlipCamera = async () => {
+    const nextFacing = facingMode === 'environment' ? 'user' : 'environment';
+    await stopScanner();
+    await startScanner(nextFacing);
+  };
 
   // Clean up on unmount
   useEffect(() => {
@@ -216,13 +243,13 @@ export default function CheckInScanner({
     setManualLoading(true);
     try {
       const identifier = parseScannedIdentifier(trimmed, scanMode);
-      playBeep('success');
+      playCheckInSound('success');
       if (onScan) {
         await onScan(identifier, trimmed, scanMode);
       }
       setManualCode('');
     } catch {
-      playBeep('error');
+      playCheckInSound('error');
     } finally {
       setManualLoading(false);
     }
@@ -230,7 +257,7 @@ export default function CheckInScanner({
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* ── Top Scanner Controls: Mode Selector & Open/Stop ──── */}
+      {/* ── Top Scanner Controls: Mode Selector & Open/Close ──── */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
@@ -272,17 +299,40 @@ export default function CheckInScanner({
           ))}
         </div>
 
-        {/* Action Button: Single Main Camera */}
+        {/* Action Buttons: Open Camera vs Close Camera & Flip */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+          {isScanning && (
+            <button
+              type="button"
+              onClick={handleFlipCamera}
+              title="Switch between front and back camera"
+              style={{
+                padding: '7px 12px',
+                borderRadius: 8,
+                fontSize: 12,
+                fontWeight: 600,
+                border: '1px solid var(--border)',
+                background: 'var(--bg)',
+                color: 'var(--t2)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 5,
+              }}
+            >
+              🔄 Flip Camera
+            </button>
+          )}
+
           {!isScanning ? (
             <button
               type="button"
               onClick={() => startScanner()}
               disabled={starting}
               style={{
-                padding: '7px 16px',
+                padding: '8px 18px',
                 borderRadius: 8,
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 700,
                 border: 'none',
                 background: 'linear-gradient(135deg,#16a34a,#22c55e)',
@@ -301,20 +351,21 @@ export default function CheckInScanner({
               type="button"
               onClick={stopScanner}
               style={{
-                padding: '7px 16px',
+                padding: '8px 18px',
                 borderRadius: 8,
-                fontSize: 12,
+                fontSize: 13,
                 fontWeight: 700,
-                border: '1px solid var(--border)',
-                background: 'var(--bg)',
+                border: '1.5px solid var(--red)',
+                background: 'var(--red-bg)',
                 color: 'var(--red)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
+                boxShadow: '0 2px 8px rgba(239,68,68,0.15)',
               }}
             >
-              ⏹ Stop Camera
+              ⏹ Close Camera
             </button>
           )}
         </div>
@@ -379,6 +430,36 @@ export default function CheckInScanner({
           }}
         />
 
+        {/* Floating Close Button inside viewport when active */}
+        {isScanning && (
+          <button
+            type="button"
+            onClick={stopScanner}
+            title="Close Camera"
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
+              zIndex: 30,
+              background: 'rgba(0,0,0,0.72)',
+              color: '#fff',
+              border: '1px solid rgba(255,255,255,0.25)',
+              borderRadius: 8,
+              padding: '6px 12px',
+              fontSize: 12,
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+              backdropFilter: 'blur(6px)',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+            }}
+          >
+            ✕ Close Camera
+          </button>
+        )}
+
         {/* Placeholder overlay when camera is stopped */}
         {!isScanning && (
           <div style={{
@@ -408,17 +489,17 @@ export default function CheckInScanner({
               📷
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#f8fafc', marginBottom: 4 }}>
-              Main Camera Scanner
+              QR Code Scanner Ready
             </div>
-            <div style={{ fontSize: 12, color: '#94a3b8', maxWidth: 320, lineHeight: 1.4, marginBottom: 14 }}>
-              Tap below to open your phone’s main camera and scan member QR codes.
+            <div style={{ fontSize: 12, color: '#94a3b8', maxWidth: 340, lineHeight: 1.4, marginBottom: 14 }}>
+              Works with all cameras (laptop webcams, phone cameras, and USB cameras). The camera stays open so you can scan multiple codes continuously.
             </div>
             <button
               type="button"
               onClick={() => startScanner()}
               disabled={starting}
               style={{
-                padding: '10px 22px',
+                padding: '10px 24px',
                 borderRadius: 10,
                 border: 'none',
                 background: 'linear-gradient(135deg,#44298C,#5B38BA)',
@@ -490,7 +571,7 @@ export default function CheckInScanner({
               fontWeight: 600,
             }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
-              Scanning with Main Camera ({scanMode === 'auto' ? 'Auto ID' : scanMode === 'systemId' ? 'System ID' : 'Member ID'})
+              Camera Active · Stays Open For Multiple Scans
             </div>
           </div>
         )}

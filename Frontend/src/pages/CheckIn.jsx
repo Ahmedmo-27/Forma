@@ -10,6 +10,8 @@ import { subscribeLiveEvents } from '../api/live';
 import QrCheckInCamera from '../components/QrCheckInCamera';
 import CheckInScanner from '../components/CheckInScanner';
 import { parseScannedIdentifier } from '../lib/scannerParser';
+import useHardwareScanner from '../hooks/useHardwareScanner';
+import { playCheckInSound } from '../lib/audioFeedback';
 
 // ── small stat pill ───────────────────────────────────────────────────────────
 function StatPill({ label, value, color = 'var(--t1)' }) {
@@ -182,7 +184,6 @@ export default function CheckIn() {
   const recordScan = async (raw, sourceRaw, mode = 'auto') => {
     const identifier = parseScannedIdentifier(raw, mode);
     if (!identifier) return;
-    setCameraOpen(false);
     setSearching(true);
     setMember(null);
     setResult(null);
@@ -193,6 +194,7 @@ export default function CheckIn() {
       const okMsg = r.data.message || 'Check-in recorded';
       setResult({ ok: true, msg: okMsg });
       toast.success(okMsg);
+      playCheckInSound('success');
 
       let profileData = null;
       try {
@@ -217,6 +219,7 @@ export default function CheckIn() {
       const msg = err.normalized?.message || err.response?.data?.message || 'Check-in failed.';
       setResult({ ok: false, msg });
       toast.error(msg);
+      playCheckInSound('error');
       setLastScannedResult({
         ok: false,
         identifier,
@@ -235,12 +238,20 @@ export default function CheckIn() {
     }
   };
 
+  // Global hardware scanner listener: automatically detects scans from any USB / Bluetooth barcode & QR scanner
+  useHardwareScanner({
+    onScan: (scannedCode) => {
+      recordScan(scannedCode, scannedCode, 'auto');
+    },
+    enabled: true,
+  });
+
   const handleSearch = async (e) => {
     e.preventDefault();
     const raw = (queryRef.current || query).trim();
     if (!raw) return;
     const identifier = parseScannedIdentifier(raw, 'auto');
-    if (isHardwareScan(burstRef.current)) {
+    if (isHardwareScan(burstRef.current) || /^(?:FF\d+|[SM]\d+)$/i.test(raw)) {
       await recordScan(identifier);
       return;
     }
