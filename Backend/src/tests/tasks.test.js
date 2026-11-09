@@ -3,7 +3,7 @@ import Notification from "../models/Notification.js";
 import Task from "../models/Task.js";
 import Member from "../models/Member.js";
 import { notifyMemberAssigned, notifyTaskAssigned } from "../utils/notificationService.js";
-import { completeMemberTask, getAssignedHistory, getAssignedTasks, getCreatedTasks } from "../controllers/taskController.js";
+import { completeMemberTask, getAssignedHistory, getAssignedTasks, getCreatedTasks, getAssigningOverview } from "../controllers/taskController.js";
 
 describe("Task Notifications and Differentiation", () => {
     beforeEach(() => {
@@ -214,5 +214,58 @@ describe("Task Controller and Completion Workflow", () => {
         expect(history[0].assignedBy.name).toBe("Manager Sarah");
         expect(history[1].member.name).toBe("Member Beta");
         expect(history[1].status).toBe("pending");
+    });
+
+    it("calculates assigning overview metrics for assigning player (Sales Manager)", async () => {
+        const mockTasks = [
+            { status: "completed", totalCount: 5, completedCount: 5 },
+            { status: "in_progress", totalCount: 10, completedCount: 3 },
+            { status: "pending", totalCount: 2, completedCount: 0 },
+        ];
+
+        const queryMock = {
+            select: vi.fn().mockResolvedValue(mockTasks),
+        };
+        vi.spyOn(Task, "find").mockReturnValue(queryMock);
+
+        const req = {
+            query: {},
+            user: { id: "mgr-1", role: "Sales Manager" },
+        };
+        const res = {
+            json: vi.fn(),
+        };
+
+        await getAssigningOverview(req, res);
+
+        expect(res.json).toHaveBeenCalledWith({
+            stats: {
+                totalTasks: 3,
+                pendingTasks: 2,
+                completedTasks: 1,
+                totalMembersAssigned: 17,
+                totalMembersCompleted: 8,
+                completionRate: 47, // 8 / 17 = 47%
+            },
+        });
+    });
+
+    it("enforces clear player type role distinctions between assigning and assigned players", () => {
+        const assigningRoles = ["transfer", "coach_transfer", "Sales Manager", "Coach Manager", "Owner", "General Manager"];
+        const assignedRoles = ["Sales", "Coach", "Sales Manager", "Coach Manager", "Owner", "General Manager"];
+
+        // Assigning player roles
+        expect(assigningRoles.includes("Sales Manager")).toBe(true);
+        expect(assigningRoles.includes("Coach Manager")).toBe(true);
+        expect(assigningRoles.includes("Owner")).toBe(true);
+        expect(assigningRoles.includes("General Manager")).toBe(true);
+        // Regular Sales and Coach are strictly excluded from assigning roles
+        expect(assigningRoles.includes("Sales")).toBe(false);
+        expect(assigningRoles.includes("Coach")).toBe(false);
+
+        // Assigned player roles
+        expect(assignedRoles.includes("Sales")).toBe(true);
+        expect(assignedRoles.includes("Coach")).toBe(true);
+        expect(assignedRoles.includes("Sales Manager")).toBe(true);
     });
 });

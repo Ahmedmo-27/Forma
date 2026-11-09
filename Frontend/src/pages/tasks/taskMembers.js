@@ -34,10 +34,14 @@ export function toLocalDateString(date) {
   if (!date) return '';
   const d = new Date(date);
   if (Number.isNaN(d.getTime())) return '';
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}-${m}-${day}`;
+  try {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(d);
+  } catch {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  }
 }
 
 export function parseDateBoundary(dateStr, isEnd = false) {
@@ -266,19 +270,30 @@ export function formatTaskDateTime(value) {
   if (!value) return '—';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('en-GB', {
+  return d.toLocaleString('en-US', {
+    timeZone: 'Africa/Cairo',
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-    hour: '2-digit',
+    hour: 'numeric',
     minute: '2-digit',
+    hour12: true,
   });
 }
+
+export const TASK_PLAYER_TYPES = {
+  ASSIGNING: 'assigning',
+  ASSIGNED: 'assigned',
+};
 
 export function canUserAssignTasks(user) {
   if (!user) return false;
   if (['Owner', 'General Manager', 'Sales Manager', 'Coach Manager'].includes(user.role)) return true;
   return hasAccessKey(user, 'transfer') || hasAccessKey(user, 'coach_transfer');
+}
+
+export function getTaskPlayerType(user) {
+  return canUserAssignTasks(user) ? TASK_PLAYER_TYPES.ASSIGNING : TASK_PLAYER_TYPES.ASSIGNED;
 }
 
 export function filterTaskHistory(history = [], query = '', statusFilter = 'all') {
@@ -692,3 +707,144 @@ export function filterAssignedHistoryAdvanced(history = [], filters = {}) {
     return true;
   });
 }
+
+export const SELECTION_TEMPLATES = [
+  // Top/First Count Templates
+  { id: 'first_10', label: 'First 10 members', shortLabel: 'First 10', count: 10, group: 'First / Top' },
+  { id: 'first_20', label: 'First 20 members', shortLabel: 'First 20', count: 20, group: 'First / Top' },
+  { id: 'first_30', label: 'First 30 members', shortLabel: 'First 30', count: 30, group: 'First / Top' },
+  { id: 'first_50', label: 'First 50 members', shortLabel: 'First 50', count: 50, group: 'First / Top' },
+
+  // Bottom/Last Count Templates
+  { id: 'last_10', label: 'Last 10 members', shortLabel: 'Last 10', count: 10, group: 'Last / Bottom' },
+  { id: 'last_20', label: 'Last 20 members', shortLabel: 'Last 20', count: 20, group: 'Last / Bottom' },
+  { id: 'last_30', label: 'Last 30 members', shortLabel: 'Last 30', count: 30, group: 'Last / Bottom' },
+  { id: 'last_50', label: 'Last 50 members', shortLabel: 'Last 50', count: 50, group: 'Last / Bottom' },
+
+  // Random Selection Templates
+  { id: 'random_10', label: 'Random 10 members', shortLabel: 'Random 10', count: 10, group: 'Random Sample' },
+  { id: 'random_20', label: 'Random 20 members', shortLabel: 'Random 20', count: 20, group: 'Random Sample' },
+  { id: 'random_30', label: 'Random 30 members', shortLabel: 'Random 30', count: 30, group: 'Random Sample' },
+
+  // Membership Status Templates
+  { id: 'status_active', label: 'Active members only', shortLabel: 'Active Only', group: 'Member Status' },
+  { id: 'status_expired', label: 'Expired members only', shortLabel: 'Expired Only', group: 'Member Status' },
+  { id: 'status_frozen', label: 'Frozen members only', shortLabel: 'Frozen Only', group: 'Member Status' },
+  { id: 'status_guest', label: 'Guest members only', shortLabel: 'Guest Only', group: 'Member Status' },
+
+  // Assignment & Transfer Templates
+  { id: 'unassigned_sales', label: 'Unassigned Sales Rep', shortLabel: 'No Sales Rep', group: 'Assignment' },
+  { id: 'unassigned_coach', label: 'Unassigned Coach', shortLabel: 'No Coach', group: 'Assignment' },
+  { id: 'never_transferred', label: 'Never transferred before', shortLabel: 'Never Transferred', group: 'Transfer Status' },
+  { id: 'transferred_before', label: 'Previously transferred', shortLabel: 'Transferred Before', group: 'Transfer Status' },
+
+  // General Selection
+  { id: 'all_filtered', label: 'All filtered members', shortLabel: 'Select All', group: 'General' },
+];
+
+export function applySelectionTemplate(members = [], templateId, options = {}) {
+  if (!Array.isArray(members) || !members.length) return [];
+
+  const list = [...members];
+  const customCount = Number(options.count);
+
+  switch (templateId) {
+    case 'first_10':
+      return list.slice(0, 10).map((m) => m._id);
+    case 'first_20':
+      return list.slice(0, 20).map((m) => m._id);
+    case 'first_30':
+      return list.slice(0, 30).map((m) => m._id);
+    case 'first_50':
+      return list.slice(0, 50).map((m) => m._id);
+
+    case 'last_10':
+      return list.slice(Math.max(0, list.length - 10)).map((m) => m._id);
+    case 'last_20':
+      return list.slice(Math.max(0, list.length - 20)).map((m) => m._id);
+    case 'last_30':
+      return list.slice(Math.max(0, list.length - 30)).map((m) => m._id);
+    case 'last_50':
+      return list.slice(Math.max(0, list.length - 50)).map((m) => m._id);
+
+    case 'custom_first': {
+      const c = Number.isFinite(customCount) && customCount > 0 ? customCount : 10;
+      return list.slice(0, c).map((m) => m._id);
+    }
+
+    case 'custom_last': {
+      const c = Number.isFinite(customCount) && customCount > 0 ? customCount : 10;
+      return list.slice(Math.max(0, list.length - c)).map((m) => m._id);
+    }
+
+    case 'random_10':
+    case 'random_20':
+    case 'random_30':
+    case 'custom_random': {
+      const targetCount = templateId === 'random_10' ? 10
+        : templateId === 'random_20' ? 20
+        : templateId === 'random_30' ? 30
+        : (Number.isFinite(customCount) && customCount > 0 ? customCount : 10);
+
+      const shuffled = [...list];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
+      return shuffled.slice(0, targetCount).map((m) => m._id);
+    }
+
+    case 'status_active':
+      return list.filter((m) => String(m.status || '').toLowerCase() === 'active').map((m) => m._id);
+
+    case 'status_expired':
+      return list.filter((m) => String(m.status || '').toLowerCase() === 'expired').map((m) => m._id);
+
+    case 'status_frozen':
+      return list.filter((m) => String(m.status || '').toLowerCase() === 'frozen').map((m) => m._id);
+
+    case 'status_guest':
+      return list.filter((m) => String(m.status || '').toLowerCase() === 'guest').map((m) => m._id);
+
+    case 'unassigned_sales':
+      return list.filter((m) => !m.assignedSales || (typeof m.assignedSales === 'object' && !m.assignedSales._id && !m.assignedSales.name)).map((m) => m._id);
+
+    case 'unassigned_coach':
+      return list.filter((m) => !m.current_couch || (typeof m.current_couch === 'object' && !m.current_couch._id && !m.current_couch.name)).map((m) => m._id);
+
+    case 'never_transferred':
+      return list.filter((m) => {
+        const logs = getTransferLogs(m);
+        const hasHistory = Array.isArray(m.transferHistory) && m.transferHistory.length > 0;
+        return logs.length === 0 && !hasHistory;
+      }).map((m) => m._id);
+
+    case 'transferred_before':
+      return list.filter((m) => {
+        const logs = getTransferLogs(m);
+        const hasHistory = Array.isArray(m.transferHistory) && m.transferHistory.length > 0;
+        return logs.length > 0 || hasHistory;
+      }).map((m) => m._id);
+
+    case 'all_filtered':
+      return list.map((m) => m._id);
+
+    case 'clear':
+      return [];
+
+    default:
+      return [];
+  }
+}
+
+export function invertSelection(members = [], currentSelected = new Set()) {
+  const currentSet = currentSelected instanceof Set ? currentSelected : new Set(currentSelected);
+  const inverted = [];
+  (members || []).forEach((m) => {
+    if (m?._id && !currentSet.has(m._id)) {
+      inverted.push(m._id);
+    }
+  });
+  return inverted;
+}
+

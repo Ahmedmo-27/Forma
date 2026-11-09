@@ -21,6 +21,11 @@ import {
   toLocalDateString,
   parseDateBoundary,
   latestSubscription,
+  SELECTION_TEMPLATES,
+  applySelectionTemplate,
+  invertSelection,
+  TASK_PLAYER_TYPES,
+  getTaskPlayerType,
 } from "./taskMembers";
 
 function member(extra) {
@@ -507,5 +512,175 @@ describe("tasks member groups", () => {
 
     expect(filterAssignedHistoryAdvanced(history, { memberStatus: "blocked" })).toHaveLength(1);
     expect(filterAssignedHistoryAdvanced(history, { memberStatus: "blocked" })[0]._id).toBe("h3");
+  });
+
+  describe("selection templates for bulk transfer", () => {
+    const generateMembers = (count) => {
+      return Array.from({ length: count }, (_, i) =>
+        member({
+          _id: `id_${i + 1}`,
+          name: `Member ${i + 1}`,
+          systemId: 1000 + i + 1,
+          status: i % 4 === 0 ? "active" : i % 4 === 1 ? "expired" : i % 4 === 2 ? "frozen" : "guest",
+          assignedSales: i % 2 === 0 ? { _id: "s1", name: "Rep 1", role: "Sales" } : null,
+          current_couch: i % 3 === 0 ? { _id: "c1", name: "Coach 1" } : null,
+          userlog: i % 5 === 0 ? [{ type: "assign", text: "Transferred to Coach" }] : [],
+        })
+      );
+    };
+
+    const membersList = generateMembers(45);
+
+    it("has required template definitions including first/last 10, 20, 30", () => {
+      const ids = SELECTION_TEMPLATES.map((t) => t.id);
+      expect(ids).toContain("first_10");
+      expect(ids).toContain("first_20");
+      expect(ids).toContain("first_30");
+      expect(ids).toContain("last_10");
+      expect(ids).toContain("last_20");
+      expect(ids).toContain("last_30");
+      expect(ids).toContain("status_active");
+      expect(ids).toContain("status_expired");
+      expect(ids).toContain("unassigned_sales");
+      expect(ids).toContain("unassigned_coach");
+      expect(ids).toContain("never_transferred");
+    });
+
+    it("selects first 10, 20, 30 members accurately", () => {
+      const first10 = applySelectionTemplate(membersList, "first_10");
+      expect(first10).toHaveLength(10);
+      expect(first10[0]).toBe("id_1");
+      expect(first10[9]).toBe("id_10");
+
+      const first20 = applySelectionTemplate(membersList, "first_20");
+      expect(first20).toHaveLength(20);
+      expect(first20[0]).toBe("id_1");
+      expect(first20[19]).toBe("id_20");
+
+      const first30 = applySelectionTemplate(membersList, "first_30");
+      expect(first30).toHaveLength(30);
+      expect(first30[0]).toBe("id_1");
+      expect(first30[29]).toBe("id_30");
+    });
+
+    it("selects last 10, 20, 30 members accurately", () => {
+      const last10 = applySelectionTemplate(membersList, "last_10");
+      expect(last10).toHaveLength(10);
+      expect(last10[0]).toBe("id_36");
+      expect(last10[9]).toBe("id_45");
+
+      const last20 = applySelectionTemplate(membersList, "last_20");
+      expect(last20).toHaveLength(20);
+      expect(last20[0]).toBe("id_26");
+      expect(last20[19]).toBe("id_45");
+
+      const last30 = applySelectionTemplate(membersList, "last_30");
+      expect(last30).toHaveLength(30);
+      expect(last30[0]).toBe("id_16");
+      expect(last30[29]).toBe("id_45");
+    });
+
+    it("supports custom count templates", () => {
+      const custom15 = applySelectionTemplate(membersList, "custom_first", { count: 15 });
+      expect(custom15).toHaveLength(15);
+      expect(custom15[0]).toBe("id_1");
+      expect(custom15[14]).toBe("id_15");
+
+      const customLast5 = applySelectionTemplate(membersList, "custom_last", { count: 5 });
+      expect(customLast5).toHaveLength(5);
+      expect(customLast5[0]).toBe("id_41");
+      expect(customLast5[4]).toBe("id_45");
+    });
+
+    it("selects members by status templates (active, expired, frozen, guest)", () => {
+      const activeIds = applySelectionTemplate(membersList, "status_active");
+      expect(activeIds.length).toBeGreaterThan(0);
+      activeIds.forEach((id) => {
+        const found = membersList.find((m) => m._id === id);
+        expect(found.status).toBe("active");
+      });
+
+      const expiredIds = applySelectionTemplate(membersList, "status_expired");
+      expect(expiredIds.length).toBeGreaterThan(0);
+      expiredIds.forEach((id) => {
+        const found = membersList.find((m) => m._id === id);
+        expect(found.status).toBe("expired");
+      });
+    });
+
+    it("selects members by assignment templates (unassigned sales and coach)", () => {
+      const unassignedSales = applySelectionTemplate(membersList, "unassigned_sales");
+      expect(unassignedSales.length).toBeGreaterThan(0);
+      unassignedSales.forEach((id) => {
+        const found = membersList.find((m) => m._id === id);
+        expect(found.assignedSales).toBeNull();
+      });
+
+      const unassignedCoach = applySelectionTemplate(membersList, "unassigned_coach");
+      expect(unassignedCoach.length).toBeGreaterThan(0);
+      unassignedCoach.forEach((id) => {
+        const found = membersList.find((m) => m._id === id);
+        expect(found.current_couch).toBeNull();
+      });
+    });
+
+    it("selects members by transfer history templates", () => {
+      const neverTransferred = applySelectionTemplate(membersList, "never_transferred");
+      expect(neverTransferred.length).toBeGreaterThan(0);
+      neverTransferred.forEach((id) => {
+        const found = membersList.find((m) => m._id === id);
+        expect(found.userlog).toHaveLength(0);
+      });
+    });
+
+    it("inverts selection properly", () => {
+      const currentSelected = new Set(["id_1", "id_2"]);
+      const inverted = invertSelection(membersList.slice(0, 5), currentSelected);
+      expect(inverted).toEqual(["id_3", "id_4", "id_5"]);
+    });
+
+    it("handles random template selections without duplicates", () => {
+      const random10 = applySelectionTemplate(membersList, "random_10");
+      expect(random10).toHaveLength(10);
+      const unique = new Set(random10);
+      expect(unique.size).toBe(10);
+    });
+
+    it("gracefully handles lists smaller than requested count", () => {
+      const shortList = membersList.slice(0, 4);
+      expect(applySelectionTemplate(shortList, "first_10")).toHaveLength(4);
+      expect(applySelectionTemplate(shortList, "last_10")).toHaveLength(4);
+      expect(applySelectionTemplate([], "first_10")).toEqual([]);
+    });
+  });
+
+  describe("task player types (assigning vs assigned)", () => {
+    it("identifies Sales Manager as assigning player type", () => {
+      const user = { role: "Sales Manager", access: ["transfer", "members"] };
+      expect(canUserAssignTasks(user)).toBe(true);
+      expect(getTaskPlayerType(user)).toBe(TASK_PLAYER_TYPES.ASSIGNING);
+    });
+
+    it("identifies Coach Manager, Owner, and General Manager as assigning player type", () => {
+      expect(getTaskPlayerType({ role: "Coach Manager" })).toBe(TASK_PLAYER_TYPES.ASSIGNING);
+      expect(getTaskPlayerType({ role: "Owner" })).toBe(TASK_PLAYER_TYPES.ASSIGNING);
+      expect(getTaskPlayerType({ role: "General Manager" })).toBe(TASK_PLAYER_TYPES.ASSIGNING);
+    });
+
+    it("identifies regular Sales and Coaches as assigned player type", () => {
+      const salesUser = { role: "Sales", access: ["sales_dashboard", "sales_members"] };
+      expect(canUserAssignTasks(salesUser)).toBe(false);
+      expect(getTaskPlayerType(salesUser)).toBe(TASK_PLAYER_TYPES.ASSIGNED);
+
+      const coachUser = { role: "Coach", access: ["coach_dashboard", "coach_members"] };
+      expect(canUserAssignTasks(coachUser)).toBe(false);
+      expect(getTaskPlayerType(coachUser)).toBe(TASK_PLAYER_TYPES.ASSIGNED);
+    });
+
+    it("identifies users with explicit transfer grant as assigning player type", () => {
+      const userWithGrant = { role: "Accountant", access: ["transfer"] };
+      expect(canUserAssignTasks(userWithGrant)).toBe(true);
+      expect(getTaskPlayerType(userWithGrant)).toBe(TASK_PLAYER_TYPES.ASSIGNING);
+    });
   });
 });

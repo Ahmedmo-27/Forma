@@ -165,6 +165,51 @@ const getAssignedHistory = async (req, res) => {
     }
 };
 
+// 3.1 Get overview stats for the assigning player (Sales Manager, Coach Manager, Owner, GM)
+const getAssigningOverview = async (req, res) => {
+    try {
+        const filter = {};
+        const isSuper = ["Owner", "General Manager"].includes(req.user.role);
+
+        if (!isSuper || req.query.onlyMine === "true") {
+            filter.createdBy = req.user.id;
+        }
+
+        const tasks = await Task.find(filter)
+            .select("status totalCount completedCount assignedTo targetRole createdAt");
+
+        let totalMembersAssigned = 0;
+        let totalMembersCompleted = 0;
+        let pendingTasks = 0;
+        let completedTasks = 0;
+
+        tasks.forEach((t) => {
+            totalMembersAssigned += (t.totalCount || 0);
+            totalMembersCompleted += (t.completedCount || 0);
+            if (t.status === "completed") {
+                completedTasks += 1;
+            } else {
+                pendingTasks += 1;
+            }
+        });
+
+        res.json({
+            stats: {
+                totalTasks: tasks.length,
+                pendingTasks,
+                completedTasks,
+                totalMembersAssigned,
+                totalMembersCompleted,
+                completionRate: totalMembersAssigned > 0
+                    ? Math.round((totalMembersCompleted / totalMembersAssigned) * 100)
+                    : 0,
+            },
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 // 4. Mark member as completed in a task
 const completeMemberTask = async (req, res) => {
     try {
@@ -226,6 +271,7 @@ const completeMemberTask = async (req, res) => {
 
 module.exports = {
     getCreatedTasks,
+    getAssigningOverview,
     getAssignedTasks,
     getAssignedHistory,
     completeMemberTask,
