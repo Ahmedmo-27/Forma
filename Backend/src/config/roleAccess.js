@@ -164,10 +164,18 @@ function normalizeAreas(areas) {
     return { areas: [...new Set(areas)] };
 }
 
-function canEditRoleChecklist(actorRole, targetRole) {
+function canEditRoleChecklist(actor, targetRole) {
+    const actorRole = typeof actor === "string" ? actor : actor?.role;
     if (targetRole === "Owner" || !CHECKLIST_ROLES.includes(targetRole)) return false;
     if (actorRole === "Owner") return true;
     if (actorRole === "General Manager") return targetRole !== "General Manager";
+    if (typeof actor === "object" && actor !== null) {
+        const hasStaff = (Array.isArray(actor.areas) && actor.areas.includes("staff"))
+            || (actor.accessOverrides?.add || []).includes("staff")
+            || (Array.isArray(actor.access) && actor.access.includes("access_control"))
+            || Boolean(actor.hasStaffAccess || actor.hasAccessControlDelegation);
+        if (hasStaff) return targetRole !== "General Manager";
+    }
     return false;
 }
 

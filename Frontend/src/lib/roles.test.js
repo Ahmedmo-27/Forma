@@ -70,5 +70,19 @@ describe("Frontend Role Hierarchy Utilities (roles.js)", () => {
         it("provides only coach roles for Coach Manager", () => {
             expect(roleChoicesFor("Coach Manager", "Coach")).toEqual(["Coach"]);
         });
+
+        it("allows delegated Sales Manager with staff access to assign all non-owner staff roles", () => {
+            const delegatedSm = { role: "Sales Manager", accessOverrides: { add: ["staff"] } };
+            expect(canChangeUserRole(delegatedSm, "Coach")).toBe(true);
+            expect(canChangeUserRole(delegatedSm, "Accountant")).toBe(true);
+            expect(canChangeUserRole(delegatedSm, "Owner")).toBe(false);
+            expect(canChangeUserRole(delegatedSm, "General Manager")).toBe(false);
+
+            const choices = roleChoicesFor(delegatedSm, "Coach");
+            expect(choices).toContain("Coach");
+            expect(choices).toContain("Sales");
+            expect(choices).toContain("Accountant");
+            expect(choices).not.toContain("Owner");
+        });
     });
 });

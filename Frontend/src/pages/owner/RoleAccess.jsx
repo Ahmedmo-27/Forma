@@ -15,7 +15,13 @@ const PERSON_ROLES = {
 
 function StaffRoleCard() {
   const { user } = useAuth();
-  const roles = PERSON_ROLES[user?.role] || [];
+  const hasStaff = Boolean(
+    user?.role === 'Owner' ||
+    user?.role === 'General Manager' ||
+    user?.accessOverrides?.add?.includes('staff') ||
+    user?.access?.includes('access_control')
+  );
+  const roles = PERSON_ROLES[user?.role] || (hasStaff ? PERSON_ROLES['General Manager'] : []);
   const [role, setRole] = useState('');
   const [people, setPeople] = useState([]);
   const [loadingPeople, setLoadingPeople] = useState(false);
@@ -150,6 +156,12 @@ export default function RoleAccess() {
   } = useTenant();
 
   const isOwner = user?.role === 'Owner';
+  const hasStaff = Boolean(
+    isOwner ||
+    user?.role === 'General Manager' ||
+    user?.accessOverrides?.add?.includes('staff') ||
+    user?.access?.includes('access_control')
+  );
   const [role, setRole] = useState('General Manager');
   const [draft, setDraft] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -262,7 +274,7 @@ export default function RoleAccess() {
             </div>
 
             <div style={{ marginTop: 18 }}>
-              <Btn onClick={save} disabled={saving || readOnlyRole}>
+              <Btn onClick={save} disabled={saving || !hasStaff || readOnlyRole}>
                 {saving ? 'Saving…' : 'Save access'}
               </Btn>
             </div>

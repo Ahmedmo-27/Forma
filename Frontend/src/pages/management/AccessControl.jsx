@@ -10,9 +10,18 @@ import { canChangeUserRole } from '../../lib/roles';
 
 const ALL_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'];
 
-function canEditFeatureAccess(actorRole, targetRole) {
+function canEditFeatureAccess(actor, targetRole) {
+  const actorRole = typeof actor === 'string' ? actor : actor?.role;
   if (actorRole === 'Owner') return true;
+  if (targetRole === 'Owner') return false;
   if (actorRole === 'General Manager') return targetRole !== 'Owner' && targetRole !== 'General Manager';
+  const hasStaff = Boolean(
+    typeof actor === 'object' && (
+      actor?.accessOverrides?.add?.includes('staff') ||
+      actor?.access?.includes('access_control')
+    )
+  );
+  if (hasStaff) return targetRole !== 'General Manager';
   if (actorRole === 'Sales Manager') return targetRole === 'Sales' || targetRole === 'Receptionist';
   if (actorRole === 'Coach Manager') return targetRole === 'Coach';
   return false;
@@ -73,7 +82,24 @@ function enabledKeys(groups) {
 export default function AccessControl() {
   usePageTitle('Access Control');
   const { user } = useAuth();
-  const roles = ROLE_CHOICES[user?.role] || [];
+  const hasStaff = Boolean(
+    user?.role === 'Owner' ||
+    user?.role === 'General Manager' ||
+    user?.accessOverrides?.add?.includes('staff') ||
+    user?.access?.includes('access_control')
+  );
+
+  const roles = useMemo(() => {
+    if (user?.role === 'Owner') {
+      return ['General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'];
+    }
+    if (user?.role === 'General Manager' || hasStaff) {
+      return ['General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'].filter(
+        (r) => r !== user?.role
+      );
+    }
+    return ROLE_CHOICES[user?.role] || [];
+  }, [user, hasStaff]);
   const [role, setRole] = useState('');
   const [people, setPeople] = useState([]);
   const [loadingPeople, setLoadingPeople] = useState(false);
@@ -105,7 +131,7 @@ export default function AccessControl() {
 
   const chooseUser = async (person) => {
     setSelected(person);
-    if (!canEditFeatureAccess(user?.role, person.role)) {
+    if (!canEditFeatureAccess(user, person.role)) {
       setGroups([]);
       setDraft({});
       setLoadingAccess(false);
@@ -126,7 +152,7 @@ export default function AccessControl() {
     } catch (error) {
       setGroups([]);
       setDraft({});
-      const blockedFromFeatures = error.response?.status === 403 && canChangeUserRole(user?.role, person.role);
+      const blockedFromFeatures = error.response?.status === 403 && canChangeUserRole(user, person.role);
       if (!blockedFromFeatures) {
         toast.error(error.response?.data?.message || 'Could not load access');
       }
@@ -221,7 +247,7 @@ export default function AccessControl() {
                 ))}
               </select>
             </label>
-            {selected && canChangeUserRole(user?.role, selected.role) && (
+            {selected && canChangeUserRole(user, selected.role) && (
               <ChangeRoleField
                 userId={selected._id}
                 currentRole={selected.role}
@@ -241,7 +267,7 @@ export default function AccessControl() {
           <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
         )}
 
-        {!loadingAccess && selected && groups.length === 0 && user?.role === 'Sales Manager' && canChangeUserRole(user.role, selected.role) && (
+        {!loadingAccess && selected && groups.length === 0 && !hasStaff && user?.role === 'Sales Manager' && canChangeUserRole(user, selected.role) && (
           <p style={{ fontSize: 13, color: 'var(--t3)', marginTop: 18 }}>
             You can change this person’s role. Feature access for this person is managed by an owner or general manager.
           </p>

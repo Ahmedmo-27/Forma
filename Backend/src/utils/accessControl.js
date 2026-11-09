@@ -99,11 +99,15 @@ function applyAreaFilter(keys, user, context, revokeSet) {
     if (isLegacyAccess(ctx)) return;
     const areas = new Set(resolveEffectiveAreas(ctx));
     const defaults = new Set(ctx.defaultAreas);
+    const { grants } = storedLists(user);
+    const grantSet = new Set(grants);
     for (const feature of ACCESS_CATALOG) {
         const area = featureArea(feature.key);
         if (!area) continue;
         if (!areas.has(area)) {
-            keys.delete(feature.key);
+            if (!grantSet.has(feature.key)) {
+                keys.delete(feature.key);
+            }
             continue;
         }
         const expand = user.role === "General Manager" || !defaults.has(area);
@@ -167,11 +171,23 @@ function explicitGrantKeys(user) {
     return keys;
 }
 
-function navExtrasFor(user) {
-    const effective = resolveEffectiveKeys(user);
+function navExtrasFor(user, context) {
+    const effective = resolveEffectiveKeys(user, context);
     return ACCESS_CATALOG
-        .filter((feature) => feature.nav && hasExplicitGrant(user, feature.key) && effective.has(feature.key))
+        .filter((feature) => feature.nav && effective.has(feature.key) && (!feature.defaultRoles.includes(user?.role) || hasExplicitGrant(user, feature.key)))
         .map((feature) => ({ key: feature.key, to: feature.nav.to, label: feature.nav.label }));
+}
+
+function hasStaffDelegation(actor) {
+    if (!actor) return false;
+    if (actor.role === "Owner" || actor.role === "General Manager") return true;
+    const overrides = actor.accessOverrides?.add || [];
+    if (overrides.includes("staff")) return true;
+    if (Array.isArray(actor.delegatedAreas) && actor.delegatedAreas.includes("staff")) return true;
+    if (actor.canManageAllStaff || actor.hasStaffAccess || actor.hasAccessControlDelegation) return true;
+    const grants = actor.featureAccess?.grants || [];
+    if (grants.includes("access_control") || grants.includes("staff")) return true;
+    return false;
 }
 
 function canEditTarget(actor, target) {
@@ -179,8 +195,8 @@ function canEditTarget(actor, target) {
     if (actorId(actor) && actorId(actor) === actorId(target)) return false;
     if (target.role === "Owner") return actor.role === "Owner";
     if (actor.role === "Owner") return true;
-    if (actor.role === "General Manager") {
-        return target.role !== "General Manager";
+    if (actor.role === "General Manager" || hasStaffDelegation(actor)) {
+        return target.role !== "General Manager" && target.role !== "Owner";
     }
     if (actor.role === "Sales Manager") return ["Sales", "Receptionist"].includes(target.role);
     if (actor.role === "Coach Manager") return target.role === "Coach";
@@ -190,15 +206,24 @@ function canEditTarget(actor, target) {
 function canEditFeature(actor, feature) {
     if (!actor || !feature) return false;
     if (actor.role === "Owner") return true;
-    if (actor.role === "General Manager") {
-        if (feature.key === "settings") return false;
-        const area = featureArea(feature.key);
+    if (feature.key === "settings") return false;
+
+    const area = featureArea(feature.key);
+    if (Array.isArray(actor.areas)) {
         if (!area) return false;
-        if (Array.isArray(actor.areas) && !actor.areas.includes(area)) return false;
+        return actor.areas.includes(area);
+    }
+
+    if (actor.role === "General Manager") {
+        if (!area) return false;
         return true;
     }
-    if (actor.role === "Sales Manager") return feature.domain === "sales";
-    if (actor.role === "Coach Manager") return feature.domain === "coach";
+    if (actor.role === "Sales Manager") {
+        return feature.domain === "sales";
+    }
+    if (actor.role === "Coach Manager") {
+        return feature.domain === "coach";
+    }
     return false;
 }
 
@@ -206,8 +231,8 @@ function lockReason(actor, target, feature) {
     if (!canEditTarget(actor, target)) return "You cannot edit this user";
     if (feature.exclusive && !feature.defaultRoles.includes(target.role)) return "This role only";
     if (!canEditFeature(actor, feature)) {
-        if (actor.role === "Sales Manager") return "Sales managers can only change sales features";
-        if (actor.role === "Coach Manager") return "Coach managers can only change coach features";
+        if (actor.role === "Sales Manager" && !Array.isArray(actor.areas)) return "Sales managers can only change sales features";
+        if (actor.role === "Coach Manager" && !Array.isArray(actor.areas)) return "Coach managers can only change coach features";
         return "You cannot change this feature";
     }
     return null;
@@ -220,8 +245,8 @@ function featureSource(feature, role, enabled) {
     return "default";
 }
 
-function groupFeaturesFor(actor, target) {
-    const effective = resolveEffectiveKeys(target);
+function groupFeaturesFor(actor, target, context) {
+    const effective = resolveEffectiveKeys(target, context);
     const grouped = new Map(GROUP_ORDER.map((role) => [role, []]));
 
     for (const feature of ACCESS_CATALOG) {
@@ -301,9 +326,11 @@ function syncLegacyFields(user) {
 
 const STAFF_ROLES = ["Owner", "General Manager", "Sales Manager", "Sales", "Coach Manager", "Coach", "Receptionist", "Accountant"];
 
-function editableRolesFor(actorRole) {
+function editableRolesFor(actor) {
+    const actorRole = typeof actor === "string" ? actor : actor?.role;
+    if (!actorRole) return [];
     if (actorRole === "Owner") return [...STAFF_ROLES];
-    if (actorRole === "General Manager") {
+    if (actorRole === "General Manager" || hasStaffDelegation(actor)) {
         return ["Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"];
     }
     if (actorRole === "Sales Manager") return ["Sales", "Receptionist"];
@@ -312,8 +339,8 @@ function editableRolesFor(actorRole) {
 }
 
 /** Roles a person can look up in the access directory. Strictly follows the team hierarchy. */
-function directoryRolesFor(actorRole) {
-    return editableRolesFor(actorRole);
+function directoryRolesFor(actor) {
+    return editableRolesFor(actor);
 }
 
 const ASSIGNABLE_ROLES = {
@@ -323,15 +350,23 @@ const ASSIGNABLE_ROLES = {
     "Coach Manager": ["Coach"],
 };
 
-function assignableRolesFor(actorRole) {
+function assignableRolesFor(actor) {
+    const actorRole = typeof actor === "string" ? actor : actor?.role;
+    if (!actorRole) return [];
+    if (actorRole === "Owner") {
+        return ["General Manager", "Sales Manager", "Sales", "Coach Manager", "Coach", "Receptionist", "Accountant"];
+    }
+    if (actorRole === "General Manager" || hasStaffDelegation(actor)) {
+        return ["Sales Manager", "Sales", "Coach Manager", "Coach", "Receptionist", "Accountant"];
+    }
     return ASSIGNABLE_ROLES[actorRole] ? [...ASSIGNABLE_ROLES[actorRole]] : [];
 }
 
 /**
  * Strict role hierarchy:
  * 1. Owner at top: can change any role below Owner. Nobody can change an Owner's role.
- * 2. General Manager: can change roles below GM (cannot change Owner or GM).
- * 3. Sales Manager & Coach Manager: maintain their own teams only.
+ * 2. General Manager & delegated staff: can change roles below GM (cannot change Owner or GM).
+ * 3. Sales Manager & Coach Manager: maintain their own teams only (unless granted staff delegation).
  *    - Sales Manager can only change members of their team (Sales, Receptionist) to a role in their team.
  *    - Coach Manager can only change members of their team (Coach) to a role in their team.
  * 4. Nobody can change their own role, and nobody can assign the "Owner" role.
@@ -347,25 +382,26 @@ function canAssignRole(actor, target, newRole) {
     if (newRole === "Owner") {
         return { ok: false, status: 400, message: "That role cannot be assigned" };
     }
-    const allowed = assignableRolesFor(actor.role);
+    const hasStaff = hasStaffDelegation(actor);
+    const allowed = assignableRolesFor(actor);
     if (!allowed.length) return { ok: false, status: 403, message: "Not authorized" };
     if (!allowed.includes(newRole)) {
         return { ok: false, status: 400, message: "That role cannot be assigned" };
     }
-    if (actor.role === "General Manager") {
-        if (target.role === "General Manager") {
+    if (actor.role === "General Manager" || hasStaff) {
+        if (target.role === "General Manager" && actor.role !== "Owner") {
             return { ok: false, status: 403, message: "Only the owner can change a General Manager" };
         }
-        if (!editableRolesFor("General Manager").includes(target.role)) {
+        if (!editableRolesFor(actor).includes(target.role)) {
             return { ok: false, status: 403, message: "You cannot change this user's role" };
         }
     }
-    if (actor.role === "Sales Manager") {
+    if (actor.role === "Sales Manager" && !hasStaff) {
         if (!["Sales", "Receptionist"].includes(target.role)) {
             return { ok: false, status: 403, message: "Sales managers can only change roles for their own team" };
         }
     }
-    if (actor.role === "Coach Manager") {
+    if (actor.role === "Coach Manager" && !hasStaff) {
         if (target.role !== "Coach") {
             return { ok: false, status: 403, message: "Coach managers can only change roles for their own team" };
         }
@@ -378,7 +414,7 @@ function canAssignRole(actor, target, newRole) {
  * Features the actor cannot edit keep their current grant or revoke.
  * Returns { error } or { grants, revokes }.
  */
-function diffConfirmedFeatures(actor, target, requestedKeys) {
+function diffConfirmedFeatures(actor, target, requestedKeys, context) {
     const requested = new Set(Array.isArray(requestedKeys) ? requestedKeys : []);
     const unknown = [...requested].filter((key) => !getFeature(key));
     if (unknown.length) {
@@ -390,10 +426,26 @@ function diffConfirmedFeatures(actor, target, requestedKeys) {
     const nextGrants = [];
     const nextRevokes = [];
 
+    const targetCtx = context ? areaContext(target, context) : null;
+    const targetEffectiveAreas = targetCtx && !isLegacyAccess(targetCtx)
+        ? new Set(resolveEffectiveAreas(targetCtx))
+        : null;
+
     for (const feature of ACCESS_CATALOG) {
-        const isDefault = feature.defaultRoles.includes(target.role);
+        let isDefault = feature.defaultRoles.includes(target.role);
+        if (targetEffectiveAreas) {
+            const area = featureArea(feature.key);
+            if (area) {
+                if (!targetEffectiveAreas.has(area)) {
+                    isDefault = false;
+                } else if (targetEffectiveAreas.has(area) && !isDefault && feature.key !== "settings") {
+                    isDefault = true;
+                }
+            }
+        }
+
         const editable = canEditFeature(actor, feature);
-        const lockedExclusive = feature.exclusive && !isDefault;
+        const lockedExclusive = feature.exclusive && !feature.defaultRoles.includes(target.role);
 
         if (!editable || lockedExclusive) {
             if (requested.has(feature.key) && lockedExclusive && editable) {
@@ -414,8 +466,17 @@ function diffConfirmedFeatures(actor, target, requestedKeys) {
     return { grants: nextGrants, revokes: nextRevokes };
 }
 
-function memberListDecision(user) {
+function memberListDecision(user, context) {
     const role = user?.role;
+    if (context) {
+        const ctx = areaContext(user, context);
+        const areas = new Set(resolveEffectiveAreas(ctx));
+        if (!areas.has("members")) {
+            if (role === "Sales" && areas.has("sales") && !isRevoked(user, "sales_members")) return "scoped";
+            if ((role === "Coach" || role === "Coach Manager") && areas.has("coaching") && !isRevoked(user, "coach_members")) return "scoped";
+            return "deny";
+        }
+    }
     if (hasExplicitGrant(user, "members")) return "all";
     if (role === "Sales") {
         if (isRevoked(user, "sales_members")) return "deny";
@@ -433,7 +494,6 @@ function memberListDecision(user) {
         if (isRevoked(user, "members")) return "deny";
         return "all";
     }
-    if (hasExplicitGrant(user, "members")) return "all";
     if (hasExplicitGrant(user, "sales_members") || hasExplicitGrant(user, "coach_members")) return "scoped";
     return "deny";
 }

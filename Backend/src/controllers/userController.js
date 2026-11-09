@@ -19,6 +19,7 @@ const {
     dayKey,
     isSameDay,
     buildMonthlyMap,
+    cairoDayBounds,
     memberPrice,
     getCurrentSubscription,
     subscriptionSalePrice,
@@ -272,29 +273,42 @@ const loginUser = async (req, res) => {
             });
         }
 
-        let tenant = null;
-        if (user.tenantId) {
-            tenant = await runAsPlatform(async () => {
-                return await Tenant.findById(user.tenantId);
+        if (!user.tenantId) {
+            logger.auth("warn", "Login rejected: user is not assigned to a gym", {
+                requestId,
+                userId: user._id.toString(),
             });
-        } else {
-            // Fallback for single-tenant or legacy data
-            tenant = await runAsPlatform(async () => {
-                return (await Tenant.findOne({ slug: "leap" })) || (await Tenant.findOne());
+            return res.status(401).json({
+                code: "AUTH_NO_TENANT",
+                message: "This account is not associated with an active gym.",
             });
         }
 
-        if (tenant) {
-            if (tenant.status === "suspended" || tenant.status === "cancelled") {
-                return res.status(403).json({
-                    code: "TENANT_SUSPENDED",
-                    message: "This gym's subscription is suspended or cancelled. Please contact your administrator.",
-                });
-            }
+        const tenant = await runAsPlatform(async () => {
+            return await Tenant.findById(user.tenantId);
+        });
+
+        if (!tenant) {
+            logger.auth("warn", "Login rejected: tenant not found", {
+                requestId,
+                userId: user._id.toString(),
+                tenantId: user.tenantId.toString(),
+            });
+            return res.status(401).json({
+                code: "AUTH_NO_TENANT",
+                message: "This account's gym was not found.",
+            });
         }
 
-        const effectiveTenantId = tenant ? tenant._id.toString() : (user.tenantId ? user.tenantId.toString() : null);
-        const effectiveTenantSlug = tenant ? tenant.slug : null;
+        if (tenant.status === "suspended" || tenant.status === "cancelled") {
+            return res.status(403).json({
+                code: "TENANT_SUSPENDED",
+                message: "This gym's subscription is suspended or cancelled. Please contact your administrator.",
+            });
+        }
+
+        const effectiveTenantId = tenant._id.toString();
+        const effectiveTenantSlug = tenant.slug || null;
 
         const token = jwt.sign(
             {
@@ -417,9 +431,12 @@ const getSalesRevenue = async (req, res) => {
             }
         });
 
+        const currency = req.tenant?.settings?.locale?.currency || "EGP";
+        const timeZone = req.tenant?.settings?.locale?.timezone || "Africa/Cairo";
+
         res.json({
-            currency: "EGP",
-            currentMonth: monthKey(now),
+            currency,
+            currentMonth: monthKey(now, timeZone),
             currentMonthRevenue,
             lastMonthRevenue,
             totalRevenue,
@@ -441,7 +458,7 @@ const getSalesManagerRevenue = async (req, res) => {
 
         const now          = new Date();
         const selectedDate = req.query.date  || null; // YYYY-MM-DD  – specific day filter
-        const currentYear  = now.getFullYear();
+        const currentYear  = Number(dayKey(now).slice(0, 4));
 
         const [members, reps] = await Promise.all([
             Member.find()
@@ -478,7 +495,8 @@ const getSalesManagerRevenue = async (req, res) => {
 
                 if (isSameDay(saleDate, now)) todayRevenue += price;
 
-                if (new Date(saleDate).getFullYear() === currentYear) {
+                const saleYear = Number(dayKey(saleDate).slice(0, 4));
+                if (saleYear === currentYear) {
                     currentYearRevenue += price;
                 }
 
@@ -491,9 +509,12 @@ const getSalesManagerRevenue = async (req, res) => {
         // Monthly totals sorted newest → oldest for the 12-month window
         const monthlyBreakdown = Object.values(monthlyMap).reverse();
 
+        const currency = req.tenant?.settings?.locale?.currency || "EGP";
+        const timeZone = req.tenant?.settings?.locale?.timezone || "Africa/Cairo";
+
         res.json({
-            currency:           "EGP",
-            today:              dayKey(now),
+            currency,
+            today:              dayKey(now, timeZone),
             todayRevenue,
             currentYear,
             currentYearRevenue,
@@ -528,8 +549,8 @@ const getMyProfile = async (req, res) => {
 
         let accessContext = null;
         if (req.user?.tenantId) {
-            const tenant = req.tenant || await runAsPlatform(async () => {
-                return await Tenant.findById(req.user.tenantId);
+            const tenant = (req.tenant && req.tenant.planId?.features) ? req.tenant : await runAsPlatform(async () => {
+                return await Tenant.findById(req.user.tenantId).populate("planId");
             });
             accessContext = accessContextFor(tenant);
         }
@@ -817,16 +838,13 @@ const getSubscriptionsByDate = async (req, res) => {
 
         const Member = require("../models/Member");
 
-        const today     = dayKey(new Date());
-        const dateFrom  = req.query.dateFrom || req.query.date || today;
-        const dateTo    = req.query.dateTo   || req.query.date || today;
+        const timeZone = req.tenant?.settings?.locale?.timezone || "Africa/Cairo";
+        const { start: dayStart, end: dayEnd, from: dateFrom, to: dateTo } = cairoDayBounds(
+            req.query.dateFrom || req.query.date,
+            req.query.dateTo || req.query.date,
+            timeZone
+        );
         const salesRepId = req.query.salesRepId || null;
-
-        const [fromY, fromM, fromD] = dateFrom.split("-").map(Number);
-        const [toY,   toM,   toD  ] = dateTo.split("-").map(Number);
-
-        const dayStart = new Date(Date.UTC(fromY, fromM - 1, fromD, 0, 0, 0));
-        const dayEnd   = new Date(Date.UTC(toY,   toM   - 1, toD,   23, 59, 59, 999));
 
         if (dayEnd < dayStart) {
             return res.status(400).json({ message: "dateTo must be on or after dateFrom" });
@@ -903,15 +921,12 @@ const getSalesMySubscriptions = async (req, res) => {
 
         const Member = require("../models/Member");
 
-        const today    = dayKey(new Date());
-        const dateFrom = req.query.dateFrom || today;
-        const dateTo   = req.query.dateTo   || today;
-
-        const [fromY, fromM, fromD] = dateFrom.split("-").map(Number);
-        const [toY,   toM,   toD  ] = dateTo.split("-").map(Number);
-
-        const dayStart = new Date(Date.UTC(fromY, fromM - 1, fromD, 0, 0, 0));
-        const dayEnd   = new Date(Date.UTC(toY,   toM   - 1, toD,   23, 59, 59, 999));
+        const timeZone = req.tenant?.settings?.locale?.timezone || "Africa/Cairo";
+        const { start: dayStart, end: dayEnd, from: dateFrom, to: dateTo } = cairoDayBounds(
+            req.query.dateFrom,
+            req.query.dateTo,
+            timeZone
+        );
 
         if (dayEnd < dayStart) {
             return res.status(400).json({ message: "dateTo must be on or after dateFrom" });
@@ -1256,35 +1271,39 @@ const getTeamsPage = async (req, res) => {
             });
         }
 
-        const users = await db.User.find();
+        const users = await User.find()
+            .select("name email role mobile_number canViewPhones abilities createdAt")
+            .sort({ name: 1 })
+            .lean();
 
-        if (users.length === 0) {
-            return res.status(404).json({
-                message: "There are no users to view"
-            });
-        }
+        const formatted = users.map((u) => formatUserResponse(u));
 
-        const sales = users.filter(
-            user => user.type === "Sales manager" || user.type === "Sales"
+        const sales = formatted.filter(
+            (user) => user.role === "Sales Manager" || user.role === "Sales"
         );
 
-        const coach = users.filter(
-            user => user.type === "Coach manager" || user.type === "Coach"
+        const coach = formatted.filter(
+            (user) => user.role === "Coach Manager" || user.role === "Coach"
         );
 
-        const acc = users.filter(
-            user => user.type === "Accountant"
+        const acc = formatted.filter(
+            (user) => user.role === "Accountant"
         );
 
-        const rece = users.filter(
-            user => user.type === "Receptionist"
+        const rece = formatted.filter(
+            (user) => user.role === "Receptionist"
+        );
+
+        const managers = formatted.filter(
+            (user) => user.role === "General Manager" || user.role === "Owner"
         );
 
         res.status(200).json({
             sales,
             coach,
             acc,
-            rece
+            rece,
+            managers,
         });
 
     } catch (error) {

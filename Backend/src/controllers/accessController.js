@@ -20,7 +20,8 @@ function escapeRegex(value) {
 
 const searchUsersForAccess = async (req, res) => {
     try {
-        const roles = directoryRolesFor(req.user.role);
+        req.user.areas = await actorAreas(req);
+        const roles = directoryRolesFor(req.user);
         if (!roles.length) return res.status(403).json({ message: "Not authorized" });
 
         const role = String(req.query.role || "").trim();
@@ -62,8 +63,9 @@ const searchUsersForAccess = async (req, res) => {
 
 const getUserAccess = async (req, res) => {
     try {
-        if (req.user.role === "General Manager") req.user.areas = await actorAreas(req);
-        const user = await User.findById(req.params.id).select("name email role abilities canViewPhones featureAccess");
+        req.user.areas = await actorAreas(req);
+        const context = await accessContextForReq(req);
+        const user = await User.findById(req.params.id).select("name email role abilities canViewPhones featureAccess accessOverrides");
         if (!user) return res.status(404).json({ message: "User not found" });
         if (!canEditTarget(req.user, user)) {
             return res.status(403).json({ message: "You cannot edit this user's access" });
@@ -71,7 +73,7 @@ const getUserAccess = async (req, res) => {
 
         res.json({
             user: { _id: user._id, name: user.name, role: user.role },
-            groups: groupFeaturesFor(req.user, user),
+            groups: groupFeaturesFor(req.user, user, context),
         });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
@@ -80,11 +82,12 @@ const getUserAccess = async (req, res) => {
 
 const updateUserAccess = async (req, res) => {
     try {
-        if (req.user.role === "General Manager") req.user.areas = await actorAreas(req);
         const { features } = req.body || {};
         if (!Array.isArray(features) || features.some((key) => typeof key !== "string")) {
             return res.status(400).json({ message: "features must be an array of feature keys" });
         }
+        req.user.areas = await actorAreas(req);
+        const context = await accessContextForReq(req);
 
         const user = await User.findById(req.params.id);
         if (!user) return res.status(404).json({ message: "User not found" });
@@ -92,7 +95,7 @@ const updateUserAccess = async (req, res) => {
             return res.status(403).json({ message: "You cannot edit this user's access" });
         }
 
-        const diff = diffConfirmedFeatures(req.user, user, features);
+        const diff = diffConfirmedFeatures(req.user, user, features, context);
         if (diff.error) return res.status(400).json({ message: diff.error });
 
         user.featureAccess = { grants: diff.grants, revokes: diff.revokes };
@@ -113,25 +116,44 @@ const updateUserAccess = async (req, res) => {
         res.json({
             message: "Access updated",
             user: { _id: user._id, name: user.name, role: user.role },
-            groups: groupFeaturesFor(req.user, user),
+            groups: groupFeaturesFor(req.user, user, context),
         });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
 
-async function actorAreas(req) {
+async function getTenantWithPlan(req) {
     let tenant = req.tenant;
     if (!tenant && req.user?.tenantId) {
         tenant = await runAsPlatform(async () => {
             return await Tenant.findById(req.user.tenantId).populate("planId");
         });
+    } else if (tenant && (!tenant.planId || !tenant.planId.features) && tenant.planId) {
+        tenant = await runAsPlatform(async () => {
+            return await Tenant.findById(tenant._id || tenant.id).populate("planId");
+        });
     }
+    return tenant;
+}
+
+async function accessContextForReq(req) {
+    const tenant = await getTenantWithPlan(req);
     const plan = tenant?.planId?.features ? tenant.planId : null;
-    return effectiveAreas(req.user, {
+    return {
         roleAccess: tenant?.roleAccess || null,
         planFeatures: plan ? getEffectiveFeatures(tenant, plan) : null,
-    });
+    };
+}
+
+async function actorAreas(req) {
+    const tenant = await getTenantWithPlan(req);
+    const context = await accessContextForReq(req);
+    const saved = savedAreasFor(tenant?.roleAccess, req.user?.role);
+    if (saved && saved.includes("staff")) {
+        req.user.hasStaffAccess = true;
+    }
+    return effectiveAreas(req.user, context);
 }
 
 const updateUserAreaAccess = async (req, res) => {
@@ -142,12 +164,13 @@ const updateUserAreaAccess = async (req, res) => {
         }
         if (parsed.error) return res.status(400).json({ message: parsed.error });
 
+        req.user.areas = await actorAreas(req);
         const user = await User.findById(req.params.id);
         if (!user) return res.status(404).json({ message: "User not found" });
         if (!canEditTarget(req.user, user)) {
             return res.status(403).json({ message: "You cannot edit this user's access" });
         }
-        if (req.user.role === "General Manager" && (user.role === "Owner" || user.role === "General Manager")) {
+        if (req.user.role !== "Owner" && (user.role === "Owner" || user.role === "General Manager")) {
             return res.status(403).json({ message: "You cannot edit this user's access" });
         }
 
@@ -156,7 +179,7 @@ const updateUserAreaAccess = async (req, res) => {
         if (addParsed.error) return res.status(400).json({ message: addParsed.error });
         if (removeParsed.error) return res.status(400).json({ message: removeParsed.error });
 
-        if (req.user.role === "General Manager") {
+        if (req.user.role !== "Owner") {
             const mine = await actorAreas(req);
             const limited = areasWithinActor(addParsed.areas, mine);
             if (limited.error) return res.status(403).json({ message: limited.error });
