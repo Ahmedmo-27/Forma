@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { Btn, Modal, Select, Textarea, Input, Spinner } from './ui';
 import { getWhatsAppTemplates, getPackages, sendWhatsAppMessage } from '../api/endpoints';
 import { composeWhatsAppTemplateMessage, toWhatsAppUrl } from '../utils/whatsapp';
+import { useTenant } from '../context/TenantContext';
 
 function typeLabel(type) {
   if (type === 'packages') return 'Packages list';
@@ -48,6 +49,7 @@ function calcNewPrice(price, percent) {
 }
 
 export default function WhatsAppTemplateSendModal({ open, onClose, phone, memberName, memberId }) {
+  const { currency = 'EGP', countryCode = '20' } = useTenant() || {};
   const [loading, setLoading] = useState(false);
   const [templates, setTemplates] = useState([]);
   const [packages, setPackages] = useState([]);
@@ -68,8 +70,9 @@ export default function WhatsAppTemplateSendModal({ open, onClose, phone, member
       selectedPackageIds: pkgIds,
       discountPercent: percent,
       language: lang,
+      currency,
     });
-  }, []);
+  }, [currency]);
 
   useEffect(() => {
     if (!open) return;
@@ -259,7 +262,7 @@ export default function WhatsAppTemplateSendModal({ open, onClose, phone, member
         return;
       }
     }
-    if (!toWhatsAppUrl(phone, message)) {
+    if (!toWhatsAppUrl(phone, message, countryCode)) {
       toast.error('This member’s phone number is not valid for WhatsApp');
       return;
     }
@@ -379,7 +382,7 @@ export default function WhatsAppTemplateSendModal({ open, onClose, phone, member
                 <option value="">— Choose a package —</option>
                 {packages.map((p) => (
                   <option key={p._id} value={p._id}>
-                    {p.name} ({p.duration}) — {Number(p.price).toLocaleString()} EGP
+                    {p.name} ({p.duration}) — {Number(p.price).toLocaleString()} {currency}
                   </option>
                 ))}
               </Select>
@@ -406,8 +409,8 @@ export default function WhatsAppTemplateSendModal({ open, onClose, phone, member
                   color: '#166534',
                   fontWeight: 600,
                 }}>
-                  {selectedDiscountPkg.name}: price was {Number(selectedDiscountPkg.price).toLocaleString()} EGP,
-                  now it’s {calcNewPrice(selectedDiscountPkg.price, discountPercent).toLocaleString()} EGP
+                  {selectedDiscountPkg.name}: price was {Number(selectedDiscountPkg.price).toLocaleString()} {currency},
+                  now it’s {calcNewPrice(selectedDiscountPkg.price, discountPercent).toLocaleString()} {currency}
                   {' '}({discountPercent}% off)
                 </div>
               )}
@@ -442,7 +445,7 @@ export default function WhatsAppTemplateSendModal({ open, onClose, phone, member
                         checked={selectedPackageIds.includes(id)}
                         onChange={() => togglePackage(id)}
                       />
-                      <span>{p.name} — {p.duration} — {Number(p.price).toLocaleString()} EGP</span>
+                      <span>{p.name} — {p.duration} — {Number(p.price).toLocaleString()} {currency}</span>
                     </label>
                   );
                 })}

@@ -36,17 +36,19 @@ export function formatDate(dateInput, withTime = false) {
 
   if (withTime) {
     return new Intl.DateTimeFormat("en-US", {
+      timeZone: "Africa/Cairo",
       year: "numeric",
       month: "short",
       day: "2-digit",
-      hour: "2-digit",
+      hour: "numeric",
       minute: "2-digit",
       second: "2-digit",
-      hour12: false,
+      hour12: true,
     }).format(date);
   }
 
   return new Intl.DateTimeFormat("en-US", {
+    timeZone: "Africa/Cairo",
     year: "numeric",
     month: "short",
     day: "2-digit",

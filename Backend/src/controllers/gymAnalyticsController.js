@@ -45,7 +45,8 @@ const getChurn = async (req, res) => {
 
 const getForecast = async (req, res) => {
     try {
-        res.json(await analytics.getForecast());
+        const currency = req.tenant?.settings?.locale?.currency || "EGP";
+        res.json(await analytics.getForecast({ currency }));
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
@@ -63,7 +64,8 @@ const getCohorts = async (req, res) => {
 const getAttendance = async (req, res) => {
     try {
         const weeks = clampInt(req.query.weeks, 8, 1, 26);
-        res.json(await analytics.getAttendance({ weeks }));
+        const timeZone = req.tenant?.settings?.locale?.timezone || "Africa/Cairo";
+        res.json(await analytics.getAttendance({ weeks, timeZone }));
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
@@ -71,7 +73,8 @@ const getAttendance = async (req, res) => {
 
 const getFunnel = async (req, res) => {
     try {
-        res.json(await analytics.getFunnel(funnelRange(req.query)));
+        const currency = req.tenant?.settings?.locale?.currency || "EGP";
+        res.json(await analytics.getFunnel({ ...funnelRange(req.query), currency }));
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
@@ -79,7 +82,8 @@ const getFunnel = async (req, res) => {
 
 const getExecutive = async (req, res) => {
     try {
-        res.json(await analytics.getExecutive());
+        const currency = req.tenant?.settings?.locale?.currency || "EGP";
+        res.json(await analytics.getExecutive({ currency }));
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }

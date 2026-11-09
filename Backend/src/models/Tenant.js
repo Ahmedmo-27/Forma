@@ -21,6 +21,7 @@ const brandingSchema = new mongoose.Schema(
 const localeSchema = new mongoose.Schema(
     {
         currency: { type: String, default: "EGP", uppercase: true },
+        countryCode: { type: String, default: "20" },
         timezone: { type: String, default: "Africa/Cairo" },
         language: { type: String, default: "en" },
     },

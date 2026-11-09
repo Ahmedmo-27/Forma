@@ -3,6 +3,10 @@ const {
     aggregateSubscriptionRevenue,
     aggregateRevenueFromLiveCatalogPrice,
     memberPrice,
+    dayKey,
+    monthKey,
+    isSameDay,
+    cairoDayBounds,
 } = require("./revenueUtils");
 const { buildPackageSnapshot } = require("./packageSnapshot");
 
@@ -62,5 +66,22 @@ describe("revenueUtils — payment-record revenue", () => {
             ],
         };
         expect(memberPrice(member)).toBe(1200);
+    });
+
+    it("dayKey, monthKey, and isSameDay evaluate in Cairo time regardless of server UTC offset", () => {
+        // 22:30 UTC on Nov 9 is 00:30 on Nov 10 in Cairo (UTC+2)
+        const earlyMorningCairo = new Date("2026-11-09T22:30:00.000Z");
+        const afternoonCairo = new Date("2026-11-10T12:00:00.000Z");
+
+        expect(dayKey(earlyMorningCairo)).toBe("2026-11-10");
+        expect(dayKey(afternoonCairo)).toBe("2026-11-10");
+        expect(isSameDay(earlyMorningCairo, afternoonCairo)).toBe(true);
+        expect(monthKey(earlyMorningCairo)).toBe("2026-11");
+    });
+
+    it("cairoDayBounds returns exact Cairo midnight UTC boundaries", () => {
+        const { start, end } = cairoDayBounds("2026-11-10", "2026-11-10");
+        expect(start.toISOString()).toBe("2026-11-09T22:00:00.000Z");
+        expect(end.toISOString()).toBe("2026-11-10T21:59:59.999Z");
     });
 });

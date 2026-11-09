@@ -114,6 +114,34 @@ const sendImageMessage = async (req, res, next) => {
         }
         await assertMonthlyAllowance(req);
         const { phone, caption, memberId, memberName, kind, code } = req.body;
+
+        let memberObj = null;
+        if (memberId) {
+            try {
+                memberObj = await findMemberByIdentifier(memberId);
+            } catch (memberErr) {
+                // Member tracking failure handled below
+            }
+        }
+
+        const isQr = kind === "qr_checkin" || Boolean(code);
+        if (isQr) {
+            if (code && /^s\d+$/i.test(String(code).trim())) {
+                return res.status(400).json({
+                    message: "QR codes cannot be created with system IDs. Only members with a member ID are allowed QR codes.",
+                });
+            }
+            if (memberObj) {
+                const isGuest = memberObj.status === "guest" || memberObj.isMember === false;
+                const hasMemberId = memberObj.memberId != null && String(memberObj.memberId).trim() !== "";
+                if (isGuest || !hasMemberId) {
+                    return res.status(400).json({
+                        message: "QR codes are only available for members who have a member ID.",
+                    });
+                }
+            }
+        }
+
         const sendResult = await sendImage({
             ...actor(req),
             phone,
@@ -123,30 +151,25 @@ const sendImageMessage = async (req, res, next) => {
         incrementCachedAllowance(req.user?.tenantId);
         invalidateTenantCache(req.user?.tenantId, "tenant");
 
-        let memberObj = null;
         let lastQrSentAt = null;
-        if (memberId) {
+        if (memberObj) {
             try {
-                memberObj = await findMemberByIdentifier(memberId);
-                if (memberObj) {
-                    lastQrSentAt = new Date();
-                    memberObj.lastQrSentAt = lastQrSentAt;
-                    if (kind === "qr_checkin" || code) {
-                        if (!Array.isArray(memberObj.userlog)) memberObj.userlog = [];
-                        memberObj.userlog.push({
-                            type: "other",
-                            text: `Check-in QR code (${code || memberObj.systemId || ""}) sent via WhatsApp to ${phone}`,
-                            user: req.user?.id || null,
-                        });
-                    }
-                    await memberObj.save();
+                lastQrSentAt = new Date();
+                memberObj.lastQrSentAt = lastQrSentAt;
+                if (isQr) {
+                    if (!Array.isArray(memberObj.userlog)) memberObj.userlog = [];
+                    memberObj.userlog.push({
+                        type: "other",
+                        text: `Check-in QR code (${code || memberObj.memberId || ""}) sent via WhatsApp to ${phone}`,
+                        user: req.user?.id || null,
+                    });
                 }
+                await memberObj.save();
             } catch (memberErr) {
                 // Member tracking failure should not block message response
             }
         }
 
-        const isQr = kind === "qr_checkin" || Boolean(code);
         await writeAudit({
             action: isQr ? "whatsapp_qr_sent" : "whatsapp_message_sent",
             actor: req.user.id,
@@ -156,7 +179,7 @@ const sendImageMessage = async (req, res, next) => {
             meta: {
                 memberName: memberName || memberObj?.name || null,
                 kind: isQr ? "qr_checkin" : "image",
-                code: code || memberObj?.systemId || null,
+                code: code || memberObj?.memberId || null,
                 messageId: sendResult?.messageId || null,
                 sentAt: new Date(),
             },

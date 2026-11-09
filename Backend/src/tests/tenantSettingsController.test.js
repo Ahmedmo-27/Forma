@@ -120,4 +120,32 @@ describe("updateMyTenantSettings controller", () => {
         expect(mockTenant.save).toHaveBeenCalled();
         expect(jsonMock).toHaveBeenCalled();
     });
+
+    it("correctly updates locale currency and countryCode", async () => {
+        const req = {
+            user: { tenantId, id: userId, role: "Owner" },
+            body: {
+                locale: {
+                    currency: "USD",
+                    countryCode: "1",
+                    timezone: "America/New_York",
+                },
+            },
+        };
+
+        const jsonMock = vi.fn();
+        const res = {
+            json: jsonMock,
+            status: vi.fn().mockReturnThis(),
+        };
+
+        await updateMyTenantSettings(req, res);
+
+        expect(res.status).not.toHaveBeenCalledWith(500);
+        expect(mockTenant.settings.locale.currency).toBe("USD");
+        expect(mockTenant.settings.locale.countryCode).toBe("1");
+        expect(mockTenant.settings.locale.timezone).toBe("America/New_York");
+        expect(mockTenant.save).toHaveBeenCalled();
+        expect(jsonMock).toHaveBeenCalled();
+    });
 });

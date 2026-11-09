@@ -266,7 +266,8 @@ const tenantSettingsSchema = z.object({
         }).optional(),
     }).optional(),
     locale: z.object({
-        currency: egpCurrency.optional(),
+        currency: z.string().trim().length(3).toUpperCase().optional(),
+        countryCode: z.string().trim().max(6).optional(),
         timezone: z.string().trim().max(100).optional(),
         language: z.string().trim().max(10).optional(),
     }).optional(),
@@ -291,7 +292,8 @@ const tenantSettingsSchema = z.object({
             }).optional(),
         }).optional(),
         locale: z.object({
-            currency: egpCurrency.optional(),
+            currency: z.string().trim().length(3).toUpperCase().optional(),
+            countryCode: z.string().trim().max(6).optional(),
             timezone: z.string().trim().max(100).optional(),
             language: z.string().trim().max(10).optional(),
         }).optional(),

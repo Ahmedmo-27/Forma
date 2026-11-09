@@ -49,8 +49,10 @@ function startOfMonth(timeZone) {
     const hour = pick("hour");
     const minute = pick("minute");
     const second = pick("second");
+    const now = Date.now();
+    const nowSecMs = now - (now % 1000);
     const zonedAsUtc = Date.UTC(year, month - 1, day, hour, minute, second);
-    const offset = zonedAsUtc - Date.now();
+    const offset = zonedAsUtc - nowSecMs;
     return new Date(Date.UTC(year, month - 1, 1, 0, 0, 0) - offset);
 }
 

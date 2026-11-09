@@ -88,8 +88,11 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
         settings: {
             branding: tenant.settings?.branding || {},
             locale: {
-                ...(tenant.settings?.locale || { timezone: "Africa/Cairo", language: "en" }),
-                currency: BILLING_CURRENCY,
+                timezone: "Africa/Cairo",
+                language: "en",
+                countryCode: "20",
+                ...(tenant.settings?.locale || {}),
+                currency: tenant.settings?.locale?.currency || BILLING_CURRENCY,
             },
             enabledActivities: tenant.settings?.enabledActivities || [
                 "gym", "crossfit", "box", "mma", "kickboxing", "calisthenics",
@@ -219,10 +222,11 @@ const updateMyTenantSettings = async (req, res) => {
         }
 
         if (locale) {
+            const currentLocale = tenant.settings?.locale?.toObject?.() || tenant.settings?.locale || {};
             tenant.settings.locale = {
-                ...tenant.settings.locale.toObject(),
+                ...currentLocale,
                 ...locale,
-                currency: BILLING_CURRENCY,
+                currency: locale.currency || currentLocale.currency || BILLING_CURRENCY,
             };
             tenant.markModified("settings.locale");
         }
@@ -362,7 +366,7 @@ const uploadTenantLogo = async (req, res) => {
 const updateRoleAccess = async (req, res) => {
     try {
         const role = decodeURIComponent(req.params.role || "");
-        if (!canEditRoleChecklist(req.user.role, role)) {
+        if (!canEditRoleChecklist(req.user, role)) {
             return res.status(403).json({ message: "You cannot change this role's access" });
         }
 
@@ -375,14 +379,14 @@ const updateRoleAccess = async (req, res) => {
         if (!tenant) return res.status(404).json({ message: "Tenant not found" });
 
         let areas = parsed.areas;
-        if (req.user.role === "General Manager") {
-            const actorAreas = effectiveAreas(req.user, {
+        if (req.user.role !== "Owner") {
+            const actorAreasList = effectiveAreas(req.user, {
                 roleAccess: tenant.roleAccess || null,
                 planFeatures: getEffectiveFeatures(tenant, tenant.planId),
             });
             const previous = savedAreasFor(tenant.roleAccess, role) || roleDefaults(role);
             const added = areas.filter((key) => !previous.includes(key));
-            const limited = areasWithinActor(added, actorAreas);
+            const limited = areasWithinActor(added, actorAreasList);
             if (limited.error) return res.status(403).json({ message: limited.error });
         }
 

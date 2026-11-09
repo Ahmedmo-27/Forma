@@ -1,34 +1,73 @@
-function monthKey(date) {
-    const d = new Date(date);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+const {
+    zonedParts,
+    localDateKey,
+    zonedMidnightUtc,
+    addLocalDays,
+    dayRange,
+} = require("../services/bi/time");
+
+const CAIRO_ZONE = "Africa/Cairo";
+
+function monthKey(date, timeZone = CAIRO_ZONE) {
+    if (!date) return "";
+    try {
+        const p = zonedParts(date, timeZone);
+        return `${p.year}-${String(p.month).padStart(2, "0")}`;
+    } catch {
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return "";
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    }
 }
 
-function dayKey(date = new Date()) {
-    const d = new Date(date);
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+function dayKey(date = new Date(), timeZone = CAIRO_ZONE) {
+    if (!date) return "";
+    try {
+        return localDateKey(date, timeZone);
+    } catch {
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return "";
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    }
 }
 
-function isSameDay(date, ref = new Date()) {
-    const d = new Date(date);
-    return (
-        d.getFullYear() === ref.getFullYear() &&
-        d.getMonth() === ref.getMonth() &&
-        d.getDate() === ref.getDate()
-    );
+function isSameDay(date, ref = new Date(), timeZone = CAIRO_ZONE) {
+    const dKey = dayKey(date, timeZone);
+    const refKey = dayKey(ref, timeZone);
+    return Boolean(dKey && refKey && dKey === refKey);
 }
 
-function buildMonthlyMap(monthsBack, now = new Date()) {
-    const currentYear = now.getFullYear();
-    const currentMonth = now.getMonth();
+function buildMonthlyMap(monthsBack, now = new Date(), timeZone = CAIRO_ZONE) {
+    let currentYear;
+    let currentMonth;
+    try {
+        const p = zonedParts(now, timeZone);
+        currentYear = p.year;
+        currentMonth = p.month - 1;
+    } catch {
+        const d = new Date(now);
+        currentYear = d.getFullYear();
+        currentMonth = d.getMonth();
+    }
     const monthlyMap = {};
 
     for (let i = monthsBack - 1; i >= 0; i--) {
-        const d = new Date(currentYear, currentMonth - i, 1);
-        const key = monthKey(d);
+        const d = new Date(Date.UTC(currentYear, currentMonth - i, 1));
+        const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
         monthlyMap[key] = { month: key, revenue: 0, salesCount: 0 };
     }
 
     return monthlyMap;
+}
+
+function cairoDayBounds(dateFrom, dateTo, timeZone = CAIRO_ZONE) {
+    const today = dayKey(new Date(), timeZone);
+    const from = dateFrom || today;
+    const to = dateTo || from;
+    const start = zonedMidnightUtc(from, timeZone);
+    const nextDay = zonedMidnightUtc(addLocalDays(to, 1), timeZone);
+    const end = new Date(nextDay.getTime() - 1);
+    return { start, end, from, to };
 }
 
 const { resolveSubscriptionPackage } = require("./packageSnapshot");
@@ -114,10 +153,14 @@ function attachCurrentPackage(memberObj) {
 }
 
 module.exports = {
+    CAIRO_ZONE,
     monthKey,
     dayKey,
     isSameDay,
     buildMonthlyMap,
+    cairoDayBounds,
+    zonedMidnightUtc,
+    addLocalDays,
     getCurrentSubscription,
     getCurrentPackage,
     subscriptionSalePrice,

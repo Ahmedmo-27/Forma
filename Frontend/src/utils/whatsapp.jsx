@@ -7,13 +7,14 @@ function encodeWhatsAppText(text) {
 }
 
 /** Build a wa.me / api.whatsapp.com link from a stored phone. */
-export function toWhatsAppUrl(phone, text) {
+export function toWhatsAppUrl(phone, text, countryCode = '20') {
   if (!phone || phone === 'hidden') return null;
   let digits = String(phone).replace(/\D/g, '');
   if (!digits) return null;
   if (digits.startsWith('00')) digits = digits.slice(2);
   if (digits.startsWith('0')) digits = digits.slice(1);
-  if (!digits.startsWith('20')) digits = `20${digits}`;
+  const cc = String(countryCode || '20').replace(/\D/g, '');
+  if (cc && !digits.startsWith(cc) && digits.length <= 11) digits = `${cc}${digits}`;
 
   const encoded = text != null && String(text).trim()
     ? encodeWhatsAppText(text)
@@ -36,8 +37,8 @@ export function applyWhatsAppPlaceholders(text, memberName) {
     .replace(/\{\{\s*firstName\s*\}\}/gi, name);
 }
 
-function formatPackageLine(pkg) {
-  return `• ${pkg.name} (${pkg.duration}) — ${Number(pkg.price).toLocaleString()} EGP`;
+function formatPackageLine(pkg, currency = 'EGP') {
+  return `• ${pkg.name} (${pkg.duration}) — ${Number(pkg.price).toLocaleString()} ${currency}`;
 }
 
 function discountedPrice(price, percent) {
@@ -47,16 +48,16 @@ function discountedPrice(price, percent) {
 }
 
 /** e.g. Premium Quarterly — price was 2000 EGP, now it's 1000 EGP (50% off) */
-function formatDiscountAppliedLine(pkg, percent) {
+function formatDiscountAppliedLine(pkg, percent, currency = 'EGP') {
   const pct = Math.min(100, Math.max(0, Number(percent) || 0));
   const original = Number(pkg.price) || 0;
   const next = discountedPrice(original, pct);
-  return `${pkg.name} (${pkg.duration})\nPrice was ${original.toLocaleString()} EGP, now it's ${next.toLocaleString()} EGP (${pct}% off).`;
+  return `${pkg.name} (${pkg.duration})\nPrice was ${original.toLocaleString()} ${currency}, now it's ${next.toLocaleString()} ${currency} (${pct}% off).`;
 }
 
-function formatDiscountBlock(selected, percent, lang) {
+function formatDiscountBlock(selected, percent, lang, currency = 'EGP') {
   if (!selected.length || !(percent > 0)) return '';
-  const lines = selected.map((p) => formatDiscountAppliedLine(p, percent));
+  const lines = selected.map((p) => formatDiscountAppliedLine(p, percent, currency));
   if (lang === 'ar') {
     return `تفاصيل العرض:\n\n${lines.join('\n\n')}`;
   }
@@ -99,13 +100,15 @@ export function composeWhatsAppTemplateMessage(template, packages = [], options 
   const includeLive = template.includeLiveData !== false;
   const selected = filterSelectedPackages(packages, options.selectedPackageIds);
 
+  const currency = options.currency || 'EGP';
+
   if (type === 'packages') {
     const parts = [];
     if (intro) parts.push(intro);
     if (includeLive) {
       const catalog = Array.isArray(packages) ? packages : [];
       const list = selected.length ? selected : catalog;
-      const lines = list.map(formatPackageLine);
+      const lines = list.map((pkg) => formatPackageLine(pkg, currency));
       if (lines.length) parts.push(lines.join('\n'));
     }
     if (body) parts.push(body);
@@ -119,7 +122,7 @@ export function composeWhatsAppTemplateMessage(template, packages = [], options 
     const parts = [];
     if (intro) parts.push(intro);
     // Always include chosen package + recalculated price when sender picked them
-    const block = formatDiscountBlock(selected, percent, lang);
+    const block = formatDiscountBlock(selected, percent, lang, currency);
     if (block) parts.push(block);
     if (body) parts.push(body);
     return parts.join('\n\n');

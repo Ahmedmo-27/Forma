@@ -23,7 +23,7 @@ router.use(protect);
 router.get("/me", cacheResponse({ ttlSeconds: 60, tags: ["tenant"], browserCache: false }), getMyTenant);
 
 // PUT /api/tenant/access/:role — owner, or a general manager for roles other than their own
-router.put("/access/:role", allowRoles("access_control", "Owner", "General Manager"), autoInvalidate(["tenant", "users"]), updateRoleAccess);
+router.put("/access/:role", allowRoles("access_control", "Owner", "General Manager", "Sales Manager"), autoInvalidate(["tenant", "users"]), updateRoleAccess);
 
 // PATCH /api/tenant/me — Owner only
 router.patch("/me", allowRoles("settings", "Owner"), validate(tenantSettingsSchema), autoInvalidate(["tenant"]), updateMyTenantSettings);

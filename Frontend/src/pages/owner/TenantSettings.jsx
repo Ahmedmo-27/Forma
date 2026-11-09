@@ -62,6 +62,8 @@ export default function TenantSettings() {
   const [displayName, setDisplayName] = useState('');
   const [palette, setPalette] = useState(DEFAULT_PALETTE);
   const [savedPalette, setSavedPalette] = useState(DEFAULT_PALETTE);
+  const [currency, setCurrency] = useState('EGP');
+  const [countryCode, setCountryCode] = useState('20');
   const [timezone, setTimezone] = useState('Africa/Cairo');
   const [language, setLanguage] = useState('en');
   const [activities, setActivities] = useState(KNOWN_ACTIVITIES);
@@ -83,6 +85,8 @@ export default function TenantSettings() {
         setSavedPalette(nextPalette);
       }
       if (tenant.settings.locale) {
+        setCurrency(tenant.settings.locale.currency || 'EGP');
+        setCountryCode(tenant.settings.locale.countryCode || '20');
         setTimezone(tenant.settings.locale.timezone || 'Africa/Cairo');
         setLanguage(tenant.settings.locale.language || 'en');
       }
@@ -262,7 +266,8 @@ export default function TenantSettings() {
           palette: normalizedPalette,
         },
         locale: {
-          currency: 'EGP',
+          currency: currency.trim() || 'EGP',
+          countryCode: countryCode.trim() || '20',
           timezone: timezone.trim() || 'Africa/Cairo',
           language: language.trim() || 'en',
         },
@@ -273,7 +278,8 @@ export default function TenantSettings() {
             palette: normalizedPalette,
           },
           locale: {
-            currency: 'EGP',
+            currency: currency.trim() || 'EGP',
+            countryCode: countryCode.trim() || '20',
             timezone: timezone.trim() || 'Africa/Cairo',
             language: language.trim() || 'en',
           },
@@ -743,9 +749,20 @@ export default function TenantSettings() {
             <Card>
               <CardHeader title="Regional & Locale Settings" sub="Controls currency symbols, timezone dates, and system formatting" />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginTop: 16 }}>
-                <Select label="Currency" value="EGP" disabled>
-                  <option value="EGP">EGP</option>
+                <Select label="Operating Currency" value={currency} onChange={e => setCurrency(e.target.value)}>
+                  {[
+                    'EGP', 'USD', 'EUR', 'GBP', 'SAR', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'JOD'
+                  ].map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
                 </Select>
+
+                <Input
+                  label="Default Phone Country Code"
+                  value={countryCode}
+                  onChange={e => setCountryCode(e.target.value)}
+                  placeholder="20"
+                />
 
                 <Select label="Timezone" value={timezone} onChange={e => setTimezone(e.target.value)}>
                   {[

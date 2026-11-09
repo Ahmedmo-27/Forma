@@ -106,8 +106,14 @@ export function TenantProvider({ children }) {
     ? tenant.settings.enabledActivities
     : DEFAULT_ACTIVITIES;
 
-  const currency = 'EGP';
+  const currency = tenant?.settings?.locale?.currency || 'EGP';
+  const countryCode = tenant?.settings?.locale?.countryCode || '20';
   const timezone = tenant?.settings?.locale?.timezone || 'Africa/Cairo';
+
+  const formatMoney = useCallback((amount) => {
+    const num = Number(amount) || 0;
+    return `${num.toLocaleString()} ${currency}`;
+  }, [currency]);
 
   const value = {
     tenant,
@@ -118,7 +124,9 @@ export function TenantProvider({ children }) {
     hasFeature,
     enabledActivities,
     currency,
+    countryCode,
     timezone,
+    formatMoney,
     branding: tenant?.settings?.branding || {},
     plan: tenant?.plan,
     limits: tenant?.limits || tenant?.effectiveLimits || {},

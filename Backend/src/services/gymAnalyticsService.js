@@ -68,18 +68,16 @@ function formatPercent(rate) {
     return `${((Number(rate) || 0) * 100).toFixed(1)}%`;
 }
 
-function formatEgp(amount) {
+function formatCurrency(amount, currency = "EGP") {
     const rounded = Math.round(Number(amount) || 0);
     const text = rounded.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    return `EGP ${text}`;
+    return `${currency} ${text}`;
 }
 
-function serverTimezone() {
-    try {
-        return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    } catch {
-        return "UTC";
-    }
+const formatEgp = (amount) => formatCurrency(amount, "EGP");
+
+function serverTimezone(timeZone) {
+    return timeZone || "Africa/Cairo";
 }
 
 function subscriptionIntervals(member) {
@@ -227,7 +225,7 @@ function buildChurn(members, now = new Date(), months = 12) {
     };
 }
 
-function buildForecast(members, now = new Date()) {
+function buildForecast(members, now = new Date(), { currency = "EGP" } = {}) {
     const keys = lastMonthKeys(24, now);
     const map = {};
     for (const key of keys) {
@@ -271,7 +269,7 @@ function buildForecast(members, now = new Date()) {
     }));
 
     return {
-        currency: "EGP",
+        currency,
         method: "trailing_3_month_average",
         currentMonth: currentKey,
         trailingAverage: roundMoney(trailingAverage),
@@ -314,7 +312,7 @@ function buildCohorts(members, now = new Date(), months = 12) {
     return { months, cohorts };
 }
 
-function buildFunnel(members, { from, to, includeImported = false } = {}) {
+function buildFunnel(members, { from, to, includeImported = false, currency = "EGP" } = {}) {
     const start = startOfDay(from);
     const end = endOfDay(to);
     const list = members || [];
@@ -392,7 +390,7 @@ function buildFunnel(members, { from, to, includeImported = false } = {}) {
         from: dayKey(start),
         to: dayKey(end),
         includeImported: Boolean(includeImported),
-        currency: "EGP",
+        currency,
         stages,
         dropOff,
         conversionRate: created ? converted / created : 0,
@@ -437,7 +435,8 @@ function bucketAttendance(checkIns, { from, to } = {}) {
     };
 }
 
-function buildNarrative(summary) {
+function buildNarrative(summary, { currency } = {}) {
+    const curr = currency || summary?.currency || "EGP";
     let churnSentence;
     if (summary.previousChurnRate == null) {
         churnSentence = `Churn this month is ${formatPercent(summary.churnRate)}.`;
@@ -446,17 +445,18 @@ function buildNarrative(summary) {
         const direction = Math.abs(delta) < 0.0001 ? "unchanged from" : delta > 0 ? "up from" : "down from";
         churnSentence = `Churn this month is ${formatPercent(summary.churnRate)}, ${direction} ${formatPercent(summary.previousChurnRate)} last month.`;
     }
-    const revenueSentence = `Revenue collected this month is ${formatEgp(summary.revenueThisMonth)}, against a three-month average of ${formatEgp(summary.trailingAverage)}. Next month is forecast at ${formatEgp(summary.forecastNextMonth)}.`;
+    const revenueSentence = `Revenue collected this month is ${formatCurrency(summary.revenueThisMonth, curr)}, against a three-month average of ${formatCurrency(summary.trailingAverage, curr)}. Next month is forecast at ${formatCurrency(summary.forecastNextMonth, curr)}.`;
     return `${churnSentence} ${revenueSentence}`;
 }
 
-function buildExecutive(members, checkInsThisWeek, now = new Date()) {
+function buildExecutive(members, checkInsThisWeek, now = new Date(), { currency = "EGP" } = {}) {
     const churn = buildChurn(members, now, 2);
-    const forecast = buildForecast(members, now);
+    const forecast = buildForecast(members, now, { currency });
     const funnel = buildFunnel(members, {
         from: startOfMonth(now),
         to: endOfDay(now),
         includeImported: false,
+        currency,
     });
     const monthStart = startOfMonth(now);
     const monthEnd = endOfDay(now);
@@ -473,7 +473,7 @@ function buildExecutive(members, checkInsThisWeek, now = new Date()) {
     }
 
     const summary = {
-        currency: "EGP",
+        currency,
         asOf: now.toISOString(),
         scope: "whole_gym",
         activeMembers,
@@ -488,7 +488,7 @@ function buildExecutive(members, checkInsThisWeek, now = new Date()) {
         expiringIn30Days: churn.atRiskCount,
         narrative: "",
     };
-    summary.narrative = buildNarrative(summary);
+    summary.narrative = buildNarrative(summary, { currency });
     return summary;
 }
 
@@ -527,8 +527,8 @@ async function countCheckIns(from, to) {
     return rows[0]?.total || 0;
 }
 
-async function loadAttendanceBuckets(from, to) {
-    const timezone = serverTimezone();
+async function loadAttendanceBuckets(from, to, timeZone) {
+    const timezone = serverTimezone(timeZone);
     const rows = await memberModel().aggregate([
         {
             $project: {
@@ -586,7 +586,7 @@ async function loadAttendanceBuckets(from, to) {
     return rows[0] || { cells: [], days: [] };
 }
 
-function attendanceFromBuckets(buckets, from, to, weeks) {
+function attendanceFromBuckets(buckets, from, to, weeks, timeZone) {
     const cellCounts = new Map();
     for (const row of buckets.cells || []) {
         cellCounts.set(`${row._id.dow}-${row._id.hour}`, row.count);
@@ -609,7 +609,7 @@ function attendanceFromBuckets(buckets, from, to, weeks) {
         weeks,
         from: base.from,
         to: base.to,
-        timezone: serverTimezone(),
+        timezone: serverTimezone(timeZone),
         totalCheckIns,
         grid,
         days,
@@ -621,9 +621,9 @@ async function getChurn({ months = 12 } = {}) {
     return buildChurn(members, new Date(), months);
 }
 
-async function getForecast() {
+async function getForecast({ currency = "EGP" } = {}) {
     const members = await loadMembers();
-    return buildForecast(members, new Date());
+    return buildForecast(members, new Date(), { currency });
 }
 
 async function getCohorts({ months = 12 } = {}) {
@@ -631,34 +631,37 @@ async function getCohorts({ months = 12 } = {}) {
     return buildCohorts(members, new Date(), months);
 }
 
-async function getAttendance({ weeks = 8 } = {}) {
+async function getAttendance({ weeks = 8, timeZone } = {}) {
     const now = new Date();
     const from = startOfDay(now);
     from.setDate(from.getDate() - weeks * 7);
     const to = endOfDay(now);
-    const buckets = await loadAttendanceBuckets(from, to);
-    return attendanceFromBuckets(buckets, from, to, weeks);
+    const buckets = await loadAttendanceBuckets(from, to, timeZone);
+    return attendanceFromBuckets(buckets, from, to, weeks, timeZone);
 }
 
-async function getFunnel({ from, to, includeImported = false } = {}) {
+async function getFunnel({ from, to, includeImported = false, currency = "EGP" } = {}) {
     const now = new Date();
     const members = await loadMembers();
     return buildFunnel(members, {
         from: from || startOfMonth(now),
         to: to || endOfDay(now),
         includeImported,
+        currency,
     });
 }
 
-async function getExecutive() {
+async function getExecutive({ currency = "EGP" } = {}) {
     const now = new Date();
     const members = await loadMembers();
     const checkInsThisWeek = await countCheckIns(startOfWeekMonday(now), endOfDay(now));
-    return buildExecutive(members, checkInsThisWeek, now);
+    return buildExecutive(members, checkInsThisWeek, now, { currency });
 }
 
 module.exports = {
     GRACE_DAYS,
+    formatCurrency,
+    formatEgp,
     buildChurn,
     buildForecast,
     buildCohorts,

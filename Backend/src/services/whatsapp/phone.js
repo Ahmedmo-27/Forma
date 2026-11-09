@@ -2,20 +2,21 @@
  * Egypt-oriented phone normalization, matching Frontend/src/utils/whatsapp.jsx.
  * Stored numbers are often local (010…) and messages go out as 20…
  */
-function toWhatsAppDigits(phone) {
+function toWhatsAppDigits(phone, defaultCountryCode = "20") {
     if (!phone || phone === "hidden") return null;
     let digits = String(phone).replace(/\D/g, "");
     if (!digits) return null;
     if (digits.startsWith("00")) digits = digits.slice(2);
     if (digits.startsWith("0")) digits = digits.slice(1);
     if (!digits) return null;
-    if (!digits.startsWith("20")) digits = `20${digits}`;
-    if (digits.length < 11 || digits.length > 15) return null;
+    const cc = String(defaultCountryCode || "20").replace(/\D/g, "");
+    if (cc && !digits.startsWith(cc) && digits.length <= 11) digits = `${cc}${digits}`;
+    if (digits.length < 8 || digits.length > 15) return null;
     return digits;
 }
 
-function toWhatsAppJid(phone) {
-    const digits = toWhatsAppDigits(phone);
+function toWhatsAppJid(phone, defaultCountryCode = "20") {
+    const digits = toWhatsAppDigits(phone, defaultCountryCode);
     if (!digits) return null;
     return `${digits}@s.whatsapp.net`;
 }
