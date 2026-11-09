@@ -19,6 +19,7 @@
     "migrate:indexes": "node src/scripts/migrateIndexes.js",
     "migrate:uploads": "node src/scripts/migrateUploads.js",
     "migrate:currency": "node src/scripts/normalizeCurrencyToEgp.js",
+    "migrate:assign-sales-manager": "node src/scripts/migrateAssignUnassignedMembersToSalesManager.js",
     "clean:photos": "node src/scripts/cleanMissingPhotos.js"
   },
   "keywords": [],
