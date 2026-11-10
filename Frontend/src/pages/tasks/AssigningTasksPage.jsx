@@ -86,6 +86,9 @@ export default function AssigningTasksPage() {
   const [loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(() => new Set());
+  const selectedSet = useMemo(() => {
+    return selected instanceof Set ? selected : new Set(selected || []);
+  }, [selected]);
 
   // ── Column Visibility State ──
   const [columnsOpen, setColumnsOpen] = useState(false);
@@ -344,7 +347,7 @@ export default function AssigningTasksPage() {
     setSelected((prev) => toggleIds(prev, ids));
   };
 
-  const isAllFilteredSelected = filtered.length > 0 && filtered.every((m) => selected.has(m._id));
+  const isAllFilteredSelected = filtered.length > 0 && filtered.every((m) => selectedSet.has(m._id));
 
   // ── Dynamic Boundary Alignment & Click Outside for Selection Templates ──
   useEffect(() => {
@@ -396,10 +399,11 @@ export default function AssigningTasksPage() {
 
   const handleInvertSelection = () => {
     if (!filtered.length) return;
-    const next = invertSelection(filtered, selected);
-    setSelected(next);
+    const next = invertSelection(filtered, selectedSet);
+    const nextSet = new Set(next);
+    setSelected(nextSet);
     setLastAppliedTemplate('Inverted');
-    toast.success(`Selection inverted (${next.size} members selected)`);
+    toast.success(`Selection inverted (${nextSet.size} members selected)`);
   };
 
   const handleClearSelection = () => {
@@ -408,7 +412,7 @@ export default function AssigningTasksPage() {
   };
 
   const openTransferModal = (targetKind) => {
-    if (!selected.size) {
+    if (!selectedSet.size) {
       toast.error('Select at least one member to transfer');
       return;
     }
@@ -416,7 +420,7 @@ export default function AssigningTasksPage() {
     setDestId('');
     setTransferModalTemplate('');
     setTransferStatus('idle');
-    setTransferProgress({ current: 0, total: selected.size });
+    setTransferProgress({ current: 0, total: selectedSet.size });
     setTransferOpen(true);
   };
 
@@ -440,7 +444,7 @@ export default function AssigningTasksPage() {
       toast.error(destKind === 'sales' ? 'Choose a sales rep' : 'Choose a coach');
       return;
     }
-    const ids = Array.from(selected);
+    const ids = Array.from(selectedSet);
     if (!ids.length) return;
 
     setBusy(true);
@@ -660,16 +664,16 @@ export default function AssigningTasksPage() {
 
                   {/* Selection Action Summary & Templates Trigger */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    {selected.size > 0 && (
+                    {selectedSet.size > 0 && (
                       <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 700 }}>
-                        {selected.size} member(s) selected
+                        {selectedSet.size} member(s) selected
                       </span>
                     )}
 
                     <div style={{ position: 'relative' }} ref={templateMenuRef}>
                       <Btn
                         size="sm"
-                        variant={selected.size > 0 ? 'primary' : 'outline'}
+                        variant={selectedSet.size > 0 ? 'primary' : 'outline'}
                         onClick={() => {
                           if (!templateMenuOpen && templateMenuRef.current) {
                             const rect = templateMenuRef.current.getBoundingClientRect();
@@ -706,9 +710,9 @@ export default function AssigningTasksPage() {
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
                             <div style={{ fontWeight: 700 }}>Selection Presets</div>
-                            {selected.size > 0 && (
+                            {selectedSet.size > 0 && (
                               <Btn size="xs" variant="ghost" onClick={handleClearSelection} style={{ color: 'var(--red)' }}>
-                                Clear ({selected.size})
+                                Clear ({selectedSet.size})
                               </Btn>
                             )}
                           </div>
@@ -866,7 +870,7 @@ export default function AssigningTasksPage() {
                     />
                     <span>Select All Filtered ({filtered.length})</span>
                   </label>
-                  {selected.size > 0 && (
+                  {selectedSet.size > 0 && (
                     <Btn size="xs" variant="ghost" onClick={handleClearSelection} style={{ color: 'var(--red)' }}>
                       Deselect All
                     </Btn>
@@ -878,20 +882,20 @@ export default function AssigningTasksPage() {
                     <Btn
                       size="sm"
                       variant="primary"
-                      disabled={!selected.size}
+                      disabled={!selectedSet.size}
                       onClick={() => openTransferModal('sales')}
                     >
-                      👤 Assign Sales Rep ({selected.size})
+                      👤 Assign Sales Rep ({selectedSet.size})
                     </Btn>
                   )}
                   {canCoach && (
                     <Btn
                       size="sm"
                       variant="outline"
-                      disabled={!selected.size}
+                      disabled={!selectedSet.size}
                       onClick={() => openTransferModal('coach')}
                     >
-                      🏋️ Assign Coach ({selected.size})
+                      🏋️ Assign Coach ({selectedSet.size})
                     </Btn>
                   )}
                 </div>
@@ -939,7 +943,7 @@ export default function AssigningTasksPage() {
                       </thead>
                       <tbody>
                         {paginatedMembers.map((member) => {
-                          const isSelected = selected.has(member._id);
+                          const isSelected = selectedSet.has(member._id);
                           return (
                             <tr
                               key={member._id}
@@ -1072,7 +1076,7 @@ export default function AssigningTasksPage() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <p style={{ margin: 0, fontSize: 13, color: 'var(--t2)' }}>
-                  You are assigning <strong>{selected.size} member(s)</strong> as tasks. Each assigned member will trigger a notification to the recipient and appear in their active task queue.
+                  You are assigning <strong>{selectedSet.size} member(s)</strong> as tasks. Each assigned member will trigger a notification to the recipient and appear in their active task queue.
                 </p>
               </div>
 
@@ -1092,7 +1096,7 @@ export default function AssigningTasksPage() {
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
                 <Btn variant="outline" onClick={() => setTransferOpen(false)} disabled={busy}>Cancel</Btn>
                 <Btn variant="primary" onClick={executeBulkTransfer} disabled={busy || !destId}>
-                  {busy ? <Spinner size="sm" /> : `Confirm & Assign (${selected.size})`}
+                  {busy ? <Spinner size="sm" /> : `Confirm & Assign (${selectedSet.size})`}
                 </Btn>
               </div>
             </div>

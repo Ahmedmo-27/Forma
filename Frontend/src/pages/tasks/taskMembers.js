@@ -252,14 +252,14 @@ export function assignChoices(kind, { salesUsers = [], coaches = [], selectedCou
 }
 
 export function toggleId(selected, id) {
-  const next = new Set(selected);
+  const next = selected instanceof Set ? new Set(selected) : new Set(selected || []);
   if (next.has(id)) next.delete(id);
   else next.add(id);
   return next;
 }
 
 export function toggleIds(selected, ids) {
-  const next = new Set(selected);
+  const next = selected instanceof Set ? new Set(selected) : new Set(selected || []);
   const allOn = ids.length > 0 && ids.every((id) => next.has(id));
   if (allOn) ids.forEach((id) => next.delete(id));
   else ids.forEach((id) => next.add(id));
