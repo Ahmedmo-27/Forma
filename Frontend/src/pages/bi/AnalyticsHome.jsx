@@ -13,6 +13,7 @@ import {
 } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { useTenant } from '../../context/TenantContext';
+import { useAuth } from '../../context/AuthContext';
 import {
   createBiObjective,
   dismissBiInsight,
@@ -551,6 +552,7 @@ function MemberList({ title, rows, empty, icon = '👤' }) {
 
 export default function AnalyticsHome() {
   usePageTitle('Analytics');
+  const { user } = useAuth();
   const { hasFeature, currency = 'EGP' } = useTenant() || {};
   const [data, setData] = useState(null);
   const [insights, setInsights] = useState([]);
@@ -563,13 +565,15 @@ export default function AnalyticsHome() {
   const [activeFormulaModal, setActiveFormulaModal] = useState(null);
   const [selectedSeriesKey, setSelectedSeriesKey] = useState('membershipSalesPiasters');
 
+  const canSeeInsights = ['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Coach Manager'].includes(user?.role);
+
   async function load() {
     setLoading(true);
     setError('');
     try {
       const dash = await getBiDashboard();
       setData(dash.data);
-      if (hasFeature('business_intelligence')) {
+      if (hasFeature('business_intelligence') && canSeeInsights) {
         const [insightRes, suggestRes] = await Promise.all([getBiInsights(), suggestBiObjectives()]);
         setInsights(insightRes.data.insights || []);
         setSuggestions(suggestRes.data.suggestions || []);
@@ -1063,7 +1067,7 @@ export default function AnalyticsHome() {
         )}
 
         {/* ── BUSINESS INTELLIGENCE (PLATINUM) ── */}
-        {hasFeature('business_intelligence') && (
+        {hasFeature('business_intelligence') && canSeeInsights && (
           <Card>
             <h2 style={{ marginTop: 0, fontSize: 16 }}>What to do next</h2>
             {!insights.length && <p>No insight met its minimum sample. That is expected on a new or small gym.</p>}

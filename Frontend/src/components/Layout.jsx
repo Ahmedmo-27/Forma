@@ -231,7 +231,8 @@ export default function Layout({ children }) {
       return true;
     });
     const seen = new Set(visible.map(item => item.to));
-    const canSeeAnalytics = hasAccess(user, ['reports', 'owner_dashboard', 'accounting_dashboard']);
+    const ANALYTICS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Accountant'];
+    const canSeeAnalytics = ANALYTICS_ROLES.includes(user?.role) && hasAccess(user, ['reports', 'owner_dashboard', 'accounting_dashboard', 'sales_dashboard']);
     if (canSeeAnalytics && hasFeature('members') && !seen.has('/analytics')) {
       seen.add('/analytics');
       const contactsAt = visible.findIndex((item) => item.to === '/contacts');
@@ -244,7 +245,7 @@ export default function Layout({ children }) {
       seen.add('/reports');
       visible.push({ to: '/reports', label: 'Reports', access: 'reports' });
     }
-    if (hasAccess(user, 'access_control') && !seen.has('/owner/access') && !seen.has('/management/access')) {
+    if (['Owner', 'General Manager', 'Sales Manager'].includes(user?.role) && hasAccess(user, 'access_control') && !seen.has('/owner/access') && !seen.has('/management/access')) {
       seen.add('/owner/access');
       const contactsAt = visible.findIndex((item) => item.to === '/contacts');
       const accessNav = { to: '/owner/access', label: 'Access', access: 'access_control' };

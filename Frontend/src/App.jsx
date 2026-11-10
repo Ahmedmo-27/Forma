@@ -356,7 +356,7 @@ function TenantAppRoutes() {
         </PrivateRoute>
       } />
       <Route path="/owner/access" element={
-        <PrivateRoute roles={['Owner', 'General Manager']} access="access_control">
+        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager']} access="access_control">
           <RoleAccess />
         </PrivateRoute>
       } />
@@ -375,7 +375,7 @@ function TenantAppRoutes() {
 
       <Route path="/analytics" element={
         <PrivateRoute
-          roles={['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Accountant', 'Receptionist', 'Coach', 'Coach Manager']}
+          roles={ANALYTICS_ROLES}
           feature="members"
         >
           <AnalyticsHome />
