@@ -26,69 +26,147 @@ function ContactCard({ person }) {
   const meta = ROLE_META[person.role] ?? { icon: '👤', color: 'var(--t3)', bg: 'var(--bg)', group: 'staff' };
 
   return (
-    <div style={{
-      background: 'var(--card)', border: '1px solid var(--border)',
-      borderRadius: 14, padding: '18px 20px',
-      display: 'flex', alignItems: 'center', gap: 16,
-      boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
-      transition: 'all 0.15s',
-    }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = meta.color; e.currentTarget.style.boxShadow = `0 4px 16px ${meta.color}22`; e.currentTarget.style.transform = 'translateY(-1px)'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; e.currentTarget.style.transform = 'none'; }}
+    <div
+      style={{
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: 14,
+        padding: '16px 18px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+        gap: 14,
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+        transition: 'all 0.15s ease',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.borderColor = meta.color;
+        e.currentTarget.style.boxShadow = `0 4px 16px ${meta.color}22`;
+        e.currentTarget.style.transform = 'translateY(-2px)';
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.borderColor = 'var(--border)';
+        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)';
+        e.currentTarget.style.transform = 'none';
+      }}
     >
-      {/* Avatar with role color ring */}
-      <div style={{ position: 'relative', flexShrink: 0 }}>
-        <Avatar name={person.name} size="lg" />
-        <div style={{
-          position: 'absolute', bottom: -2, right: -2,
-          width: 22, height: 22, borderRadius: '50%',
-          background: meta.bg, border: `2px solid var(--card)`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11,
-        }}>
-          {meta.icon}
+      {/* Top Header: Avatar + Identity */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+        <div style={{ position: 'relative', flexShrink: 0 }}>
+          <Avatar name={person.name} size="lg" />
+          <div
+            style={{
+              position: 'absolute',
+              bottom: -2,
+              right: -2,
+              width: 22,
+              height: 22,
+              borderRadius: '50%',
+              background: meta.bg,
+              border: '2px solid var(--card)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 11,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+            }}
+          >
+            {meta.icon}
+          </div>
+        </div>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              color: 'var(--t1)',
+              marginBottom: 4,
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}
+            title={person.name}
+          >
+            {person.name}
+          </div>
+          <span
+            style={{
+              display: 'inline-block',
+              fontSize: 11,
+              fontWeight: 600,
+              background: meta.bg,
+              color: meta.color,
+              border: `1px solid ${meta.color}33`,
+              padding: '2px 8px',
+              borderRadius: 20,
+              letterSpacing: '0.3px',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {person.role}
+          </span>
         </div>
       </div>
 
-      {/* Info */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>{person.name}</div>
-        <span style={{
-          display: 'inline-block', fontSize: 11, fontWeight: 600,
-          background: meta.bg, color: meta.color,
-          border: `1px solid ${meta.color}33`,
-          padding: '2px 8px', borderRadius: 20, letterSpacing: '0.3px',
-        }}>
-          {person.role}
-        </span>
-      </div>
-
-      {/* Contact actions */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 8, flexShrink: 0 }}>
+      {/* Bottom Action Row: Phone & WhatsApp */}
+      <div
+        style={{
+          borderTop: '1px solid var(--border)',
+          paddingTop: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
         {person.mobile_number ? (
           <>
             <a
               href={`tel:${person.mobile_number}`}
               style={{
-                fontSize: 13, fontWeight: 700, color: 'var(--t1)',
-                textDecoration: 'none', fontFamily: 'monospace',
-                background: 'var(--bg)', border: '1px solid var(--border)',
-                padding: '8px 12px', minHeight: 44, boxSizing: 'border-box', borderRadius: 7,
-                display: 'flex', alignItems: 'center', gap: 5,
+                flex: 1,
+                minWidth: 0,
+                fontSize: 12,
+                fontWeight: 700,
+                color: 'var(--t1)',
+                textDecoration: 'none',
+                fontFamily: 'monospace',
+                background: 'var(--bg)',
+                border: '1px solid var(--border)',
+                padding: '0 10px',
+                height: 34,
+                boxSizing: 'border-box',
+                borderRadius: 7,
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
                 transition: 'all 0.12s',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
               }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = meta.color; e.currentTarget.style.color = meta.color; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--t1)'; }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = meta.color;
+                e.currentTarget.style.color = meta.color;
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.color = 'var(--t1)';
+              }}
+              title={`Call ${person.mobile_number}`}
             >
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.13 11.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.06 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 5.99 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
               </svg>
-              {person.mobile_number}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{person.mobile_number}</span>
             </a>
             <WhatsAppBtn phone={person.mobile_number} size="xs" />
           </>
         ) : (
-          <span style={{ fontSize: 12, color: 'var(--t4)', fontStyle: 'italic' }}>No number</span>
+          <span style={{ fontSize: 12, color: 'var(--t4)', fontStyle: 'italic', padding: '6px 0' }}>
+            No contact number
+          </span>
         )}
       </div>
     </div>
@@ -192,7 +270,7 @@ export default function ReceptionContacts() {
         ) : sorted.length === 0 ? (
           <EmptyState icon="📞" message="No contacts found" sub="Try adjusting your search or filter." />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 14 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 14 }}>
             {sorted.map(person => <ContactCard key={person._id} person={person} />)}
           </div>
         )}
