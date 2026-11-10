@@ -12,7 +12,7 @@ const {
     effectiveAreas,
     roleDefaults,
 } = require("../utils/accessControl");
-const { normalizeAreas, areasWithinActor, AREAS } = require("../config/roleAccess");
+const { normalizeAreas, areasWithinActor, AREAS, savedAreasFor } = require("../config/roleAccess");
 
 function escapeRegex(value) {
     return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");

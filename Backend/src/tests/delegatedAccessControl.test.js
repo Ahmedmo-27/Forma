@@ -113,4 +113,44 @@ describe("Delegated Staff Access Control", () => {
             expect(diff.grants).toContain("whatsapp_templates");
         });
     });
+
+    describe("accessController execution without undefined reference errors", () => {
+        it("getUserAccess executes without throwing savedAreasFor reference errors", async () => {
+            const { getUserAccess } = await import("../controllers/accessController");
+            const User = (await import("../models/User")).default || (await import("../models/User"));
+
+            const originalFindById = User.findById;
+            User.findById = (id) => ({
+                select: () => Promise.resolve({
+                    _id: id,
+                    name: "Target Coach",
+                    role: "Coach",
+                    abilities: [],
+                    featureAccess: { grants: [], revokes: [] },
+                    accessOverrides: { add: [], remove: [] },
+                }),
+            });
+
+            try {
+                const req = {
+                    user: { id: "owner-1", role: "Owner" },
+                    params: { id: "target-1" },
+                    tenant: { roleAccess: {} },
+                };
+                let status = 200;
+                let payload = null;
+                const res = {
+                    status(code) { status = code; return this; },
+                    json(data) { payload = data; return this; },
+                };
+
+                await getUserAccess(req, res);
+                expect(status).toBe(200);
+                expect(payload).toHaveProperty("user");
+                expect(payload).toHaveProperty("groups");
+            } finally {
+                User.findById = originalFindById;
+            }
+        });
+    });
 });
