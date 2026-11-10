@@ -342,6 +342,36 @@ export default function AssigningTasksPage() {
     }
   };
 
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    if (packageFilter !== 'all') count++;
+    if (genderFilter !== 'all') count++;
+    if (transferTypeFilter !== 'all') count++;
+    if (dateFrom || dateTo) count++;
+    return count;
+  }, [packageFilter, genderFilter, transferTypeFilter, dateFrom, dateTo]);
+
+  const isFiltered = Boolean(
+    search.trim() ||
+    statusFilter !== 'all' ||
+    kind !== 'all' ||
+    personId ||
+    activeFilterCount > 0
+  );
+
+  const handleResetFilters = () => {
+    setSearch('');
+    setStatusFilter('all');
+    setKind('all');
+    setPersonId('');
+    setPackageFilter('all');
+    setGenderFilter('all');
+    setTransferTypeFilter('all');
+    setDateField('endDate');
+    setDateFrom('');
+    setDateTo('');
+  };
+
   const handleSelectAllFiltered = () => {
     const ids = filtered.map((m) => m._id);
     setSelected((prev) => toggleIds(prev, ids));
@@ -591,17 +621,33 @@ export default function AssigningTasksPage() {
         ) : (
           <>
             {/* ── ASSIGNER VIEW: SCOPE & ADVANCED FILTERS ── */}
-            <Card>
+            <Card style={{ padding: '16px 20px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-                {/* Row 1: Scope / Assignee Selection */}
+                {/* Row 1: Search & Scope Primary Toolbar */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
-                  <div style={{ flex: '1 1 200px', minWidth: 180 }}>
-                    <Select
-                      label="View Scope"
+                  {/* View Scope Select */}
+                  <div style={{ flex: '0 0 auto', width: 210, minWidth: 170 }}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                      View Scope
+                    </label>
+                    <select
                       value={kind}
                       onChange={(e) => {
                         setKind(e.target.value);
                         setPersonId('');
+                      }}
+                      style={{
+                        width: '100%',
+                        height: 38,
+                        padding: '0 10px',
+                        borderRadius: 8,
+                        border: '1px solid var(--border)',
+                        background: 'var(--card)',
+                        color: 'var(--t1)',
+                        fontSize: 13,
+                        fontFamily: 'inherit',
+                        outline: 'none',
+                        cursor: 'pointer',
                       }}
                     >
                       <option value="all">All Gym Members</option>
@@ -609,47 +655,193 @@ export default function AssigningTasksPage() {
                       <option value="coach">By Coach</option>
                       <option value="unassigned_sales">Unassigned Sales</option>
                       <option value="unassigned_coach">Unassigned Coach</option>
-                    </Select>
+                    </select>
                   </div>
 
+                  {/* Staff Select (when scope is by sales or by coach) */}
                   {(kind === 'sales' || kind === 'coach') && (
-                    <div style={{ flex: '1 1 220px', minWidth: 200 }}>
-                      <Select
-                        label={kind === 'sales' ? 'Select Sales Rep' : 'Select Coach'}
+                    <div style={{ flex: '0 0 auto', width: 210, minWidth: 170 }}>
+                      <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                        {kind === 'sales' ? 'Select Sales Rep' : 'Select Coach'}
+                      </label>
+                      <select
                         value={personId}
                         onChange={(e) => setPersonId(e.target.value)}
+                        style={{
+                          width: '100%',
+                          height: 38,
+                          padding: '0 10px',
+                          borderRadius: 8,
+                          border: '1px solid var(--border)',
+                          background: 'var(--card)',
+                          color: 'var(--t1)',
+                          fontSize: 13,
+                          fontFamily: 'inherit',
+                          outline: 'none',
+                          cursor: 'pointer',
+                        }}
                       >
                         <option value="">Choose staff member…</option>
                         {people.map((p) => (
                           <option key={p._id} value={p._id}>{p.name}</option>
                         ))}
-                      </Select>
+                      </select>
                     </div>
                   )}
 
-                  <div style={{ flex: '1 1 200px', minWidth: 180 }}>
-                    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>Search Directory</label>
-                    <input
-                      value={search}
-                      onChange={(e) => setSearch(e.target.value)}
-                      placeholder="Search name, phone, System ID…"
-                      style={{
-                        width: '100%', padding: '7px 11px', borderRadius: 8,
-                        border: '1px solid var(--border)', background: 'var(--card)',
-                        color: 'var(--t1)', fontSize: 12, fontFamily: 'inherit',
-                      }}
-                    />
+                  {/* Search Directory Input with Search Icon */}
+                  <div style={{ flex: '1 1 240px', minWidth: 200, position: 'relative' }}>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                      Search Directory
+                    </label>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <svg
+                        style={{ position: 'absolute', left: 11, color: 'var(--t4)', pointerEvents: 'none' }}
+                        width="15"
+                        height="15"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2.5"
+                      >
+                        <circle cx="11" cy="11" r="8" />
+                        <path d="m21 21-4.35-4.35" />
+                      </svg>
+                      <input
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Search name, phone, System ID…"
+                        style={{
+                          width: '100%',
+                          height: 38,
+                          paddingLeft: 34,
+                          paddingRight: search ? 30 : 12,
+                          borderRadius: 8,
+                          border: '1px solid var(--border)',
+                          background: 'var(--card)',
+                          color: 'var(--t1)',
+                          fontSize: 13,
+                          fontFamily: 'inherit',
+                          outline: 'none',
+                          transition: 'all 0.15s ease',
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = 'var(--navy)';
+                          e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = 'var(--border)';
+                          e.target.style.boxShadow = 'none';
+                        }}
+                      />
+                      {search && (
+                        <button
+                          type="button"
+                          onClick={() => setSearch('')}
+                          style={{
+                            position: 'absolute',
+                            right: 8,
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--t4)',
+                            cursor: 'pointer',
+                            padding: 4,
+                            fontSize: 12,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                          }}
+                          title="Clear search"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
                   </div>
 
-                  <div style={{ display: 'flex', gap: 8, paddingBottom: 2 }}>
-                    <Btn size="sm" variant="outline" onClick={() => setMoreFiltersOpen((o) => !o)}>
-                      {moreFiltersOpen ? '▲ Less Filters' : '▼ More Filters'}
-                    </Btn>
+                  {/* Filter Action Buttons (More Filters / Reset) */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, height: 38 }}>
+                    <button
+                      type="button"
+                      onClick={() => setMoreFiltersOpen((o) => !o)}
+                      style={{
+                        height: 38,
+                        padding: '0 14px',
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontWeight: 600,
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 6,
+                        border: `1px solid ${moreFiltersOpen || activeFilterCount > 0 ? 'var(--navy, #44298C)' : 'var(--border)'}`,
+                        background: moreFiltersOpen || activeFilterCount > 0 ? 'var(--navy-subtle, rgba(68,41,140,0.06))' : 'var(--card)',
+                        color: moreFiltersOpen || activeFilterCount > 0 ? 'var(--navy, #44298C)' : 'var(--t2)',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit',
+                        transition: 'all 0.15s ease',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <span>{moreFiltersOpen ? '▲ Less Filters' : '▼ More Filters'}</span>
+                      {activeFilterCount > 0 && (
+                        <span
+                          style={{
+                            background: 'var(--navy, #44298C)',
+                            color: '#fff',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: '1px 6px',
+                            borderRadius: 10,
+                            marginLeft: 2,
+                          }}
+                        >
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </button>
+
+                    {isFiltered && (
+                      <button
+                        type="button"
+                        onClick={handleResetFilters}
+                        style={{
+                          height: 38,
+                          padding: '0 12px',
+                          borderRadius: 8,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          border: '1px solid transparent',
+                          background: 'transparent',
+                          color: 'var(--red, #dc2626)',
+                          cursor: 'pointer',
+                          fontFamily: 'inherit',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          transition: 'all 0.15s ease',
+                          whiteSpace: 'nowrap',
+                        }}
+                        title="Reset all filters"
+                      >
+                        ↺ Reset
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* Status Quick Tabs & Selection Templates */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, borderTop: '1px solid var(--border)', paddingTop: 10 }}>
+                {/* Row 2: Status Quick Tabs & Selection Templates */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    flexWrap: 'wrap',
+                    gap: 12,
+                    borderTop: '1px solid var(--border)',
+                    paddingTop: 12,
+                    marginTop: 2,
+                  }}
+                >
                   <FilterTabs
                     options={[
                       { value: 'all', id: 'all', label: `All (${statusCounts.all})` },
@@ -665,9 +857,36 @@ export default function AssigningTasksPage() {
                   {/* Selection Action Summary & Templates Trigger */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     {selectedSet.size > 0 && (
-                      <span style={{ fontSize: 12, color: 'var(--primary)', fontWeight: 700 }}>
-                        {selectedSet.size} member(s) selected
-                      </span>
+                      <div
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '4px 10px',
+                          borderRadius: 6,
+                          background: 'var(--navy-subtle, rgba(68,41,140,0.08))',
+                          color: 'var(--navy, #44298C)',
+                          fontSize: 12,
+                          fontWeight: 700,
+                        }}
+                      >
+                        <span>● {selectedSet.size} selected</span>
+                        <button
+                          type="button"
+                          onClick={handleClearSelection}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--red, #dc2626)',
+                            fontSize: 11,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            padding: '0 2px',
+                          }}
+                        >
+                          (Clear)
+                        </button>
+                      </div>
                     )}
 
                     <div style={{ position: 'relative' }} ref={templateMenuRef}>
@@ -779,78 +998,269 @@ export default function AssigningTasksPage() {
                   </div>
                 </div>
 
-                {/* Collapsible Secondary Filters */}
+                {/* Row 3: Collapsible Secondary Filters Drawer */}
                 {moreFiltersOpen && (
-                  <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
-                      <div style={{ flex: '1 1 180px', minWidth: 160 }}>
-                        <Select
-                          label="Package"
+                  <div
+                    style={{
+                      marginTop: 4,
+                      padding: '16px 18px',
+                      borderRadius: 10,
+                      background: 'var(--bg, #F4F5F7)',
+                      border: '1px solid var(--border)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 14,
+                    }}
+                  >
+                    {/* Sub-row A: Member Attributes */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                          Package
+                        </label>
+                        <select
                           value={packageFilter}
                           onChange={(e) => setPackageFilter(e.target.value)}
+                          style={{
+                            width: '100%',
+                            height: 38,
+                            padding: '0 10px',
+                            borderRadius: 8,
+                            border: '1px solid var(--border)',
+                            background: 'var(--card)',
+                            color: 'var(--t1)',
+                            fontSize: 13,
+                            fontFamily: 'inherit',
+                            outline: 'none',
+                            cursor: 'pointer',
+                          }}
                         >
                           <option value="all">All Packages</option>
                           {allPackages.map((pkg) => (
                             <option key={pkg._id} value={pkg._id}>{pkg.name}</option>
                           ))}
-                        </Select>
+                        </select>
                       </div>
 
-                      <div style={{ flex: '1 1 140px', minWidth: 120 }}>
-                        <Select
-                          label="Gender"
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                          Gender
+                        </label>
+                        <select
                           value={genderFilter}
                           onChange={(e) => setGenderFilter(e.target.value)}
+                          style={{
+                            width: '100%',
+                            height: 38,
+                            padding: '0 10px',
+                            borderRadius: 8,
+                            border: '1px solid var(--border)',
+                            background: 'var(--card)',
+                            color: 'var(--t1)',
+                            fontSize: 13,
+                            fontFamily: 'inherit',
+                            outline: 'none',
+                            cursor: 'pointer',
+                          }}
                         >
                           <option value="all">All Genders</option>
                           <option value="male">Male</option>
                           <option value="female">Female</option>
-                        </Select>
+                        </select>
                       </div>
 
-                      <div style={{ flex: '1 1 140px', minWidth: 120 }}>
-                        <Select
-                          label="Date Field"
+                      <div>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                          Transfer Status
+                        </label>
+                        <select
+                          value={transferTypeFilter}
+                          onChange={(e) => setTransferTypeFilter(e.target.value)}
+                          style={{
+                            width: '100%',
+                            height: 38,
+                            padding: '0 10px',
+                            borderRadius: 8,
+                            border: '1px solid var(--border)',
+                            background: 'var(--card)',
+                            color: 'var(--t1)',
+                            fontSize: 13,
+                            fontFamily: 'inherit',
+                            outline: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <option value="all">All Transfer Statuses</option>
+                          <option value="transferred">Transferred Members</option>
+                          <option value="never">Never Transferred</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Sub-row B: Date Range Filtering & Presets */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'flex-end',
+                        gap: 12,
+                        paddingTop: 12,
+                        borderTop: '1px solid var(--border)',
+                      }}
+                    >
+                      <div style={{ flex: '1 1 160px', minWidth: 140 }}>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                          Date Field
+                        </label>
+                        <select
                           value={dateField}
                           onChange={(e) => setDateField(e.target.value)}
+                          style={{
+                            width: '100%',
+                            height: 38,
+                            padding: '0 10px',
+                            borderRadius: 8,
+                            border: '1px solid var(--border)',
+                            background: 'var(--card)',
+                            color: 'var(--t1)',
+                            fontSize: 13,
+                            fontFamily: 'inherit',
+                            outline: 'none',
+                            cursor: 'pointer',
+                          }}
                         >
                           <option value="endDate">End Date</option>
                           <option value="startDate">Start Date</option>
                           <option value="createdAt">Joined Date</option>
-                        </Select>
+                        </select>
                       </div>
 
-                      <div style={{ flex: '1 1 140px', minWidth: 120 }}>
-                        <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 4 }}>From</label>
+                      <div style={{ flex: '1 1 160px', minWidth: 140 }}>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                          From Date
+                        </label>
                         <input
                           type="date"
                           value={dateFrom}
                           onChange={(e) => setDateFrom(e.target.value)}
                           style={{
-                            width: '100%', padding: '6px 10px', borderRadius: 8,
-                            border: '1px solid var(--border)', background: 'var(--card)',
-                            color: 'var(--t1)', fontSize: 12, fontFamily: 'inherit',
+                            width: '100%',
+                            height: 38,
+                            padding: '0 10px',
+                            borderRadius: 8,
+                            border: '1px solid var(--border)',
+                            background: 'var(--card)',
+                            color: 'var(--t1)',
+                            fontSize: 13,
+                            fontFamily: 'inherit',
+                            outline: 'none',
                           }}
                         />
                       </div>
 
-                      <div style={{ flex: '1 1 140px', minWidth: 120 }}>
-                        <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 4 }}>To</label>
+                      <div style={{ flex: '1 1 160px', minWidth: 140 }}>
+                        <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
+                          To Date
+                        </label>
                         <input
                           type="date"
                           value={dateTo}
                           onChange={(e) => setDateTo(e.target.value)}
                           style={{
-                            width: '100%', padding: '6px 10px', borderRadius: 8,
-                            border: '1px solid var(--border)', background: 'var(--card)',
-                            color: 'var(--t1)', fontSize: 12, fontFamily: 'inherit',
+                            width: '100%',
+                            height: 38,
+                            padding: '0 10px',
+                            borderRadius: 8,
+                            border: '1px solid var(--border)',
+                            background: 'var(--card)',
+                            color: 'var(--t1)',
+                            fontSize: 13,
+                            fontFamily: 'inherit',
+                            outline: 'none',
                           }}
                         />
                       </div>
 
-                      <div style={{ display: 'flex', gap: 6, paddingBottom: 2 }}>
-                        <Btn size="xs" variant="ghost" onClick={() => setQuickPeriod('next30')}>Next 30d</Btn>
-                        <Btn size="xs" variant="ghost" onClick={() => setQuickPeriod('clear')}>Clear</Btn>
+                      {/* Date Quick Presets */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, height: 38, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          onClick={() => setQuickPeriod('today')}
+                          style={{
+                            height: 38,
+                            padding: '0 11px',
+                            borderRadius: 7,
+                            border: '1px solid var(--border)',
+                            background: 'var(--card)',
+                            color: 'var(--t2)',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            fontFamily: 'inherit',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          Today
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setQuickPeriod('next30')}
+                          style={{
+                            height: 38,
+                            padding: '0 11px',
+                            borderRadius: 7,
+                            border: '1px solid var(--border)',
+                            background: 'var(--card)',
+                            color: 'var(--t2)',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            fontFamily: 'inherit',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          Next 30d
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setQuickPeriod('last30')}
+                          style={{
+                            height: 38,
+                            padding: '0 11px',
+                            borderRadius: 7,
+                            border: '1px solid var(--border)',
+                            background: 'var(--card)',
+                            color: 'var(--t2)',
+                            fontSize: 12,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                            fontFamily: 'inherit',
+                            transition: 'all 0.15s ease',
+                          }}
+                        >
+                          Last 30d
+                        </button>
+                        {(dateFrom || dateTo) && (
+                          <button
+                            type="button"
+                            onClick={() => setQuickPeriod('clear')}
+                            style={{
+                              height: 38,
+                              padding: '0 11px',
+                              borderRadius: 7,
+                              border: '1px solid var(--red-bd, #fecaca)',
+                              background: 'var(--red-bg, #fef2f2)',
+                              color: 'var(--red, #dc2626)',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              fontFamily: 'inherit',
+                              transition: 'all 0.15s ease',
+                            }}
+                          >
+                            Clear Dates
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>
