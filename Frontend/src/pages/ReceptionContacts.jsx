@@ -1,8 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
 import Layout from '../components/Layout';
-import { PageHeader, Spinner, EmptyState, Avatar, SearchInput } from '../components/ui';
+import { PageHeader, Spinner, EmptyState, Avatar, SearchInput, Pagination } from '../components/ui';
 import { getReceptionists } from '../api/endpoints';
 import { WhatsAppBtn } from '../utils/whatsapp';
 import useDebounce from '../hooks/useDebounce';
@@ -173,6 +173,9 @@ function ContactCard({ person }) {
   );
 }
 
+const DEFAULT_PAGE_SIZE = 12;
+const PAGE_SIZE_OPTIONS = [12, 24, 48];
+
 export default function ReceptionContacts() {
   usePageTitle('Contacts');
 
@@ -180,6 +183,17 @@ export default function ReceptionContacts() {
   const [loading, setLoading] = useState(true);
   const [search,  setSearch]  = useState('');
   const [filter,  setFilter]  = useState('all'); // 'all' | 'staff' | 'managers'
+
+  // Pagination state
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const saved = parseInt(localStorage.getItem('contacts_page_size'), 10);
+      return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_PAGE_SIZE;
+    } catch {
+      return DEFAULT_PAGE_SIZE;
+    }
+  });
+  const [page, setPage] = useState(1);
 
   const debouncedSearch = useDebounce(search, 200);
 
@@ -195,6 +209,11 @@ export default function ReceptionContacts() {
 
   useEffect(() => { load(); }, [load]);
 
+  // Reset page to 1 whenever search or filter changes
+  useEffect(() => {
+    setPage(1);
+  }, [filter, debouncedSearch]);
+
   // Filter + search
   const filtered = staff.filter(s => {
     const meta = ROLE_META[s.role];
@@ -208,12 +227,36 @@ export default function ReceptionContacts() {
   });
 
   // Sort by role order then name
-  const sorted = [...filtered].sort((a, b) => {
-    const ai = ALL_ROLES.indexOf(a.role);
-    const bi = ALL_ROLES.indexOf(b.role);
-    if (ai !== bi) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
-    return a.name.localeCompare(b.name);
-  });
+  const sorted = useMemo(() => {
+    return [...filtered].sort((a, b) => {
+      const ai = ALL_ROLES.indexOf(a.role);
+      const bi = ALL_ROLES.indexOf(b.role);
+      if (ai !== bi) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+      return a.name.localeCompare(b.name);
+    });
+  }, [filtered]);
+
+  // Paginated contacts slice
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const paginatedStaff = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return sorted.slice(start, start + pageSize);
+  }, [sorted, page, pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [totalPages, page]);
+
+  const handlePageSizeChange = (newSize) => {
+    const valid = Math.max(1, Math.min(100, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
+    setPageSize(valid);
+    setPage(1);
+    try {
+      localStorage.setItem('contacts_page_size', String(valid));
+    } catch {
+      // ignore
+    }
+  };
 
   const staffCount   = staff.filter(s => ROLE_META[s.role]?.group === 'staff').length;
   const managerCount = staff.filter(s => ROLE_META[s.role]?.group === 'managers').length;
@@ -246,7 +289,7 @@ export default function ReceptionContacts() {
         <SearchInput value={search} onChange={setSearch} placeholder="Search name or number…" width={220} />
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 40 }}>
+      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* ── Filter bar ──────────────────────────────────────── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -270,9 +313,24 @@ export default function ReceptionContacts() {
         ) : sorted.length === 0 ? (
           <EmptyState icon="📞" message="No contacts found" sub="Try adjusting your search or filter." />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 14 }}>
-            {sorted.map(person => <ContactCard key={person._id} person={person} />)}
-          </div>
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 14 }}>
+              {paginatedStaff.map(person => <ContactCard key={person._id} person={person} />)}
+            </div>
+
+            {/* ── Pagination ── */}
+            <div style={{ marginTop: 8, background: 'var(--card)', borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={sorted.length}
+                pageSize={pageSize}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                onPageChange={setPage}
+                onPageSizeChange={handlePageSizeChange}
+              />
+            </div>
+          </>
         )}
       </div>
     </Layout>
