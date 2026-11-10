@@ -1219,7 +1219,7 @@ export default function AssigningTasksPage() {
 
         {/* ── CUSTOMIZE COLUMNS MODAL ── */}
         {columnsOpen && (
-          <Modal title="Customize Table Columns" onClose={() => setColumnsOpen(false)} size="md">
+          <Modal open={columnsOpen} title="Customize Table Columns" onClose={() => setColumnsOpen(false)} size="md">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <p style={{ fontSize: 13, color: 'var(--t3)', margin: 0 }}>
                 Select which columns are visible in the schedule table and exported Excel sheets.
@@ -1280,7 +1280,7 @@ export default function AssigningTasksPage() {
 
         {/* ── BULK TRANSFER MODAL ── */}
         {transferOpen && (
-          <Modal title={`Assign Tasks to ${destKind === 'sales' ? 'Sales Rep' : 'Coach'}`} onClose={() => setTransferOpen(false)}>
+          <Modal open={transferOpen} title={`Assign Tasks to ${destKind === 'sales' ? 'Sales Rep' : 'Coach'}`} onClose={() => setTransferOpen(false)}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <p style={{ margin: 0, fontSize: 13, color: 'var(--t2)' }}>
@@ -1313,7 +1313,7 @@ export default function AssigningTasksPage() {
 
         {/* ── CREATED TASKS HISTORY MODAL ── */}
         {historyOpen && (
-          <Modal title="Created Tasks History" onClose={() => setHistoryOpen(false)} maxWidth={860}>
+          <Modal open={historyOpen} title="Created Tasks History" onClose={() => setHistoryOpen(false)} maxWidth={860}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <p style={{ margin: 0, fontSize: 13, color: 'var(--t3)' }}>

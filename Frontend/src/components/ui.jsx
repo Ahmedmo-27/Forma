@@ -633,7 +633,7 @@ export function CardHeader({ title, children }) {
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
 const MW = { sm: 400, md: 540, lg: 720, xl: 920 };
-export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
+export function Modal({ open = true, onClose, title, children, footer, size = 'md', maxWidth, style }) {
   if (!open) return null;
   return (
     <div
@@ -652,10 +652,11 @@ export function Modal({ open, onClose, title, children, footer, size = 'md' }) {
         style={{
           background: 'var(--card)', borderRadius: 14,
           border: '1px solid var(--border)',
-          width: '100%', maxWidth: MW[size] ?? 540,
+          width: '100%', maxWidth: maxWidth || (MW[size] ?? 540),
           maxHeight: '90svh', overflowY: 'auto',
           boxShadow: '0 4px 20px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.05)',
           display: 'flex', flexDirection: 'column',
+          ...style,
         }}
       >
         {/* Mobile bottom-sheet drag indicator */}
