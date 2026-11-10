@@ -114,6 +114,7 @@ export default function AssigningTasksPage() {
   // ── Multi-Member Selection for Task Assignment ──
   const [selected, setSelected] = useState(() => new Set());
   const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
+  const [menuAlign, setMenuAlign] = useState('left');
   const templateMenuRef = useRef(null);
 
   // ── Transfer Modal State ──
@@ -319,7 +320,7 @@ export default function AssigningTasksPage() {
     }
   };
 
-  // ── Click Outside Listener for Selection Templates Dropdown ──
+  // ── Click Outside & Boundary Alignment Listener for Selection Templates Dropdown ──
   useEffect(() => {
     function handleClickOutside(e) {
       if (templateMenuRef.current && !templateMenuRef.current.contains(e.target)) {
@@ -327,6 +328,14 @@ export default function AssigningTasksPage() {
       }
     }
     if (templateMenuOpen) {
+      if (templateMenuRef.current) {
+        const rect = templateMenuRef.current.getBoundingClientRect();
+        if (rect.left + 330 > window.innerWidth) {
+          setMenuAlign('right');
+        } else {
+          setMenuAlign('left');
+        }
+      }
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
@@ -778,7 +787,17 @@ export default function AssigningTasksPage() {
                   <Btn
                     size="sm"
                     variant={selected.size > 0 ? 'primary' : 'outline'}
-                    onClick={() => setTemplateMenuOpen((open) => !open)}
+                    onClick={() => {
+                      if (!templateMenuOpen && templateMenuRef.current) {
+                        const rect = templateMenuRef.current.getBoundingClientRect();
+                        if (rect.left + 330 > window.innerWidth) {
+                          setMenuAlign('right');
+                        } else {
+                          setMenuAlign('left');
+                        }
+                      }
+                      setTemplateMenuOpen((open) => !open);
+                    }}
                     style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                   >
                     <span>⚡</span> Selection Templates <span style={{ fontSize: 10, opacity: 0.7 }}>▼</span>
@@ -789,10 +808,10 @@ export default function AssigningTasksPage() {
                       style={{
                         position: 'absolute',
                         top: 'calc(100% + 8px)',
-                        right: 0,
+                        ...(menuAlign === 'right' ? { right: 0 } : { left: 0 }),
                         zIndex: 1000,
                         width: 320,
-                        maxWidth: 'calc(100vw - 32px)',
+                        maxWidth: 'min(320px, calc(100vw - 32px))',
                         background: 'var(--card)',
                         border: '1px solid var(--border)',
                         borderRadius: 12,
