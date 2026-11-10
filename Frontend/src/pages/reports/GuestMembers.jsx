@@ -1,7 +1,7 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, fmtDate, Avatar, toLocalDateString, parseDateBoundary } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, Pagination, fmtDate, Avatar, toLocalDateString, parseDateBoundary } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAllMembers, getSalesUsers, getCoachTeam } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +10,8 @@ const TODAY      = toLocalDateString();
 const MONTH_START = `${TODAY.slice(0, 7)}-01`;
 
 const SOURCES = ['All', 'Social media', 'Walk in', 'Word of mouth', 'referral', 'sales call', 'data entry', 'others'];
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
 
 // ── small label + control row ─────────────────────────────────────────────────
 function FilterRow({ label, required, children }) {
@@ -62,6 +64,37 @@ export default function GuestMembers() {
   const [searched,     setSearched]     = useState(false);
   const [loading,      setLoading]      = useState(false);
 
+  // ── pagination state ──────────────────────────────────────────────────────
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const saved = parseInt(localStorage.getItem('guest_members_page_size'), 10);
+      return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_PAGE_SIZE;
+    } catch {
+      return DEFAULT_PAGE_SIZE;
+    }
+  });
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(results.length / pageSize));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [totalPages, page]);
+
+  const paginatedResults = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return results.slice(start, start + pageSize);
+  }, [results, page, pageSize]);
+
+  const handlePageSizeChange = (newSize) => {
+    const valid = Math.max(1, Math.min(100, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
+    setPageSize(valid);
+    setPage(1);
+    try {
+      localStorage.setItem('guest_members_page_size', String(valid));
+    } catch {}
+  };
+
   // ── load sales + coach lists for dropdowns ────────────────────────────────
   useEffect(() => {
     // Sales reps only see themselves in the Sales Man dropdown
@@ -85,6 +118,7 @@ export default function GuestMembers() {
   const handleSearch = useCallback(async () => {
     setLoading(true);
     setSearched(true);
+    setPage(1);
     try {
       const params = { status: 'guest', limit: 1000, page: 1 };
       if (salesMan !== 'All') params.assignedSales = salesMan;
@@ -223,7 +257,7 @@ export default function GuestMembers() {
                     </tr>
                   </thead>
                   <tbody>
-                    {results.map((m, i) => (
+                    {paginatedResults.map((m, i) => (
                       <tr
                         key={m._id}
                         className="tbl-row"
@@ -259,6 +293,18 @@ export default function GuestMembers() {
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {!loading && results.length > 0 && (
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={results.length}
+                pageSize={pageSize}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                onPageChange={setPage}
+                onPageSizeChange={handlePageSizeChange}
+              />
             )}
           </Card>
         )}

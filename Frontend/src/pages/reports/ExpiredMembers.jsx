@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, fmtDate, Avatar, toLocalDateString, parseDateBoundary } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, Pagination, fmtDate, Avatar, toLocalDateString, parseDateBoundary } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAllMembers, getSalesUsers, getCoachTeam, getPackages } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
 
 const TODAY       = toLocalDateString();
 const MONTH_START = `${TODAY.slice(0, 7)}-01`;
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
 
 // ── Reusable filter row ───────────────────────────────────────────────────────
 function FilterRow({ label, required, children }) {
@@ -64,6 +66,37 @@ export default function ExpiredMembers() {
   const [searched,  setSearched]  = useState(false);
   const [loading,   setLoading]   = useState(false);
 
+  // ── pagination state ──────────────────────────────────────────────────────
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const saved = parseInt(localStorage.getItem('members_report_page_size'), 10);
+      return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_PAGE_SIZE;
+    } catch {
+      return DEFAULT_PAGE_SIZE;
+    }
+  });
+  const [page, setPage] = useState(1);
+
+  const totalPages = Math.max(1, Math.ceil(results.length / pageSize));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [totalPages, page]);
+
+  const paginatedResults = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return results.slice(start, start + pageSize);
+  }, [results, page, pageSize]);
+
+  const handlePageSizeChange = (newSize) => {
+    const valid = Math.max(1, Math.min(100, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
+    setPageSize(valid);
+    setPage(1);
+    try {
+      localStorage.setItem('members_report_page_size', String(valid));
+    } catch {}
+  };
+
   // ── load dropdowns ────────────────────────────────────────────────────────
   useEffect(() => {
     // Sales reps only see themselves in the Sales Man dropdown
@@ -87,6 +120,7 @@ export default function ExpiredMembers() {
   const handleSearch = useCallback(async () => {
     setLoading(true);
     setSearched(true);
+    setPage(1);
     try {
       // Fetch expired members (and frozen/active if status filter changes)
       const statusParam = status === 'All' ? 'expired' : status;
@@ -275,7 +309,7 @@ export default function ExpiredMembers() {
                     </tr>
                   </thead>
                   <tbody>
-                    {results.map(m => {
+                    {paginatedResults.map(m => {
                       const lastSub = m.subscriptions?.at(-1);
                       const pkg = lastSub?.packageSnapshot ?? lastSub?.package;
                       return (
@@ -313,6 +347,18 @@ export default function ExpiredMembers() {
                   </tbody>
                 </table>
               </div>
+            )}
+
+            {!loading && results.length > 0 && (
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={results.length}
+                pageSize={pageSize}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                onPageChange={setPage}
+                onPageSizeChange={handlePageSizeChange}
+              />
             )}
           </Card>
         )}
