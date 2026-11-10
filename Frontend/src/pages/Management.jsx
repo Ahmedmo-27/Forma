@@ -97,7 +97,7 @@ export default function Management() {
               <MgmtCard icon="👥" title="Sales Team"  sub="Sales team overview & stats"      to="/sales/team"   iconBg="#FFF7ED" />
             )}
             {show.staff && (
-              <MgmtCard icon="🧑‍💼" title="Staff"   sub="Manage staff accounts"            to="/sales/staff"  iconBg="#FFF7ED" />
+              <MgmtCard icon="🧑‍💼" title="Create Staff Account" sub="Create a new staff account" to="/sales/staff" iconBg="#FFF7ED" />
             )}
             {show.contracts && (
               <MgmtCard icon="📜" title="Contracts"   sub="All member contracts"             to="/accounting/contract-history" iconBg="#FFF7ED" />
@@ -106,7 +106,7 @@ export default function Management() {
               <MgmtCard icon="👥" title="Coach Team"  sub="Coach team overview & stats"      to="/coach/team"   iconBg="#FFF7ED" />
             )}
             {show.coachStaff && (
-              <MgmtCard icon="🧑‍💼" title="Staff"   sub="Manage coach staff accounts"      to="/coach/staff"  iconBg="#FFF7ED" />
+              <MgmtCard icon="🧑‍💼" title="Create Coach Account" sub="Create a new coach account" to="/coach/staff" iconBg="#FFF7ED" />
             )}
             {show.coachTransfers && (
               <MgmtCard icon="🔄" title="Transfers"   sub="Coach member transfers log"       to="/coach/my-transfers" iconBg="#FFF7ED" />
