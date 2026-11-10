@@ -169,6 +169,8 @@ function canEditRoleChecklist(actor, targetRole) {
     if (targetRole === "Owner" || !CHECKLIST_ROLES.includes(targetRole)) return false;
     if (actorRole === "Owner") return true;
     if (actorRole === "General Manager") return targetRole !== "General Manager";
+    if (actorRole === "Sales Manager") return ["Sales", "Receptionist"].includes(targetRole);
+    if (actorRole === "Coach Manager") return targetRole === "Coach";
     if (typeof actor === "object" && actor !== null) {
         const hasStaff = (Array.isArray(actor.areas) && actor.areas.includes("staff"))
             || (actor.accessOverrides?.add || []).includes("staff")

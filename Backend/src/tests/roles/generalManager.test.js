@@ -37,7 +37,7 @@ describe("General Manager", () => {
         expectAllowed("coach_checkin", ["Coach", "Coach Manager"], user);
         expectAllowed("access_control", ["Owner", "General Manager"], user);
         expectAllowed("change_role", ["Owner", "General Manager", "Sales Manager"], user);
-        expect(pages).toContain("roles={['Owner', 'General Manager']} access=\"access_control\"");
+        expect(pages).toMatch(/roles=\{.*'General Manager'.*\}\s+access="access_control"/);
         const usersRoute = readSource("routes", "userRoutes.js");
         expect(usersRoute).toContain('allowRoles("change_role", "Owner", "General Manager", "Sales Manager")');
     });

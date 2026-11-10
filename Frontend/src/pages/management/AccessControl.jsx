@@ -15,6 +15,8 @@ function canEditFeatureAccess(actor, targetRole) {
   if (actorRole === 'Owner') return true;
   if (targetRole === 'Owner') return false;
   if (actorRole === 'General Manager') return targetRole !== 'Owner' && targetRole !== 'General Manager';
+  if (actorRole === 'Sales Manager') return targetRole === 'Sales' || targetRole === 'Receptionist';
+  if (actorRole === 'Coach Manager') return targetRole === 'Coach';
   const hasStaff = Boolean(
     typeof actor === 'object' && (
       actor?.accessOverrides?.add?.includes('staff') ||
@@ -22,8 +24,6 @@ function canEditFeatureAccess(actor, targetRole) {
     )
   );
   if (hasStaff) return targetRole !== 'General Manager';
-  if (actorRole === 'Sales Manager') return targetRole === 'Sales' || targetRole === 'Receptionist';
-  if (actorRole === 'Coach Manager') return targetRole === 'Coach';
   return false;
 }
 
@@ -246,10 +246,24 @@ export default function AccessControl({ defaultTab = 'staff' }) {
       ? checklistRoles
       : ['General Manager', 'Receptionist', 'Coach', 'Coach Manager', 'Accountant', 'Sales', 'Sales Manager'];
     if (isOwner) return all;
-    return all.filter((r) => r !== 'General Manager');
-  }, [checklistRoles, isOwner]);
+    if (user?.role === 'Sales Manager') {
+      return all.filter((r) => ['Sales', 'Receptionist'].includes(r));
+    }
+    if (user?.role === 'Coach Manager') {
+      return all.filter((r) => r === 'Coach');
+    }
+    if (user?.role === 'General Manager') {
+      return all.filter((r) => r !== 'General Manager');
+    }
+    if (hasStaff) {
+      return all.filter((r) => r !== 'General Manager' && r !== user?.role);
+    }
+    return all.filter((r) => ['Sales', 'Receptionist'].includes(r));
+  }, [checklistRoles, isOwner, user?.role, hasStaff]);
 
-  const [defaultRoleChoice, setDefaultRoleChoice] = useState(() => (isOwner ? 'General Manager' : 'Sales Manager'));
+  const [defaultRoleChoice, setDefaultRoleChoice] = useState(() => (
+    isOwner ? 'General Manager' : user?.role === 'Sales Manager' ? 'Sales' : user?.role === 'Coach Manager' ? 'Coach' : 'Sales'
+  ));
   const [roleDraft, setRoleDraft] = useState([]);
   const [savingRole, setSavingRole] = useState(false);
 
@@ -269,7 +283,11 @@ export default function AccessControl({ defaultTab = 'staff' }) {
   }, [defaultRoleChoice, roleAccess, roleDefaults]);
 
   const actorAreas = useMemo(() => new Set(effectiveAccess || []), [effectiveAccess]);
-  const isReadOnlyRole = !isOwner && defaultRoleChoice === 'General Manager';
+  const isReadOnlyRole = !isOwner && (
+    defaultRoleChoice === 'General Manager' ||
+    (user?.role === 'Sales Manager' && !['Sales', 'Receptionist'].includes(defaultRoleChoice)) ||
+    (user?.role === 'Coach Manager' && defaultRoleChoice !== 'Coach')
+  );
 
   function planLocked(area) {
     return Boolean(area.planFeature) && typeof hasFeature === 'function' && !hasFeature(area.planFeature);
