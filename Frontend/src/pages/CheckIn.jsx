@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
 import Layout from '../components/Layout';
-import { Badge, Avatar, Spinner, fmtDate, fmtTime, EmptyState } from '../components/ui';
+import { Badge, Avatar, Spinner, fmtDate, fmtTime, EmptyState, Pagination } from '../components/ui';
 import { formatSystemId } from '../lib/systemId';
 import { checkInByBarcode, checkInMember, getMemberProfile, getTodayCheckIns } from '../api/endpoints';
 import { subscribeLiveEvents } from '../api/live';
@@ -31,6 +31,9 @@ function isHardwareScan(burst) {
   return average < 35 && span < 300 && (performance.now() - burst.last) < 250;
 }
 
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
+
 export default function CheckIn() {
   usePageTitle('Check In');
   const navigate  = useNavigate();
@@ -49,6 +52,18 @@ export default function CheckIn() {
   const [cameraOpen, setCameraOpen] = useState(false);
   const [activeTab,  setActiveTab]  = useState('scanner'); // 'scanner' | 'lookup'
   const [lastScannedResult, setLastScannedResult] = useState(null);
+
+  // Pagination for Today's Activity
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const saved = parseInt(localStorage.getItem('checkin_activity_page_size'), 10);
+      return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_PAGE_SIZE;
+    } catch {
+      return DEFAULT_PAGE_SIZE;
+    }
+  });
+  const [page, setPage] = useState(1);
+
   const historyRef = useRef([]);
   const queryRef   = useRef('');
   const burstRef   = useRef({ count: 0, start: 0, last: 0 });
@@ -56,6 +71,27 @@ export default function CheckIn() {
   const seenRef    = useRef(new Set());
   const readyRef   = useRef(false);
   const liveRef    = useRef('connecting');
+
+  const totalPages = Math.max(1, Math.ceil(history.length / pageSize));
+  const paginatedHistory = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return history.slice(start, start + pageSize);
+  }, [history, page, pageSize]);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [totalPages, page]);
+
+  const handlePageSizeChange = (newSize) => {
+    const valid = Math.max(1, Math.min(500, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
+    setPageSize(valid);
+    setPage(1);
+    try {
+      localStorage.setItem('checkin_activity_page_size', String(valid));
+    } catch {
+      // ignore
+    }
+  };
 
   const announce = useCallback((key, message, icon) => {
     if (!key || !message || seenRef.current.has(key)) return;
@@ -692,62 +728,79 @@ export default function CheckIn() {
                 ) : history.length === 0 ? (
                   <EmptyState icon="✅" message="No check-ins yet today" sub="Search for a member above to check them in" />
                 ) : (
-                  history.map((entry, i) => (
-                    <div
-                      key={entry._id ?? i}
-                      onClick={() => navigate(`/members/${entry.member.systemId}`)}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 12,
-                        padding: '12px 22px', cursor: 'pointer',
-                        borderBottom: i < history.length - 1 ? '1px solid var(--border)' : 'none',
-                        background: freshIds.has(String(entry._id)) ? 'rgba(34,197,94,0.10)' : 'transparent',
-                        transition: 'background 0.3s',
-                      }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
-                      onMouseLeave={e => { e.currentTarget.style.background = freshIds.has(String(entry._id)) ? 'rgba(34,197,94,0.10)' : 'transparent'; }}
-                    >
-                      {/* Serial number */}
-                      <div style={{
-                        width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                        background: i === 0 ? 'linear-gradient(135deg,#44298C,#5B38BA)' : 'var(--bg)',
-                        border: `1px solid ${i === 0 ? 'transparent' : 'var(--border)'}`,
-                        color: i === 0 ? '#fff' : 'var(--t4)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 11, fontWeight: 700,
-                      }}>
-                        {history.length - i}
-                      </div>
-
-                      <Avatar name={entry.member.name} size="sm" photo={entry.member.photo} />
-
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {entry.member.name}
-                        </div>
-                        <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2, display: 'flex', gap: 6 }}>
-                          <span style={{ fontFamily: 'monospace' }}>{formatSystemId(entry.member.systemId)}</span>
-                          {entry.member.package && <span>· {entry.member.package.name}</span>}
-                        </div>
-                      </div>
-
-                      <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
-                        <span style={{
-                          fontSize: 12, fontWeight: 700, color: 'var(--t1)',
-                          background: i === 0 ? 'rgba(68,41,140,0.08)' : 'transparent',
-                          padding: i === 0 ? '2px 8px' : '0',
-                          borderRadius: i === 0 ? 6 : 0,
+                  paginatedHistory.map((entry, i) => {
+                    const globalIndex = (page - 1) * pageSize + i;
+                    const isLatest = globalIndex === 0;
+                    const serialNumber = history.length - globalIndex;
+                    return (
+                      <div
+                        key={entry._id ?? globalIndex}
+                        onClick={() => navigate(`/members/${entry.member.systemId}`)}
+                        style={{
+                          display: 'flex', alignItems: 'center', gap: 12,
+                          padding: '12px 22px', cursor: 'pointer',
+                          borderBottom: i < paginatedHistory.length - 1 ? '1px solid var(--border)' : 'none',
+                          background: freshIds.has(String(entry._id)) ? 'rgba(34,197,94,0.10)' : 'transparent',
+                          transition: 'background 0.3s',
+                        }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
+                        onMouseLeave={e => { e.currentTarget.style.background = freshIds.has(String(entry._id)) ? 'rgba(34,197,94,0.10)' : 'transparent'; }}
+                      >
+                        {/* Serial number */}
+                        <div style={{
+                          width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
+                          background: isLatest ? 'linear-gradient(135deg,#44298C,#5B38BA)' : 'var(--bg)',
+                          border: `1px solid ${isLatest ? 'transparent' : 'var(--border)'}`,
+                          color: isLatest ? '#fff' : 'var(--t4)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 11, fontWeight: 700,
                         }}>
-                          {fmtTime(entry.time)}
-                        </span>
-                        {entry.checkedInBy?.name && (
-                          <span style={{ fontSize: 10, color: 'var(--t4)' }}>by {entry.checkedInBy.name}</span>
-                        )}
-                        <Badge status={entry.member.status} />
+                          {serialNumber}
+                        </div>
+
+                        <Avatar name={entry.member.name} size="sm" photo={entry.member.photo} />
+
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {entry.member.name}
+                          </div>
+                          <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2, display: 'flex', gap: 6 }}>
+                            <span style={{ fontFamily: 'monospace' }}>{formatSystemId(entry.member.systemId)}</span>
+                            {entry.member.package && <span>· {entry.member.package.name}</span>}
+                          </div>
+                        </div>
+
+                        <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                          <span style={{
+                            fontSize: 12, fontWeight: 700, color: 'var(--t1)',
+                            background: isLatest ? 'rgba(68,41,140,0.08)' : 'transparent',
+                            padding: isLatest ? '2px 8px' : '0',
+                            borderRadius: isLatest ? 6 : 0,
+                          }}>
+                            {fmtTime(entry.time)}
+                          </span>
+                          {entry.checkedInBy?.name && (
+                            <span style={{ fontSize: 10, color: 'var(--t4)' }}>by {entry.checkedInBy.name}</span>
+                          )}
+                          <Badge status={entry.member.status} />
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
+
+              {!histLoad && history.length > 0 && (
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  total={history.length}
+                  pageSize={pageSize}
+                  pageSizeOptions={PAGE_SIZE_OPTIONS}
+                  onPageChange={setPage}
+                  onPageSizeChange={handlePageSizeChange}
+                />
+              )}
             </div>
 
           </div>
