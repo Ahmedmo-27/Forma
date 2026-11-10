@@ -77,6 +77,7 @@ export default function SalesDashboard() {
   const [revenue, setRevenue]   = useState(null);
   const [showTodaySubs, setShowTodaySubs] = useState(false);
   const [showActivity, setShowActivity]   = useState(false);
+  const [repSearch, setRepSearch]         = useState('');
 
   const load = useCallback(async (attempt = 0) => {
     setLoading(true);
@@ -212,7 +213,20 @@ export default function SalesDashboard() {
         ? Math.min(100, Math.round((stats.monthlyRevenue / target) * 100))
         : null;
       return { ...rep, stats, monthlyTarget: target, pct };
+    })
+    .sort((a, b) => {
+      if (b.stats.monthlyRevenue !== a.stats.monthlyRevenue) {
+        return b.stats.monthlyRevenue - a.stats.monthlyRevenue;
+      }
+      if (b.stats.total !== a.stats.total) {
+        return b.stats.total - a.stats.total;
+      }
+      return (a.name || '').localeCompare(b.name || '');
     });
+
+  const filteredSalesReps = repSearch.trim()
+    ? salesReps.filter(r => r.name?.toLowerCase().includes(repSearch.trim().toLowerCase()))
+    : salesReps;
 
   const currentMonthRevenue = Number(
     revenue?.monthlyBreakdown?.[0]?.revenue ?? revenue?.currentMonthRevenue ?? 0
@@ -258,6 +272,65 @@ export default function SalesDashboard() {
               {/* Left column */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
+                {/* Manager: Quick Management Shortcuts */}
+                {isManager && (
+                  <Card noPad>
+                    <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Quick Management</span>
+                      <span style={{ fontSize: 11, color: 'var(--t4)' }}>Shortcuts</span>
+                    </div>
+                    <div style={{ padding: 12, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                      {[
+                        { label: 'Targets', sub: 'Revenue tracking', to: '/sales/targets', icon: '📊', access: 'targets' },
+                        { label: 'Packages', sub: 'Manage plans', to: '/sales/packages', icon: '📦', access: 'packages' },
+                        { label: 'Task Assignment', sub: 'Distribute members', to: '/tasks', icon: '🔄', access: 'members' },
+                        { label: 'Staff Accounts', sub: 'Manage team access', to: '/sales/staff', icon: '👥', access: 'staff' },
+                      ].filter((c) => hasAccess(user, c.access)).map(c => (
+                        <button key={c.to} onClick={() => navigate(c.to)}
+                          style={{
+                            background: 'var(--bg)',
+                            border: '1px solid var(--border)',
+                            borderRadius: 8,
+                            padding: '12px 14px',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s ease',
+                            fontFamily: 'inherit',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 12
+                          }}
+                          onMouseEnter={e => {
+                            e.currentTarget.style.borderColor = 'var(--navy)';
+                            e.currentTarget.style.background = 'var(--card)';
+                            e.currentTarget.style.transform = 'translateY(-1px)';
+                            e.currentTarget.style.boxShadow = '0 4px 12px rgba(68, 41, 140, 0.08)';
+                          }}
+                          onMouseLeave={e => {
+                            e.currentTarget.style.borderColor = 'var(--border)';
+                            e.currentTarget.style.background = 'var(--bg)';
+                            e.currentTarget.style.transform = 'none';
+                            e.currentTarget.style.boxShadow = 'none';
+                          }}
+                        >
+                          <div style={{
+                            width: 36, height: 36, borderRadius: 8,
+                            background: 'var(--card)', border: '1px solid var(--border)',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 18, flexShrink: 0
+                          }}>
+                            {c.icon}
+                          </div>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{c.label}</div>
+                            <div style={{ fontSize: 11, color: 'var(--t4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.sub}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </Card>
+                )}
+
                 {/* Manager: Expiring soon / Sales: Recent Notes */}
                 {isManager ? (
                   <Card noPad>
@@ -272,7 +345,22 @@ export default function SalesDashboard() {
                       )}
                     </div>
                     {expiringSoon.length === 0 ? (
-                      <EmptyState icon="✓" message="No members expiring this week" />
+                      <div style={{ padding: '28px 16px', textAlign: 'center' }}>
+                        <div style={{
+                          width: 36, height: 36, borderRadius: '50%',
+                          background: 'var(--green-bg)', color: 'var(--green)',
+                          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                          fontSize: 16, marginBottom: 8, border: '1px solid var(--green-bd)'
+                        }}>
+                          ✓
+                        </div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>
+                          All memberships in good standing
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>
+                          No memberships expiring within the next 7 days
+                        </div>
+                      </div>
                     ) : (
                       <div style={{ maxHeight: 280, overflowY: 'auto' }}>
                         {expiringSoon.slice(0, 10).map(m => {
@@ -332,102 +420,214 @@ export default function SalesDashboard() {
                   </Card>
                 )}
 
-                {/* Today's Activity box */}
-                <StatCard
-                  label="Today's Activity"
-                  value={`${myCheckIns.length} check-in${myCheckIns.length !== 1 ? 's' : ''}`}
-                  color="blue"
-                  sub="Click to view details"
-                  onClick={() => setShowActivity(true)}
-                />
+                {/* Today's Activity Card */}
+                <Card noPad>
+                  <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Today's Activity</span>
+                      <span style={{
+                        fontSize: 11, fontWeight: 700,
+                        background: myCheckIns.length > 0 ? 'var(--sky-bg)' : 'var(--bg)',
+                        color: myCheckIns.length > 0 ? 'var(--sky)' : 'var(--t3)',
+                        border: `1px solid ${myCheckIns.length > 0 ? 'var(--sky-bd)' : 'var(--border)'}`,
+                        padding: '2px 8px', borderRadius: 10
+                      }}>
+                        {myCheckIns.length} check-in{myCheckIns.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    {myCheckIns.length > 0 && (
+                      <button
+                        onClick={() => setShowActivity(true)}
+                        style={{
+                          background: 'none', border: 'none', cursor: 'pointer',
+                          fontSize: 11, fontWeight: 600, color: 'var(--navy)',
+                          padding: 0
+                        }}
+                      >
+                        View all →
+                      </button>
+                    )}
+                  </div>
+                  {myCheckIns.length === 0 ? (
+                    <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 18, marginBottom: 4 }}>⏱️</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)' }}>No check-ins recorded yet today</div>
+                      <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>Activity will appear in real time as members arrive</div>
+                    </div>
+                  ) : (
+                    <div>
+                      {myCheckIns.slice(0, 4).map((entry, i) => (
+                        <div key={entry._id ?? i}
+                          onClick={() => navigate(`/members/${entry.member?.systemId}`)}
+                          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 18px', borderBottom: i < Math.min(3, myCheckIns.length - 1) ? '1px solid var(--border)' : 'none', cursor: 'pointer' }}
+                          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
+                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                        >
+                          <Avatar name={entry.member?.name || 'Member'} size="sm" />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {entry.member?.name}
+                            </div>
+                            <div style={{ fontSize: 10, color: 'var(--t4)' }}>#{entry.member?.systemId}</div>
+                          </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)' }}>{fmtTimeWithSeconds(entry.time)}</div>
+                            {entry.checkedInBy?.name && (
+                              <div style={{ fontSize: 10, color: 'var(--t4)' }}>by {entry.checkedInBy.name}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                      {myCheckIns.length > 4 && (
+                        <div
+                          onClick={() => setShowActivity(true)}
+                          style={{
+                            padding: '8px 18px', textAlign: 'center',
+                            fontSize: 11, fontWeight: 600, color: 'var(--navy)',
+                            background: 'var(--bg)', cursor: 'pointer',
+                            borderTop: '1px solid var(--border)'
+                          }}
+                        >
+                          +{myCheckIns.length - 4} more check-ins · View all
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </Card>
               </div>
 
               {/* Right column (Manager only) */}
               {isManager && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-                  {/* Team performance */}
-                  <Card noPad>
-                    <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Team Performance</span>
-                      {hasAccess(user, 'sales_team') && (
-                        <span onClick={() => navigate('/sales/team')} style={{ fontSize: 11, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>View team →</span>
-                      )}
-                    </div>
-                    {salesReps.length === 0 ? (
-                      <EmptyState message="No sales reps found" />
-                    ) : (
-                      <div>
-                        {salesReps.map(rep => (
-                            <div key={rep._id} onClick={() => navigate(`/sales/team/${rep._id}`)}
-                              style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
-                              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
-                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                            >
-                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: rep.pct !== null ? 8 : 0 }}>
-                                <Avatar name={rep.name} size="sm" />
-                                <div style={{ flex: 1 }}>
-                                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{rep.name}</div>
-                                  <div style={{ fontSize: 11, color: 'var(--t4)' }}>
-                                    {fmt(rep.stats.total)} members · {fmt(rep.stats.monthlyRevenue)} EGP this month
-                                  </div>
-                                </div>
-                                {rep.pct !== null && (
-                                  <span style={{ fontSize: 12, fontWeight: 700, color: rep.pct >= 100 ? 'var(--green)' : rep.pct >= 60 ? 'var(--blue)' : 'var(--amber)' }}>
-                                    {rep.pct}%
-                                  </span>
-                                )}
-                              </div>
-                              {rep.pct !== null && (
-                                <div style={{ height: 4, background: 'var(--bg)', borderRadius: 2, border: '1px solid var(--border)', overflow: 'hidden' }}>
-                                  <div style={{ height: '100%', width: `${rep.pct}%`, background: rep.pct >= 100 ? 'var(--green)' : rep.pct >= 60 ? 'var(--blue)' : 'var(--amber)', borderRadius: 2 }} />
-                                </div>
-                              )}
-                            </div>
-                        ))}
-                      </div>
-                    )}
-                  </Card>
-
-                  {/* Quick links */}
-                  <div className="grid-2" style={{ gap: 10 }}>
-                    {[
-                      { label: 'Targets', sub: 'Revenue tracking', to: '/sales/targets', icon: '📊', access: 'targets' },
-                      { label: 'Packages', sub: 'Manage plans', to: '/sales/packages', icon: '📦', access: 'packages' },
-                      { label: 'Transfer', sub: 'Move members', to: '/tasks', icon: '🔄', access: 'members' },
-                      { label: 'Staff', sub: 'Create accounts', to: '/sales/staff', icon: '👥', access: 'staff' },
-                    ].filter((c) => hasAccess(user, c.access)).map(c => (
-                      <button key={c.to} onClick={() => navigate(c.to)} style={{
-                        background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8,
-                        padding: '14px 16px', textAlign: 'left', cursor: 'pointer',
-                        transition: 'border-color 0.12s, box-shadow 0.12s', fontFamily: 'inherit',
-                      }}
-                        onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--navy)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(15,23,42,0.06)'; }}
-                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
-                      >
-                        <div style={{ fontSize: 20, marginBottom: 6 }}>{c.icon}</div>
-                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{c.label}</div>
-                        <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>{c.sub}</div>
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Revenue mini card */}
+                  {/* Revenue Overview */}
                   {revenue && (
-                    <Card>
-                      <CardHeader title="Revenue Snapshot" />
-                      <div className="grid-2">
-                        <div style={{ background: 'var(--bg)', borderRadius: 6, border: '1px solid var(--border)', padding: '10px 12px' }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>This Month</div>
-                          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--green)' }}>{fmt(currentMonthRevenue)} EGP</div>
+                    <Card noPad>
+                      <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Revenue Overview</span>
                         </div>
-                        <div style={{ background: 'var(--bg)', borderRadius: 6, border: '1px solid var(--border)', padding: '10px 12px' }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>This Year</div>
-                          <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--navy)' }}>{fmt(revenue.currentYearRevenue)} EGP</div>
+                        <span style={{ fontSize: 11, background: 'var(--green-bg)', color: 'var(--green)', border: '1px solid var(--green-bd)', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
+                          Active Period
+                        </span>
+                      </div>
+                      <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div style={{
+                          background: 'linear-gradient(135deg, rgba(22, 163, 74, 0.05) 0%, rgba(22, 163, 74, 0.01) 100%)',
+                          borderRadius: 8,
+                          border: '1px solid var(--green-bd)',
+                          padding: '12px 14px'
+                        }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--green)', marginBottom: 4 }}>
+                            This Month
+                          </div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--t1)' }}>
+                            {fmt(currentMonthRevenue)} <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>EGP</span>
+                          </div>
+                        </div>
+                        <div style={{
+                          background: 'linear-gradient(135deg, rgba(68, 41, 140, 0.05) 0%, rgba(68, 41, 140, 0.01) 100%)',
+                          borderRadius: 8,
+                          border: '1px solid rgba(68, 41, 140, 0.2)',
+                          padding: '12px 14px'
+                        }}>
+                          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--navy)', marginBottom: 4 }}>
+                            This Year
+                          </div>
+                          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--t1)' }}>
+                            {fmt(revenue.currentYearRevenue)} <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>EGP</span>
+                          </div>
                         </div>
                       </div>
                     </Card>
                   )}
+
+                  {/* Team performance */}
+                  <Card noPad>
+                    <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Team Performance</span>
+                        <span style={{ fontSize: 11, background: 'var(--bg)', color: 'var(--t3)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>
+                          {salesReps.length} reps
+                        </span>
+                      </div>
+                      {hasAccess(user, 'sales_team') && (
+                        <span onClick={() => navigate('/sales/team')} style={{ fontSize: 11, color: 'var(--navy)', cursor: 'pointer', fontWeight: 600 }}>
+                          View team →
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Quick search when team has > 5 reps */}
+                    {salesReps.length > 5 && (
+                      <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
+                        <input
+                          type="text"
+                          placeholder="Filter sales reps..."
+                          value={repSearch}
+                          onChange={e => setRepSearch(e.target.value)}
+                          style={{
+                            width: '100%',
+                            padding: '6px 12px',
+                            fontSize: 12,
+                            border: '1px solid var(--border)',
+                            borderRadius: 6,
+                            background: 'var(--card)',
+                            color: 'var(--t1)',
+                            outline: 'none',
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {filteredSalesReps.length === 0 ? (
+                      <EmptyState message={salesReps.length === 0 ? "No sales reps found" : "No matching sales reps"} />
+                    ) : (
+                      <div style={{ maxHeight: 380, overflowY: 'auto' }}>
+                        {filteredSalesReps.map((rep, idx) => (
+                          <div key={rep._id} onClick={() => navigate(`/sales/team/${rep._id}`)}
+                            style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
+                            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
+                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                          >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: rep.pct !== null ? 8 : 0 }}>
+                              {/* Leaderboard rank */}
+                              <div style={{
+                                width: 22, height: 22, borderRadius: '50%',
+                                fontSize: 10, fontWeight: 800,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                flexShrink: 0,
+                                background: idx === 0 && rep.stats.monthlyRevenue > 0 ? '#FEF08A' : idx === 1 && rep.stats.monthlyRevenue > 0 ? '#E2E8F0' : idx === 2 && rep.stats.monthlyRevenue > 0 ? '#FED7AA' : 'transparent',
+                                color: idx === 0 && rep.stats.monthlyRevenue > 0 ? '#854D0E' : idx === 1 && rep.stats.monthlyRevenue > 0 ? '#475569' : idx === 2 && rep.stats.monthlyRevenue > 0 ? '#9A3412' : 'var(--t4)'
+                              }}>
+                                {idx + 1}
+                              </div>
+
+                              <Avatar name={rep.name} size="sm" />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                  {rep.name}
+                                </div>
+                                <div style={{ fontSize: 11, color: 'var(--t4)' }}>
+                                  {fmt(rep.stats.total)} members · <span style={{ fontWeight: 600, color: rep.stats.monthlyRevenue > 0 ? 'var(--t2)' : 'var(--t4)' }}>{fmt(rep.stats.monthlyRevenue)} EGP this month</span>
+                                </div>
+                              </div>
+                              {rep.pct !== null && (
+                                <span style={{ fontSize: 12, fontWeight: 700, color: rep.pct >= 100 ? 'var(--green)' : rep.pct >= 60 ? 'var(--navy)' : 'var(--amber)' }}>
+                                  {rep.pct}%
+                                </span>
+                              )}
+                            </div>
+                            {rep.pct !== null && (
+                              <div style={{ height: 4, background: 'var(--bg)', borderRadius: 2, border: '1px solid var(--border)', overflow: 'hidden', marginLeft: 32 }}>
+                                <div style={{ height: '100%', width: `${rep.pct}%`, background: rep.pct >= 100 ? 'var(--green)' : rep.pct >= 60 ? 'var(--navy)' : 'var(--amber)', borderRadius: 2 }} />
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </Card>
                 </div>
               )}
             </div>
