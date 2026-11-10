@@ -93,12 +93,21 @@ export default function AccessControl() {
     if (user?.role === 'Owner') {
       return ['General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'];
     }
-    if (user?.role === 'General Manager' || hasStaff) {
-      return ['General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'].filter(
-        (r) => r !== user?.role
+    if (user?.role === 'General Manager') {
+      return ['Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'];
+    }
+    if (user?.role === 'Sales Manager') {
+      return ['Sales', 'Receptionist'];
+    }
+    if (user?.role === 'Coach Manager') {
+      return ['Coach'];
+    }
+    if (hasStaff) {
+      return ['Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'].filter(
+        (r) => r !== user?.role && r !== 'General Manager'
       );
     }
-    return ROLE_CHOICES[user?.role] || [];
+    return (ROLE_CHOICES[user?.role] || []).filter((r) => r !== 'General Manager');
   }, [user, hasStaff]);
   const [role, setRole] = useState('');
   const [people, setPeople] = useState([]);

@@ -11,17 +11,21 @@ import ChangeRoleField from '../../components/ChangeRoleField';
 const PERSON_ROLES = {
   Owner: ['General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
   'General Manager': ['Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
+  'Sales Manager': ['Sales', 'Receptionist'],
+  'Coach Manager': ['Coach'],
 };
 
 function StaffRoleCard() {
   const { user } = useAuth();
+  const isOwner = user?.role === 'Owner';
   const hasStaff = Boolean(
-    user?.role === 'Owner' ||
+    isOwner ||
     user?.role === 'General Manager' ||
     user?.accessOverrides?.add?.includes('staff') ||
     user?.access?.includes('access_control')
   );
-  const roles = PERSON_ROLES[user?.role] || (hasStaff ? PERSON_ROLES['General Manager'] : []);
+  const roles = (PERSON_ROLES[user?.role] || (hasStaff ? PERSON_ROLES['General Manager'] : []))
+    .filter((r) => isOwner || r !== 'General Manager');
   const [role, setRole] = useState('');
   const [people, setPeople] = useState([]);
   const [loadingPeople, setLoadingPeople] = useState(false);
@@ -162,9 +166,24 @@ export default function RoleAccess() {
     user?.accessOverrides?.add?.includes('staff') ||
     user?.access?.includes('access_control')
   );
-  const [role, setRole] = useState('General Manager');
+
+  const editableChecklistRoles = useMemo(() => {
+    const all = checklistRoles.length
+      ? checklistRoles
+      : ['General Manager', 'Receptionist', 'Coach', 'Coach Manager', 'Accountant', 'Sales', 'Sales Manager'];
+    if (isOwner) return all;
+    return all.filter((r) => r !== 'General Manager');
+  }, [checklistRoles, isOwner]);
+
+  const [role, setRole] = useState(() => (isOwner ? 'General Manager' : 'Sales Manager'));
   const [draft, setDraft] = useState([]);
   const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (editableChecklistRoles.length > 0 && !editableChecklistRoles.includes(role)) {
+      setRole(editableChecklistRoles[0]);
+    }
+  }, [editableChecklistRoles, role]);
 
   const savedList = roleAccess && Object.prototype.hasOwnProperty.call(roleAccess, role)
     ? roleAccess[role]
@@ -235,7 +254,7 @@ export default function RoleAccess() {
                 background: 'var(--card)', color: 'var(--t1)', fontFamily: 'inherit',
               }}
             >
-              {(checklistRoles.length ? checklistRoles : ['General Manager']).map((name) => (
+              {editableChecklistRoles.map((name) => (
                 <option key={name} value={name}>{name}</option>
               ))}
             </select>

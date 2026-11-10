@@ -170,7 +170,9 @@ const getMyTenant = async (req, res) => {
         };
         response.roleAccess = plainRoleAccess(tenant.roleAccess) || {};
         response.accessCatalog = AREAS;
-        response.checklistRoles = CHECKLIST_ROLES;
+        response.checklistRoles = req.user.role === "Owner"
+            ? CHECKLIST_ROLES
+            : CHECKLIST_ROLES.filter((role) => role !== "General Manager");
         response.roleDefaults = Object.fromEntries(
             CHECKLIST_ROLES.map((role) => [role, roleDefaults(role)])
         );
