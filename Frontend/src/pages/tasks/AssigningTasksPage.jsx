@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -20,6 +20,7 @@ import { useTenant } from '../../context/TenantContext';
 import {
   toggleId, canUserAssignTasks, canUserReceiveTasks,
   formatTaskDateTime, packageName, toLocalDateString,
+  SELECTION_TEMPLATES, applySelectionTemplate,
 } from './taskMembers';
 import AssignedTasksPage from './AssignedTasksPage';
 
@@ -77,6 +78,8 @@ export default function AssigningTasksPage() {
 
   // ── Multi-Member Selection for Task Assignment ──
   const [selected, setSelected] = useState(() => new Set());
+  const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
+  const templateMenuRef = useRef(null);
 
   // ── Transfer Modal State ──
   const [transferOpen, setTransferOpen] = useState(false);
@@ -269,8 +272,71 @@ export default function AssigningTasksPage() {
     }
   };
 
+  // ── Click Outside Listener for Selection Templates Dropdown ──
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (templateMenuRef.current && !templateMenuRef.current.contains(e.target)) {
+        setTemplateMenuOpen(false);
+      }
+    }
+    if (templateMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [templateMenuOpen]);
+
+  // ── Template Counts for current members ──
+  const templateCounts = useMemo(() => {
+    let unassignedSales = 0;
+    let unassignedCoach = 0;
+    let expiringSoon = 0;
+    const now = new Date();
+    const in30d = new Date(now.getTime() + 30 * 86400000);
+
+    members.forEach((m) => {
+      if (!m.assignedSales || m.assignedSales?.role === 'Sales Manager') unassignedSales += 1;
+      if (!m.current_couch) unassignedCoach += 1;
+      const sub = m.subscriptions?.at(-1);
+      if (sub?.endDate) {
+        const end = new Date(sub.endDate);
+        if (end >= now && end <= in30d) expiringSoon += 1;
+      }
+    });
+
+    return { unassignedSales, unassignedCoach, expiringSoon };
+  }, [members]);
+
+  const handleApplyTemplate = (templateId, options = {}) => {
+    if (!members.length) {
+      toast.error('No members on this page');
+      return;
+    }
+    const ids = applySelectionTemplate(members, templateId, options);
+    if (!ids.length) {
+      toast.error('No members matched this preset');
+      return;
+    }
+    setSelected(new Set(ids));
+    setTemplateMenuOpen(false);
+    const tmpl = SELECTION_TEMPLATES.find((t) => t.id === templateId);
+    const label = tmpl ? tmpl.label : options.customLabel || `${ids.length} members`;
+    toast.success(`Selected ${ids.length} members (${label})`);
+  };
+
+  const handleInvertSelection = () => {
+    if (!members.length) return;
+    const next = new Set();
+    members.forEach((m) => {
+      if (!selected.has(m._id)) next.add(m._id);
+    });
+    setSelected(next);
+    setTemplateMenuOpen(false);
+    toast.success(`Selection inverted (${next.size} members selected)`);
+  };
+
   const handleClearSelection = () => {
     setSelected(new Set());
+    setTemplateMenuOpen(false);
   };
 
   // ── Task Assignment Modal Actions ──
@@ -622,7 +688,224 @@ export default function AssigningTasksPage() {
                 )}
               </div>
 
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                {/* Selection Templates Dropdown */}
+                <div style={{ position: 'relative' }} ref={templateMenuRef}>
+                  <Btn
+                    size="sm"
+                    variant={selected.size > 0 ? 'primary' : 'outline'}
+                    onClick={() => setTemplateMenuOpen((open) => !open)}
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <span>⚡</span> Selection Templates <span style={{ fontSize: 10, opacity: 0.7 }}>▼</span>
+                  </Btn>
+
+                  {templateMenuOpen && (
+                    <div
+                      style={{
+                        position: 'absolute',
+                        top: 'calc(100% + 8px)',
+                        right: 0,
+                        zIndex: 1000,
+                        width: 320,
+                        maxWidth: 'calc(100vw - 32px)',
+                        background: 'var(--card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 12,
+                        boxShadow: '0 12px 36px rgba(0,0,0,0.22)',
+                        padding: '14px 16px',
+                        fontSize: 12,
+                        color: 'var(--t1)',
+                      }}
+                    >
+                      {/* Header */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--t1)' }}>Selection Presets</div>
+                        {selected.size > 0 && (
+                          <Btn
+                            size="xs"
+                            variant="ghost"
+                            onClick={handleClearSelection}
+                            style={{ color: 'var(--red)', fontSize: 11, padding: '2px 6px' }}
+                          >
+                            Clear ({selected.size})
+                          </Btn>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {/* Quick Count Grid */}
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>SELECT FIRST:</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
+                            {[10, 20, 30, 50].map((num) => (
+                              <button
+                                key={`first_${num}`}
+                                type="button"
+                                onClick={() => handleApplyTemplate(`first_${num}`)}
+                                style={{
+                                  padding: '7px 4px',
+                                  borderRadius: 6,
+                                  border: '1px solid var(--border)',
+                                  background: 'var(--bg)',
+                                  color: 'var(--t1)',
+                                  fontSize: 11,
+                                  fontWeight: 600,
+                                  cursor: 'pointer',
+                                  textAlign: 'center',
+                                  transition: 'all 0.15s ease',
+                                }}
+                                onMouseEnter={(e) => {
+                                  e.currentTarget.style.borderColor = 'var(--primary)';
+                                  e.currentTarget.style.background = 'var(--navy-subtle, rgba(59, 130, 246, 0.08))';
+                                }}
+                                onMouseLeave={(e) => {
+                                  e.currentTarget.style.borderColor = 'var(--border)';
+                                  e.currentTarget.style.background = 'var(--bg)';
+                                }}
+                              >
+                                First {num}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Condition Presets */}
+                        <div>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>FILTER BY STATUS:</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <button
+                              type="button"
+                              onClick={() => handleApplyTemplate('unassigned_sales')}
+                              style={{
+                                padding: '7px 10px',
+                                borderRadius: 6,
+                                border: '1px solid var(--border)',
+                                background: 'var(--bg)',
+                                color: 'var(--t1)',
+                                fontSize: 12,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                textAlign: 'left',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--primary)';
+                                e.currentTarget.style.background = 'var(--navy-subtle, rgba(59, 130, 246, 0.08))';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--border)';
+                                e.currentTarget.style.background = 'var(--bg)';
+                              }}
+                            >
+                              <span>No Sales Rep Assigned</span>
+                              <span style={{ fontWeight: 700, fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'var(--card)', border: '1px solid var(--border)' }}>
+                                {templateCounts.unassignedSales}
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => handleApplyTemplate('unassigned_coach')}
+                              style={{
+                                padding: '7px 10px',
+                                borderRadius: 6,
+                                border: '1px solid var(--border)',
+                                background: 'var(--bg)',
+                                color: 'var(--t1)',
+                                fontSize: 12,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                textAlign: 'left',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--primary)';
+                                e.currentTarget.style.background = 'var(--navy-subtle, rgba(59, 130, 246, 0.08))';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--border)';
+                                e.currentTarget.style.background = 'var(--bg)';
+                              }}
+                            >
+                              <span>No Coach Assigned</span>
+                              <span style={{ fontWeight: 700, fontSize: 11, padding: '2px 6px', borderRadius: 4, background: 'var(--card)', border: '1px solid var(--border)' }}>
+                                {templateCounts.unassignedCoach}
+                              </span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={handleInvertSelection}
+                              style={{
+                                padding: '7px 10px',
+                                borderRadius: 6,
+                                border: '1px solid var(--border)',
+                                background: 'var(--bg)',
+                                color: 'var(--t1)',
+                                fontSize: 12,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                textAlign: 'left',
+                                transition: 'all 0.15s ease',
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--primary)';
+                                e.currentTarget.style.background = 'var(--navy-subtle, rgba(59, 130, 246, 0.08))';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.borderColor = 'var(--border)';
+                                e.currentTarget.style.background = 'var(--bg)';
+                              }}
+                            >
+                              <span>Invert Selection</span>
+                              <span style={{ fontSize: 11, color: 'var(--t3)' }}>Toggle</span>
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Action row */}
+                        <div style={{ paddingTop: 6, borderTop: '1px solid var(--border)', display: 'flex', gap: 6 }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              handleToggleSelectAllPage();
+                              setTemplateMenuOpen(false);
+                            }}
+                            style={{
+                              flex: 1,
+                              padding: '7px 10px',
+                              borderRadius: 6,
+                              border: '1px solid var(--border)',
+                              background: 'var(--bg)',
+                              color: 'var(--t1)',
+                              fontSize: 11,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              textAlign: 'center',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--primary)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.borderColor = 'var(--border)';
+                            }}
+                          >
+                            {allOnPageSelected ? 'Deselect Page' : 'Select All on Page'}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <Btn
                   size="sm"
                   variant="primary"
