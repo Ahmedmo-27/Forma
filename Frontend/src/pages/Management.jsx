@@ -54,10 +54,8 @@ export default function Management() {
   const { user } = useAuth();
 
   const allow = (key) => hasAccess(user, key);
-  const canTasks = allow('members') && ['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Coach Manager'].includes(user?.role);
   const show = {
     requests: allow(['approve_requests', 'request_assignment', 'request_takeover']),
-    transfer: canTasks,
     packages: allow('packages'),
     whatsapp: allow('whatsapp_templates'),
     salesTeam: allow('sales_team'),
@@ -67,7 +65,6 @@ export default function Management() {
     coachStaff: allow('coach_staff'),
     coachTransfers: user?.role === 'Coach Manager' && allow('my_transfers'),
     teams: allow('teams_overview'),
-    roleAccess: allow('access_control'),
     accessControl: allow('access_control'),
     packageRequests: allow('package_approvals'),
   };
@@ -78,13 +75,10 @@ export default function Management() {
       <div className="page-wrap" style={{ paddingTop: 24, paddingBottom: 40 }}>
 
         {/* ── Operations ──────────────────────────────────────── */}
-        {(show.requests || show.transfer || show.packages || show.whatsapp) && (
-          <Section title="Operations" sub="Requests, transfers and configuration">
+        {(show.requests || show.packages || show.whatsapp) && (
+          <Section title="Operations" sub="Requests, packages and templates">
             {show.requests && (
               <MgmtCard icon="📋" title="Requests"    sub="Package assignment requests"      to="/sales/requests"           iconBg="#F0F9FF" />
-            )}
-            {show.transfer && (
-              <MgmtCard icon="🔄" title="Transfer"    sub="Transfer members between reps and coaches" to="/tasks" iconBg="#F0F9FF" />
             )}
             {show.packages && (
               <MgmtCard icon="📦" title="Packages"    sub="Manage membership packages"       to="/sales/packages"           iconBg="#F0F9FF" />
@@ -120,16 +114,13 @@ export default function Management() {
           </Section>
         )}
 
-        {(show.teams || show.roleAccess || show.accessControl) && (
+        {(show.teams || show.accessControl) && (
           <Section title="Admin" sub={user?.role === 'Owner' ? 'Owner tools and staff access' : 'Staff access for your team'}>
             {show.teams && (
               <MgmtCard icon="🏢" title="Teams Overview" sub="All teams at a glance"           to="/owner/teams"  iconBg="#F5F3FF" />
             )}
-            {show.roleAccess && (
-              <MgmtCard icon="🛡️" title="Role Access" sub="Turn areas on or off for a role" to="/owner/access?tab=roles" iconBg="#F5F3FF" />
-            )}
             {show.accessControl && (
-              <MgmtCard icon="🔑" title="Access Control" sub="Grant or remove features for a staff member" to="/management/access?tab=staff" iconBg="#F5F3FF" />
+              <MgmtCard icon="🛡️" title="Access Control" sub="Manage role defaults, staff roles, and individual permissions" to="/management/access" iconBg="#F5F3FF" />
             )}
           </Section>
         )}
