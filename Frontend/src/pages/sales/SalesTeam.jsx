@@ -199,58 +199,190 @@ function SalesCard({ member, onClick }) {
     : null;
 
   return (
-    <div onClick={onClick} style={{
-      background: 'var(--card)', border: '1px solid var(--border)',
-      borderRadius: 8, padding: '16px 18px',
-      cursor: 'pointer', transition: 'border-color 0.12s, box-shadow 0.12s',
-    }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--navy)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(15,23,42,0.08)'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
+    <div
+      onClick={onClick}
+      style={{
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: 14,
+        padding: '16px 18px',
+        cursor: 'pointer',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+        transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.borderColor = 'rgba(68, 41, 140, 0.35)';
+        e.currentTarget.style.boxShadow = '0 10px 24px -4px rgba(68, 41, 140, 0.10), 0 4px 8px -2px rgba(0, 0, 0, 0.03)';
+        const arrow = e.currentTarget.querySelector('.card-chevron');
+        if (arrow) {
+          arrow.style.transform = 'translateX(2px)';
+          arrow.style.color = 'var(--navy)';
+          arrow.style.background = 'rgba(68, 41, 140, 0.08)';
+        }
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.borderColor = 'var(--border)';
+        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.03)';
+        const arrow = e.currentTarget.querySelector('.card-chevron');
+        if (arrow) {
+          arrow.style.transform = 'translateX(0)';
+          arrow.style.color = 'var(--t4)';
+          arrow.style.background = 'var(--bg)';
+        }
+      }}
     >
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        <Avatar name={member.name} size="md" />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 3 }}>{member.name}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', background: 'var(--bg)', border: '1px solid var(--border)', padding: '1px 7px', borderRadius: 4 }}>
-              {member.role}
-            </span>
+      <div>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
+          <Avatar name={member.name} size="md" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: 14.5,
+              fontWeight: 700,
+              color: 'var(--t1)',
+              marginBottom: 4,
+              letterSpacing: '-0.2px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {member.name}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--navy)',
+                background: 'rgba(68, 41, 140, 0.07)',
+                border: '1px solid rgba(68, 41, 140, 0.16)',
+                padding: '2px 8px',
+                borderRadius: 999,
+                letterSpacing: '0.2px',
+              }}>
+                {member.role}
+              </span>
+            </div>
+          </div>
+
+          <div
+            className="card-chevron"
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: '50%',
+              background: 'var(--bg)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--t4)',
+              flexShrink: 0,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
           </div>
         </div>
-        <span style={{ fontSize: 11, color: 'var(--t4)' }}>→</span>
-      </div>
 
-      {/* Stats grid */}
-      <div className="grid-stats-4" style={{ background: 'var(--border)', borderRadius: 6, overflow: 'hidden', marginBottom: pct !== null ? 12 : 0 }}>
-        {[
-          { l: 'Active',  v: stats.active,  c: 'var(--green)' },
-          { l: 'Frozen',  v: stats.frozen,  c: 'var(--sky)' },
-          { l: 'Expired', v: stats.expired, c: 'var(--red)' },
-          { l: 'Guests',  v: stats.guests,  c: 'var(--t3)' },
-        ].map(s => (
-          <div key={s.l} style={{ background: 'var(--card)', padding: '8px 0', textAlign: 'center' }}>
-            <div style={{ fontSize: 15, fontWeight: 800, color: s.c }}>{s.v}</div>
-            <div style={{ fontSize: 9, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 1 }}>{s.l}</div>
-          </div>
-        ))}
+        {/* Stats panel */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(4, 1fr)',
+          background: 'var(--bg)',
+          borderRadius: 10,
+          border: '1px solid var(--border)',
+          overflow: 'hidden',
+        }}>
+          {[
+            { l: 'Active',  v: stats.active,  c: 'var(--green)' },
+            { l: 'Frozen',  v: stats.frozen,  c: 'var(--sky)' },
+            { l: 'Expired', v: stats.expired, c: 'var(--red)' },
+            { l: 'Guests',  v: stats.guests,  c: 'var(--slate)' },
+          ].map((s, idx) => (
+            <div
+              key={s.l}
+              style={{
+                padding: '8px 2px',
+                textAlign: 'center',
+                borderRight: idx < 3 ? '1px solid var(--border)' : 'none',
+              }}
+            >
+              <div style={{
+                fontSize: 15.5,
+                fontWeight: 800,
+                color: s.c,
+                lineHeight: 1.15,
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {s.v ?? 0}
+              </div>
+              <div style={{
+                fontSize: 9.5,
+                fontWeight: 700,
+                color: 'var(--t4)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.5px',
+                marginTop: 3,
+              }}>
+                {s.l}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Monthly target progress */}
       {pct !== null && (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-            <span style={{ fontSize: 11, color: 'var(--t4)', fontWeight: 600 }}>MONTHLY TARGET</span>
-            <span style={{ fontSize: 11, fontWeight: 700, color: pct >= 100 ? 'var(--green)' : 'var(--t2)' }}>
-              EGP {stats.monthlyRevenue.toLocaleString()} / {member.monthlyTarget.toLocaleString()} ({pct}%)
-            </span>
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="6" />
+                <circle cx="12" cy="12" r="2" />
+              </svg>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--t3)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                Monthly Target
+              </span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t1)' }}>
+                EGP {stats.monthlyRevenue.toLocaleString()}
+                <span style={{ color: 'var(--t4)', fontWeight: 500, fontSize: 10.5 }}> / {member.monthlyTarget.toLocaleString()}</span>
+              </span>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '1px 6px',
+                borderRadius: 999,
+                background: pct >= 100 ? 'var(--green-bg)' : pct >= 50 ? 'rgba(68,41,140,0.08)' : 'var(--amber-bg)',
+                color: pct >= 100 ? 'var(--green)' : pct >= 50 ? 'var(--navy)' : 'var(--amber)',
+                border: `1px solid ${pct >= 100 ? 'var(--green-bd)' : pct >= 50 ? 'rgba(68,41,140,0.2)' : 'var(--amber-bd)'}`,
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {pct}%
+              </span>
+            </div>
           </div>
-          <div style={{ height: 5, background: 'var(--bg)', borderRadius: 3, border: '1px solid var(--border)', overflow: 'hidden' }}>
+
+          <div style={{ height: 6, background: 'var(--bg)', borderRadius: 999, overflow: 'hidden' }}>
             <div style={{
               height: '100%',
-              width: `${pct}%`,
-              background: pct >= 100 ? 'var(--green)' : pct >= 60 ? 'var(--blue)' : 'var(--amber)',
-              borderRadius: 3, transition: 'width 0.4s ease',
+              width: `${Math.min(100, Math.max(0, pct))}%`,
+              background: pct >= 100
+                ? 'linear-gradient(90deg, #10b981, #059669)'
+                : pct >= 50
+                  ? 'linear-gradient(90deg, #6366f1, var(--navy))'
+                  : 'linear-gradient(90deg, #f59e0b, #d97706)',
+              borderRadius: 999,
+              transition: 'width 0.4s ease',
             }} />
           </div>
         </div>
@@ -262,29 +394,124 @@ function SalesCard({ member, onClick }) {
 // ── Receptionist Card ─────────────────────────────────────────────────────────
 function ReceptionistCard({ member, onClick }) {
   return (
-    <div onClick={onClick} style={{
-      background: 'var(--card)', border: '1px solid var(--border)',
-      borderRadius: 8, padding: '16px 18px',
-      cursor: 'pointer', transition: 'border-color 0.12s, box-shadow 0.12s',
-    }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--navy)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(15,23,42,0.08)'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
+    <div
+      onClick={onClick}
+      style={{
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: 14,
+        padding: '16px 18px',
+        cursor: 'pointer',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+        transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
+      }}
+      onMouseEnter={e => {
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.borderColor = 'rgba(22, 163, 74, 0.35)';
+        e.currentTarget.style.boxShadow = '0 10px 24px -4px rgba(22, 163, 74, 0.10), 0 4px 8px -2px rgba(0, 0, 0, 0.03)';
+        const arrow = e.currentTarget.querySelector('.card-chevron');
+        if (arrow) {
+          arrow.style.transform = 'translateX(2px)';
+          arrow.style.color = 'var(--green)';
+          arrow.style.background = 'var(--green-bg)';
+        }
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.borderColor = 'var(--border)';
+        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.03)';
+        const arrow = e.currentTarget.querySelector('.card-chevron');
+        if (arrow) {
+          arrow.style.transform = 'translateX(0)';
+          arrow.style.color = 'var(--t4)';
+          arrow.style.background = 'var(--bg)';
+        }
+      }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <Avatar name={member.name} size="md" />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 3 }}>{member.name}</div>
-          <div style={{ fontSize: 12, color: 'var(--t3)' }}>{member.email}</div>
-          {member.mobile_number && (
-            <div style={{ fontSize: 12, color: 'var(--blue)', fontFamily: 'monospace', marginTop: 4 }}>
-              📞 {member.mobile_number}
+      <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+          <Avatar name={member.name} size="md" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: 14.5,
+              fontWeight: 700,
+              color: 'var(--t1)',
+              marginBottom: 4,
+              letterSpacing: '-0.2px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+            }}>
+              {member.name}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: 'var(--green)',
+                background: 'var(--green-bg)',
+                border: '1px solid var(--green-bd)',
+                padding: '2px 8px',
+                borderRadius: 999,
+                letterSpacing: '0.2px',
+              }}>
+                Receptionist
+              </span>
+            </div>
+          </div>
+
+          <div
+            className="card-chevron"
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: '50%',
+              background: 'var(--bg)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--t4)',
+              flexShrink: 0,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Contact details */}
+        <div style={{
+          background: 'var(--bg)',
+          borderRadius: 10,
+          border: '1px solid var(--border)',
+          padding: '10px 12px',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 6,
+          marginTop: 6,
+        }}>
+          {member.email && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t2)' }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+              </svg>
+              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.email}</span>
             </div>
           )}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t3)', background: 'var(--bg)', border: '1px solid var(--border)', padding: '1px 7px', borderRadius: 4 }}>
-            🖥️ Receptionist
-          </span>
+          {member.mobile_number && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--navy)', fontWeight: 600 }}>
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+              </svg>
+              <span style={{ fontFamily: 'monospace' }}>{member.mobile_number}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>

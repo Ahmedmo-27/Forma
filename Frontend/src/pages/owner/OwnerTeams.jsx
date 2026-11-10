@@ -206,75 +206,297 @@ export default function OwnerTeams() {
 // ── User card ─────────────────────────────────────────────────────────────────
 function UserCard({ member, tab, onClick }) {
   const stats = member.stats;
+  const pct = (tab === 'sales' && member.monthlyTarget > 0 && stats?.monthlyRevenue != null)
+    ? Math.min(100, Math.round((stats.monthlyRevenue / member.monthlyTarget) * 100))
+    : null;
+
+  const getRoleStyle = (role = '') => {
+    const r = role.toLowerCase();
+    if (r.includes('sales')) {
+      return { bg: 'rgba(68, 41, 140, 0.07)', color: 'var(--navy)', bd: 'rgba(68, 41, 140, 0.16)' };
+    }
+    if (r.includes('coach')) {
+      return { bg: 'rgba(2, 132, 199, 0.08)', color: '#0284c7', bd: 'rgba(2, 132, 199, 0.20)' };
+    }
+    if (r.includes('reception')) {
+      return { bg: 'var(--green-bg)', color: 'var(--green)', bd: 'var(--green-bd)' };
+    }
+    if (r.includes('account')) {
+      return { bg: 'var(--amber-bg)', color: 'var(--amber)', bd: 'var(--amber-bd)' };
+    }
+    return { bg: 'var(--bg)', color: 'var(--t2)', bd: 'var(--border)' };
+  };
+
+  const roleStyle = getRoleStyle(member.role);
 
   return (
     <div
       onClick={onClick}
       style={{
-        background: 'var(--card)', border: '1px solid var(--border)',
-        borderRadius: 8, padding: '16px 18px',
-        cursor: 'pointer', transition: 'border-color 0.12s, box-shadow 0.12s',
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: 14,
+        padding: '16px 18px',
+        cursor: 'pointer',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+        transition: 'all 0.18s cubic-bezier(0.16, 1, 0.3, 1)',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'space-between',
       }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--navy)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(15,23,42,0.08)'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; }}
+      onMouseEnter={e => {
+        e.currentTarget.style.transform = 'translateY(-2px)';
+        e.currentTarget.style.borderColor = 'rgba(68, 41, 140, 0.35)';
+        e.currentTarget.style.boxShadow = '0 10px 24px -4px rgba(68, 41, 140, 0.10), 0 4px 8px -2px rgba(0, 0, 0, 0.03)';
+        const arrow = e.currentTarget.querySelector('.card-chevron');
+        if (arrow) {
+          arrow.style.transform = 'translateX(2px)';
+          arrow.style.color = 'var(--navy)';
+          arrow.style.background = 'rgba(68, 41, 140, 0.08)';
+        }
+      }}
+      onMouseLeave={e => {
+        e.currentTarget.style.transform = 'translateY(0)';
+        e.currentTarget.style.borderColor = 'var(--border)';
+        e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.03)';
+        const arrow = e.currentTarget.querySelector('.card-chevron');
+        if (arrow) {
+          arrow.style.transform = 'translateX(0)';
+          arrow.style.color = 'var(--t4)';
+          arrow.style.background = 'var(--bg)';
+        }
+      }}
     >
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: stats ? 14 : 0 }}>
-        <Avatar name={member.name} size="md" />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 3 }}>{member.name}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            <span style={{
-              fontSize: 11, fontWeight: 600, color: 'var(--t3)',
-              background: 'var(--bg)', border: '1px solid var(--border)',
-              padding: '1px 7px', borderRadius: 4,
+      <div>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: stats ? 12 : 6 }}>
+          <Avatar name={member.name} size="md" />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{
+              fontSize: 14.5,
+              fontWeight: 700,
+              color: 'var(--t1)',
+              marginBottom: 4,
+              letterSpacing: '-0.2px',
+              whiteSpace: 'nowrap',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
             }}>
-              {member.role}
-            </span>
-          </div>
-          {member.email && (
-            <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 4 }}>{member.email}</div>
-          )}
-          {member.mobile_number && (
-            <div style={{ fontSize: 11, color: 'var(--blue)', fontFamily: 'monospace', marginTop: 2 }}>
-              📞 {member.mobile_number}
+              {member.name}
             </div>
-          )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: roleStyle.color,
+                background: roleStyle.bg,
+                border: `1px solid ${roleStyle.bd}`,
+                padding: '2px 8px',
+                borderRadius: 999,
+                letterSpacing: '0.2px',
+              }}>
+                {member.role}
+              </span>
+            </div>
+          </div>
+
+          <div
+            className="card-chevron"
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: '50%',
+              background: 'var(--bg)',
+              border: '1px solid var(--border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--t4)',
+              flexShrink: 0,
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="m9 18 6-6-6-6" />
+            </svg>
+          </div>
         </div>
-        <span style={{ fontSize: 11, color: 'var(--t4)' }}>→</span>
+
+        {/* Contact info for roles without rich stats */}
+        {(!stats || (tab !== 'sales' && tab !== 'coach')) && (member.email || member.mobile_number) && (
+          <div style={{
+            background: 'var(--bg)',
+            borderRadius: 10,
+            border: '1px solid var(--border)',
+            padding: '10px 12px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 6,
+            marginTop: 6,
+          }}>
+            {member.email && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t2)' }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                </svg>
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.email}</span>
+              </div>
+            )}
+            {member.mobile_number && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--navy)', fontWeight: 600 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+                </svg>
+                <span style={{ fontFamily: 'monospace' }}>{member.mobile_number}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Sales stats panel */}
+        {tab === 'sales' && stats && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            background: 'var(--bg)',
+            borderRadius: 10,
+            border: '1px solid var(--border)',
+            overflow: 'hidden',
+          }}>
+            {[
+              { l: 'Active',  v: stats.active,  c: 'var(--green)' },
+              { l: 'Frozen',  v: stats.frozen,  c: 'var(--sky)' },
+              { l: 'Expired', v: stats.expired, c: 'var(--red)' },
+              { l: 'Guests',  v: stats.guests,  c: 'var(--slate)' },
+            ].map((s, idx) => (
+              <div
+                key={s.l}
+                style={{
+                  padding: '8px 2px',
+                  textAlign: 'center',
+                  borderRight: idx < 3 ? '1px solid var(--border)' : 'none',
+                }}
+              >
+                <div style={{
+                  fontSize: 15.5,
+                  fontWeight: 800,
+                  color: s.c,
+                  lineHeight: 1.15,
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                  {s.v ?? 0}
+                </div>
+                <div style={{
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  color: 'var(--t4)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  marginTop: 3,
+                }}>
+                  {s.l}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Coach stats panel */}
+        {tab === 'coach' && stats && (
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(4, 1fr)',
+            background: 'var(--bg)',
+            borderRadius: 10,
+            border: '1px solid var(--border)',
+            overflow: 'hidden',
+          }}>
+            {[
+              { l: 'Members',     v: stats.total,           c: 'var(--navy)' },
+              { l: 'Active',      v: stats.active,          c: 'var(--green)' },
+              { l: 'PT Total',    v: stats.totalPTSessions, c: 'var(--sky)' },
+              { l: 'PT Used',     v: stats.usedPTSessions,  c: 'var(--amber)' },
+            ].map((s, idx) => (
+              <div
+                key={s.l}
+                style={{
+                  padding: '8px 2px',
+                  textAlign: 'center',
+                  borderRight: idx < 3 ? '1px solid var(--border)' : 'none',
+                }}
+              >
+                <div style={{
+                  fontSize: 15.5,
+                  fontWeight: 800,
+                  color: s.c,
+                  lineHeight: 1.15,
+                  fontVariantNumeric: 'tabular-nums',
+                }}>
+                  {s.v ?? 0}
+                </div>
+                <div style={{
+                  fontSize: 9.5,
+                  fontWeight: 700,
+                  color: 'var(--t4)',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  marginTop: 3,
+                }}>
+                  {s.l}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Sales stats */}
-      {tab === 'sales' && stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-          {[
-            { l: 'Active',  v: stats.active,  c: 'var(--green)' },
-            { l: 'Frozen',  v: stats.frozen,  c: 'var(--sky)' },
-            { l: 'Expired', v: stats.expired, c: 'var(--red)' },
-            { l: 'Guests',  v: stats.guests,  c: 'var(--t3)' },
-          ].map(s => (
-            <div key={s.l} style={{ background: 'var(--card)', padding: '8px 0', textAlign: 'center' }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: s.c }}>{s.v ?? 0}</div>
-              <div style={{ fontSize: 9, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 1 }}>{s.l}</div>
+      {/* Monthly target progress (Sales) */}
+      {pct !== null && (
+        <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--t3)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10" />
+                <circle cx="12" cy="12" r="6" />
+                <circle cx="12" cy="12" r="2" />
+              </svg>
+              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--t3)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                Monthly Target
+              </span>
             </div>
-          ))}
-        </div>
-      )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t1)' }}>
+                EGP {stats.monthlyRevenue.toLocaleString()}
+                <span style={{ color: 'var(--t4)', fontWeight: 500, fontSize: 10.5 }}> / {member.monthlyTarget.toLocaleString()}</span>
+              </span>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 700,
+                padding: '1px 6px',
+                borderRadius: 999,
+                background: pct >= 100 ? 'var(--green-bg)' : pct >= 50 ? 'rgba(68,41,140,0.08)' : 'var(--amber-bg)',
+                color: pct >= 100 ? 'var(--green)' : pct >= 50 ? 'var(--navy)' : 'var(--amber)',
+                border: `1px solid ${pct >= 100 ? 'var(--green-bd)' : pct >= 50 ? 'rgba(68,41,140,0.2)' : 'var(--amber-bd)'}`,
+                fontVariantNumeric: 'tabular-nums',
+              }}>
+                {pct}%
+              </span>
+            </div>
+          </div>
 
-      {/* Coach stats */}
-      {tab === 'coach' && stats && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 6, overflow: 'hidden' }}>
-          {[
-            { l: 'Members',     v: stats.total,           c: 'var(--navy)' },
-            { l: 'Active',      v: stats.active,          c: 'var(--green)' },
-            { l: 'PT Total',    v: stats.totalPTSessions, c: 'var(--blue)' },
-            { l: 'PT Used',     v: stats.usedPTSessions,  c: 'var(--amber)' },
-          ].map(s => (
-            <div key={s.l} style={{ background: 'var(--card)', padding: '8px 0', textAlign: 'center' }}>
-              <div style={{ fontSize: 15, fontWeight: 800, color: s.c }}>{s.v ?? 0}</div>
-              <div style={{ fontSize: 9, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 1 }}>{s.l}</div>
-            </div>
-          ))}
+          <div style={{ height: 6, background: 'var(--bg)', borderRadius: 999, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%',
+              width: `${Math.min(100, Math.max(0, pct))}%`,
+              background: pct >= 100
+                ? 'linear-gradient(90deg, #10b981, #059669)'
+                : pct >= 50
+                  ? 'linear-gradient(90deg, #6366f1, var(--navy))'
+                  : 'linear-gradient(90deg, #f59e0b, #d97706)',
+              borderRadius: 999,
+              transition: 'width 0.4s ease',
+            }} />
+          </div>
         </div>
       )}
     </div>
