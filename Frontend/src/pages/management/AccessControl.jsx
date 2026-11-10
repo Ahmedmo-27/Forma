@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, Avatar, Badge } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
-import { listAccessUsersByRole, getUserAccess, updateUserAccess } from '../../api/endpoints';
+import { listAccessUsersByRole, getUserAccess, updateUserAccess, updateRoleAccess } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
+import { useTenant } from '../../context/TenantContext';
 import ChangeRoleField from '../../components/ChangeRoleField';
 import { canChangeUserRole } from '../../lib/roles';
-
-const ALL_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'];
 
 function canEditFeatureAccess(actor, targetRole) {
   const actorRole = typeof actor === 'string' ? actor : actor?.role;
@@ -54,7 +54,7 @@ function Toggle({ checked, onChange, disabled }) {
       <span style={{
         position: 'absolute', top: 3, left: checked ? 21 : 3,
         width: 22, height: 22, borderRadius: '50%',
-        background: 'var(--card)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+        background: 'var(--card)', boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
         transition: 'left 0.18s',
       }} />
     </button>
@@ -79,18 +79,55 @@ function enabledKeys(groups) {
   return keys;
 }
 
-export default function AccessControl() {
+export default function AccessControl({ defaultTab = 'staff' }) {
   usePageTitle('Access Control');
-  const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const urlTab = searchParams.get('tab');
+
+  const { user, refreshUser } = useAuth();
+  const {
+    accessCatalog = [],
+    checklistRoles = [],
+    roleAccess = {},
+    roleDefaults = {},
+    effectiveAccess = [],
+    hasFeature,
+    refreshTenant,
+    loading: tenantLoading,
+  } = useTenant();
+
+  const isOwner = user?.role === 'Owner';
   const hasStaff = Boolean(
-    user?.role === 'Owner' ||
+    isOwner ||
     user?.role === 'General Manager' ||
     user?.accessOverrides?.add?.includes('staff') ||
     user?.access?.includes('access_control')
   );
 
-  const roles = useMemo(() => {
-    if (user?.role === 'Owner') {
+  const canViewRoleDefaults = ['Owner', 'General Manager', 'Sales Manager'].includes(user?.role);
+
+  // Sub-tab selection: 'staff' | 'roles'
+  const [activeTab, setActiveTab] = useState(() => {
+    if (urlTab === 'roles' || urlTab === 'staff') return urlTab;
+    return defaultTab;
+  });
+
+  useEffect(() => {
+    if (urlTab === 'roles' || urlTab === 'staff') {
+      setActiveTab(urlTab);
+    }
+  }, [urlTab]);
+
+  const handleTabChange = (t) => {
+    setActiveTab(t);
+    setSearchParams({ tab: t }, { replace: true });
+  };
+
+  // ══════════════════════════════════════════════════════════════════════
+  // TAB 1: Staff Members & Overrides State
+  // ══════════════════════════════════════════════════════════════════════
+  const staffFilterRoles = useMemo(() => {
+    if (isOwner) {
       return ['General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'];
     }
     if (user?.role === 'General Manager') {
@@ -108,24 +145,25 @@ export default function AccessControl() {
       );
     }
     return (ROLE_CHOICES[user?.role] || []).filter((r) => r !== 'General Manager');
-  }, [user, hasStaff]);
-  const [role, setRole] = useState('');
+  }, [user, hasStaff, isOwner]);
+
+  const [staffRole, setStaffRole] = useState('');
   const [people, setPeople] = useState([]);
   const [loadingPeople, setLoadingPeople] = useState(false);
-  const [selected, setSelected] = useState(null);
+  const [selectedPerson, setSelectedPerson] = useState(null);
   const [groups, setGroups] = useState([]);
-  const [draft, setDraft] = useState({});
+  const [staffDraft, setStaffDraft] = useState({});
   const [loadingAccess, setLoadingAccess] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [savingStaff, setSavingStaff] = useState(false);
 
   useEffect(() => {
-    if (!role) {
+    if (!staffRole) {
       setPeople([]);
       return undefined;
     }
     let cancelled = false;
     setLoadingPeople(true);
-    listAccessUsersByRole(role)
+    listAccessUsersByRole(staffRole)
       .then((res) => {
         if (!cancelled) setPeople(res.data.users || []);
       })
@@ -136,13 +174,13 @@ export default function AccessControl() {
         if (!cancelled) setLoadingPeople(false);
       });
     return () => { cancelled = true; };
-  }, [role]);
+  }, [staffRole]);
 
   const chooseUser = async (person) => {
-    setSelected(person);
+    setSelectedPerson(person);
     if (!canEditFeatureAccess(user, person.role)) {
       setGroups([]);
-      setDraft({});
+      setStaffDraft({});
       setLoadingAccess(false);
       return;
     }
@@ -157,10 +195,10 @@ export default function AccessControl() {
           flags[feature.key] = feature.enabled;
         });
       });
-      setDraft(flags);
+      setStaffDraft(flags);
     } catch (error) {
       setGroups([]);
-      setDraft({});
+      setStaffDraft({});
       const blockedFromFeatures = error.response?.status === 403 && canChangeUserRole(user, person.role);
       if (!blockedFromFeatures) {
         toast.error(error.response?.data?.message || 'Could not load access');
@@ -172,17 +210,17 @@ export default function AccessControl() {
 
   const savedKeys = useMemo(() => enabledKeys(groups).sort().join('|'), [groups]);
   const draftKeys = useMemo(
-    () => Object.entries(draft).filter(([, on]) => on).map(([key]) => key).sort().join('|'),
-    [draft],
+    () => Object.entries(staffDraft).filter(([, on]) => on).map(([key]) => key).sort().join('|'),
+    [staffDraft],
   );
-  const dirty = Boolean(selected) && savedKeys !== draftKeys;
+  const isStaffDirty = Boolean(selectedPerson) && savedKeys !== draftKeys;
 
-  const confirm = async () => {
-    if (!selected || !dirty) return;
-    const features = Object.entries(draft).filter(([, on]) => on).map(([key]) => key);
-    setSaving(true);
+  const confirmStaffAccess = async () => {
+    if (!selectedPerson || !isStaffDirty) return;
+    const features = Object.entries(staffDraft).filter(([, on]) => on).map(([key]) => key);
+    setSavingStaff(true);
     try {
-      const res = await updateUserAccess(selected._id, features);
+      const res = await updateUserAccess(selectedPerson._id, features);
       const nextGroups = res.data.groups || [];
       setGroups(nextGroups);
       const flags = {};
@@ -191,171 +229,435 @@ export default function AccessControl() {
           flags[feature.key] = feature.enabled;
         });
       });
-      setDraft(flags);
-      toast.success(`Access updated for ${selected.name}`);
+      setStaffDraft(flags);
+      toast.success(`Access updated for ${selectedPerson.name}`);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Could not save access');
     } finally {
-      setSaving(false);
+      setSavingStaff(false);
     }
   };
+
+  // ══════════════════════════════════════════════════════════════════════
+  // TAB 2: Role Defaults State
+  // ══════════════════════════════════════════════════════════════════════
+  const editableChecklistRoles = useMemo(() => {
+    const all = checklistRoles.length
+      ? checklistRoles
+      : ['General Manager', 'Receptionist', 'Coach', 'Coach Manager', 'Accountant', 'Sales', 'Sales Manager'];
+    if (isOwner) return all;
+    return all.filter((r) => r !== 'General Manager');
+  }, [checklistRoles, isOwner]);
+
+  const [defaultRoleChoice, setDefaultRoleChoice] = useState(() => (isOwner ? 'General Manager' : 'Sales Manager'));
+  const [roleDraft, setRoleDraft] = useState([]);
+  const [savingRole, setSavingRole] = useState(false);
+
+  useEffect(() => {
+    if (editableChecklistRoles.length > 0 && !editableChecklistRoles.includes(defaultRoleChoice)) {
+      setDefaultRoleChoice(editableChecklistRoles[0]);
+    }
+  }, [editableChecklistRoles, defaultRoleChoice]);
+
+  const savedRoleList = roleAccess && Object.prototype.hasOwnProperty.call(roleAccess, defaultRoleChoice)
+    ? roleAccess[defaultRoleChoice]
+    : null;
+  const roleBase = savedRoleList || roleDefaults[defaultRoleChoice] || [];
+
+  useEffect(() => {
+    setRoleDraft(Array.isArray(roleBase) ? [...roleBase] : []);
+  }, [defaultRoleChoice, roleAccess, roleDefaults]);
+
+  const actorAreas = useMemo(() => new Set(effectiveAccess || []), [effectiveAccess]);
+  const isReadOnlyRole = !isOwner && defaultRoleChoice === 'General Manager';
+
+  function planLocked(area) {
+    return Boolean(area.planFeature) && typeof hasFeature === 'function' && !hasFeature(area.planFeature);
+  }
+
+  function rowLocked(area) {
+    if (isReadOnlyRole) return true;
+    if (planLocked(area)) return true;
+    if (!isOwner && !actorAreas.has(area.key)) return true;
+    return false;
+  }
+
+  function toggleRoleArea(area) {
+    if (rowLocked(area)) return;
+    setRoleDraft((prev) => (
+      prev.includes(area.key) ? prev.filter((key) => key !== area.key) : [...prev, area.key]
+    ));
+  }
+
+  async function saveRoleDefaults() {
+    setSavingRole(true);
+    try {
+      const areas = roleDraft.filter((key) => {
+        const area = accessCatalog.find((item) => item.key === key);
+        return area && !planLocked(area);
+      });
+      await updateRoleAccess(defaultRoleChoice, areas);
+      toast.success(`Access updated for ${defaultRoleChoice}`);
+      if (typeof refreshTenant === 'function') await refreshTenant();
+      if (typeof refreshUser === 'function') refreshUser();
+    } catch (error) {
+      toast.error(error.response?.data?.message || 'Could not save access');
+    } finally {
+      setSavingRole(false);
+    }
+  }
 
   return (
     <Layout>
       <PageHeader title="Access Control" />
-      <div className="page-wrap" style={{ paddingTop: 24, paddingBottom: 96 }}>
-        <Card>
-          <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
-            Choose a staff member
-          </h3>
-          <p style={{ fontSize: 12, color: 'var(--t4)', marginBottom: 14 }}>
-            Filter by role, then choose the person.
-            {['Owner', 'General Manager', 'Sales Manager'].includes(user?.role) && ' You can also change that person’s role.'}
-          </p>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', maxWidth: 960 }}>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 200px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
-              Role
-              <select
-                value={role}
-                aria-label="Role"
-                onChange={(event) => {
-                  setRole(event.target.value);
-                  setSelected(null);
-                  setGroups([]);
-                  setDraft({});
-                }}
-                style={{
-                  padding: '10px 12px', borderRadius: 8,
-                  border: '1px solid var(--border)', background: 'var(--card)',
-                  color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
-                }}
-              >
-                <option value="">Choose a role</option>
-                {roles.map((item) => <option key={item} value={item}>{item}</option>)}
-              </select>
-            </label>
-            <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 240px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
-              Staff member
-              <select
-                value={selected?._id || ''}
-                aria-label="Staff member"
-                disabled={!role || loadingPeople}
-                onChange={(event) => {
-                  const person = people.find((item) => item._id === event.target.value);
-                  if (person) chooseUser(person);
-                }}
-                style={{
-                  padding: '10px 12px', borderRadius: 8,
-                  border: '1px solid var(--border)', background: 'var(--card)',
-                  color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
-                }}
-              >
-                <option value="">{loadingPeople ? 'Loading…' : 'Choose a person'}</option>
-                {people.map((person) => (
-                  <option key={person._id} value={person._id}>{person.name}</option>
+
+      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 96, maxWidth: 840 }}>
+
+        {/* ── Sub-tabs Header ────────────────────────────────────────── */}
+        <div style={{
+          display: 'flex',
+          borderBottom: '1px solid var(--border)',
+          gap: 6,
+          marginBottom: 20,
+        }}>
+          <button
+            type="button"
+            onClick={() => handleTabChange('staff')}
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '10px 18px',
+              background: 'none',
+              border: 'none',
+              borderBottom: `2px solid ${activeTab === 'staff' ? 'var(--navy)' : 'transparent'}`,
+              marginBottom: -1,
+              color: activeTab === 'staff' ? 'var(--navy)' : 'var(--t3)',
+              fontSize: 13,
+              fontWeight: activeTab === 'staff' ? 700 : 500,
+              cursor: 'pointer',
+              fontFamily: 'inherit',
+              transition: 'all 0.15s ease',
+            }}
+          >
+            <span>👤</span>
+            <span>Staff Members & Roles</span>
+          </button>
+
+          {canViewRoleDefaults && (
+            <button
+              type="button"
+              onClick={() => handleTabChange('roles')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '10px 18px',
+                background: 'none',
+                border: 'none',
+                borderBottom: `2px solid ${activeTab === 'roles' ? 'var(--navy)' : 'transparent'}`,
+                marginBottom: -1,
+                color: activeTab === 'roles' ? 'var(--navy)' : 'var(--t3)',
+                fontSize: 13,
+                fontWeight: activeTab === 'roles' ? 700 : 500,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+                transition: 'all 0.15s ease',
+              }}
+            >
+              <span>🛡️</span>
+              <span>Role Defaults</span>
+            </button>
+          )}
+        </div>
+
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB 1: STAFF MEMBERS & OVERRIDES
+           ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'staff' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+            {/* Step 1: Staff Picker */}
+            <Card>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
+                Choose a Staff Member
+              </h3>
+              <p style={{ fontSize: 12, color: 'var(--t4)', margin: '0 0 14px' }}>
+                Select a staff member to view their access, promote/change their role, or customize individual feature overrides.
+              </p>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 200px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
+                  Current Role
+                  <select
+                    value={staffRole}
+                    aria-label="Filter role"
+                    onChange={(event) => {
+                      setStaffRole(event.target.value);
+                      setSelectedPerson(null);
+                      setGroups([]);
+                      setStaffDraft({});
+                    }}
+                    style={{
+                      padding: '10px 12px', borderRadius: 8,
+                      border: '1px solid var(--border)', background: 'var(--card)',
+                      color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
+                    }}
+                  >
+                    <option value="">Choose a role</option>
+                    {staffFilterRoles.map((item) => <option key={item} value={item}>{item}</option>)}
+                  </select>
+                </label>
+
+                <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 240px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
+                  Staff Member
+                  <select
+                    value={selectedPerson?._id || ''}
+                    aria-label="Staff member"
+                    disabled={!staffRole || loadingPeople}
+                    onChange={(event) => {
+                      const person = people.find((item) => item._id === event.target.value);
+                      if (person) chooseUser(person);
+                    }}
+                    style={{
+                      padding: '10px 12px', borderRadius: 8,
+                      border: '1px solid var(--border)', background: 'var(--card)',
+                      color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
+                    }}
+                  >
+                    <option value="">{loadingPeople ? 'Loading staff…' : 'Choose a person'}</option>
+                    {people.map((person) => (
+                      <option key={person._id} value={person._id}>{person.name}</option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            </Card>
+
+            {/* Step 2: Staff Member Profile & Role Changer Card */}
+            {selectedPerson && (
+              <div style={{
+                background: 'var(--card)',
+                border: '1px solid var(--border)',
+                borderRadius: 12,
+                padding: '16px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 14,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Avatar name={selectedPerson.name} size="md" />
+                    <div>
+                      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>{selectedPerson.name}</div>
+                      <div style={{ fontSize: 12, color: 'var(--t4)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span>{selectedPerson.email || 'No email registered'}</span>
+                        {selectedPerson.mobile_number && <span>· {selectedPerson.mobile_number}</span>}
+                      </div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600 }}>Role:</span>
+                    <Badge status="active">{selectedPerson.role}</Badge>
+                  </div>
+                </div>
+
+                {canChangeUserRole(user, selectedPerson.role) && (
+                  <div style={{
+                    paddingTop: 14,
+                    borderTop: '1px solid var(--border)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 16,
+                    flexWrap: 'wrap',
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Change Assigned Role</div>
+                      <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>
+                        Promote or change this staff member’s role. Their baseline privileges will update automatically.
+                      </div>
+                    </div>
+                    <ChangeRoleField
+                      userId={selectedPerson._id}
+                      currentRole={selectedPerson.role}
+                      label="New Role"
+                      onChanged={async (newRole) => {
+                        const person = { ...selectedPerson, role: newRole };
+                        setSelectedPerson(person);
+                        if (newRole !== staffRole) setStaffRole(newRole);
+                        await chooseUser(person);
+                      }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
+            {loadingAccess && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
+            )}
+
+            {!loadingAccess && selectedPerson && groups.length === 0 && !hasStaff && user?.role === 'Sales Manager' && canChangeUserRole(user, selectedPerson.role) && (
+              <p style={{ fontSize: 13, color: 'var(--t3)', marginTop: 8 }}>
+                You can change this person’s role above. Feature overrides for this person are managed by an owner or general manager.
+              </p>
+            )}
+
+            {/* Step 3: Feature Overrides Checklist */}
+            {!loadingAccess && selectedPerson && groups.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <p style={{ fontSize: 13, color: 'var(--t3)', margin: 0 }}>
+                  Feature overrides for <strong>{selectedPerson.name}</strong> ({selectedPerson.role}). Role defaults remain active unless individually toggled.
+                </p>
+
+                {groups.map((group) => (
+                  <Card key={group.role}>
+                    <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 12 }}>
+                      {group.role}
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1, background: 'var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                      {group.features.map((feature) => {
+                        const on = Boolean(staffDraft[feature.key]);
+                        const label = draftBadge(feature, on);
+                        return (
+                          <div key={feature.key} style={{
+                            display: 'flex', alignItems: 'center', gap: 14,
+                            background: 'var(--card)', padding: '14px 16px',
+                            opacity: feature.locked ? 0.72 : 1,
+                          }}>
+                            <span style={{ fontSize: 20, flexShrink: 0 }}>{feature.icon}</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
+                                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{feature.label}</span>
+                                {label && (
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: label.color, letterSpacing: '0.3px' }}>{label.text}</span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: 12, color: 'var(--t4)' }}>{feature.description}</div>
+                              {feature.locked && feature.lockReason && (
+                                <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 4 }}>{feature.lockReason}</div>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: on ? 'var(--green)' : 'var(--red)' }}>
+                                {on ? 'Enabled' : 'Disabled'}
+                              </span>
+                              <Toggle
+                                checked={on}
+                                disabled={feature.locked}
+                                onChange={(value) => setStaffDraft((prev) => ({ ...prev, [feature.key]: value }))}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </Card>
                 ))}
-              </select>
-            </label>
-            {selected && canChangeUserRole(user, selected.role) && (
-              <ChangeRoleField
-                userId={selected._id}
-                currentRole={selected.role}
-                label="Change role"
-                onChanged={async (newRole) => {
-                  const person = { ...selected, role: newRole };
-                  setSelected(person);
-                  if (newRole !== role) setRole(newRole);
-                  await chooseUser(person);
-                }}
-              />
+
+                {/* Sticky Action Footer */}
+                <div style={{
+                  position: 'sticky', bottom: 16, zIndex: 5,
+                  display: 'flex', justifyContent: 'flex-end', gap: 10,
+                  background: 'var(--card)', border: '1px solid var(--border)',
+                  borderRadius: 12, padding: '12px 14px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+                }}>
+                  <Btn
+                    variant="ghost"
+                    disabled={!isStaffDirty || savingStaff}
+                    onClick={() => {
+                      const flags = {};
+                      groups.forEach((group) => group.features.forEach((feature) => { flags[feature.key] = feature.enabled; }));
+                      setStaffDraft(flags);
+                    }}
+                  >
+                    Reset Overrides
+                  </Btn>
+                  <Btn disabled={!isStaffDirty || savingStaff} onClick={confirmStaffAccess}>
+                    {savingStaff ? <Spinner size="sm" /> : 'Confirm Access'}
+                  </Btn>
+                </div>
+              </div>
             )}
           </div>
-        </Card>
-
-        {loadingAccess && (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
         )}
 
-        {!loadingAccess && selected && groups.length === 0 && !hasStaff && user?.role === 'Sales Manager' && canChangeUserRole(user, selected.role) && (
-          <p style={{ fontSize: 13, color: 'var(--t3)', marginTop: 18 }}>
-            You can change this person’s role. Feature access for this person is managed by an owner or general manager.
-          </p>
-        )}
+        {/* ════════════════════════════════════════════════════════════════════
+            TAB 2: ROLE DEFAULTS
+           ════════════════════════════════════════════════════════════════════ */}
+        {activeTab === 'roles' && canViewRoleDefaults && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {tenantLoading && !accessCatalog.length ? (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size="lg" /></div>
+            ) : (
+              <Card>
+                <div style={{ marginBottom: 16 }}>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t3)', marginBottom: 6 }}>
+                    Select Role to Configure
+                  </label>
+                  <select
+                    value={defaultRoleChoice}
+                    onChange={(event) => setDefaultRoleChoice(event.target.value)}
+                    style={{
+                      width: '100%', maxWidth: 320,
+                      padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)',
+                      background: 'var(--card)', color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
+                    }}
+                  >
+                    {editableChecklistRoles.map((name) => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                  </select>
+                </div>
 
-        {!loadingAccess && selected && groups.length > 0 && (
-          <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <p style={{ fontSize: 13, color: 'var(--t3)', margin: 0 }}>
-              Features for <strong>{selected.name}</strong> ({selected.role}). Defaults stay on until you change them. Confirm at the bottom to save.
-            </p>
-            {groups.map((group) => (
-              <Card key={group.role}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 12 }}>
-                  {group.role}
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, background: 'var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-                  {group.features.map((feature) => {
-                    const on = Boolean(draft[feature.key]);
-                    const label = draftBadge(feature, on);
+                <div style={{
+                  background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8,
+                  padding: '10px 14px', marginBottom: 16, fontSize: 12, color: 'var(--t3)', lineHeight: 1.5,
+                }}>
+                  {isReadOnlyRole ? (
+                    <span style={{ color: 'var(--amber)' }}>Only the owner can modify the General Manager baseline permissions.</span>
+                  ) : !savedRoleList ? (
+                    <span>This role is currently using factory defaults. Modifying and saving will establish your gym’s custom baseline for this role.</span>
+                  ) : (
+                    <span>Changes to this checklist apply automatically to all staff in the <strong>{defaultRoleChoice}</strong> role who do not have custom overrides.</span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {accessCatalog.map((area) => {
+                    const on = roleDraft.includes(area.key) && !planLocked(area);
+                    const disabled = rowLocked(area);
                     return (
-                      <div key={feature.key} style={{
-                        display: 'flex', alignItems: 'center', gap: 14,
-                        background: 'var(--card)', padding: '14px 16px',
-                        opacity: feature.locked ? 0.72 : 1,
+                      <div key={area.key} style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                        padding: '12px 14px', borderRadius: 8, border: '1px solid var(--border)',
+                        background: 'var(--card)',
                       }}>
-                        <span style={{ fontSize: 20, flexShrink: 0 }}>{feature.icon}</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{feature.label}</span>
-                            {label && (
-                              <span style={{ fontSize: 10, fontWeight: 700, color: label.color, letterSpacing: '0.3px' }}>{label.text}</span>
-                            )}
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{area.label}</div>
+                          <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
+                            {planLocked(area) ? 'Not included in this gym’s plan' : area.description}
+                            {!isOwner && !actorAreas.has(area.key) && !planLocked(area) ? ' · You do not possess this privilege' : ''}
                           </div>
-                          <div style={{ fontSize: 12, color: 'var(--t4)' }}>{feature.description}</div>
-                          {feature.locked && feature.lockReason && (
-                            <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 4 }}>{feature.lockReason}</div>
-                          )}
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-                          <span style={{ fontSize: 11, fontWeight: 600, color: on ? 'var(--green)' : 'var(--red)' }}>
-                            {on ? 'Enabled' : 'Disabled'}
-                          </span>
-                          <Toggle
-                            checked={on}
-                            disabled={feature.locked}
-                            onChange={(value) => setDraft((prev) => ({ ...prev, [feature.key]: value }))}
-                          />
-                        </div>
+                        <Toggle checked={on} disabled={disabled} onChange={() => toggleRoleArea(area)} />
                       </div>
                     );
                   })}
                 </div>
-              </Card>
-            ))}
 
-            <div style={{
-              position: 'sticky', bottom: 16, zIndex: 5,
-              display: 'flex', justifyContent: 'flex-end', gap: 10,
-              background: 'var(--card)', border: '1px solid var(--border)',
-              borderRadius: 12, padding: '12px 14px',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-            }}>
-              <Btn
-                variant="ghost"
-                disabled={!dirty || saving}
-                onClick={() => {
-                  const flags = {};
-                  groups.forEach((group) => group.features.forEach((feature) => { flags[feature.key] = feature.enabled; }));
-                  setDraft(flags);
-                }}
-              >
-                Reset
-              </Btn>
-              <Btn disabled={!dirty || saving} onClick={confirm}>
-                {saving ? <Spinner size="sm" /> : 'Confirm access'}
-              </Btn>
-            </div>
+                <div style={{ marginTop: 20 }}>
+                  <Btn onClick={saveRoleDefaults} disabled={savingRole || !hasStaff || isReadOnlyRole}>
+                    {savingRole ? <Spinner size="sm" /> : 'Save Role Defaults'}
+                  </Btn>
+                </div>
+              </Card>
+            )}
           </div>
         )}
+
       </div>
     </Layout>
   );

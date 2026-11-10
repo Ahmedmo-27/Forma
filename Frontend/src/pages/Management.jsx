@@ -126,10 +126,10 @@ export default function Management() {
               <MgmtCard icon="🏢" title="Teams Overview" sub="All teams at a glance"           to="/owner/teams"  iconBg="#F5F3FF" />
             )}
             {show.roleAccess && (
-              <MgmtCard icon="🛡️" title="Role Access" sub="Turn areas on or off for a role" to="/owner/access" iconBg="#F5F3FF" />
+              <MgmtCard icon="🛡️" title="Role Access" sub="Turn areas on or off for a role" to="/owner/access?tab=roles" iconBg="#F5F3FF" />
             )}
             {show.accessControl && (
-              <MgmtCard icon="🔑" title="Access Control" sub="Grant or remove features for a staff member" to="/management/access" iconBg="#F5F3FF" />
+              <MgmtCard icon="🔑" title="Access Control" sub="Grant or remove features for a staff member" to="/management/access?tab=staff" iconBg="#F5F3FF" />
             )}
           </Section>
         )}
