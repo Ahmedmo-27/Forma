@@ -1334,7 +1334,7 @@ const getTodayCheckIns = async (req, res) => {
 // ─── 9. Get All Notes (for Call Center page — Sales Manager / Owner) ──────────
 const getAllNotes = async (req, res) => {
     try {
-        const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 25 });
+        const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 10 });
         const match = { "notes.0": { $exists: true } };
 
         // Sales reps are always scoped to their own notes — ignore any createdBy param they pass

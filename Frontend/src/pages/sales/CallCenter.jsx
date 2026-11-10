@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -7,7 +7,8 @@ import Layout from '../../components/Layout';
 import { PageHeader, Card, Btn, SearchInput, EmptyState, Avatar, Badge, Spinner, fmtDateTime, Pagination } from '../../components/ui';
 import { getAllNotes, getSalesUsers } from '../../api/endpoints';
 
-const PAGE_SIZE = 25;
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 export default function CallCenter() {
   usePageTitle('Call Center');
@@ -18,8 +19,17 @@ export default function CallCenter() {
   const [loading,    setLoading]    = useState(true);
   const [search,     setSearch]     = useState('');
   const [salesFilter, setSalesFilter] = useState('all');
+  const [authorSearch, setAuthorSearch] = useState('');
   const [page, setPage] = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const saved = parseInt(localStorage.getItem('callcenter_page_size'), 10);
+      return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_PAGE_SIZE;
+    } catch {
+      return DEFAULT_PAGE_SIZE;
+    }
+  });
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: DEFAULT_PAGE_SIZE });
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo,   setDateTo]   = useState('');
 
@@ -39,24 +49,41 @@ export default function CallCenter() {
     try {
       const res = await getAllNotes({
         page,
-        limit: PAGE_SIZE,
+        limit: pageSize,
         search: debouncedSearch || undefined,
         createdBy: salesFilter !== 'all' ? salesFilter : undefined,
         dateFrom: dateFrom || undefined,
         dateTo:   dateTo   || undefined,
       });
       setNotes(res.data.notes ?? []);
-      setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
+      setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: pageSize });
     } catch {
       toast.error('Failed to load notes.');
     } finally {
       setLoading(false);
     }
-  }, [page, debouncedSearch, salesFilter, dateFrom, dateTo]);
+  }, [page, pageSize, debouncedSearch, salesFilter, dateFrom, dateTo]);
 
   useEffect(() => { fetchSalesUsers(); }, [fetchSalesUsers]);
   useEffect(() => { fetchNotes(); }, [fetchNotes]);
-  useEffect(() => { setPage(1); }, [debouncedSearch, salesFilter, dateFrom, dateTo]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, salesFilter, dateFrom, dateTo, pageSize]);
+
+  const handlePageSizeChange = (newSize) => {
+    const valid = Math.max(1, Math.min(100, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
+    setPageSize(valid);
+    setPage(1);
+    try {
+      localStorage.setItem('callcenter_page_size', String(valid));
+    } catch {
+      // ignore
+    }
+  };
+
+  const filteredAuthors = useMemo(() => {
+    if (!authorSearch.trim()) return salesUsers;
+    const q = authorSearch.toLowerCase();
+    return salesUsers.filter(u => u.name?.toLowerCase().includes(q) || u.role?.toLowerCase().includes(q));
+  }, [salesUsers, authorSearch]);
 
   return (
     <Layout>
@@ -94,7 +121,7 @@ export default function CallCenter() {
 
         <div className="grid-sidebar">
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, position: 'sticky', top: 16 }}>
 
             {/* Date range filter */}
             <div style={{
@@ -150,53 +177,101 @@ export default function CallCenter() {
               </div>
             </div>
 
+            {/* Author filter */}
             <div style={{
               background: 'var(--card)',
               border: '1px solid var(--border)',
               borderRadius: 8,
               overflow: 'hidden',
             }}>
-              <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Filter by Author
+              <div style={{
+                padding: '10px 14px', borderBottom: '1px solid var(--border)',
+                fontSize: 11, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.5px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg)',
+              }}>
+                <span>Filter by Author ({salesUsers.length})</span>
+                {salesFilter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => setSalesFilter('all')}
+                    style={{
+                      background: 'none', border: 'none', color: 'var(--blue)', fontSize: 11,
+                      fontWeight: 600, cursor: 'pointer', padding: 0, fontFamily: 'inherit',
+                    }}
+                  >
+                    Reset
+                  </button>
+                )}
               </div>
 
-              <button
-                onClick={() => setSalesFilter('all')}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--border)',
-                  background: salesFilter === 'all' ? 'var(--navy)' : 'var(--card)',
-                  cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.12s',
-                }}
-                onMouseEnter={e => { if (salesFilter !== 'all') e.currentTarget.style.background = 'var(--bg)'; }}
-                onMouseLeave={e => { if (salesFilter !== 'all') e.currentTarget.style.background = 'var(--card)'; }}
-              >
-                <span style={{ fontSize: 13, fontWeight: 600, color: salesFilter === 'all' ? '#fff' : 'var(--t1)' }}>All</span>
-              </button>
-
-              {salesUsers.map(u => {
-                const isActive = salesFilter === String(u._id);
-                return (
-                  <button
-                    key={u._id}
-                    onClick={() => setSalesFilter(String(u._id))}
+              {salesUsers.length > 5 && (
+                <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', background: 'var(--card)' }}>
+                  <input
+                    type="text"
+                    placeholder="Search author…"
+                    value={authorSearch}
+                    onChange={e => setAuthorSearch(e.target.value)}
                     style={{
-                      width: '100%', display: 'flex', alignItems: 'center', gap: 10,
-                      padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--border)',
-                      background: isActive ? 'var(--navy)' : 'var(--card)',
-                      cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.12s',
+                      width: '100%', padding: '5px 8px', fontSize: 11,
+                      border: '1px solid var(--border)', borderRadius: 5,
+                      background: 'var(--bg)', color: 'var(--t1)', outline: 'none', fontFamily: 'inherit',
                     }}
-                    onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--bg)'; }}
-                    onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'var(--card)'; }}
-                  >
-                    <Avatar name={u.name} size="sm" />
-                    <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: isActive ? '#fff' : 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.name}</div>
-                      <div style={{ fontSize: 10, color: isActive ? 'rgba(255,255,255,0.45)' : 'var(--t4)' }}>{u.role}</div>
-                    </div>
-                  </button>
-                );
-              })}
+                  />
+                </div>
+              )}
+
+              <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                <button
+                  onClick={() => setSalesFilter('all')}
+                  style={{
+                    width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--border)',
+                    borderLeft: salesFilter === 'all' ? '3px solid var(--navy)' : '3px solid transparent',
+                    background: salesFilter === 'all' ? 'color-mix(in srgb, var(--navy) 10%, transparent)' : 'var(--card)',
+                    cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                  }}
+                  onMouseEnter={e => { if (salesFilter !== 'all') e.currentTarget.style.background = 'var(--bg)'; }}
+                  onMouseLeave={e => { if (salesFilter !== 'all') e.currentTarget.style.background = 'var(--card)'; }}
+                >
+                  <span style={{ fontSize: 12, fontWeight: salesFilter === 'all' ? 700 : 500, color: salesFilter === 'all' ? 'var(--navy)' : 'var(--t1)' }}>All Authors</span>
+                  {salesFilter === 'all' && <span style={{ fontSize: 12, color: 'var(--navy)', fontWeight: 800 }}>✓</span>}
+                </button>
+
+                {filteredAuthors.map((u, idx) => {
+                  const isActive = salesFilter === String(u._id);
+                  const isLast = idx === filteredAuthors.length - 1;
+                  return (
+                    <button
+                      key={u._id}
+                      onClick={() => setSalesFilter(String(u._id))}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '9px 12px', border: 'none',
+                        borderBottom: isLast ? 'none' : '1px solid var(--border)',
+                        borderLeft: isActive ? '3px solid var(--navy)' : '3px solid transparent',
+                        background: isActive ? 'color-mix(in srgb, var(--navy) 10%, transparent)' : 'var(--card)',
+                        cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                      }}
+                      onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--bg)'; }}
+                      onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'var(--card)'; }}
+                    >
+                      <Avatar name={u.name} size="sm" />
+                      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                        <div style={{
+                          fontSize: 12,
+                          fontWeight: isActive ? 700 : 600,
+                          color: isActive ? 'var(--navy)' : 'var(--t1)',
+                          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        }}>
+                          {u.name}
+                        </div>
+                        <div style={{ fontSize: 10, color: 'var(--t4)' }}>{u.role}</div>
+                      </div>
+                      {isActive && <span style={{ fontSize: 12, color: 'var(--navy)', fontWeight: 800 }}>✓</span>}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
@@ -239,8 +314,10 @@ export default function CallCenter() {
                   page={pagination.page}
                   totalPages={pagination.totalPages}
                   total={pagination.total}
-                  pageSize={pagination.limit ?? PAGE_SIZE}
+                  pageSize={pageSize}
+                  pageSizeOptions={PAGE_SIZE_OPTIONS}
                   onPageChange={setPage}
+                  onPageSizeChange={handlePageSizeChange}
                 />
               </div>
             )}

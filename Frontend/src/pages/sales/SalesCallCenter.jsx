@@ -8,8 +8,9 @@ import Layout from '../../components/Layout';
 import { PageHeader, Card, EmptyState, Avatar, Badge, Spinner, SearchInput, Btn, Pagination, fmtDateTime, toLocalDateString } from '../../components/ui';
 import { getAllNotes } from '../../api/endpoints';
 
-const TODAY    = toLocalDateString();
-const PAGE_SIZE = 25;
+const TODAY = toLocalDateString();
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 const inputStyle = {
   padding: '7px 10px', fontSize: 13,
@@ -29,7 +30,15 @@ export default function SalesCallCenter() {
   const [dateFrom,   setDateFrom]   = useState('');
   const [dateTo,     setDateTo]     = useState('');
   const [page,       setPage]       = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
+  const [pageSize,   setPageSize]   = useState(() => {
+    try {
+      const saved = parseInt(localStorage.getItem('sales_callcenter_page_size'), 10);
+      return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_PAGE_SIZE;
+    } catch {
+      return DEFAULT_PAGE_SIZE;
+    }
+  });
+  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: DEFAULT_PAGE_SIZE });
 
   const debouncedSearch = useDebounce(search, 300);
 
@@ -39,23 +48,34 @@ export default function SalesCallCenter() {
     try {
       const res = await getAllNotes({
         page,
-        limit: PAGE_SIZE,
+        limit: pageSize,
         createdBy: user._id,
         search:   debouncedSearch || undefined,
         dateFrom: dateFrom || undefined,
         dateTo:   dateTo   || undefined,
       });
       setNotes(res.data.notes ?? []);
-      setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
+      setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: pageSize });
     } catch {
       toast.error('Failed to load notes');
     } finally {
       setLoading(false);
     }
-  }, [user?._id, page, debouncedSearch, dateFrom, dateTo]);
+  }, [user?._id, page, pageSize, debouncedSearch, dateFrom, dateTo]);
 
   useEffect(() => { fetchNotes(); }, [fetchNotes]);
-  useEffect(() => { setPage(1); }, [debouncedSearch, dateFrom, dateTo]);
+  useEffect(() => { setPage(1); }, [debouncedSearch, dateFrom, dateTo, pageSize]);
+
+  const handlePageSizeChange = (newSize) => {
+    const valid = Math.max(1, Math.min(100, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
+    setPageSize(valid);
+    setPage(1);
+    try {
+      localStorage.setItem('sales_callcenter_page_size', String(valid));
+    } catch {
+      // ignore
+    }
+  };
 
   const hasFilters = dateFrom || dateTo || search;
 
@@ -156,8 +176,10 @@ export default function SalesCallCenter() {
                 page={pagination.page}
                 totalPages={pagination.totalPages}
                 total={pagination.total}
-                pageSize={pagination.limit ?? PAGE_SIZE}
+                pageSize={pageSize}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
                 onPageChange={setPage}
+                onPageSizeChange={handlePageSizeChange}
               />
             </>
           )}
