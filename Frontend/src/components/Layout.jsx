@@ -136,64 +136,175 @@ function NavIcon({ name, size = 20 }) {
   }
 }
 
+// ── Check if a navigation tab should be highlighted as active ──────────────────
+export function isNavItemActive(item, pathname, visibleItems = []) {
+  if (!item?.to || !pathname) return false;
+
+  const itemTo = item.to.split('?')[0];
+  const cleanPath = pathname.split('?')[0];
+
+  // 1. Direct exact match
+  if (itemTo === cleanPath) return true;
+
+  // 2. Access tab: matches /owner/access or /management/access
+  if (itemTo === '/owner/access' || itemTo === '/management/access' || item.label === 'Access') {
+    return cleanPath === '/owner/access' || cleanPath === '/management/access';
+  }
+
+  // 3. Management tab: matches /management and all sub-management tools/pages
+  if (itemTo === '/management') {
+    // If a visible Access tab exists, /management/access belongs to Access, not Management
+    const hasVisibleAccessTab = visibleItems.some(
+      (v) => (v.to.startsWith('/owner/access') || v.to.startsWith('/management/access') || v.label === 'Access') && v !== item
+    );
+    if (cleanPath === '/management/access') {
+      return !hasVisibleAccessTab;
+    }
+
+    // Check if another visible tab has an exact or direct match for this path
+    const hasOtherExactTab = visibleItems.some((v) => {
+      if (v === item) return false;
+      const vTo = v.to.split('?')[0];
+      return vTo === cleanPath || (vTo !== '/' && cleanPath.startsWith(vTo + '/'));
+    });
+    if (hasOtherExactTab) return false;
+
+    // All pages originating from Management cards
+    const managementRoutes = [
+      '/management',
+      '/sales/requests',
+      '/sales/packages',
+      '/sales/whatsapp-templates',
+      '/coach/whatsapp-templates',
+      '/sales/team',
+      '/sales/staff',
+      '/sales/targets',
+      '/sales/subscriptions',
+      '/coach/team',
+      '/coach/staff',
+      '/coach/targets',
+      '/coach/my-transfers',
+      '/owner/teams',
+      '/accounting/contract-history',
+      '/accounting/package-requests',
+    ];
+
+    return managementRoutes.some((route) => cleanPath === route || cleanPath.startsWith(route + '/'));
+  }
+
+  // 4. Tasks tab: matches /tasks and /tasks/*
+  if (itemTo === '/tasks') {
+    return cleanPath === '/tasks' || cleanPath.startsWith('/tasks/');
+  }
+
+  // 5. Members tab: matches /members, /members/*, /sales/import
+  if (itemTo === '/members') {
+    return cleanPath === '/members' || cleanPath.startsWith('/members/') || cleanPath === '/sales/import';
+  }
+  if (itemTo === '/sales/members') {
+    return cleanPath === '/sales/members' || cleanPath.startsWith('/sales/members/');
+  }
+  if (itemTo === '/coach/members') {
+    return cleanPath === '/coach/members' || cleanPath.startsWith('/coach/members/');
+  }
+
+  // 6. Reports tab: matches /reports and /reports/*
+  if (itemTo === '/reports') {
+    return cleanPath === '/reports' || cleanPath.startsWith('/reports/');
+  }
+
+  // 7. Check In: matches /checkin or /coach/checkin
+  if (itemTo === '/checkin' || itemTo === '/coach/checkin') {
+    return cleanPath === itemTo || cleanPath.startsWith(itemTo + '/');
+  }
+
+  // 8. Call Center: matches /sales/callcenter or /sales/my-callcenter
+  if (itemTo === '/sales/callcenter' || itemTo === '/sales/my-callcenter') {
+    return cleanPath === itemTo || cleanPath.startsWith(itemTo + '/');
+  }
+
+  // 9. Settings
+  if (itemTo === '/owner/settings') {
+    return cleanPath === '/owner/settings' || cleanPath.startsWith('/owner/settings/');
+  }
+
+  // 10. Generic prefix match if not root
+  if (itemTo !== '/' && cleanPath.startsWith(itemTo + '/')) {
+    const hasCloserTab = visibleItems.some((v) => {
+      if (v === item) return false;
+      const vTo = v.to.split('?')[0];
+      return vTo.length > itemTo.length && cleanPath.startsWith(vTo);
+    });
+    return !hasCloserTab;
+  }
+
+  return false;
+}
+
 // ── Tab button (second row on desktop) ─────────────────────────────────────────
-function TabItem({ item }) {
+function TabItem({ item, active }) {
   return (
     <NavLink to={item.to} style={{ textDecoration: 'none', flexShrink: 0 }}>
-      {({ isActive }) => (
-        <span
-          style={{
-            display: 'inline-flex', alignItems: 'center',
-            padding: '10px 22px', borderRadius: 8,
-            fontSize: 14, fontWeight: isActive ? 700 : 500,
-            color: isActive ? '#fff' : 'rgba(255,255,255,0.62)',
-            background: isActive ? 'linear-gradient(135deg, var(--navy-2), var(--navy-3, var(--navy-2)))' : 'rgba(0,0,0,0.22)',
-            border: `1px solid ${isActive ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.08)'}`,
-            cursor: 'pointer',
-            transition: 'all 0.15s cubic-bezier(0.16,1,0.3,1)',
-            whiteSpace: 'nowrap', letterSpacing: '0.25px',
-            boxShadow: isActive ? '0 2px 10px rgba(0,0,0,0.30),inset 0 1px 0 rgba(255,255,255,0.12)' : 'none',
-          }}
-          onMouseEnter={e => {
-            if (!isActive) {
-              e.currentTarget.style.color = '#fff';
-              e.currentTarget.style.background = 'rgba(255,255,255,0.10)';
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
-            }
-          }}
-          onMouseLeave={e => {
-            if (!isActive) {
-              e.currentTarget.style.color = 'rgba(255,255,255,0.62)';
-              e.currentTarget.style.background = 'rgba(0,0,0,0.22)';
-              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
-            }
-          }}
-        >
-          {item.label}
-        </span>
-      )}
+      {({ isActive: navActive }) => {
+        const isActive = active ?? navActive;
+        return (
+          <span
+            style={{
+              display: 'inline-flex', alignItems: 'center',
+              padding: '10px 22px', borderRadius: 8,
+              fontSize: 14, fontWeight: isActive ? 700 : 500,
+              color: isActive ? '#fff' : 'rgba(255,255,255,0.62)',
+              background: isActive ? 'linear-gradient(135deg, var(--navy-2), var(--navy-3, var(--navy-2)))' : 'rgba(0,0,0,0.22)',
+              border: `1px solid ${isActive ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.08)'}`,
+              cursor: 'pointer',
+              transition: 'all 0.15s cubic-bezier(0.16,1,0.3,1)',
+              whiteSpace: 'nowrap', letterSpacing: '0.25px',
+              boxShadow: isActive ? '0 2px 10px rgba(0,0,0,0.30),inset 0 1px 0 rgba(255,255,255,0.12)' : 'none',
+            }}
+            onMouseEnter={e => {
+              if (!isActive) {
+                e.currentTarget.style.color = '#fff';
+                e.currentTarget.style.background = 'rgba(255,255,255,0.10)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.18)';
+              }
+            }}
+            onMouseLeave={e => {
+              if (!isActive) {
+                e.currentTarget.style.color = 'rgba(255,255,255,0.62)';
+                e.currentTarget.style.background = 'rgba(0,0,0,0.22)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+              }
+            }}
+          >
+            {item.label}
+          </span>
+        );
+      }}
     </NavLink>
   );
 }
 
 // ── Drawer nav item ───────────────────────────────────────────────────────────
-function DrawerItem({ item, onNavigate }) {
+function DrawerItem({ item, active, onNavigate }) {
   return (
     <NavLink to={item.to} onClick={onNavigate} style={{ textDecoration: 'none', display: 'block' }}>
-      {({ isActive }) => (
-        <div style={{
-          padding: '11px 14px', borderRadius: 8, margin: '3px 0',
-          background: isActive ? 'rgba(91,56,186,0.5)' : 'transparent',
-          border: `1px solid ${isActive ? 'rgba(255,255,255,0.15)' : 'transparent'}`,
-          color: isActive ? '#fff' : 'rgba(255,255,255,0.65)',
-          fontSize: 14, fontWeight: isActive ? 600 : 400,
-          display: 'flex', alignItems: 'center', gap: 10,
-          transition: 'all 0.12s',
-          minHeight: 44,
-        }}>
-          {item.label}
-        </div>
-      )}
+      {({ isActive: navActive }) => {
+        const isActive = active ?? navActive;
+        return (
+          <div style={{
+            padding: '11px 14px', borderRadius: 8, margin: '3px 0',
+            background: isActive ? 'rgba(91,56,186,0.5)' : 'transparent',
+            border: `1px solid ${isActive ? 'rgba(255,255,255,0.15)' : 'transparent'}`,
+            color: isActive ? '#fff' : 'rgba(255,255,255,0.65)',
+            fontSize: 14, fontWeight: isActive ? 600 : 400,
+            display: 'flex', alignItems: 'center', gap: 10,
+            transition: 'all 0.12s',
+            minHeight: 44,
+          }}>
+            {item.label}
+          </div>
+        );
+      }}
     </NavLink>
   );
 }
@@ -534,7 +645,13 @@ export default function Layout({ children }) {
         overflowX: 'auto', scrollbarWidth: 'none',
         boxShadow: '0 3px 10px rgba(0,0,0,0.35)',
       }}>
-        {items.map(item => <TabItem key={item.to} item={item} />)}
+        {items.map(item => (
+          <TabItem
+            key={item.to}
+            item={item}
+            active={isNavItemActive(item, location.pathname, items)}
+          />
+        ))}
       </div>
 
       {/* ── MOBILE DRAWER ──────────────────────────────────────── */}
@@ -563,7 +680,14 @@ export default function Layout({ children }) {
           <GlobalSearch />
         </div>
         <nav style={{ flex: 1, padding: '10px 12px', overflowY: 'auto' }}>
-          {items.map(item => <DrawerItem key={item.to} item={item} onNavigate={() => setMob(false)} />)}
+          {items.map(item => (
+            <DrawerItem
+              key={item.to}
+              item={item}
+              active={isNavItemActive(item, location.pathname, items)}
+              onNavigate={() => setMob(false)}
+            />
+          ))}
         </nav>
         <div style={{ padding: '14px 16px 18px', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
@@ -603,13 +727,14 @@ export default function Layout({ children }) {
         justifyContent: 'space-around',
         boxShadow: '0 -4px 20px rgba(0,0,0,0.35)',
       }}>
-        {bottomNavItems.map(item => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}
-          >
-            {({ isActive }) => (
+        {bottomNavItems.map(item => {
+          const isActive = isNavItemActive(item, location.pathname, bottomNavItems);
+          return (
+            <NavLink
+              key={item.to}
+              to={item.to}
+              style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}
+            >
               <div style={{
                 display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                 height: 56, gap: 3,
@@ -629,9 +754,9 @@ export default function Layout({ children }) {
                   }} />
                 )}
               </div>
-            )}
-          </NavLink>
-        ))}
+            </NavLink>
+          );
+        })}
 
         {/* Quick Menu Button to open Drawer */}
         <button
