@@ -1,11 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Spinner, EmptyState, Avatar } from '../../components/ui';
+import { PageHeader, Spinner, EmptyState, Avatar, Pagination } from '../../components/ui';
 import { getSalesTeam, getCoachTeam } from '../../api/endpoints';
 import api from '../../api/axios';
+
+const DEFAULT_PAGE_SIZE = 12;
+const PAGE_SIZE_OPTIONS = [12, 24, 48];
 
 const TABS = [
   { id: 'sales',        label: 'Sales' },
@@ -24,6 +27,21 @@ export default function OwnerTeams() {
   const [accountants, setAccountants] = useState([]);
   const [receptionists, setReceptionists] = useState([]);
   const [loading, setLoading]       = useState(true);
+
+  // Pagination
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const saved = parseInt(localStorage.getItem('owner_teams_page_size'), 10);
+      return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_PAGE_SIZE;
+    } catch {
+      return DEFAULT_PAGE_SIZE;
+    }
+  });
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [tab]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -57,6 +75,26 @@ export default function OwnerTeams() {
     accountant:   accountants,
     receptionist: receptionists,
   }[tab] ?? [];
+
+  const totalPages = Math.max(1, Math.ceil(currentList.length / pageSize));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [totalPages, page]);
+
+  const paginatedList = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return currentList.slice(start, start + pageSize);
+  }, [currentList, page, pageSize]);
+
+  const handlePageSizeChange = (newSize) => {
+    const valid = Math.max(1, Math.min(100, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
+    setPageSize(valid);
+    setPage(1);
+    try {
+      localStorage.setItem('owner_teams_page_size', String(valid));
+    } catch {}
+  };
 
   const counts = {
     sales:        salesTeam.length,
@@ -135,16 +173,30 @@ export default function OwnerTeams() {
         ) : currentList.length === 0 ? (
           <EmptyState message={`No ${TABS.find(t => t.id === tab)?.label ?? ''} members found`} />
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
-            {currentList.map(member => (
-              <UserCard
-                key={member._id}
-                member={member}
-                tab={tab}
-                onClick={() => navigate(`/owner/teams/${member._id}`)}
+          <>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
+              {paginatedList.map(member => (
+                <UserCard
+                  key={member._id}
+                  member={member}
+                  tab={tab}
+                  onClick={() => navigate(`/owner/teams/${member._id}`)}
+                />
+              ))}
+            </div>
+
+            <div style={{ marginTop: 16, background: 'var(--card)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden' }}>
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={currentList.length}
+                pageSize={pageSize}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                onPageChange={setPage}
+                onPageSizeChange={handlePageSizeChange}
               />
-            ))}
-          </div>
+            </div>
+          </>
         )}
       </div>
     </Layout>

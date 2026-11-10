@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Spinner, EmptyState, Avatar, Badge } from '../../components/ui';
+import { PageHeader, Card, Spinner, EmptyState, Avatar, Badge, Pagination } from '../../components/ui';
 import { getSalesTeam, getReceptionistTeam } from '../../api/endpoints';
+
+const DEFAULT_PAGE_SIZE = 12;
+const PAGE_SIZE_OPTIONS = [12, 24, 48];
 
 export default function SalesTeam() {
   usePageTitle('Team');
@@ -15,6 +18,21 @@ export default function SalesTeam() {
   const [receptionists, setReceptionists] = useState([]);
   const [loadingSales, setLoadingSales] = useState(true);
   const [loadingRecp, setLoadingRecp]  = useState(true);
+
+  // Pagination
+  const [pageSize, setPageSize] = useState(() => {
+    try {
+      const saved = parseInt(localStorage.getItem('team_page_size'), 10);
+      return Number.isFinite(saved) && saved > 0 ? saved : DEFAULT_PAGE_SIZE;
+    } catch {
+      return DEFAULT_PAGE_SIZE;
+    }
+  });
+  const [page, setPage] = useState(1);
+
+  useEffect(() => {
+    setPage(1);
+  }, [tab]);
 
   const fetchSales = useCallback(async () => {
     setLoadingSales(true);
@@ -36,6 +54,32 @@ export default function SalesTeam() {
 
   useEffect(() => { fetchSales(); }, [fetchSales]);
   useEffect(() => { fetchReceptionists(); }, [fetchReceptionists]);
+
+  const currentTotal = tab === 'sales' ? salesTeam.length : receptionists.length;
+  const totalPages = Math.max(1, Math.ceil(currentTotal / pageSize));
+
+  useEffect(() => {
+    if (page > totalPages) setPage(1);
+  }, [totalPages, page]);
+
+  const paginatedSales = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return salesTeam.slice(start, start + pageSize);
+  }, [salesTeam, page, pageSize]);
+
+  const paginatedReceptionists = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return receptionists.slice(start, start + pageSize);
+  }, [receptionists, page, pageSize]);
+
+  const handlePageSizeChange = (newSize) => {
+    const valid = Math.max(1, Math.min(100, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
+    setPageSize(valid);
+    setPage(1);
+    try {
+      localStorage.setItem('team_page_size', String(valid));
+    } catch {}
+  };
 
   const loading = tab === 'sales' ? loadingSales : loadingRecp;
   const team = tab === 'sales' ? salesTeam : receptionists;
@@ -89,11 +133,25 @@ export default function SalesTeam() {
             ) : !salesTeam.length ? (
               <EmptyState message="No sales team members found" />
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
-                {salesTeam.map(member => (
-                  <SalesCard key={member._id} member={member} onClick={() => navigate(`/sales/team/${member._id}`)} />
-                ))}
-              </div>
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
+                  {paginatedSales.map(member => (
+                    <SalesCard key={member._id} member={member} onClick={() => navigate(`/sales/team/${member._id}`)} />
+                  ))}
+                </div>
+
+                <div style={{ marginTop: 16, background: 'var(--card)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden' }}>
+                  <Pagination
+                    page={page}
+                    totalPages={totalPages}
+                    total={salesTeam.length}
+                    pageSize={pageSize}
+                    pageSizeOptions={PAGE_SIZE_OPTIONS}
+                    onPageChange={setPage}
+                    onPageSizeChange={handlePageSizeChange}
+                  />
+                </div>
+              </>
             )}
           </>
         )}
@@ -106,11 +164,25 @@ export default function SalesTeam() {
             ) : !receptionists.length ? (
               <EmptyState message="No receptionists found" />
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
-                {receptionists.map(member => (
-                  <ReceptionistCard key={member._id} member={member} onClick={() => navigate(`/sales/team/receptionist/${member._id}`)} />
-                ))}
-              </div>
+              <>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
+                  {paginatedReceptionists.map(member => (
+                    <ReceptionistCard key={member._id} member={member} onClick={() => navigate(`/sales/team/receptionist/${member._id}`)} />
+                  ))}
+                </div>
+
+                <div style={{ marginTop: 16, background: 'var(--card)', borderRadius: 10, border: '1px solid var(--border)', overflow: 'hidden' }}>
+                  <Pagination
+                    page={page}
+                    totalPages={totalPages}
+                    total={receptionists.length}
+                    pageSize={pageSize}
+                    pageSizeOptions={PAGE_SIZE_OPTIONS}
+                    onPageChange={setPage}
+                    onPageSizeChange={handlePageSizeChange}
+                  />
+                </div>
+              </>
             )}
           </>
         )}
