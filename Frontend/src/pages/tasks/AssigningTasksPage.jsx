@@ -21,11 +21,23 @@ import {
   toggleId, canUserAssignTasks, canUserReceiveTasks,
   formatTaskDateTime, packageName, toLocalDateString,
   SELECTION_TEMPLATES, applySelectionTemplate,
+  EXPORT_COLUMNS, buildExcel, columnsForExport,
 } from './taskMembers';
 import AssignedTasksPage from './AssignedTasksPage';
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
+const DEFAULT_COLUMNS = ['systemId', 'name', 'phone', 'status', 'package', 'endDate', 'salesman', 'coach'];
+
+function downloadExcel(filename, columns, rows) {
+  const blob = new Blob([buildExcel(columns, rows)], { type: 'application/vnd.ms-excel' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 export default function AssigningTasksPage() {
   usePageTitle('Tasks Management');
@@ -44,6 +56,29 @@ export default function AssigningTasksPage() {
   const [salesUsers, setSalesUsers] = useState([]);
   const [coaches, setCoaches] = useState([]);
   const [allPackages, setAllPackages] = useState([]);
+
+  // ── Column Visibility State ──
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [visibleKeys, setVisibleKeys] = useState(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('tasks_visible_columns'));
+      return Array.isArray(saved) && saved.length ? saved : DEFAULT_COLUMNS;
+    } catch {
+      return DEFAULT_COLUMNS;
+    }
+  });
+
+  const handleUpdateVisibleKeys = (keysOrUpdater) => {
+    setVisibleKeys((prev) => {
+      const next = typeof keysOrUpdater === 'function' ? keysOrUpdater(prev) : keysOrUpdater;
+      try {
+        localStorage.setItem('tasks_visible_columns', JSON.stringify(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  };
 
   // ── Server Pagination & Status Filter (matching Members page) ──
   const [pageSize, setPageSize] = useState(() => {
@@ -207,6 +242,18 @@ export default function AssigningTasksPage() {
   const openTasksHistoryModal = () => {
     setHistoryOpen(true);
     fetchCreatedTasks();
+  };
+
+  // ── Export Sheet ──
+  const exportSheet = () => {
+    const cols = columnsForExport(visibleKeys);
+    const rows = selected.size > 0 ? members.filter((m) => selected.has(m._id)) : members;
+    if (!rows.length) {
+      toast.error('No members to export');
+      return;
+    }
+    downloadExcel(`tasks-schedule-${toLocalDateString(new Date())}.xls`, cols, rows);
+    toast.success(`Exported ${rows.length} rows to Excel`);
   };
 
   // ── Quick Date Presets ──
@@ -412,6 +459,35 @@ export default function AssigningTasksPage() {
     }
   };
 
+  // ── Dynamic Table Headers based on visibleKeys ──
+  const tableHeaders = useMemo(() => {
+    const h = [
+      <input
+        key="master-cb"
+        type="checkbox"
+        checked={allOnPageSelected}
+        onChange={handleToggleSelectAllPage}
+        title="Select all on this page"
+        style={{ cursor: 'pointer' }}
+      />,
+    ];
+
+    if (visibleKeys.includes('systemId')) h.push('ID');
+    if (visibleKeys.includes('name')) h.push('Name');
+    if (visibleKeys.includes('phone')) h.push('Phone');
+    if (visibleKeys.includes('status')) h.push('Status');
+    if (visibleKeys.includes('package')) h.push('Package');
+    if (visibleKeys.includes('endDate')) h.push('Expires');
+    if (visibleKeys.includes('salesman') || visibleKeys.includes('sales')) h.push('Sales Rep');
+    if (visibleKeys.includes('coach')) h.push('Coach');
+    if (visibleKeys.includes('gender')) h.push('Gender');
+    if (visibleKeys.includes('startDate')) h.push('Start Date');
+    if (visibleKeys.includes('joined')) h.push('Joined');
+    if (visibleKeys.includes('transfers')) h.push('Transfers');
+    h.push('Actions');
+    return h;
+  }, [visibleKeys, allOnPageSelected]);
+
   return (
     <Layout>
       <PageHeader title="Tasks Management">
@@ -425,6 +501,14 @@ export default function AssigningTasksPage() {
 
           <Btn variant="outline" size="sm" onClick={openTasksHistoryModal}>
             📋 View Created Tasks
+          </Btn>
+
+          <Btn variant="outline" size="sm" onClick={() => setColumnsOpen(true)}>
+            Columns
+          </Btn>
+
+          <Btn variant="outline" size="sm" onClick={exportSheet} disabled={loading || !members.length}>
+            Export Excel
           </Btn>
         </div>
       </PageHeader>
@@ -926,34 +1010,17 @@ export default function AssigningTasksPage() {
               </div>
             </div>
 
-            {/* Member Table Card (matching Members.jsx styling) */}
+            {/* Member Table Card (matching Members.jsx styling, respecting visibleKeys) */}
             <Card noPad>
               <div style={{ overflowX: 'auto' }}>
                 <Table
                   loading={loading}
                   skeletonRows={Math.min(pageSize, 8)}
-                  headers={[
-                    <input
-                      key="master-cb"
-                      type="checkbox"
-                      checked={allOnPageSelected}
-                      onChange={handleToggleSelectAllPage}
-                      title="Select all on this page"
-                      style={{ cursor: 'pointer' }}
-                    />,
-                    'ID',
-                    'Name',
-                    'Status',
-                    'Package',
-                    'Expires',
-                    'Sales Rep',
-                    'Coach',
-                    'Actions',
-                  ]}
+                  headers={tableHeaders}
                 >
                   {!members.length && !loading ? (
                     <tr>
-                      <td colSpan={9}>
+                      <td colSpan={tableHeaders.length}>
                         <EmptyState message="No members match your search or filters" />
                       </td>
                     </tr>
@@ -989,51 +1056,103 @@ export default function AssigningTasksPage() {
                               style={{ cursor: 'pointer' }}
                             />
                           </td>
-                          <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}>
-                            {formatSystemId(m.systemId)}
-                            {m.memberId ? ` / ${m.memberId}` : ''}
-                          </td>
-                          <td style={{ padding: '10px 14px' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                              <Avatar name={m.name} size="sm" photo={m.photo} />
-                              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{m.name}</span>
-                            </div>
-                          </td>
-                          <td style={{ padding: '10px 14px' }}>
-                            <Badge status={m.status} />
-                          </td>
-                          <td style={{ padding: '10px 14px', fontSize: 12 }}>
-                            {pkg ? (
-                              <span style={{ color: 'var(--t1)', fontWeight: 500 }}>
-                                {pkg.name}
-                                <br />
-                                <span style={{ color: 'var(--t4)', fontSize: 11 }}>
-                                  {pkg.activityType} · {pkg.duration}
+
+                          {visibleKeys.includes('systemId') && (
+                            <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}>
+                              {formatSystemId(m.systemId)}
+                              {m.memberId ? ` / ${m.memberId}` : ''}
+                            </td>
+                          )}
+
+                          {visibleKeys.includes('name') && (
+                            <td style={{ padding: '10px 14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <Avatar name={m.name} size="sm" photo={m.photo} />
+                                <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{m.name}</span>
+                              </div>
+                            </td>
+                          )}
+
+                          {visibleKeys.includes('phone') && (
+                            <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
+                              {m.phones || '—'}
+                            </td>
+                          )}
+
+                          {visibleKeys.includes('status') && (
+                            <td style={{ padding: '10px 14px' }}>
+                              <Badge status={m.status} />
+                            </td>
+                          )}
+
+                          {visibleKeys.includes('package') && (
+                            <td style={{ padding: '10px 14px', fontSize: 12 }}>
+                              {pkg ? (
+                                <span style={{ color: 'var(--t1)', fontWeight: 500 }}>
+                                  {pkg.name}
+                                  <br />
+                                  <span style={{ color: 'var(--t4)', fontSize: 11 }}>
+                                    {pkg.activityType} · {pkg.duration}
+                                  </span>
                                 </span>
-                              </span>
-                            ) : (
-                              <span style={{ color: 'var(--t4)' }}>—</span>
-                            )}
-                          </td>
-                          <td
-                            style={{
-                              padding: '10px 14px',
-                              fontSize: 12,
-                              color: expiring ? 'var(--amber)' : 'var(--t3)',
-                              fontWeight: expiring ? 600 : 400,
-                            }}
-                          >
-                            {fmtDate(sub?.endDate)}
-                            {expiring && (
-                              <span style={{ display: 'block', fontSize: 10, color: 'var(--amber)' }}>Expiring soon</span>
-                            )}
-                          </td>
-                          <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
-                            {m.assignedSales?.name ?? <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
-                          </td>
-                          <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
-                            {m.current_couch?.name ?? <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
-                          </td>
+                              ) : (
+                                <span style={{ color: 'var(--t4)' }}>—</span>
+                              )}
+                            </td>
+                          )}
+
+                          {visibleKeys.includes('endDate') && (
+                            <td
+                              style={{
+                                padding: '10px 14px',
+                                fontSize: 12,
+                                color: expiring ? 'var(--amber)' : 'var(--t3)',
+                                fontWeight: expiring ? 600 : 400,
+                              }}
+                            >
+                              {fmtDate(sub?.endDate)}
+                              {expiring && (
+                                <span style={{ display: 'block', fontSize: 10, color: 'var(--amber)' }}>Expiring soon</span>
+                              )}
+                            </td>
+                          )}
+
+                          {(visibleKeys.includes('salesman') || visibleKeys.includes('sales')) && (
+                            <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
+                              {m.assignedSales?.name ?? <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
+                            </td>
+                          )}
+
+                          {visibleKeys.includes('coach') && (
+                            <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
+                              {m.current_couch?.name ?? <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
+                            </td>
+                          )}
+
+                          {visibleKeys.includes('gender') && (
+                            <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)', textTransform: 'capitalize' }}>
+                              {m.gender || '—'}
+                            </td>
+                          )}
+
+                          {visibleKeys.includes('startDate') && (
+                            <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}>
+                              {fmtDate(sub?.startDate)}
+                            </td>
+                          )}
+
+                          {visibleKeys.includes('joined') && (
+                            <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}>
+                              {fmtDate(m.createdAt)}
+                            </td>
+                          )}
+
+                          {visibleKeys.includes('transfers') && (
+                            <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}>
+                              {Array.isArray(m.userlog) ? m.userlog.filter((l) => l.type === 'assign').length : 0}
+                            </td>
+                          )}
+
                           <td style={{ padding: '10px 14px' }} onClick={(e) => e.stopPropagation()}>
                             <Btn variant="outline" size="xs" onClick={() => navigate(`/members/${m.systemId}`)}>
                               View
@@ -1096,6 +1215,67 @@ export default function AssigningTasksPage() {
               </form>
             </Card>
           </>
+        )}
+
+        {/* ── CUSTOMIZE COLUMNS MODAL ── */}
+        {columnsOpen && (
+          <Modal title="Customize Table Columns" onClose={() => setColumnsOpen(false)} size="md">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <p style={{ fontSize: 13, color: 'var(--t3)', margin: 0 }}>
+                Select which columns are visible in the schedule table and exported Excel sheets.
+              </p>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px 14px' }}>
+                {EXPORT_COLUMNS.map((col) => {
+                  const checked = visibleKeys.includes(col.key);
+                  return (
+                    <label
+                      key={col.key}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                        fontSize: 13,
+                        color: 'var(--t1)',
+                        cursor: 'pointer',
+                        padding: '8px 12px',
+                        borderRadius: 8,
+                        background: checked ? 'var(--navy-subtle, rgba(59, 130, 246, 0.08))' : 'var(--bg)',
+                        border: `1px solid ${checked ? 'var(--primary)' : 'var(--border)'}`,
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          handleUpdateVisibleKeys((prev) =>
+                            prev.includes(col.key)
+                              ? prev.filter((k) => k !== col.key)
+                              : [...prev, col.key]
+                          );
+                        }}
+                      />
+                      <span style={{ fontWeight: checked ? 600 : 400 }}>{col.label}</span>
+                    </label>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                <Btn
+                  size="xs"
+                  variant="ghost"
+                  onClick={() => handleUpdateVisibleKeys(DEFAULT_COLUMNS)}
+                >
+                  Reset to Default
+                </Btn>
+                <Btn size="sm" variant="primary" onClick={() => setColumnsOpen(false)}>
+                  Apply Columns
+                </Btn>
+              </div>
+            </div>
+          </Modal>
         )}
 
         {/* ── BULK TRANSFER MODAL ── */}
