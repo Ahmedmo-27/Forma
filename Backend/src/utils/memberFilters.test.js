@@ -29,6 +29,21 @@ describe("member list filters", () => {
         expect(stats.userlog).toBeUndefined();
         expect(stats.createdAt).toBeUndefined();
         expect(stats["subscriptions.endDate"]).toBeUndefined();
+        expect(stats["subscriptions"]).toBeUndefined();
+    });
+
+    it("builds expiringSoon filter using $elemMatch and proper date boundaries without refunded/cancelled", () => {
+        const filter = buildMemberListFilter({
+            expiringSoon: "true",
+        });
+        expect(filter.status).toBe("active");
+        expect(filter.subscriptions).toBeDefined();
+        expect(filter.subscriptions.$elemMatch).toBeDefined();
+        expect(filter.subscriptions.$elemMatch.refunded).toEqual({ $ne: true });
+        expect(filter.subscriptions.$elemMatch.cancelled).toEqual({ $ne: true });
+        expect(filter.subscriptions.$elemMatch.endDate.$gte).toBeInstanceOf(Date);
+        expect(filter.subscriptions.$elemMatch.endDate.$lte).toBeInstanceOf(Date);
+        expect(filter["subscriptions.endDate"]).toBeUndefined();
     });
 
     it("counts each status with countDocuments so string ids still match", async () => {
