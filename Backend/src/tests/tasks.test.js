@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import mongoose from "mongoose";
 import Notification from "../models/Notification.js";
 import Task from "../models/Task.js";
 import Member from "../models/Member.js";
@@ -88,29 +89,59 @@ describe("Task Notifications and Differentiation", () => {
     });
 });
 
+describe("Member Schema Validation for Tasks", () => {
+    it("ensures Member userlog schema enum includes 'task_completed'", () => {
+        const enumValues = Member.schema.path("userlog").schema.path("type").enumValues;
+        expect(enumValues).toContain("task_completed");
+    });
+
+    it("validates Member document when userlog contains 'task_completed'", () => {
+        const member = new Member({
+            tenantId: new mongoose.Types.ObjectId(),
+            name: "Test Member",
+            phones: "01011112222",
+            createdBy: new mongoose.Types.ObjectId(),
+        });
+
+        member.userlog.push({
+            type: "task_completed",
+            text: "Task marked as completed by Sales Rep Ali",
+            createdBy: new mongoose.Types.ObjectId(),
+        });
+
+        const validationError = member.validateSync();
+        expect(validationError).toBeUndefined();
+    });
+});
+
 describe("Task Controller and Completion Workflow", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
     });
 
     it("marks member task as completed, records timestamp, and appends to member userlog", async () => {
+        const salesUserId = new mongoose.Types.ObjectId();
+        const memberDocId = new mongoose.Types.ObjectId();
+        const taskItemDocId = new mongoose.Types.ObjectId();
+        const taskDocId = new mongoose.Types.ObjectId();
+
         const mockTask = {
-            _id: "task-100",
-            assignedTo: "user-sales-1",
+            _id: taskDocId,
+            assignedTo: salesUserId,
             status: "pending",
             completedCount: 0,
             members: [
                 {
-                    _id: "item-1",
-                    member: "m-55",
+                    _id: taskItemDocId,
+                    member: memberDocId,
                     name: "John Doe",
                     status: "pending",
                     completedAt: null,
                     completedBy: null,
                 },
                 {
-                    _id: "item-2",
-                    member: "m-56",
+                    _id: new mongoose.Types.ObjectId(),
+                    member: new mongoose.Types.ObjectId(),
                     name: "Jane Doe",
                     status: "pending",
                     completedAt: null,
@@ -120,19 +151,27 @@ describe("Task Controller and Completion Workflow", () => {
             save: vi.fn().mockResolvedValue(true),
         };
 
-        const mockMember = {
-            _id: "m-55",
+        const mockMember = new Member({
+            _id: memberDocId,
+            tenantId: new mongoose.Types.ObjectId(),
             name: "John Doe",
-            userlog: [],
-            save: vi.fn().mockResolvedValue(true),
-        };
+            phones: "01011112222",
+            createdBy: salesUserId,
+        });
+
+        // Realistic save mock that enforces schema validation before resolving
+        mockMember.save = vi.fn().mockImplementation(async function () {
+            const err = this.validateSync();
+            if (err) throw err;
+            return this;
+        });
 
         vi.spyOn(Task, "findById").mockResolvedValue(mockTask);
         vi.spyOn(Member, "findById").mockResolvedValue(mockMember);
 
         const req = {
-            params: { taskId: "task-100", memberId: "item-1" },
-            user: { id: "user-sales-1", name: "Sales Rep Ali", role: "Sales" },
+            params: { taskId: taskDocId.toString(), memberId: taskItemDocId.toString() },
+            user: { id: salesUserId, name: "Sales Rep Ali", role: "Sales" },
         };
         const res = {
             status: vi.fn().mockReturnThis(),
@@ -143,7 +182,7 @@ describe("Task Controller and Completion Workflow", () => {
 
         expect(mockTask.members[0].status).toBe("completed");
         expect(mockTask.members[0].completedAt).toBeInstanceOf(Date);
-        expect(mockTask.members[0].completedBy).toBe("user-sales-1");
+        expect(mockTask.members[0].completedBy).toEqual(salesUserId);
         expect(mockTask.completedCount).toBe(1);
         expect(mockTask.status).toBe("in_progress");
         expect(mockTask.save).toHaveBeenCalled();

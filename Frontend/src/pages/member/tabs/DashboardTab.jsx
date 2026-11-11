@@ -83,7 +83,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
 
   const subs = member.subscriptions ?? [];
   const now  = new Date();
-  const activeSub = subs.find(s => new Date(s.startDate) <= now && new Date(s.endDate) >= now) || subs.at(-1);
+  const activeSub = subs.find(s => new Date(s.startDate) <= now && new Date(s.endDate) >= now && !s.refunded && !s.cancelled && s.subscriptionStatus !== 'cancelled') || subs.at(-1);
   const pkg       = activeSub?.packageSnapshot ?? activeSub?.package;
 
   const isExpired    = member.status === 'expired';

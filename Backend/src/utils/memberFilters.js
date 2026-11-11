@@ -102,10 +102,22 @@ function buildMemberListFilter({
     }
 
     if (expiringSoon === "true" || expiringSoon === true) {
-        const now = new Date();
-        const soon = new Date(now.getTime() + 7 * 86400000);
+        const startOfToday = new Date();
+        startOfToday.setHours(0, 0, 0, 0);
+        const endOf7thDay = new Date(startOfToday);
+        endOf7thDay.setDate(endOf7thDay.getDate() + 7);
+        endOf7thDay.setHours(23, 59, 59, 999);
         if (!filter.status) filter.status = "active";
-        filter["subscriptions.endDate"] = { $gte: now, $lte: soon };
+        // Use $elemMatch so both conditions must match the SAME subscription element
+        filter["subscriptions"] = {
+            $elemMatch: {
+                endDate: { $gte: startOfToday, $lte: endOf7thDay },
+                refunded: { $ne: true },
+                cancelled: { $ne: true },
+            }
+        };
+        // Remove any old subscriptions.endDate key if present
+        delete filter["subscriptions.endDate"];
     }
 
     if (search?.trim()) {
@@ -137,6 +149,7 @@ function statsFilterFromListFilter(filter = {}) {
     delete statsFilter["subscriptions.createdAt"];
     delete statsFilter["subscriptions.startDate"];
     delete statsFilter["subscriptions.endDate"];
+    delete statsFilter["subscriptions"];
     delete statsFilter["subscriptions.package"];
     delete statsFilter.createdAt;
     delete statsFilter.userlog;

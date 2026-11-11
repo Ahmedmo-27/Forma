@@ -559,6 +559,10 @@ export default function AssigningTasksPage() {
     <Layout>
       <PageHeader title="Tasks Management">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <Btn variant="outline" size="sm" onClick={() => navigate('/tasks/filter')}>
+            🔍 Filter &amp; Bulk Actions
+          </Btn>
+
           <Btn variant="outline" size="sm" onClick={openTasksHistoryModal}>
             📋 View Created Tasks
           </Btn>
@@ -1441,120 +1445,6 @@ export default function AssigningTasksPage() {
               )}
             </Card>
 
-            {/* Quick Single Transfer Card */}
-            <Card style={{ padding: '16px 20px' }}>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
-                    Quick Assign by System ID
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
-                    Directly assign an individual member to a sales rep or coach by their System ID.
-                  </div>
-                </div>
-
-                <form onSubmit={handleQuickTransfer} style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
-                  <div style={{ flex: '0 0 auto', width: 190, minWidth: 150 }}>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                      System ID
-                    </label>
-                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                      <span style={{ position: 'absolute', left: 12, color: 'var(--t4)', fontWeight: 700, fontSize: 13, pointerEvents: 'none' }}>
-                        #
-                      </span>
-                      <input
-                        value={quickId}
-                        onChange={(e) => setQuickId(e.target.value)}
-                        placeholder="e.g. 104"
-                        style={{
-                          width: '100%',
-                          height: 38,
-                          paddingLeft: 28,
-                          paddingRight: 12,
-                          borderRadius: 8,
-                          border: '1px solid var(--border)',
-                          background: 'var(--card)',
-                          color: 'var(--t1)',
-                          fontSize: 13,
-                          fontFamily: 'inherit',
-                          outline: 'none',
-                          transition: 'all 0.15s ease',
-                        }}
-                        onFocus={(e) => {
-                          e.target.style.borderColor = 'var(--navy)';
-                          e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)';
-                        }}
-                        onBlur={(e) => {
-                          e.target.style.borderColor = 'var(--border)';
-                          e.target.style.boxShadow = 'none';
-                        }}
-                      />
-                    </div>
-                  </div>
-
-                  <div style={{ flex: '1 1 260px', maxWidth: 420, minWidth: 220 }}>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                      Assign Destination
-                    </label>
-                    <select
-                      value={destId}
-                      onChange={(e) => setDestId(e.target.value)}
-                      style={{
-                        width: '100%',
-                        height: 38,
-                        padding: '0 12px',
-                        borderRadius: 8,
-                        border: '1px solid var(--border)',
-                        background: 'var(--card)',
-                        color: 'var(--t1)',
-                        fontSize: 13,
-                        fontFamily: 'inherit',
-                        outline: 'none',
-                        cursor: 'pointer',
-                      }}
-                    >
-                      <option value="">Select target staff member…</option>
-                      <optgroup label="Sales Representatives">
-                        {salesUsers.filter((u) => u.role === 'Sales').map((u) => (
-                          <option key={u._id} value={u._id}>{u.name} (Sales)</option>
-                        ))}
-                      </optgroup>
-                      <optgroup label="Coaches">
-                        {coaches.map((c) => (
-                          <option key={c._id} value={c._id}>{c.name} (Coach)</option>
-                        ))}
-                      </optgroup>
-                    </select>
-                  </div>
-
-                  <div>
-                    <button
-                      type="submit"
-                      disabled={busy || !quickId.trim() || !destId}
-                      style={{
-                        height: 38,
-                        padding: '0 18px',
-                        borderRadius: 8,
-                        border: 'none',
-                        background: !quickId.trim() || !destId || busy ? 'var(--border)' : 'var(--navy, #44298C)',
-                        color: !quickId.trim() || !destId || busy ? 'var(--t4)' : '#FFFFFF',
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: !quickId.trim() || !destId || busy ? 'not-allowed' : 'pointer',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: 6,
-                        whiteSpace: 'nowrap',
-                        fontFamily: 'inherit',
-                        transition: 'all 0.15s ease',
-                      }}
-                    >
-                      {busy ? <Spinner size="sm" /> : <><span>⚡</span> Quick Assign Task</>}
-                    </button>
-                  </div>
-                </form>
-              </div>
-            </Card>
           </>
         )}
 

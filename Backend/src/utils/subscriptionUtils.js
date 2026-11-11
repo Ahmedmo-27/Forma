@@ -4,6 +4,7 @@
 function findActiveSubscription(subscriptions, now = new Date()) {
     return (subscriptions || []).find((sub) => {
         if (!sub?.startDate || !sub?.endDate) return false;
+        if (sub.refunded || sub.cancelled || sub.subscriptionStatus === "cancelled") return false;
         const start = new Date(sub.startDate);
         const end = new Date(sub.endDate);
         return start <= now && end > now;

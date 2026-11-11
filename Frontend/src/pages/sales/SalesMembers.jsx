@@ -30,6 +30,7 @@ export default function SalesMembers() {
   const [filter,   setFilter]   = useState('all');
   const [search,   setSearch]   = useState('');
   const [page,     setPage]     = useState(1);
+  const [sortNewest, setSortNewest] = useState(true);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: DEFAULT_PAGE_SIZE });
   const [stats, setStats] = useState({ total: 0, active: 0, frozen: 0, expired: 0, guest: 0 });
   const [showAdd,  setShowAdd]  = useState(false);
@@ -41,6 +42,7 @@ export default function SalesMembers() {
     const pageNum = override.page ?? page;
     const search = override.search ?? debouncedSearch;
     const extraFilter = override.extra ?? extra;
+    const newest = override.sortNewest ?? sortNewest;
     const currentLimit = override.limit ?? pageSize;
     setLoading(true);
     try {
@@ -50,24 +52,30 @@ export default function SalesMembers() {
         status,
         search: search || undefined,
         sortBy: 'createdAt',
-        sortDir: -1,
+        sortDir: newest ? -1 : 1,
         transferred: extraFilter === 'transferred' ? 'true' : undefined,
         recent: extraFilter === 'recent' ? 'true' : undefined,
         expiringSoon: extraFilter === 'expiring' ? 'true' : undefined,
+        allMembers: extraFilter === 'all' ? 'true' : undefined,
       });
       setMembers(res.data.members ?? []);
       setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: currentLimit });
       if (res.data.stats) setStats(res.data.stats);
     } catch { toast.error('Failed to load data.'); }
     finally { setLoading(false); }
-  }, [page, pageSize, filter, debouncedSearch, extra]);
+  }, [page, pageSize, filter, debouncedSearch, extra, sortNewest]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
-  useEffect(() => { setPage(1); }, [filter, debouncedSearch, extra]);
+  useEffect(() => { setPage(1); }, [filter, debouncedSearch, extra, sortNewest]);
 
-  const handlePageSizeChange = (newSize) => {
+  const handlePageSizeChange = (newSize, order) => {
     const valid = Math.max(1, Math.min(500, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
     setPageSize(valid);
+    if (order === 'last') {
+      setSortNewest(false);
+    } else if (order === 'first') {
+      setSortNewest(true);
+    }
     setPage(1);
     try {
       localStorage.setItem('members_page_size', String(valid));
@@ -89,6 +97,7 @@ export default function SalesMembers() {
         <div style={{ maxWidth: 280, marginBottom: 12 }}>
           <Select label="More filters" value={extra} onChange={(e) => setExtra(e.target.value)}>
             <option value="">All of my members</option>
+            <option value="all">Show all members</option>
             <option value="transferred">Transferred to me</option>
             <option value="recent">Added in the last 30 days</option>
             <option value="expiring">Expiring in 7 days</option>
@@ -116,6 +125,7 @@ export default function SalesMembers() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginTop: 12, marginBottom: 12 }}>
           <PageSizeFilter
             pageSize={pageSize}
+            order={sortNewest ? 'first' : 'last'}
             onChange={handlePageSizeChange}
             options={PAGE_SIZE_OPTIONS}
           />
@@ -126,7 +136,7 @@ export default function SalesMembers() {
             {!paginated.length && !loading
               ? <tr><td colSpan={6}><EmptyState message="No members found" /></td></tr>
               : paginated.map(m => {
-                  const sub = m.subscriptions?.at(-1);
+                  const sub = m.subscriptions?.filter(s => !s.refunded && !s.cancelled && s.subscriptionStatus !== 'cancelled')?.at(-1);
                   const pkg = sub?.package;
                   return (
                     <tr key={m._id} className="tbl-row" onClick={() => navigate(`/members/${m.systemId}`)}

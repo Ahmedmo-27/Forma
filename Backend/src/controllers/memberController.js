@@ -29,7 +29,9 @@ const mongoose = require("mongoose");
 // ─── Helper: get purchased package terms from last subscription ───────────────
 const getCurrentPackage = (member) => {
     if (!member.subscriptions || !member.subscriptions.length) return null;
-    return resolveSubscriptionPackage(member.subscriptions[member.subscriptions.length - 1]);
+    const last = member.subscriptions[member.subscriptions.length - 1];
+    if (last.refunded || last.cancelled || last.subscriptionStatus === "cancelled") return null;
+    return resolveSubscriptionPackage(last);
 };
 
 const refId = (value) => {
@@ -560,9 +562,12 @@ const checkInMember = async (req, res) => {
         const hasSubscriptions = Array.isArray(member.subscriptions) && member.subscriptions.length > 0;
         const currentSub = hasSubscriptions ? member.subscriptions[member.subscriptions.length - 1] : null;
         const currentPkg = currentSub?.packageSnapshot || currentSub?.package || null;
+        const isCancelledSub = currentSub
+            ? (currentSub.refunded || currentSub.cancelled || currentSub.subscriptionStatus === "cancelled")
+            : false;
 
-        if (member.status === "guest" || !member.isMember || !hasSubscriptions || !currentPkg) {
-            const isGuest = member.status === "guest" || !member.isMember;
+        if (member.status === "guest" || !member.isMember || !hasSubscriptions || !currentPkg || isCancelledSub) {
+            const isGuest = member.status === "guest" || !member.isMember || isCancelledSub;
             const message = isGuest
                 ? "Cannot check in — this member is a guest and does not have a package"
                 : "Cannot check in — this member does not have a package";
@@ -825,10 +830,11 @@ const getMembers = async (req, res) => {
         // Sales reps see their own book. A sales manager's scope is the whole gym
         // (tenant plugin), including members held by the primary sales manager.
         const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 10, maxLimit: 500 });
+        const showAllMembers = req.query.allMembers === "true" || req.query.showAll === "true";
         const filter = buildMemberListFilter({
             status: req.query.status,
             search: req.query.search,
-            assignedSales: req.user.role === "Sales" ? req.user.id : req.query.assignedSales,
+            assignedSales: showAllMembers ? undefined : (req.user.role === "Sales" ? req.user.id : req.query.assignedSales),
             subscribedToday: req.query.subscribedToday,
             transferred: req.query.transferred,
             recent: req.query.recent,
@@ -2390,12 +2396,37 @@ const refund = async (req, res) => {
         lastSubscription.refundedAt   = new Date();
         lastSubscription.refunded     = true;
 
-        // Revoke membership to 'guest' only if the member refunded their first ever package
-        const isFirstEverPackage = member.subscriptions.length === 1 && newRefundTotal >= lastSubscription.pricePaid;
-        if (isFirstEverPackage) {
+        lastSubscription.cancelled = true;
+        lastSubscription.cancelledAt = new Date();
+        lastSubscription.cancelledBy = req.user.id;
+        lastSubscription.subscriptionStatus = "cancelled";
+
+        // Determine new member status
+        const priorValidSubs = member.subscriptions
+            .slice(0, -1)
+            .filter(s => !s.refunded && !s.cancelled && s.subscriptionStatus !== "cancelled");
+
+        if (priorValidSubs.length === 0) {
             member.status = "guest";
             member.isMember = false;
+        } else {
+            member.status = "expired";
+            // isMember stays true
         }
+
+        // Reclaim unused free PT sessions
+        const freePt = lastSubscription.packageSnapshot?.free_pt_sessions || 0;
+        if (freePt > 0) {
+            member.PT_sessions = Math.max(0, (member.PT_sessions || 0) - freePt);
+        }
+
+        // Log the refund+cancellation
+        const pkgName = lastSubscription.packageSnapshot?.name || "Package";
+        member.userlog.push({
+            type: "other",
+            text: `Package refunded and cancelled: ${pkgName}`,
+            createdBy: req.user.id,
+        });
 
         await member.save();
 

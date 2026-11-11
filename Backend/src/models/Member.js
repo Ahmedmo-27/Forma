@@ -32,7 +32,7 @@ const alertSchema = new mongoose.Schema({
 const logSchema = new mongoose.Schema({
     type: {
         type: String,
-        enum: ["check-in", "pt-session", "note", "renewal", "freeze", "assign", "other"],
+        enum: ["check-in", "pt-session", "note", "renewal", "freeze", "assign", "task_completed", "other"],
         default: "other"
     },
     text: {
@@ -188,7 +188,11 @@ const subscriptionSchema = new mongoose.Schema({
     refunded: {
         type: Boolean,
         default: false
-    }
+    },
+    cancelled: { type: Boolean, default: false },
+    cancelledAt: { type: Date, default: null },
+    cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    subscriptionStatus: { type: String, enum: ["active", "cancelled", "expired"], default: "active" },
 }, { timestamps: true });
 
 const memberSchema = new mongoose.Schema({

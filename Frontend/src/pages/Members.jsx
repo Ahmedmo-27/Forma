@@ -5,8 +5,8 @@ import { useAuth } from '../context/AuthContext';
 import usePageTitle from '../hooks/usePageTitle';
 import useDebounce from '../hooks/useDebounce';
 import Layout from '../components/Layout';
-import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, fmtDate, Pagination, PageSizeFilter } from '../components/ui';
-import { getAllMembers } from '../api/endpoints';
+import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, fmtDate, Pagination, PageSizeFilter, Spinner } from '../components/ui';
+import { getAllMembers, getSalesUsers, getCoachTeam, switchSalesRep, switchCoach } from '../api/endpoints';
 import AddMemberModal from '../components/AddMemberModal';
 import { formatSystemId } from '../lib/systemId';
 
@@ -63,9 +63,14 @@ export default function Members() {
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
   useEffect(() => { setPage(1); }, [filter, debouncedSearch, sortNewest]);
 
-  const handlePageSizeChange = (newSize) => {
+  const handlePageSizeChange = (newSize, order) => {
     const valid = Math.max(1, Math.min(500, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
     setPageSize(valid);
+    if (order === 'last') {
+      setSortNewest(false);
+    } else if (order === 'first') {
+      setSortNewest(true);
+    }
     setPage(1);
     try {
       localStorage.setItem('members_page_size', String(valid));
@@ -125,6 +130,7 @@ export default function Members() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginTop: 12, marginBottom: 12 }}>
           <PageSizeFilter
             pageSize={pageSize}
+            order={sortNewest ? 'first' : 'last'}
             onChange={handlePageSizeChange}
             options={PAGE_SIZE_OPTIONS}
           />

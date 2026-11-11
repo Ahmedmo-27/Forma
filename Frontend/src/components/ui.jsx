@@ -909,162 +909,197 @@ export function Avatar({ name = '', size = 'md', photo = null, style: ex = {} })
   );
 }
 
+// ── Page Size Filter Helper (Pure testable logic) ─────────────────────────────
+export function parsePageSizeOptionValue(val, currentSize = 10, currentOrder = 'first') {
+  if (!val) {
+    return { size: currentSize, order: currentOrder, isCustomPrompt: false };
+  }
+  const strVal = String(val).trim();
+  if (strVal === 'custom' || strVal === 'custom_prompt') {
+    return { size: currentSize, order: currentOrder, isCustomPrompt: true };
+  }
+  if (strVal.startsWith('custom_prompt:') || strVal.startsWith('custom_prompt_')) {
+    const sep = strVal.includes(':') ? ':' : '_';
+    const targetOrder = strVal.split(sep)[1] === 'last' ? 'last' : 'first';
+    return { size: currentSize, order: targetOrder, isCustomPrompt: true };
+  }
+  if (strVal.startsWith('custom:') || strVal.startsWith('custom_')) {
+    const sep = strVal.includes(':') ? ':' : '_';
+    const targetOrder = strVal.split(sep)[1] === 'last' ? 'last' : 'first';
+    return { size: currentSize, order: targetOrder, isCustomPrompt: true };
+  }
+  let orderPart = currentOrder;
+  let sizePart = strVal;
+  if (strVal.includes(':')) {
+    [orderPart, sizePart] = strVal.split(':');
+  } else if (strVal.includes('_')) {
+    [orderPart, sizePart] = strVal.split('_');
+  }
+  const size = parseInt(sizePart, 10);
+  return {
+    size: Number.isFinite(size) && size > 0 ? size : currentSize,
+    order: (orderPart === 'last' || orderPart === 'desc') ? 'last' : 'first',
+    isCustomPrompt: false,
+  };
+}
+
 // ── Page Size Filter / Templates ──────────────────────────────────────────────
 export function PageSizeFilter({
   pageSize = 10,
+  order = 'first',
   onChange,
+  onPageSizeChange,
   options = [10, 20, 30, 50],
-  label = 'Show first:',
+  pageSizeOptions,
+  label = 'Show:',
+  showOrderOptions = true,
 }) {
-  const [isCustomOpen, setIsCustomOpen] = useState(false);
-  const [customValue, setCustomValue] = useState(String(pageSize));
-  const isCustom = !options.includes(Number(pageSize));
+  const [, setPromptTick] = useState(0);
 
-  const applyCustom = () => {
-    const num = parseInt(customValue, 10);
-    if (Number.isFinite(num) && num > 0) {
-      const clamped = Math.min(500, Math.max(1, num));
-      onChange(clamped);
-      setIsCustomOpen(false);
+  const opts = (pageSizeOptions && pageSizeOptions.length)
+    ? pageSizeOptions
+    : (options && options.length ? options : [10, 20, 30, 50]);
+
+  const currentSize = Number(pageSize) || 10;
+  const currentOrder = (order === 'last' || order === 'desc') ? 'last' : 'first';
+  const isCustom = !opts.includes(currentSize);
+
+  // Normalize legacy default label "Show first:" if callers or legacy usage passed it
+  const resolvedLabel = (label === 'Show first:' && showOrderOptions) ? 'Show:' : label;
+
+  const triggerChange = (newSize, newOrder) => {
+    const meta = { pageSize: newSize, order: newOrder };
+    if (typeof onChange === 'function') {
+      onChange(newSize, newOrder, meta);
+    }
+    if (typeof onPageSizeChange === 'function' && onPageSizeChange !== onChange) {
+      onPageSizeChange(newSize, newOrder, meta);
     }
   };
 
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-      {label && (
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-          {label}
-        </span>
-      )}
-      {options.map((opt) => {
-        const isSelected = !isCustom && Number(pageSize) === opt;
-        return (
-          <button
-            key={opt}
-            type="button"
-            onClick={() => {
-              setIsCustomOpen(false);
-              onChange(opt);
-            }}
-            style={{
-              padding: '5px 12px',
-              borderRadius: 20,
-              fontSize: 12,
-              fontWeight: isSelected ? 700 : 500,
-              border: `1px solid ${isSelected ? 'var(--navy)' : 'var(--border)'}`,
-              background: isSelected ? 'var(--navy)' : 'var(--card)',
-              color: isSelected ? '#fff' : 'var(--t2)',
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              transition: 'all 0.15s',
-            }}
-          >
-            Show first {opt}
-          </button>
-        );
-      })}
+  const handleSelectChange = (e) => {
+    const val = e.target.value;
 
-      {isCustomOpen ? (
-        <div style={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 6,
-          background: 'var(--card)',
-          padding: '2px 8px',
-          borderRadius: 20,
-          border: '1px solid var(--navy)',
-        }}>
-          <span style={{ fontSize: 11, color: 'var(--t3)', fontWeight: 600 }}>Custom:</span>
-          <input
-            type="number"
-            min="1"
-            max="500"
-            value={customValue}
-            onChange={(e) => setCustomValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault();
-                applyCustom();
-              } else if (e.key === 'Escape') {
-                setIsCustomOpen(false);
-              }
-            }}
-            placeholder="e.g. 15"
-            autoFocus
-            style={{
-              width: 55,
-              padding: '3px 6px',
-              fontSize: 12,
-              borderRadius: 6,
-              border: '1px solid var(--border)',
-              background: 'var(--bg)',
-              color: 'var(--t1)',
-              textAlign: 'center',
-              outline: 'none',
-            }}
-          />
-          <button
-            type="button"
-            onClick={applyCustom}
-            style={{
-              padding: '3px 8px',
-              fontSize: 11,
-              fontWeight: 600,
-              borderRadius: 12,
-              background: 'var(--navy)',
-              color: '#fff',
-              border: 'none',
-              cursor: 'pointer',
-            }}
-          >
-            Apply
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsCustomOpen(false)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--t4)',
-              cursor: 'pointer',
-              fontSize: 13,
-              padding: '0 2px',
-              lineHeight: 1,
-            }}
-            title="Cancel"
-          >
-            ✕
-          </button>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => {
-            setCustomValue(String(pageSize));
-            setIsCustomOpen(true);
-          }}
+    if (!showOrderOptions) {
+      if (val === 'custom' || val === 'custom_prompt') {
+        const input = typeof window !== 'undefined' && window.prompt
+          ? window.prompt('Enter number of items per page (1–500):', String(currentSize))
+          : null;
+        if (input !== null) {
+          const parsed = parseInt(input, 10);
+          if (Number.isFinite(parsed) && parsed > 0) {
+            triggerChange(Math.min(500, Math.max(1, parsed)), currentOrder);
+            return;
+          }
+        }
+        setPromptTick((t) => t + 1);
+        return;
+      }
+      triggerChange(Number(val), currentOrder);
+      return;
+    }
+
+    const parsed = parsePageSizeOptionValue(val, currentSize, currentOrder);
+    if (parsed.isCustomPrompt) {
+      const promptText = `Enter number of ${parsed.order} items to show (1–500):`;
+      const input = typeof window !== 'undefined' && window.prompt
+        ? window.prompt(promptText, String(currentSize))
+        : null;
+      if (input !== null) {
+        const parsedNum = parseInt(input, 10);
+        if (Number.isFinite(parsedNum) && parsedNum > 0) {
+          const clamped = Math.min(500, Math.max(1, parsedNum));
+          triggerChange(clamped, parsed.order);
+          return;
+        }
+      }
+      setPromptTick((t) => t + 1);
+      return;
+    }
+
+    triggerChange(parsed.size, parsed.order);
+  };
+
+  const selectValue = !showOrderOptions
+    ? (isCustom ? 'custom' : currentSize)
+    : (isCustom ? `custom:${currentOrder}` : `${currentOrder}:${currentSize}`);
+
+  return (
+    <div
+      className="page-size-filter"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
+        fontSize: 12,
+        color: 'var(--t3)',
+      }}
+    >
+      {resolvedLabel && (
+        <span
           style={{
-            padding: '5px 12px',
-            borderRadius: 20,
             fontSize: 12,
-            fontWeight: isCustom ? 700 : 500,
-            border: `1px solid ${isCustom ? 'var(--navy)' : 'var(--border)'}`,
-            background: isCustom ? 'var(--navy)' : 'var(--card)',
-            color: isCustom ? '#fff' : 'var(--t2)',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            transition: 'all 0.15s',
+            fontWeight: 600,
+            color: 'var(--t3)',
             display: 'inline-flex',
             alignItems: 'center',
             gap: 4,
           }}
         >
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
-          </svg>
-          {isCustom ? `Custom: ${pageSize}` : 'Custom…'}
-        </button>
+          {resolvedLabel}
+        </span>
       )}
+      <select
+        value={selectValue}
+        onChange={handleSelectChange}
+        style={{
+          fontSize: 12,
+          padding: '2px 8px',
+          borderRadius: 6,
+          border: '1px solid var(--border)',
+          background: 'var(--card)',
+          color: 'var(--t1)',
+          cursor: 'pointer',
+          fontFamily: 'inherit',
+        }}
+      >
+        {showOrderOptions ? (
+          <>
+            <optgroup label="First">
+              {opts.map((n) => (
+                <option key={`first:${n}`} value={`first:${n}`}>
+                  First {n}
+                </option>
+              ))}
+              {isCustom && currentOrder === 'first' && (
+                <option value="custom:first">First {currentSize} (Custom)</option>
+              )}
+              <option value="custom_prompt:first">Custom First…</option>
+            </optgroup>
+            <optgroup label="Last">
+              {opts.map((n) => (
+                <option key={`last:${n}`} value={`last:${n}`}>
+                  Last {n}
+                </option>
+              ))}
+              {isCustom && currentOrder === 'last' && (
+                <option value="custom:last">Last {currentSize} (Custom)</option>
+              )}
+              <option value="custom_prompt:last">Custom Last…</option>
+            </optgroup>
+          </>
+        ) : (
+          <>
+            {opts.map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+            {isCustom && <option value="custom">Custom ({currentSize})</option>}
+            <option value="custom_prompt">Custom…</option>
+          </>
+        )}
+      </select>
     </div>
   );
 }

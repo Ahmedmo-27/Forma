@@ -63,8 +63,10 @@ describe("Tenant-Side Audit Fixes", () => {
                     {
                         pricePaid: 1000,
                         refundAmount: 0,
+                        subscriptionStatus: "active",
                     },
                 ],
+                userlog: [],
                 save: vi.fn().mockResolvedValue(true),
             };
 
@@ -96,9 +98,10 @@ describe("Tenant-Side Audit Fixes", () => {
                 status: "active",
                 isMember: true,
                 subscriptions: [
-                    { pricePaid: 1000, refundAmount: 0 },
-                    { pricePaid: 1500, refundAmount: 0 },
+                    { pricePaid: 1000, refundAmount: 0, subscriptionStatus: "active" },
+                    { pricePaid: 1500, refundAmount: 0, subscriptionStatus: "active" },
                 ],
+                userlog: [],
                 save: vi.fn().mockResolvedValue(true),
             };
 
@@ -117,9 +120,11 @@ describe("Tenant-Side Audit Fixes", () => {
             await refund(req, res);
 
             expect(res.status).toHaveBeenCalledWith(200);
-            expect(mockMember.status).toBe("active");
+            expect(mockMember.status).toBe("expired");
             expect(mockMember.isMember).toBe(true);
             expect(mockMember.subscriptions[1].refundAmount).toBe(1500);
+            expect(mockMember.subscriptions[1].cancelled).toBe(true);
+            expect(mockMember.subscriptions[1].subscriptionStatus).toBe("cancelled");
             expect(mockMember.save).toHaveBeenCalled();
         });
     });

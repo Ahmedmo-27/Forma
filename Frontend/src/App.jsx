@@ -14,6 +14,7 @@ import Members        from './pages/Members';
 import Tasks          from './pages/Tasks';
 import AssigningTasksPage from './pages/tasks/AssigningTasksPage';
 import AssignedTasksPage  from './pages/tasks/AssignedTasksPage';
+import TaskFilterPage     from './pages/tasks/TaskFilterPage';
 import MemberProfile  from './pages/member/MemberProfile';
 import SalesDashboard     from './pages/sales/SalesDashboard';
 import SalesMembers       from './pages/sales/SalesMembers';
@@ -163,6 +164,14 @@ function TenantAppRoutes() {
           access={['transfer', 'coach_transfer', 'members']}
         >
           <AssigningTasksPage />
+        </PrivateRoute>
+      } />
+      <Route path="/tasks/filter" element={
+        <PrivateRoute
+          roles={['Owner', 'General Manager', 'Sales Manager', 'Coach Manager']}
+          access={['transfer', 'coach_transfer', 'members']}
+        >
+          <TaskFilterPage />
         </PrivateRoute>
       } />
       <Route path="/tasks/assigned" element={

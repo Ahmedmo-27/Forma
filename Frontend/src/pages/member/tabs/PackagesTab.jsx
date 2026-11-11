@@ -421,7 +421,13 @@ function PackagesContent({ member, user, onRefresh }) {
   const subs    = member.subscriptions ?? [];
   // Show the currently active subscription (startDate <= now <= endDate), fallback to last one
   const now = new Date();
-  const activeSub = subs.find(s => new Date(s.startDate) <= now && new Date(s.endDate) >= now) || subs.at(-1);
+  const activeSub = subs.find(s => 
+    new Date(s.startDate) <= now && 
+    new Date(s.endDate) >= now && 
+    !s.refunded && 
+    !s.cancelled && 
+    s.subscriptionStatus !== 'cancelled'
+  ) || subs.at(-1);
   const lastSub = activeSub;
   const pkg     = purchasedPkg(lastSub);
 

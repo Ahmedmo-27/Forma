@@ -150,7 +150,7 @@ export default function MemberProfile() {
 
   const member = data?.member;
   const stats  = data?.stats;
-  const currentSub = member?.subscriptions?.at(-1);
+  const currentSub = member?.subscriptions?.filter(s => !s.refunded && !s.cancelled && s.subscriptionStatus !== 'cancelled')?.at(-1);
   const currentPkg = currentSub?.packageSnapshot ?? currentSub?.package;
   const isGuest = member?.status === 'guest' || member?.isMember === false;
   const hasMemberId = member?.memberId != null && String(member.memberId).trim() !== '';
