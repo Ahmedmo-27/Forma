@@ -58,7 +58,8 @@ const listLocations = async (req, res) => {
 
         res.json({
             locations: visible.map(serializeLocation),
-            canAccessAllLocations: userHasAllLocations(req.user),
+            // null allowed set = unrestricted (incl. empty role defaults)
+            canAccessAllLocations: userHasAllLocations(req.user) || allowed === null,
             canManage: req.user.role === "Owner",
         });
     } catch (error) {

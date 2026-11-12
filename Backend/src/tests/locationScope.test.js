@@ -5,6 +5,9 @@ import {
     userCanAccessLocation,
     memberLocationFilter,
     mergeLocationIntoFilter,
+    memberMatchesLocationFilter,
+    forbidIfOutOfLocationScope,
+    locationFilterIsActive,
 } from "../utils/locationScope";
 
 describe("locationScope helpers", () => {
@@ -45,9 +48,10 @@ describe("locationScope helpers", () => {
         expect(resolveAllowedLocationIds(user, tenant)).toEqual(["cccccccccccccccccccccccc"]);
     });
 
-    it("returns empty grants when nothing is configured", () => {
-        const user = { role: "Coach", canAccessAllLocations: false, allowedLocationIds: [] };
-        expect(resolveAllowedLocationIds(user, {})).toEqual([]);
+    it("treats empty personal + empty role defaults as all locations", () => {
+        const user = { role: "Sales Manager", canAccessAllLocations: false, allowedLocationIds: [] };
+        expect(resolveAllowedLocationIds(user, {})).toBeNull();
+        expect(resolveAllowedLocationIds(user, { roleLocationAccess: {} })).toBeNull();
     });
 
     it("builds member location filters for one / subset / none", () => {
@@ -77,6 +81,20 @@ describe("locationScope helpers", () => {
         );
         expect(merged.status).toBe("active");
         expect(String(merged.locationId)).toBe("dddddddddddddddddddddddd");
+    });
+
+    it("matches members against locationFilter and forbids out-of-scope access", () => {
+        expect(locationFilterIsActive({})).toBe(false);
+        const loc = "dddddddddddddddddddddddd";
+        const filter = { locationId: loc };
+        expect(memberMatchesLocationFilter({ locationId: loc }, filter)).toBe(true);
+        expect(memberMatchesLocationFilter({ locationId: "eeeeeeeeeeeeeeeeeeeeeeee" }, filter)).toBe(false);
+        expect(forbidIfOutOfLocationScope({ locationFilter: {} }, { locationId: loc })).toBeNull();
+        expect(forbidIfOutOfLocationScope({ locationFilter: filter }, { locationId: loc })).toBeNull();
+        expect(forbidIfOutOfLocationScope(
+            { locationFilter: filter },
+            { locationId: "eeeeeeeeeeeeeeeeeeeeeeee" }
+        )?.code).toBe("MEMBER_LOCATION_FORBIDDEN");
     });
 });
 

@@ -1,20 +1,50 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Input, Btn, Spinner } from '../../components/ui';
-import { createStaffUser } from '../../api/endpoints';
+import LocationAccessEditor from '../../components/LocationAccessEditor';
+import { createStaffUser, listLocations } from '../../api/endpoints';
 import { isValidEmail, isValidPhone } from '../../lib/validation';
+import { useAuth } from '../../context/AuthContext';
+import { useTenant } from '../../context/TenantContext';
 
-const INIT = { name: '', email: '', mobile_number: '', password: '', role: 'Coach' };
+const INIT = {
+  name: '',
+  email: '',
+  mobile_number: '',
+  password: '',
+  role: 'Coach',
+  canAccessAllLocations: false,
+  allowedLocationIds: [],
+};
 
 export default function CoachStaff() {
   usePageTitle('Manage Coaches');
+  const { user } = useAuth();
+  const { hasFeature } = useTenant() || {};
+  const canSetLocations = ['Owner', 'General Manager'].includes(user?.role)
+    && Boolean(hasFeature?.('multi_branches'));
+
   const [form, setForm] = useState(INIT);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [locations, setLocations] = useState([]);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    if (!canSetLocations) return undefined;
+    let cancelled = false;
+    listLocations()
+      .then((res) => {
+        if (!cancelled) setLocations(res.data?.locations || []);
+      })
+      .catch(() => {
+        if (!cancelled) setLocations([]);
+      });
+    return () => { cancelled = true; };
+  }, [canSetLocations]);
 
   const validate = () => {
     const e = {};
@@ -48,6 +78,14 @@ export default function CoachStaff() {
       e.password = 'Password must not exceed 200 characters';
     }
 
+    if (
+      canSetLocations
+      && !form.canAccessAllLocations
+      && !(form.allowedLocationIds || []).length
+    ) {
+      e.allowedLocationIds = 'Select at least one branch, or enable all locations';
+    }
+
     setErrors(e);
     return !Object.keys(e).length;
   };
@@ -57,13 +95,20 @@ export default function CoachStaff() {
     if (!validate()) return;
     setLoading(true);
     try {
-      await createStaffUser({
+      const payload = {
         name: form.name.trim(),
         email: form.email.trim(),
         mobile_number: form.mobile_number.trim(),
         password: form.password,
         role: 'Coach',
-      });
+      };
+      if (canSetLocations) {
+        payload.canAccessAllLocations = Boolean(form.canAccessAllLocations);
+        payload.allowedLocationIds = form.canAccessAllLocations
+          ? []
+          : (form.allowedLocationIds || []);
+      }
+      await createStaffUser(payload);
       toast.success('Coach account created!');
       setForm(INIT);
       setErrors({});
@@ -108,6 +153,30 @@ export default function CoachStaff() {
               onChange={e => set('password', e.target.value)}
               error={errors.password}
             />
+
+            {canSetLocations && (
+              <LocationAccessEditor
+                embedded
+                title="Branch viewing access"
+                description="Choose whether this coach can view data for all branches or only selected ones."
+                locations={locations}
+                canAccessAll={Boolean(form.canAccessAllLocations)}
+                onCanAccessAllChange={(checked) => setForm((f) => ({
+                  ...f,
+                  canAccessAllLocations: checked,
+                  allowedLocationIds: checked ? [] : f.allowedLocationIds,
+                }))}
+                selectedIds={form.allowedLocationIds}
+                onToggleId={(id, checked) => setForm((f) => {
+                  const setIds = new Set(f.allowedLocationIds || []);
+                  if (checked) setIds.add(id);
+                  else setIds.delete(id);
+                  return { ...f, canAccessAllLocations: false, allowedLocationIds: [...setIds] };
+                })}
+                error={errors.allowedLocationIds}
+              />
+            )}
+
             <div style={{ paddingTop: 4 }}>
               <Btn type="submit" disabled={loading}>
                 {loading ? <Spinner size="sm" /> : 'Create Coach Account'}

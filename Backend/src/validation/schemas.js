@@ -143,7 +143,22 @@ const createStaffSchema = z.object({
     name: z.string().trim().min(1).max(120),
     email: z.string().trim().email().max(200),
     password: z.string().min(8).max(200),
+    mobile_number: z.string().trim().min(5).max(40).optional(),
     role: z.enum(GYM_ROLES),
+    canAccessAllLocations: z.boolean().optional(),
+    allowedLocationIds: z.array(z.string().trim().min(1)).optional(),
+}).superRefine((data, ctx) => {
+    if (
+        data.canAccessAllLocations === false
+        && Array.isArray(data.allowedLocationIds)
+        && data.allowedLocationIds.length === 0
+    ) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Select at least one branch, or enable access to all locations",
+            path: ["allowedLocationIds"],
+        });
+    }
 });
 
 // Zod v4: .partial() cannot run on schemas that already have refinements — keep the

@@ -33,7 +33,9 @@ function resolveAllowedLocationIds(user, tenant) {
         return toIdStrings(roleDefaults);
     }
 
-    return [];
+    // Access Control treats empty / missing role defaults as "all locations".
+    // Returning [] here made every list use locationId:$in:[] → Sales Manager saw 0 members.
+    return null;
 }
 
 function userCanAccessLocation(user, tenant, locationObjectId) {
@@ -97,6 +99,50 @@ function mergeLocationIntoFilter(filter, scope) {
     return { ...filter, ...loc };
 }
 
+function locationFilterIsActive(locationFilter) {
+    return Boolean(locationFilter && Object.keys(locationFilter).length > 0);
+}
+
+/**
+ * Whether a member's home branch matches req.locationFilter.
+ */
+function memberMatchesLocationFilter(member, locationFilter) {
+    if (!locationFilterIsActive(locationFilter)) return true;
+    if (!member) return false;
+    const raw = member.locationId;
+    if (raw == null) return false;
+    const id = String(raw._id || raw);
+    const clause = locationFilter.locationId;
+    if (clause && clause.$in) {
+        return clause.$in.some((value) => String(value) === id);
+    }
+    if (clause != null) {
+        return String(clause) === id;
+    }
+    return true;
+}
+
+/**
+ * 403 payload when member is outside the active navbar/grant scope; null if allowed.
+ */
+function forbidIfOutOfLocationScope(req, member) {
+    if (!locationFilterIsActive(req?.locationFilter)) return null;
+    if (memberMatchesLocationFilter(member, req.locationFilter)) return null;
+    return {
+        status: 403,
+        code: "MEMBER_LOCATION_FORBIDDEN",
+        message: "This member is outside the selected branch scope",
+    };
+}
+
+/**
+ * Distinct member ObjectIds matching a location filter (empty filter → null = no restriction).
+ */
+async function memberIdsMatchingLocationFilter(locationFilter, MemberModel) {
+    if (!locationFilterIsActive(locationFilter)) return null;
+    return MemberModel.find(locationFilter).distinct("_id");
+}
+
 function serializeLocation(doc) {
     if (!doc) return null;
     return {
@@ -116,6 +162,10 @@ module.exports = {
     memberLocationFilter,
     checkInLocationElemMatch,
     mergeLocationIntoFilter,
+    locationFilterIsActive,
+    memberMatchesLocationFilter,
+    forbidIfOutOfLocationScope,
+    memberIdsMatchingLocationFilter,
     serializeLocation,
     toIdStrings,
 };

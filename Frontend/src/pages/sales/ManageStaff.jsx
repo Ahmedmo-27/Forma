@@ -1,11 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Input, Select, Btn, Spinner } from '../../components/ui';
-import { createStaffUser } from '../../api/endpoints';
+import LocationAccessEditor from '../../components/LocationAccessEditor';
+import { createStaffUser, listLocations } from '../../api/endpoints';
 import { isValidEmail, isValidPhone } from '../../lib/validation';
 import { useAuth } from '../../context/AuthContext';
+import { useTenant } from '../../context/TenantContext';
 
 const ALL_STAFF_ROLES = [
   ['General Manager', 'General Manager'],
@@ -19,7 +21,7 @@ const ALL_STAFF_ROLES = [
 
 const CREATABLE_ROLES = {
   Owner: ALL_STAFF_ROLES,
-  'General Manager': ALL_STAFF_ROLES,
+  'General Manager': ALL_STAFF_ROLES.filter(([role]) => role !== 'General Manager'),
   'Sales Manager': [
     ['Sales', 'Sales Representative'],
     ['Receptionist', 'Receptionist'],
@@ -29,17 +31,47 @@ const CREATABLE_ROLES = {
   ],
 };
 
-const INIT = { name: '', email: '', mobile_number: '', password: '', role: 'Sales' };
+const INIT = {
+  name: '',
+  email: '',
+  mobile_number: '',
+  password: '',
+  role: 'Sales',
+  canAccessAllLocations: false,
+  allowedLocationIds: [],
+};
 
 export default function ManageStaff() {
   usePageTitle('Manage Staff');
   const { user } = useAuth();
+  const { hasFeature } = useTenant() || {};
   const roleOptions = CREATABLE_ROLES[user?.role] || [];
-  const [form, setForm] = useState(INIT);
+  const canSetLocations = ['Owner', 'General Manager'].includes(user?.role)
+    && Boolean(hasFeature?.('multi_branches'));
+
+  const [form, setForm] = useState(() => ({
+    ...INIT,
+    role: roleOptions[0]?.[0] || 'Sales',
+    canAccessAllLocations: roleOptions[0]?.[0] === 'General Manager',
+  }));
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+  const [locations, setLocations] = useState([]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  useEffect(() => {
+    if (!canSetLocations) return undefined;
+    let cancelled = false;
+    listLocations()
+      .then((res) => {
+        if (!cancelled) setLocations(res.data?.locations || []);
+      })
+      .catch(() => {
+        if (!cancelled) setLocations([]);
+      });
+    return () => { cancelled = true; };
+  }, [canSetLocations]);
 
   const validate = () => {
     const e = {};
@@ -77,6 +109,14 @@ export default function ManageStaff() {
       e.role = 'Please select a valid staff role';
     }
 
+    if (
+      canSetLocations
+      && !form.canAccessAllLocations
+      && !(form.allowedLocationIds || []).length
+    ) {
+      e.allowedLocationIds = 'Select at least one branch, or enable all locations';
+    }
+
     setErrors(e);
     return !Object.keys(e).length;
   };
@@ -86,15 +126,26 @@ export default function ManageStaff() {
     if (!validate()) return;
     setLoading(true);
     try {
-      await createStaffUser({
+      const payload = {
         name: form.name.trim(),
         email: form.email.trim(),
         mobile_number: form.mobile_number.trim(),
         password: form.password,
         role: form.role,
-      });
+      };
+      if (canSetLocations) {
+        payload.canAccessAllLocations = Boolean(form.canAccessAllLocations);
+        payload.allowedLocationIds = form.canAccessAllLocations
+          ? []
+          : (form.allowedLocationIds || []);
+      }
+      await createStaffUser(payload);
       toast.success(`${form.role} account created!`);
-      setForm(INIT);
+      setForm({
+        ...INIT,
+        role: roleOptions[0]?.[0] || 'Sales',
+        canAccessAllLocations: roleOptions[0]?.[0] === 'General Manager',
+      });
       setErrors({});
     } catch (err) {
       if (err.normalized?.status !== 403 && err.normalized?.status !== 429) {
@@ -142,12 +193,44 @@ export default function ManageStaff() {
             <Select
               label="Role *"
               value={form.role}
-              onChange={(e) => set('role', e.target.value)}
+              onChange={(e) => {
+                const role = e.target.value;
+                setForm((f) => ({
+                  ...f,
+                  role,
+                  canAccessAllLocations: role === 'General Manager' ? true : f.canAccessAllLocations,
+                  allowedLocationIds: role === 'General Manager' ? [] : f.allowedLocationIds,
+                }));
+              }}
             >
               {roleOptions.map(([value, label]) => (
                 <option key={value} value={value}>{label}</option>
               ))}
             </Select>
+
+            {canSetLocations && (
+              <LocationAccessEditor
+                embedded
+                title="Branch viewing access"
+                description="Choose whether this user can view data for all branches or only selected ones."
+                locations={locations}
+                canAccessAll={Boolean(form.canAccessAllLocations)}
+                onCanAccessAllChange={(checked) => setForm((f) => ({
+                  ...f,
+                  canAccessAllLocations: checked,
+                  allowedLocationIds: checked ? [] : f.allowedLocationIds,
+                }))}
+                selectedIds={form.allowedLocationIds}
+                onToggleId={(id, checked) => setForm((f) => {
+                  const setIds = new Set(f.allowedLocationIds || []);
+                  if (checked) setIds.add(id);
+                  else setIds.delete(id);
+                  return { ...f, canAccessAllLocations: false, allowedLocationIds: [...setIds] };
+                })}
+                error={errors.allowedLocationIds}
+              />
+            )}
+
             <div style={{ paddingTop: 4 }}>
               <Btn type="submit" disabled={loading}>
                 {loading ? <Spinner size="sm" /> : 'Create Account'}

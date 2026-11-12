@@ -65,14 +65,26 @@ export function LocationProvider({ children }) {
       }
       return;
     }
-    if (selectedLocationId === ALL_LOCATIONS) return;
     if (!locations.length) return;
+
+    // Single-branch staff: lock to their only location (no switcher)
+    if (!canAccessAllLocations && locations.length === 1) {
+      const onlyId = String(locations[0]._id);
+      if (selectedLocationId !== onlyId) {
+        setSelectedLocationIdState(onlyId);
+        try { localStorage.setItem(STORAGE_KEY, onlyId); } catch { /* ignore */ }
+        setVersion((v) => v + 1);
+      }
+      return;
+    }
+
+    if (selectedLocationId === ALL_LOCATIONS) return;
     const ok = locations.some((loc) => String(loc._id) === String(selectedLocationId));
     if (!ok) {
       setSelectedLocationIdState(ALL_LOCATIONS);
       try { localStorage.setItem(STORAGE_KEY, ALL_LOCATIONS); } catch { /* ignore */ }
     }
-  }, [locations, multiEnabled, selectedLocationId]);
+  }, [locations, multiEnabled, selectedLocationId, canAccessAllLocations]);
 
   const setSelectedLocationId = useCallback((id) => {
     const next = id == null || id === '' ? ALL_LOCATIONS : String(id);
@@ -86,7 +98,8 @@ export function LocationProvider({ children }) {
     return locations.find((loc) => String(loc._id) === String(selectedLocationId)) || null;
   }, [locations, selectedLocationId]);
 
-  const showSwitcher = multiEnabled && (canAccessAllLocations || locations.length > 0);
+  // Only show when the user can actually switch (all branches, or 2+ granted)
+  const showSwitcher = multiEnabled && (canAccessAllLocations || locations.length > 1);
 
   const value = useMemo(() => ({
     locations,

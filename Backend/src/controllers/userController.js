@@ -630,7 +630,7 @@ const getSalesTeam = async (req, res) => {
                 .select("name email role monthlyTarget abilities createdAt")
                 .sort({ name: 1 })
                 .lean(),
-            Member.find()
+            Member.find({ ...(req.locationFilter || {}) })
                 .select("assignedSales status subscriptions createdAt")
                 .populate("subscriptions.package", "name price duration")
                 .lean(),
@@ -662,7 +662,10 @@ const getSalesProfile = async (req, res) => {
             return res.status(400).json({ message: "Profile is only available for sales team members" });
         }
 
-        const members = await Member.find({ assignedSales: user._id })
+        const members = await Member.find({
+            assignedSales: user._id,
+            ...(req.locationFilter || {}),
+        })
             .select("systemId memberId name phones photo status isMember subscriptions assignedSales source createdAt")
             .populate("subscriptions.package", "name price duration activityType");
 
@@ -716,7 +719,15 @@ const createStaffUser = async (req, res) => {
             return res.status(403).json({ message: "Not authorized" });
         }
 
-        const { name, email, password, role,mobile_number } = req.body;
+        const {
+            name,
+            email,
+            password,
+            role,
+            mobile_number,
+            canAccessAllLocations,
+            allowedLocationIds,
+        } = req.body;
 
         if (!name || !email || !password || !role || !mobile_number) {
             return res.status(400).json({ message: "name, email, password, mobile_number and role are required" });
@@ -745,6 +756,46 @@ const createStaffUser = async (req, res) => {
         const hashedPassword = await hashPassword(password);
         const username = await uniqueUsername(User, normalizedEmail);
 
+        const {
+            applyLocationAccessToUser,
+            defaultLocationFieldsForRole,
+        } = require("../utils/userLocationAccess");
+
+        const maySetLocations = ["Owner", "General Manager"].includes(req.user.role);
+        const locationDefaults = defaultLocationFieldsForRole(role);
+        const explicitLocation =
+            maySetLocations
+            && (canAccessAllLocations !== undefined || allowedLocationIds !== undefined);
+
+        const locationPayload = explicitLocation
+            ? {
+                canAccessAllLocations: canAccessAllLocations !== undefined
+                    ? Boolean(canAccessAllLocations)
+                    : false,
+                allowedLocationIds: Array.isArray(allowedLocationIds) ? allowedLocationIds : [],
+            }
+            : locationDefaults;
+
+        if (explicitLocation) {
+            const probe = {
+                role,
+                canAccessAllLocations: false,
+                allowedLocationIds: [],
+                markModified() {},
+            };
+            const grant = await applyLocationAccessToUser(
+                req.user,
+                probe,
+                locationPayload,
+                { requireBranches: true }
+            );
+            if (grant?.error) {
+                return res.status(grant.status || 400).json({ message: grant.error });
+            }
+            locationPayload.canAccessAllLocations = probe.canAccessAllLocations;
+            locationPayload.allowedLocationIds = probe.allowedLocationIds;
+        }
+
         const user = await User.create({
             name,
             email: normalizedEmail,
@@ -752,6 +803,10 @@ const createStaffUser = async (req, res) => {
             password: hashedPassword,
             role,
             mobile_number,
+            canAccessAllLocations: Boolean(locationPayload.canAccessAllLocations),
+            allowedLocationIds: locationPayload.canAccessAllLocations
+                ? []
+                : (locationPayload.allowedLocationIds || []),
         });
 
         logger.auth("info", "Staff user created", {
@@ -1037,7 +1092,10 @@ const getCoachTeam = async (req, res) => {
             User.find({ role: { $in: ["Coach", "Coach Manager"] } })
                 .select("name email role abilities createdAt")
                 .sort({ name: 1 }),
-            Member.find({ current_couch: { $ne: null } })
+            Member.find({
+                current_couch: { $ne: null },
+                ...(req.locationFilter || {}),
+            })
                 .select("current_couch couch_subscription_status PT_sessions used_PT_sessions"),
         ]);
 
@@ -1066,7 +1124,10 @@ const getCoachProfile = async (req, res) => {
             return res.status(400).json({ message: "Profile is only available for coach team members" });
         }
 
-        const members = await Member.find({ current_couch: user._id })
+        const members = await Member.find({
+            current_couch: user._id,
+            ...(req.locationFilter || {}),
+        })
             .select("name systemId memberId phones couch_subscription_status PT_sessions used_PT_sessions current_couch");
 
         res.json({

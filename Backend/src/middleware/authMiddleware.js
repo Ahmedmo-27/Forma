@@ -156,6 +156,10 @@ const protect = async (req, res, next) => {
                 add: user.accessOverrides?.add || [],
                 remove: user.accessOverrides?.remove || [],
             },
+            canAccessAllLocations: user.canAccessAllLocations === true,
+            allowedLocationIds: Array.isArray(user.allowedLocationIds)
+                ? user.allowedLocationIds.map((id) => String(id?._id || id)).filter(Boolean)
+                : [],
         };
         req.user = {
             ...authUser,

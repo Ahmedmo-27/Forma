@@ -63,62 +63,10 @@ const searchUsersForAccess = async (req, res) => {
 
 const Location = require("../models/Location");
 const { userHasAllLocations, toIdStrings } = require("../utils/locationScope");
+const { applyLocationAccessToUser } = require("../utils/userLocationAccess");
 
 async function applyLocationGrants(req, user) {
-    const body = req.body || {};
-    if (body.allowedLocationIds === undefined && body.canAccessAllLocations === undefined) {
-        return null;
-    }
-
-    // Only Owner (or actors editing via access_control) may set location grants
-    if (req.user.role !== "Owner" && req.user.role !== "General Manager") {
-        return { error: "Not authorized to set location access", status: 403 };
-    }
-
-    if (user.role === "Owner") {
-        user.canAccessAllLocations = true;
-        user.allowedLocationIds = [];
-        return {
-            allowedLocationIds: [],
-            canAccessAllLocations: true,
-        };
-    }
-
-    if (typeof body.canAccessAllLocations === "boolean") {
-        user.canAccessAllLocations = body.canAccessAllLocations;
-        if (body.canAccessAllLocations) {
-            user.allowedLocationIds = [];
-            return {
-                allowedLocationIds: [],
-                canAccessAllLocations: true,
-            };
-        }
-    }
-
-    if (Array.isArray(body.allowedLocationIds)) {
-        const ids = body.allowedLocationIds
-            .map((id) => String(id || "").trim())
-            .filter(Boolean);
-        if (ids.some((id) => !require("mongoose").Types.ObjectId.isValid(id))) {
-            return { error: "allowedLocationIds must be valid location ids", status: 400 };
-        }
-        if (ids.length) {
-            const found = await Location.find({ _id: { $in: ids } }).select("_id").lean();
-            if (found.length !== ids.length) {
-                return { error: "One or more locations were not found", status: 400 };
-            }
-        }
-        user.allowedLocationIds = ids;
-        if (body.canAccessAllLocations !== true) {
-            user.canAccessAllLocations = false;
-        }
-    }
-
-    user.markModified("allowedLocationIds");
-    return {
-        allowedLocationIds: toIdStrings(user.allowedLocationIds),
-        canAccessAllLocations: userHasAllLocations(user),
-    };
+    return applyLocationAccessToUser(req.user, user, req.body || {});
 }
 
 const getUserAccess = async (req, res) => {
@@ -133,7 +81,12 @@ const getUserAccess = async (req, res) => {
             return res.status(403).json({ message: "You cannot edit this user's access" });
         }
 
-        const locations = await Location.find({}).sort({ createdAt: 1 }).select("name locationId").lean();
+        let locations = [];
+        try {
+            locations = await Location.find({}).sort({ createdAt: 1 }).select("name locationId").lean();
+        } catch {
+            locations = [];
+        }
 
         res.json({
             user: {
@@ -199,7 +152,12 @@ const updateUserAccess = async (req, res) => {
             req,
         });
 
-        const locations = await Location.find({}).sort({ createdAt: 1 }).select("name locationId").lean();
+        let locations = [];
+        try {
+            locations = await Location.find({}).sort({ createdAt: 1 }).select("name locationId").lean();
+        } catch {
+            locations = [];
+        }
 
         res.json({
             message: "Access updated",
