@@ -1,6 +1,6 @@
 # Unified Error Handling & Modal System Architecture
 
-This document defines the unified error handling architecture for Leap SaaS across the backend API, the tenant application, and the Platform Console.
+This document defines the unified error handling architecture for Forma across the backend API, the tenant application, and the Platform Console.
 
 ---
 

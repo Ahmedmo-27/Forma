@@ -32,6 +32,7 @@ const taskRoutes = require("./routes/taskRoutes");
 const storageService = require("./services/storageService");
 const Tenant = require("./models/Tenant");
 const { runAsPlatform } = require("./context/tenantContext");
+const { getHealth } = require("./controllers/healthController");
 
 
 const app = express();
@@ -116,6 +117,9 @@ app.use("/api", globalLimiter);
 app.get("/", (req, res) => {
     res.send("Flame Factory API is running");
 });
+
+// Public probe for Render / load balancers — outside /api so it bypasses rate limits
+app.get("/health", getHealth);
 
 app.use("/api/users", userRoutes);
 app.use("/api/members", membersRoutes);

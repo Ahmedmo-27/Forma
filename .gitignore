@@ -9,3 +9,12 @@ Thumbs.db
 
 
 node_modules/
+PROJECT.md
+TEST_INFRA.md
+Backend/logs/app.log
+Backend/logs/auth.log
+Backend/logs/errors.log
+Backend/logs/http.log
+docs/ERROR_HANDLING.md
+docs/MULTITENANCY.md
+docs/PLATFORM_CONSOLE.md

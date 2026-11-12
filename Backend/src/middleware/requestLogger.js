@@ -2,10 +2,13 @@ const logger = require("../utils/logger");
 const { sanitizeForLog } = require("../utils/sanitizeLog");
 
 const SENSITIVE_PATHS = ["/api/users/login", "/api/users/register", "/api/users/staff", "/api/platform/auth"];
+const QUIET_PATHS = ["/health"];
 
 function requestLogger(req, res, next) {
   const start = Date.now();
+  const pathOnly = (req.originalUrl || "").split("?")[0];
   const isAuthRoute = SENSITIVE_PATHS.some((p) => req.originalUrl.startsWith(p));
+  const isQuietPath = QUIET_PATHS.includes(pathOnly);
 
   let responseBody;
   const originalJson = res.json.bind(res);
@@ -15,6 +18,9 @@ function requestLogger(req, res, next) {
   };
 
   res.on("finish", () => {
+    // Skip routine probe noise; still log failures so outages stay visible
+    if (isQuietPath && res.statusCode < 400) return;
+
     const durationMs = Date.now() - start;
     const errorCode = responseBody?.error?.code || responseBody?.code || (res.statusCode >= 400 ? `HTTP_${res.statusCode}` : null);
     const tenantId = req.user?.tenantId || req.tenant?._id?.toString() || req.get("x-tenant-slug") || null;

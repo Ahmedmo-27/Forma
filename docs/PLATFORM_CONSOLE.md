@@ -1,6 +1,6 @@
-# Leap Platform Console Specification & Operations Manual
+# Forma Platform Console Specification & Operations Manual
 
-This document details the architecture, security isolation model, permission matrices, metric formulas, and operational runbooks for the **Leap Gym SaaS Platform Console** (Super Admin system).
+This document details the architecture, security isolation model, permission matrices, metric formulas, and operational runbooks for the **Forma Platform Console** (Super Admin system).
 
 ---
 

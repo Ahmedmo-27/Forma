@@ -76,7 +76,7 @@ async function uploadOnce(config, token, file, timeoutMs) {
 }
 
 async function health(baseUrl) {
-    const response = await fetch(`${baseUrl}/`, { signal: AbortSignal.timeout(10000) });
+    const response = await fetch(`${baseUrl}/health`, { signal: AbortSignal.timeout(10000) });
     if (!response.ok) throw new Error(`Server health check returned ${response.status}`);
 }
 

@@ -1,7 +1,7 @@
-# Leap Gym Multi-Tenant SaaS Architecture Documentation
+# Forma Multi-Tenant SaaS Architecture Documentation
 
 ## 1. Executive Summary & Overview
-The **Leap Gym Management System** (formerly single-tenant Flame Factory) has been transformed into a **shared-database multi-tenant SaaS**. 
+The **Forma** platform (formerly single-tenant Flame Factory) has been transformed into a **shared-database multi-tenant SaaS**. 
 In this architecture, each gym operates as an isolated subscriber ("tenant") with its own:
 - Subscription Plan (`basic`, `gold`, `platinum`) and quota limits (`maxMembers`, `maxStaff`, `maxBranches`).
 - Feature flags controlling access to backend routes and UI navigation modules.
