@@ -44,6 +44,16 @@ const configuredOrigins = (process.env.FRONTEND_ORIGIN || "http://localhost:5173
     .map((o) => o.trim().replace(/\/+$/, ""))
     .filter(Boolean);
 
+// When BASE_DOMAIN is set (e.g. forma-official.com), allow apex + any single subdomain over HTTPS
+// so www / app / platform work even if one was omitted from FRONTEND_ORIGIN.
+const baseDomain = String(process.env.BASE_DOMAIN || "")
+    .trim()
+    .toLowerCase()
+    .replace(/^\.+|\.+$/g, "");
+const baseDomainOriginRe = baseDomain
+    ? new RegExp(`^https:\\/\\/([a-z0-9-]+\\.)?${baseDomain.replace(/\./g, "\\.")}$`, "i")
+    : null;
+
 app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" },
     // API responses; SPA CSP is set on Vercel
@@ -58,6 +68,7 @@ app.use(cors({
         if (
             configuredOrigins.includes("*") ||
             configuredOrigins.includes(cleanOrigin) ||
+            (baseDomainOriginRe && baseDomainOriginRe.test(cleanOrigin)) ||
             /^https:\/\/(leap|forma)[a-z0-9-]*\.vercel\.app$/.test(cleanOrigin) ||
             /^http:\/\/localhost(:\d+)?$/.test(cleanOrigin) ||
             /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(cleanOrigin)

@@ -64,7 +64,7 @@ On Railway (production) and Render (testing), set `R2_ACCOUNT_ID`, `R2_BUCKET_NA
 ## Production
 
 - **Domain:** `forma-official.com` — see [docs/DOMAIN_NETWORKING.md](docs/DOMAIN_NETWORKING.md).
-- **Frontend (Vercel):** build from `vercel.json`. Set `BACKEND_ORIGIN=https://api.forma-official.com` before building. Attach `app`, `www`, and optional `platform` / apex.
+- **Frontend (Vercel):** build from `vercel.json`. Set `BACKEND_ORIGIN=https://api.forma-official.com` (include `https://`) before building. Attach `app`, `www`, and optional `platform` / apex.
 - **API (Railway):** custom domain `api.forma-official.com`. Set `FRONTEND_ORIGIN` with `https://app.forma-official.com` listed first (then `www` / `platform`) so invite and reset links hit the gym app. Set `BASE_DOMAIN=forma-official.com`, production `PAYMENT_*`, and production secrets. Do not commit secrets.
 - **Testing API (Render):** keep the default `*.onrender.com` URL from `render.yaml`. Do not attach `forma-official.com`. Point local/preview `BACKEND_ORIGIN` at Render only for test work.
 - Health check path is `/`.
