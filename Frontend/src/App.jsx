@@ -15,6 +15,7 @@ import Tasks          from './pages/Tasks';
 import AssigningTasksPage from './pages/tasks/AssigningTasksPage';
 import AssignedTasksPage  from './pages/tasks/AssignedTasksPage';
 import TaskFilterPage     from './pages/tasks/TaskFilterPage';
+import TaskFilterResultsPage from './pages/tasks/TaskFilterResultsPage';
 import MemberProfile  from './pages/member/MemberProfile';
 import SalesDashboard     from './pages/sales/SalesDashboard';
 import SalesMembers       from './pages/sales/SalesMembers';
@@ -51,6 +52,7 @@ import ReceptionContacts  from './pages/ReceptionContacts';
 import Reports         from './pages/Reports';
 import Management      from './pages/Management';
 import AccessControl   from './pages/management/AccessControl';
+import QuickTransfer  from './pages/management/QuickTransfer';
 import GuestMembers    from './pages/reports/GuestMembers';
 import ExpiredMembers  from './pages/reports/ExpiredMembers';
 import ImportedMembers from './pages/reports/ImportedMembers';
@@ -172,6 +174,11 @@ function TenantAppRoutes() {
           access={['transfer', 'coach_transfer', 'members']}
         >
           <TaskFilterPage />
+        </PrivateRoute>
+      } />
+      <Route path="/tasks/filter/results" element={
+        <PrivateRoute roles={['Owner','General Manager','Sales Manager','Coach Manager','Sales','Coach']} access={['transfer', 'coach_transfer', 'members']}>
+          <TaskFilterResultsPage />
         </PrivateRoute>
       } />
       <Route path="/tasks/assigned" element={
@@ -379,6 +386,11 @@ function TenantAppRoutes() {
       <Route path="/management/access" element={
         <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager', 'Coach Manager']} access="access_control">
           <AccessControl />
+        </PrivateRoute>
+      } />
+      <Route path="/management/quick-transfer" element={
+        <PrivateRoute access={['transfer', 'coach_transfer']}>
+          <QuickTransfer />
         </PrivateRoute>
       } />
 

@@ -67,6 +67,7 @@ export default function Management() {
     teams: allow('teams_overview'),
     accessControl: allow('access_control'),
     packageRequests: allow('package_approvals'),
+    quickTransfer: allow('transfer') || allow('coach_transfer'),
   };
 
   return (
@@ -128,6 +129,12 @@ export default function Management() {
         {show.packageRequests && (
           <Section title="Accounting" sub="Financial management tools">
             <MgmtCard icon="📨" title="Package Requests" sub="Pending package approvals"    to="/accounting/package-requests" iconBg="#F0FDF4" />
+          </Section>
+        )}
+
+        {show.quickTransfer && (
+          <Section title="Members" sub="Member management tools">
+            <MgmtCard icon="🔄" title="Quick Transfer" sub="Transfer a member to a sales rep or coach" to="/management/quick-transfer" iconBg="#F0F9FF" />
           </Section>
         )}
 
