@@ -97,6 +97,7 @@ const {
 const {
     getSystemHealth,
     toggleMaintenanceMode,
+    togglePublicSite,
     updatePlatformSetting,
 } = require("../controllers/platformSystemController");
 
@@ -227,6 +228,12 @@ router.get("/system/health", requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH
 router.get("/system/logs/backend", requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH), getBackendLogs);
 router.get("/system/logs/frontend", requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH), getFrontendLogs);
 router.post("/system/maintenance", requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH), autoInvalidate(["system"], "platform"), toggleMaintenanceMode);
+router.post(
+    "/system/public-site",
+    requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH),
+    autoInvalidate(["system", "public"], "platform"),
+    togglePublicSite
+);
 router.patch("/system/settings/:key", requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH), autoInvalidate(["system"], "platform"), updatePlatformSetting);
 
 module.exports = router;

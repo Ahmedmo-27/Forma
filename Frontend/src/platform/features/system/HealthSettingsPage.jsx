@@ -3,8 +3,10 @@ import { useQuery } from "@tanstack/react-query";
 import {
   apiGetSystemHealth,
   apiToggleMaintenanceMode,
+  apiTogglePublicSite,
   apiUpdateSystemSetting,
 } from "../../lib/api/endpoints";
+import { usePlatformRole } from "../../lib/auth/PermissionContext";
 import { isValidEmail, isNonNegativeInteger } from "../../lib/utils/validation";
 import {
   Button,
@@ -36,15 +38,22 @@ import {
   Save,
   RefreshCw,
   CheckCircle2,
+  Globe,
 } from "lucide-react";
 
 export default function HealthSettingsPage() {
+  const { hasRole } = usePlatformRole();
+  const isSuperAdmin = hasRole("super_admin");
   const [activeTab, setActiveTab] = useState("seller");
 
   // Maintenance Toggle State
   const [maintenanceDialogOpen, setMaintenanceDialogOpen] = useState(false);
   const [maintenanceMessage, setMaintenanceMessage] = useState("");
   const [togglingMaintenance, setTogglingMaintenance] = useState(false);
+
+  const [publicSiteDialogOpen, setPublicSiteDialogOpen] = useState(false);
+  const [publicSiteMessage, setPublicSiteMessage] = useState("");
+  const [togglingPublicSite, setTogglingPublicSite] = useState(false);
 
   // Editable Settings States
   // 1. Seller Details — field names match Invoice.sellerDetails
@@ -73,6 +82,10 @@ export default function HealthSettingsPage() {
   });
 
   const maintenance = healthData?.maintenance || { enabled: false, message: "" };
+  const publicSite = healthData?.publicSite || {
+    published: false,
+    message: "Forma’s public site is under development. Check back soon.",
+  };
   const memory = healthData?.memory || { rssMb: 0, heapUsedMb: 0, heapTotalMb: 1 };
   const database = healthData?.database || { status: "unknown", name: "forma" };
 
@@ -119,6 +132,32 @@ export default function HealthSettingsPage() {
       platformToast.error(err?.message || "Failed to toggle maintenance mode");
     } finally {
       setTogglingMaintenance(false);
+    }
+  };
+
+  const handleTogglePublicSite = async () => {
+    setTogglingPublicSite(true);
+    try {
+      const nextPublished = !publicSite.published;
+      await apiTogglePublicSite({
+        published: nextPublished,
+        message:
+          publicSiteMessage ||
+          (nextPublished
+            ? ""
+            : "Forma’s public site is under development. Check back soon."),
+      });
+      platformToast.success(
+        nextPublished
+          ? "Public www site is live for guests"
+          : "Public www site marked under development (super admin preview only)"
+      );
+      setPublicSiteDialogOpen(false);
+      refetch();
+    } catch (err) {
+      platformToast.error(err?.response?.data?.message || err?.message || "Failed to update public site");
+    } finally {
+      setTogglingPublicSite(false);
     }
   };
 
@@ -356,6 +395,78 @@ export default function HealthSettingsPage() {
         </div>
       </div>
 
+      {/* Public www marketing visibility (super_admin) */}
+      {isSuperAdmin ? (
+        <div
+          className={`p-5 rounded-xl border transition-all ${
+            publicSite.published
+              ? "bg-[var(--platform-surface-raised)] border-[var(--platform-border-subtle)]"
+              : "bg-[var(--platform-info-surface)] border-[var(--platform-info-border)]"
+          }`}
+        >
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <span
+                className={`p-2.5 rounded-lg ${
+                  publicSite.published
+                    ? "bg-[var(--platform-success-subtle)] text-[var(--platform-success)]"
+                    : "bg-[var(--platform-info)]/15 text-[var(--platform-info)]"
+                }`}
+              >
+                <Globe className="w-6 h-6" />
+              </span>
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-semibold text-sm text-[var(--platform-text-primary)]">
+                    Public marketing site (www)
+                  </h3>
+                  <Badge variant={publicSite.published ? "success" : "info"} size="xs">
+                    {publicSite.published ? "Published" : "Under development"}
+                  </Badge>
+                </div>
+                <p className="text-xs text-[var(--platform-text-secondary)] mt-1 max-w-2xl">
+                  When under development, guests on <span className="font-mono">www.forma-official.com</span>{" "}
+                  see a coming-soon page. Platform super admins can still preview after signing in on{" "}
+                  <span className="font-mono">*.forma-official.com</span> (preview cookie shared across the
+                  domain).
+                </p>
+                {!publicSite.published && publicSite.message ? (
+                  <div className="mt-2 text-xs font-mono text-[var(--platform-info)] bg-[var(--platform-surface)]/60 p-2 rounded border border-[var(--platform-info-border)]">
+                    Guest notice: &quot;{publicSite.message}&quot;
+                  </div>
+                ) : null}
+                <a
+                  href={
+                    typeof window !== "undefined" &&
+                    (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")
+                      ? "/"
+                      : "https://www.forma-official.com/"
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-block mt-2 text-xs font-medium text-[var(--platform-accent)] underline-offset-2 hover:underline"
+                >
+                  Open www public site
+                </a>
+              </div>
+            </div>
+
+            <Button
+              variant={publicSite.published ? "outline" : "primary"}
+              size="sm"
+              onClick={() => {
+                setPublicSiteMessage(
+                  publicSite.message || "Forma’s public site is under development. Check back soon."
+                );
+                setPublicSiteDialogOpen(true);
+              }}
+            >
+              {publicSite.published ? "Mark under development" : "Publish to guests"}
+            </Button>
+          </div>
+        </div>
+      ) : null}
+
       {/* Platform Operational Configuration Tabs */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -523,6 +634,36 @@ export default function HealthSettingsPage() {
             />
           </div>
         )}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={publicSiteDialogOpen}
+        onOpenChange={setPublicSiteDialogOpen}
+        title={publicSite.published ? "Mark www as under development" : "Publish www to guests"}
+        description={
+          publicSite.published
+            ? "Guests will only see a coming-soon page. Super admins signed in on forma-official.com can still preview."
+            : "The public marketing site on www will become visible to everyone."
+        }
+        confirmText={publicSite.published ? "Mark under development" : "Publish to guests"}
+        variant={publicSite.published ? "warning" : "primary"}
+        requireReason={false}
+        loading={togglingPublicSite}
+        onConfirm={handleTogglePublicSite}
+      >
+        {publicSite.published ? (
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
+              Guest notice
+            </label>
+            <Textarea
+              rows={3}
+              value={publicSiteMessage}
+              onChange={(e) => setPublicSiteMessage(e.target.value)}
+              placeholder="Forma’s public site is under development. Check back soon."
+            />
+          </div>
+        ) : null}
       </ConfirmDialog>
     </div>
   );

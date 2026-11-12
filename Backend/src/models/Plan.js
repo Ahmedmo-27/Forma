@@ -15,6 +15,7 @@ const ALL_FEATURES = [
     "exec_analytics",
     "funnels",
     "business_intelligence",
+    "multi_branches",
 ];
 
 const ALL_ROLES = [

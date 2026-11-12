@@ -10,8 +10,12 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@gsap/react": "^2.1.2",
+    "@react-three/drei": "^10.7.9",
+    "@react-three/fiber": "^9.8.2",
     "@tanstack/react-query": "^5.106.1",
     "axios": "^1.18.1",
+    "gsap": "^3.15.1",
     "html5-qrcode": "^2.3.8",
     "lucide-react": "^1.69.0",
     "qrcode": "^1.5.4",
@@ -20,7 +24,8 @@
     "react-dom": "^19.2.7",
     "react-helmet-async": "^3.0.0",
     "react-hot-toast": "^2.6.0",
-    "react-router-dom": "^7.18.0"
+    "react-router-dom": "^7.18.0",
+    "three": "^0.187.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

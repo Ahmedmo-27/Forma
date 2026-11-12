@@ -27,6 +27,9 @@ const DEFAULT_PLANS = [
             maxBranches: 1,
         },
         isActive: true,
+        visibility: "public",
+        sortOrder: 1,
+        description: "Core member ops for a single location.",
     },
     {
         key: "gold",
@@ -46,6 +49,7 @@ const DEFAULT_PLANS = [
             "whatsapp",
             "excel_import",
             "funnels",
+            "multi_branches",
         ],
         allowedRoles: [
             "Owner",
@@ -63,6 +67,9 @@ const DEFAULT_PLANS = [
             maxBranches: 2,
         },
         isActive: true,
+        visibility: "public",
+        sortOrder: 2,
+        description: "Sales CRM, WhatsApp, and accounting for growing gyms.",
     },
     {
         key: "platinum",
@@ -84,6 +91,7 @@ const DEFAULT_PLANS = [
             "exec_analytics",
             "funnels",
             "business_intelligence",
+            "multi_branches",
         ],
         allowedRoles: [
             "Owner",
@@ -101,6 +109,9 @@ const DEFAULT_PLANS = [
             maxBranches: 10,
         },
         isActive: true,
+        visibility: "public",
+        sortOrder: 3,
+        description: "Full analytics and BI for multi-location operators.",
     },
 ];
 

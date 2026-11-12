@@ -23,6 +23,7 @@ const DEFAULT_FEATURES = [
     { key: "exec_analytics", name: "Executive Analytics", category: "analytics", description: "Churn analytics, revenue forecasting, retention cohorts, and attendance heatmaps", isCore: false },
     { key: "funnels", name: "Sales Conversion Funnels", category: "analytics", description: "Lead-to-member conversion tracking, drop-off analysis, and marketing ROI", isCore: false },
     { key: "business_intelligence", name: "Business Intelligence", category: "analytics", description: "Custom KPI dashboards, executive summaries, and multi-branch rollups", isCore: false },
+    { key: "multi_branches", name: "Multi-Branch Locations", category: "core", description: "Link multiple gym branches, switch location data in the navbar, and grant staff per-location access", isCore: false },
 ];
 
 const SYSTEM_ROLES = [
@@ -99,7 +100,18 @@ async function ensureDefaultFeatures() {
                     { upsert: true }
                 );
             }
+        } else {
+            // Backfill features added after initial seed (e.g. multi_branches)
+            for (const item of DEFAULT_FEATURES) {
+                await Feature.findOneAndUpdate(
+                    { key: item.key },
+                    { $setOnInsert: item },
+                    { upsert: true }
+                );
+            }
         }
+        const { ensureMultiBranchesOnPlans } = require("../utils/ensureMultiBranches");
+        await ensureMultiBranchesOnPlans();
     } catch (_) {
         // Non-blocking in case of race condition
     }

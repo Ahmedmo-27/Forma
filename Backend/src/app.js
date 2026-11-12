@@ -26,9 +26,11 @@ const { AppError } = require("./utils/errors");
 const coachRequestRoutes = require("./routes/coachRequestRoutes");
 const tenantRoutes = require("./routes/tenantRoutes");
 const platformRoutes = require("./routes/platformRoutes");
+const publicRoutes = require("./routes/publicRoutes");
 const analyticsRoutes = require("./routes/analyticsRoutes");
 const biRoutes = require("./routes/biRoutes");
 const taskRoutes = require("./routes/taskRoutes");
+const locationRoutes = require("./routes/locationRoutes");
 const storageService = require("./services/storageService");
 const Tenant = require("./models/Tenant");
 const { runAsPlatform } = require("./context/tenantContext");
@@ -87,6 +89,8 @@ app.use(cors({
         "x-tenant-slug",
         "X-Gym-Code",
         "x-gym-code",
+        "X-Location-Id",
+        "x-location-id",
         "Accept",
         "Origin",
         "X-Requested-With",
@@ -144,10 +148,12 @@ app.use("/api/requests", salesRequestRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/coach-requests", coachRequestRoutes);
 app.use("/api/tenant", tenantRoutes);
+app.use("/api/public", publicRoutes);
 app.use("/api/platform", platformRoutes);
 app.use("/api/analytics", analyticsRoutes);
 app.use("/api/bi", biRoutes);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/locations", locationRoutes);
 
 const uploadReadLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,

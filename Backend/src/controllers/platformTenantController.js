@@ -450,8 +450,9 @@ async function onboardTenant(req, res) {
             });
         }
 
-        // Write AuditLog
+        // Write AuditLog (tenantId required by tenantPlugin even under runAsPlatform)
         await AuditLog.create({
+            tenantId: tenant._id,
             action: "tenant_status_updated",
             actor: req.platformUser.id,
             actorRole: "PlatformUser",

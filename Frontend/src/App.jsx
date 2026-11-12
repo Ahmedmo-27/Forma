@@ -3,12 +3,22 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { TenantProvider } from './context/TenantContext';
+import { LocationProvider } from './context/LocationContext';
 import { WalkthroughProvider } from './tutorials/walkthrough-context';
 import WalkthroughOverlay from './components/tutorials/WalkthroughOverlay';
 import HelpScenariosDialog from './components/tutorials/HelpScenariosDialog';
 import FeatureGate from './components/FeatureGate';
 import ErrorBoundary from './components/errors/ErrorBoundary';
 import GlobalErrorContainer from './components/errors/GlobalErrorContainer';
+import { isMarketingHost, shouldHardRedirectToApp } from './marketing/host';
+
+const MarketingLayout = lazy(() => import('./marketing/layout/MarketingLayout'));
+const MarketingHomePage = lazy(() => import('./marketing/pages/HomePage'));
+const MarketingPlansPage = lazy(() => import('./marketing/pages/PlansPage'));
+const MarketingGetStartedPage = lazy(() => import('./marketing/pages/GetStartedPage'));
+const MarketingWhyFormaPage = lazy(() => import('./marketing/pages/WhyFormaPage'));
+const PublicSiteGate = lazy(() => import('./marketing/PublicSiteGate'));
+const RedirectToApp = lazy(() => import('./marketing/RedirectToApp'));
 
 import Login          from './pages/Login';
 import SetupPassword  from './pages/SetupPassword';
@@ -467,6 +477,44 @@ function TenantAppRoutes() {
   );
 }
 
+function MarketingFallback() {
+  return (
+    <div
+      className="min-h-screen flex items-center justify-center"
+      style={{ background: '#FCF3E2', color: '#142843', fontFamily: 'Outfit, Geist, system-ui, sans-serif' }}
+    >
+      Loading Forma…
+    </div>
+  );
+}
+
+/** Auth pages must work on www and app (local VITE_SITE=www included). */
+function AuthShell({ children }) {
+  return (
+    <AuthProvider>
+      <TenantProvider>
+        <LocationProvider>{children}</LocationProvider>
+      </TenantProvider>
+    </AuthProvider>
+  );
+}
+
+function TenantShell() {
+  return (
+    <AuthProvider>
+      <TenantProvider>
+        <LocationProvider>
+          <WalkthroughProvider>
+            <TenantAppRoutes />
+            <WalkthroughOverlay />
+            <HelpScenariosDialog />
+          </WalkthroughProvider>
+        </LocationProvider>
+      </TenantProvider>
+    </AuthProvider>
+  );
+}
+
 // ── App root ──────────────────────────────────────────────────────────────────
 export default function App() {
   useEffect(() => {
@@ -483,43 +531,114 @@ export default function App() {
       window.removeEventListener('unhandledrejection', handleUnhandledRejection);
     };
   }, []);
+
+  const marketing = isMarketingHost();
+  // Production www/apex → staff + platform live on app.* (hard redirect). Local VITE_SITE=www keeps same origin.
+  const sendStaffToAppHost = shouldHardRedirectToApp();
+
+  const platformElement = sendStaffToAppHost ? (
+    <Suspense fallback={<MarketingFallback />}>
+      <RedirectToApp />
+    </Suspense>
+  ) : (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#090D16] text-xs font-mono text-slate-400">
+          Loading Platform Console...
+        </div>
+      }
+    >
+      <PlatformApp />
+    </Suspense>
+  );
+
+  const authElement = (page) =>
+    sendStaffToAppHost ? (
+      <Suspense fallback={<MarketingFallback />}>
+        <RedirectToApp />
+      </Suspense>
+    ) : (
+      <AuthShell>{page}</AuthShell>
+    );
+
   return (
     <ErrorBoundary>
       <BrowserRouter>
         <GlobalErrorContainer />
         <Routes>
-          {/* ── Platform Console Subsystem (Rebuilt from Scratch, Zero Tenant Context) ──── */}
-          <Route
-            path="/platform/*"
-            element={
-              <Suspense
-                fallback={
-                  <div className="min-h-screen flex items-center justify-center bg-[#090D16] text-xs font-mono text-slate-400">
-                    Loading Platform Console...
-                  </div>
-                }
-              >
-                <PlatformApp />
-              </Suspense>
-            }
-          />
-
-          {/* ── Backward-compatible redirect from /platform-next/* to /platform/* ──── */}
+          {/* Platform — on app (or localhost); www prod redirects to app./platform */}
+          <Route path="/platform/*" element={platformElement} />
           <Route path="/platform-next/*" element={<Navigate to="/platform" replace />} />
 
-          {/* ── Tenant SaaS Subsystem (With AuthProvider and TenantProvider) ─── */}
+          {/* Gym auth — production www redirects to app.forma-official.com */}
+          <Route path="/login" element={authElement(<Login />)} />
+          <Route path="/auth/setup-password" element={authElement(<SetupPassword />)} />
+          <Route path="/auth/forgot-password" element={authElement(<ForgotPassword />)} />
+
+          {/* Marketing: www only — gated when under development (super admin preview) */}
+          {marketing ? (
+            <Route
+              element={
+                <Suspense fallback={<MarketingFallback />}>
+                  <PublicSiteGate />
+                </Suspense>
+              }
+            >
+              <Route
+                element={
+                  <Suspense fallback={<MarketingFallback />}>
+                    <MarketingLayout />
+                  </Suspense>
+                }
+              >
+                <Route
+                  index
+                  element={
+                    <Suspense fallback={<MarketingFallback />}>
+                      <MarketingHomePage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="plans"
+                  element={
+                    <Suspense fallback={<MarketingFallback />}>
+                      <MarketingPlansPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="why-forma"
+                  element={
+                    <Suspense fallback={<MarketingFallback />}>
+                      <MarketingWhyFormaPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="get-started"
+                  element={
+                    <Suspense fallback={<MarketingFallback />}>
+                      <MarketingGetStartedPage />
+                    </Suspense>
+                  }
+                />
+                <Route path="checkout" element={<Navigate to="/get-started" replace />} />
+              </Route>
+            </Route>
+          ) : null}
+
+          {/* Staff tenant app on app.* ; www prod → RedirectToApp; local www preview → TenantShell */}
           <Route
             path="/*"
             element={
-              <AuthProvider>
-                <TenantProvider>
-                  <WalkthroughProvider>
-                    <TenantAppRoutes />
-                    <WalkthroughOverlay />
-                    <HelpScenariosDialog />
-                  </WalkthroughProvider>
-                </TenantProvider>
-              </AuthProvider>
+              sendStaffToAppHost ? (
+                <Suspense fallback={<MarketingFallback />}>
+                  <RedirectToApp />
+                </Suspense>
+              ) : (
+                <TenantShell />
+              )
             }
           />
         </Routes>

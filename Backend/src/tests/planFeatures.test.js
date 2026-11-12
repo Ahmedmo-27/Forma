@@ -11,15 +11,17 @@ describe("plan features for analytics", () => {
         expect(features("basic")).not.toContain("accounting");
         expect(features("basic")).not.toContain("exec_analytics");
 
-        expect(features("gold")).toEqual(expect.arrayContaining(["accounting", "funnels"]));
+        expect(features("gold")).toEqual(expect.arrayContaining(["accounting", "funnels", "multi_branches"]));
         expect(features("gold")).not.toContain("exec_analytics");
         expect(features("gold")).not.toContain("business_intelligence");
+        expect(features("basic")).not.toContain("multi_branches");
 
         expect(features("platinum")).toEqual(expect.arrayContaining([
             "accounting",
             "funnels",
             "exec_analytics",
             "business_intelligence",
+            "multi_branches",
         ]));
     });
 });

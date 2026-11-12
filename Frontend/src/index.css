@@ -35,6 +35,9 @@
   --t3: #6B7280;
   --t4: #9CA3AF;
 
+  /* Decorative Lucide / UI icons (Settings → Icon Color) */
+  --icon: #44298C;
+
   /* Semantic */
   --green:      #16a34a;
   --green-bg:   #f0fdf4;
@@ -55,6 +58,11 @@
   /* keep --blue mapped so old refs don't break */
   --blue:       #44298C;
   --blue-dark:  #5B38BA;
+}
+
+/* Brand-toned Lucide icons (use className="brand-icon" or inherit from parent color: var(--icon)) */
+.brand-icon {
+  color: var(--icon, var(--navy));
 }
 
 /* ── Base Styles (Tailwind preflight handles *, *::before, *::after reset in @layer base) ── */

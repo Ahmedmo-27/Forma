@@ -243,6 +243,9 @@ export const apiGetFrontendLogs = (params, signal) =>
 export const apiToggleMaintenanceMode = (data, signal) =>
   platformClient.post("/system/maintenance", data, { signal });
 
+export const apiTogglePublicSite = (data, signal) =>
+  platformClient.post("/system/public-site", data, { signal });
+
 export const apiUpdatePlatformSetting = (key, data, signal) =>
   platformClient.patch(`/system/settings/${key}`, data, { signal });
 export const apiUpdateSystemSetting = apiUpdatePlatformSetting;

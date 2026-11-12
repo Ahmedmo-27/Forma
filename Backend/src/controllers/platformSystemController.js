@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const PlatformSetting = require("../models/PlatformSetting");
 const cacheService = require("../services/cacheService");
 const logger = require("../utils/logger");
+const publicSiteService = require("../services/publicSiteService");
 
 /**
  * Get Comprehensive System Health & Status
@@ -25,6 +26,7 @@ async function getSystemHealth(_req, res) {
 
         const dunningSetting = await PlatformSetting.findOne({ key: "dunning_schedule" });
         const sellerSetting = await PlatformSetting.findOne({ key: "seller_details" });
+        const publicSite = await publicSiteService.getPublicSiteSetting();
 
         res.json({
             status: dbState === 1 ? "healthy" : "degraded",
@@ -41,6 +43,7 @@ async function getSystemHealth(_req, res) {
             },
             cache: cacheService.getStats(),
             maintenance,
+            publicSite,
             settings: {
                 dunningSchedule: dunningSetting?.value || { gracePeriodDays: 3, reminderDays: [3, 1] },
                 sellerDetails: sellerSetting?.value || null,
@@ -105,8 +108,42 @@ async function updatePlatformSetting(req, res) {
     }
 }
 
+/**
+ * Publish / unpublish www marketing site (super_admin only at route layer).
+ * POST /api/platform/system/public-site
+ */
+async function togglePublicSite(req, res) {
+    try {
+        if (req.platformUser?.role !== "super_admin") {
+            return res.status(403).json({ message: "Only platform super admins can change public site visibility" });
+        }
+
+        const { published, message } = req.body;
+        const value = await publicSiteService.setPublicSiteSetting({
+            published,
+            message,
+            actor: req.platformUser,
+        });
+
+        logger.info("platform", "Public site visibility toggled", {
+            published: value.published,
+            updatedBy: req.platformUser.email,
+        });
+
+        res.json({
+            message: value.published
+                ? "Public marketing site is now visible to guests"
+                : "Public marketing site is under development (super admin preview only)",
+            publicSite: value,
+        });
+    } catch (err) {
+        res.status(500).json({ message: "Server error", error: err.message });
+    }
+}
+
 module.exports = {
     getSystemHealth,
     toggleMaintenanceMode,
+    togglePublicSite,
     updatePlatformSetting,
 };
