@@ -78,7 +78,7 @@ export default function Login() {
   return (
     <div style={{
       minHeight: '100svh',
-      background: '#F5F6FA',
+      background: '#142843',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -92,17 +92,17 @@ export default function Login() {
       <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', overflow: 'hidden' }}>
         <div style={{
           position: 'absolute', width: 600, height: 600, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(68,41,140,0.07) 0%, transparent 65%)',
+          background: 'radial-gradient(circle, rgba(252,243,226,0.16) 0%, transparent 65%)',
           top: -150, left: -150,
         }} />
         <div style={{
           position: 'absolute', width: 500, height: 500, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(68,41,140,0.05) 0%, transparent 65%)',
+          background: 'radial-gradient(circle, rgba(252,243,226,0.10) 0%, transparent 65%)',
           bottom: -120, right: -120,
         }} />
         <div style={{
           position: 'absolute', inset: 0,
-          backgroundImage: 'radial-gradient(rgba(68,41,140,0.04) 1px, transparent 1px)',
+          backgroundImage: 'radial-gradient(rgba(252,243,226,0.14) 1px, transparent 1px)',
           backgroundSize: '36px 36px',
         }} />
       </div>
@@ -111,8 +111,8 @@ export default function Login() {
       <div style={{
         position: 'relative', zIndex: 1,
         width: '100%', maxWidth: 460,
-        background: '#FFFFFF',
-        border: '1px solid #E5E7EB',
+        background: '#FCF3E2',
+        border: '1px solid #E6DCC8',
         borderRadius: 20,
         boxShadow: '0 4px 24px rgba(0,0,0,0.07), 0 1px 4px rgba(0,0,0,0.04)',
         padding: 'clamp(28px, 6vw, 44px) clamp(18px, 5vw, 40px)',
@@ -120,19 +120,11 @@ export default function Login() {
 
         {/* Logo + Brand */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
-          <div style={{
-            width: 68, height: 68, borderRadius: 16,
-            background: 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            margin: '0 auto 18px',
-            boxShadow: '0 6px 20px rgba(68,41,140,0.30)',
-          }}>
-            <img src="/leap-logo.svg" alt="LEAP" style={{ width: 52, height: 52 }} />
-          </div>
-          <h1 style={{
-            fontSize: 26, fontWeight: 800, color: '#111827',
-            letterSpacing: '2.5px', textTransform: 'uppercase', marginBottom: 6,
-          }}>LEAP</h1>
+          <img
+            src="/forma-horizontal.jpeg"
+            alt="Forma"
+            style={{ width: '100%', maxWidth: 280, height: 'auto', display: 'block', margin: '0 auto 14px' }}
+          />
           <p style={{ fontSize: 13, color: '#6B7280', letterSpacing: '0.2px' }}>
             Gym & Fitness Management Platform
           </p>
@@ -200,21 +192,21 @@ export default function Login() {
                 placeholder="your username"
                 style={{
                   width: '100%', padding: '12px 14px 12px 40px', fontSize: 14,
-                  border: `1.5px solid ${errors.username ? '#FCA5A5' : '#E5E7EB'}`,
-                  borderRadius: 10, outline: 'none', color: '#111827',
-                  background: errors.username ? '#FEF2F2' : '#F9FAFB',
+                  border: `1.5px solid ${errors.username ? '#FCA5A5' : '#E6DCC8'}`,
+                  borderRadius: 10, outline: 'none', color: '#142843',
+                  background: errors.username ? '#FEF2F2' : '#FFFFFF',
                   transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
                   boxSizing: 'border-box',
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#44298C';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)';
-                  e.target.style.background = '#FAFAFF';
+                  e.target.style.borderColor = '#142843';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(20,40,67,0.12)';
+                  e.target.style.background = '#FFFFFF';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = errors.username ? '#FCA5A5' : '#E5E7EB';
+                  e.target.style.borderColor = errors.username ? '#FCA5A5' : '#E6DCC8';
                   e.target.style.boxShadow = 'none';
-                  e.target.style.background = errors.username ? '#FEF2F2' : '#F9FAFB';
+                  e.target.style.background = errors.username ? '#FEF2F2' : '#FFFFFF';
                 }}
               />
             </div>
@@ -246,21 +238,21 @@ export default function Login() {
                 placeholder="Enter your password"
                 style={{
                   width: '100%', padding: '12px 44px 12px 40px', fontSize: 14,
-                  border: `1.5px solid ${errors.password ? '#FCA5A5' : '#E5E7EB'}`,
-                  borderRadius: 10, outline: 'none', color: '#111827',
-                  background: errors.password ? '#FEF2F2' : '#F9FAFB',
+                  border: `1.5px solid ${errors.password ? '#FCA5A5' : '#E6DCC8'}`,
+                  borderRadius: 10, outline: 'none', color: '#142843',
+                  background: errors.password ? '#FEF2F2' : '#FFFFFF',
                   transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s',
                   boxSizing: 'border-box',
                 }}
                 onFocus={(e) => {
-                  e.target.style.borderColor = '#44298C';
-                  e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)';
-                  e.target.style.background = '#FAFAFF';
+                  e.target.style.borderColor = '#142843';
+                  e.target.style.boxShadow = '0 0 0 3px rgba(20,40,67,0.12)';
+                  e.target.style.background = '#FFFFFF';
                 }}
                 onBlur={(e) => {
-                  e.target.style.borderColor = errors.password ? '#FCA5A5' : '#E5E7EB';
+                  e.target.style.borderColor = errors.password ? '#FCA5A5' : '#E6DCC8';
                   e.target.style.boxShadow = 'none';
-                  e.target.style.background = errors.password ? '#FEF2F2' : '#F9FAFB';
+                  e.target.style.background = errors.password ? '#FEF2F2' : '#FFFFFF';
                 }}
               />
               <button
@@ -272,7 +264,7 @@ export default function Login() {
                   color: '#9CA3AF', width: 44, height: 44,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s',
                 }}
-                onMouseEnter={e => e.currentTarget.style.color = '#44298C'}
+                onMouseEnter={e => e.currentTarget.style.color = '#142843'}
                 onMouseLeave={e => e.currentTarget.style.color = '#9CA3AF'}
                 aria-label={showPwd ? 'Hide password' : 'Show password'}
               >
@@ -295,7 +287,7 @@ export default function Login() {
           </div>
 
           <div style={{ textAlign: 'right', marginTop: -8 }}>
-            <Link to="/auth/forgot-password" style={{ fontSize: 13, color: '#44298C', fontWeight: 600 }}>
+            <Link to="/auth/forgot-password" style={{ fontSize: 13, color: '#142843', fontWeight: 600 }}>
               Forgot password?
             </Link>
           </div>
@@ -306,28 +298,26 @@ export default function Login() {
             disabled={loading}
             style={{
               width: '100%', minHeight: 48, padding: '14px', fontSize: 15, fontWeight: 700,
-              background: loading
-                ? 'rgba(68,41,140,0.45)'
-                : 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)',
-              color: '#ffffff', border: 'none',
+              background: loading ? 'rgba(20,40,67,0.45)' : '#142843',
+              color: '#FCF3E2', border: 'none',
               borderRadius: 10,
               cursor: loading ? 'not-allowed' : 'pointer',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              boxShadow: loading ? 'none' : '0 4px 16px rgba(68,41,140,0.35)',
+              boxShadow: loading ? 'none' : '0 4px 16px rgba(20,40,67,0.28)',
               transition: 'all 0.18s cubic-bezier(0.16,1,0.3,1)',
               letterSpacing: '0.2px',
             }}
             onMouseEnter={(e) => {
               if (!loading) {
-                e.currentTarget.style.background = 'linear-gradient(135deg, #5B38BA 0%, #6D47CC 100%)';
-                e.currentTarget.style.boxShadow = '0 6px 24px rgba(68,41,140,0.45)';
+                e.currentTarget.style.background = '#1E3A5F';
+                e.currentTarget.style.boxShadow = '0 6px 24px rgba(20,40,67,0.35)';
                 e.currentTarget.style.transform = 'translateY(-1px)';
               }
             }}
             onMouseLeave={(e) => {
               if (!loading) {
-                e.currentTarget.style.background = 'linear-gradient(135deg, #44298C 0%, #5B38BA 100%)';
-                e.currentTarget.style.boxShadow = '0 4px 16px rgba(68,41,140,0.35)';
+                e.currentTarget.style.background = '#142843';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(20,40,67,0.28)';
                 e.currentTarget.style.transform = 'translateY(0)';
               }
             }}
@@ -347,7 +337,7 @@ export default function Login() {
         {/* Footer */}
         <div style={{
           marginTop: 28, paddingTop: 20,
-          borderTop: '1px solid #F3F4F6',
+          borderTop: '1px solid #E6DCC8',
           display: 'flex', justifyContent: 'center', gap: 24,
         }}>
           {[
@@ -362,8 +352,8 @@ export default function Login() {
           ))}
         </div>
 
-        <p style={{ textAlign: 'center', marginTop: 16, fontSize: 11, color: '#D1D5DB' }}>
-          © {new Date().getFullYear()} LEAP. All rights reserved.
+        <p style={{ textAlign: 'center', marginTop: 16, fontSize: 11, color: '#7A8B9C' }}>
+          © {new Date().getFullYear()} Forma. All rights reserved.
         </p>
       </div>
     </div>

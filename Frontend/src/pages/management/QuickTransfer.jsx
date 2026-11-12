@@ -99,13 +99,13 @@ export default function QuickTransfer() {
 
   return (
     <Layout>
-      <PageHeader title="Quick Transfer">
+      <PageHeader walkthrough="quick-transfer-header" title="Quick Transfer">
         <Btn variant="ghost" size="sm" onClick={() => navigate('/management')}>
           ← Back to Management
         </Btn>
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 32, paddingBottom: 48, maxWidth: 680 }}>
+      <div className="page-wrap" data-walkthrough="quick-transfer-board" style={{ paddingTop: 32, paddingBottom: 48, maxWidth: 680 }}>
         <p style={{ fontSize: 14, color: 'var(--t3)', marginBottom: 24 }}>
           Transfer an individual member to a sales representative or coach by their System ID.
         </p>
@@ -144,7 +144,7 @@ export default function QuickTransfer() {
                     placeholder="e.g. 104"
                     autoFocus
                     style={{ ...iStyle, paddingLeft: 26 }}
-                    onFocus={(e) => { e.target.style.borderColor = 'var(--navy, #44298C)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy, #44298C) 10%, transparent)'; }}
+                    onFocus={(e) => { e.target.style.borderColor = 'var(--navy, var(--navy))'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy, var(--navy)) 10%, transparent)'; }}
                     onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
                   />
                 </div>
@@ -183,7 +183,7 @@ export default function QuickTransfer() {
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="e.g. Member requested change"
                   style={iStyle}
-                  onFocus={(e) => { e.target.style.borderColor = 'var(--navy, #44298C)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy, #44298C) 10%, transparent)'; }}
+                  onFocus={(e) => { e.target.style.borderColor = 'var(--navy, var(--navy))'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy, var(--navy)) 10%, transparent)'; }}
                   onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
                 />
               </Field>
@@ -205,7 +205,7 @@ export default function QuickTransfer() {
                   disabled={busy || !systemId.trim() || !destId}
                   style={{
                     height: 38, padding: '0 22px', borderRadius: 8, border: 'none',
-                    background: busy || !systemId.trim() || !destId ? 'var(--border)' : 'var(--navy, #44298C)',
+                    background: busy || !systemId.trim() || !destId ? 'var(--border)' : 'var(--navy, var(--navy))',
                     color: busy || !systemId.trim() || !destId ? 'var(--t4)' : '#fff',
                     fontSize: 13, fontWeight: 700, cursor: busy || !systemId.trim() || !destId ? 'not-allowed' : 'pointer',
                     display: 'inline-flex', alignItems: 'center', gap: 8,

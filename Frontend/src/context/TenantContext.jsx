@@ -9,14 +9,30 @@ const DEFAULT_ACTIVITIES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'cali
 const EMPTY_OBJECT = {};
 const EMPTY_LIST = [];
 
+function clearBrandingOverrides() {
+  const root = document.documentElement;
+  [
+    '--nav-bg', '--nav-tab-bg', '--navy', '--blue',
+    '--navy-2', '--navy-3', '--blue-dark', '--accent', '--bg', '--t1',
+  ].forEach((name) => root.style.removeProperty(name));
+  if (document.body) {
+    document.body.style.backgroundColor = '';
+    document.body.style.color = '';
+  }
+}
+
 export function TenantProvider({ children }) {
   const { user } = useAuth();
   const [tenant, setTenant] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const applyBranding = useCallback((branding) => {
-    if (!branding?.palette) return;
-    const { navbar, primary, secondary, accent, background, text } = branding.palette;
+    const palette = branding?.palette;
+    if (!palette) {
+      clearBrandingOverrides();
+      return;
+    }
+    const { navbar, primary, secondary, accent, background, text } = palette;
     const root = document.documentElement;
 
     const normNav = normalizeHexColor(navbar);
@@ -80,6 +96,7 @@ export function TenantProvider({ children }) {
   const fetchTenant = useCallback(async () => {
     if (!user) {
       setTenant(null);
+      clearBrandingOverrides();
       setLoading(false);
       return;
     }

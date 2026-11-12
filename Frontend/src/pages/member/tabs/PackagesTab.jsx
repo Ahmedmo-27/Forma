@@ -6,6 +6,7 @@ import api from '../../../api/axios';
 import CatalogPackageForm, { EMPTY_PACKAGE_FORM, validatePackageForm, packageFormToPayload } from '../../../components/PackageForm';
 import PackageAcceptModal from '../../../components/accounting/PackageAcceptModal';
 import { useTenant } from '../../../context/TenantContext';
+import { useTourReveal } from '../../../tutorials/walkthrough-context';
 
 const ACTIVITY_TYPES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 const DURATIONS = ['1 month', '3 months', '6 months', '1 year'];
@@ -330,6 +331,7 @@ function PackagesContent({ member, user, onRefresh }) {
   const [pending, setPending] = useState(null);
   const [loadingPending, setLoadingPending] = useState(true);
   const [showAddPackage, setShowAddPackage] = useState(false);
+  useTourReveal('add-package', () => setShowAddPackage(true), () => setShowAddPackage(false));
   const [showAcceptModal, setShowAcceptModal] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
@@ -494,7 +496,9 @@ function PackagesContent({ member, user, onRefresh }) {
               <Btn variant="outline" size="xs" onClick={() => setShowRefundModal(true)}>💸 Refund</Btn>
             )}
             {canAddPackage && !loadingPending && !member.isBlocked && (
-              <Btn size="xs" onClick={() => setShowAddPackage(true)}>{isSalesManager ? '+ Request Package' : '+ Add Package'}</Btn>
+              <span data-walkthrough="add-package-btn">
+                <Btn size="xs" onClick={() => setShowAddPackage(true)}>{isSalesManager ? '+ Request Package' : '+ Add Package'}</Btn>
+              </span>
             )}
           </div>
         </CardHeader>
@@ -751,6 +755,7 @@ function PackageFormFields({ form, set, readOnly, makeException, allEditable }) 
 }
 
 function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAccountant, isOwner, onSuccess, onReview }) {
+  const { currency = 'EGP' } = useTenant() || {};
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(false);
   const [makeException, setMakeException] = useState(false);
@@ -975,6 +980,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
             </Btn>
           </>
         }>
+        <div data-walkthrough="add-package-form">
         <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16, lineHeight: 1.6 }}>
           Assign a package to <strong>{member.name}</strong>. Select a base package to pre-fill, then enter or adjust all terms before assigning.
         </p>
@@ -992,6 +998,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
             <PackageFormFields form={form} set={set} allEditable />
           </div>
         )}
+        </div>
       </Modal>
     );
   }
@@ -1008,6 +1015,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
           </Btn>
         </>
       }>
+      <div data-walkthrough="add-package-form">
       {pending && (
         <Alert type="warning">This member already has a pending package request awaiting accountant approval.</Alert>
       )}
@@ -1049,6 +1057,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
           <PackageFormFields form={form} set={set} readOnly={false} makeException={makeException} />
         </div>
       )}
+      </div>
     </Modal>
     <CreateCatalogPackageModal
       open={showCreatePackage}

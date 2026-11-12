@@ -557,7 +557,7 @@ export default function AssigningTasksPage() {
 
   return (
     <Layout>
-      <PageHeader title="Tasks Management">
+      <PageHeader walkthrough="assign-tasks-header" title="Tasks Management">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <Btn variant="outline" size="sm" onClick={() => navigate('/tasks/filter')}>
             🔍 Filter &amp; Bulk Actions
@@ -577,7 +577,7 @@ export default function AssigningTasksPage() {
         </div>
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="page-wrap" data-walkthrough="assign-tasks-board" style={{ paddingTop: 20, paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 16 }}>
         {/* KPI Overview Bar */}
         {overviewStats && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
@@ -777,9 +777,9 @@ export default function AssigningTasksPage() {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: 6,
-                        border: `1px solid ${moreFiltersOpen || activeFilterCount > 0 ? 'var(--navy, #44298C)' : 'var(--border)'}`,
-                        background: moreFiltersOpen || activeFilterCount > 0 ? 'var(--navy-subtle, rgba(68,41,140,0.06))' : 'var(--card)',
-                        color: moreFiltersOpen || activeFilterCount > 0 ? 'var(--navy, #44298C)' : 'var(--t2)',
+                        border: `1px solid ${moreFiltersOpen || activeFilterCount > 0 ? 'var(--navy, var(--navy))' : 'var(--border)'}`,
+                        background: moreFiltersOpen || activeFilterCount > 0 ? 'var(--navy-subtle, color-mix(in srgb, var(--navy) 6%, transparent))' : 'var(--card)',
+                        color: moreFiltersOpen || activeFilterCount > 0 ? 'var(--navy, var(--navy))' : 'var(--t2)',
                         cursor: 'pointer',
                         fontFamily: 'inherit',
                         transition: 'all 0.15s ease',
@@ -790,7 +790,7 @@ export default function AssigningTasksPage() {
                       {activeFilterCount > 0 && (
                         <span
                           style={{
-                            background: 'var(--navy, #44298C)',
+                            background: 'var(--navy, var(--navy))',
                             color: '#fff',
                             fontSize: 10,
                             fontWeight: 700,
@@ -868,8 +868,8 @@ export default function AssigningTasksPage() {
                           gap: 6,
                           padding: '4px 10px',
                           borderRadius: 6,
-                          background: 'var(--navy-subtle, rgba(68,41,140,0.08))',
-                          color: 'var(--navy, #44298C)',
+                          background: 'var(--navy-subtle, color-mix(in srgb, var(--navy) 8%, transparent))',
+                          color: 'var(--navy, var(--navy))',
                           fontSize: 12,
                           fontWeight: 700,
                         }}
@@ -1274,7 +1274,7 @@ export default function AssigningTasksPage() {
 
             {/* Members Directory Table for Assignment */}
             <Card noPad>
-              <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+              <div data-walkthrough="assign-select" style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                     <input
@@ -1291,7 +1291,7 @@ export default function AssigningTasksPage() {
                   )}
                 </div>
 
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div data-walkthrough="assign-actions" style={{ display: 'flex', gap: 8 }}>
                   {canSalesman && (
                     <Btn
                       size="sm"
@@ -1505,8 +1505,8 @@ export default function AssigningTasksPage() {
                         cursor: 'pointer',
                         padding: '6px 10px',
                         borderRadius: 8,
-                        background: checked ? 'var(--navy-subtle, rgba(68,41,140,0.06))' : 'var(--bg)',
-                        border: `1px solid ${checked ? 'var(--navy, #44298C)' : 'var(--border)'}`,
+                        background: checked ? 'var(--navy-subtle, color-mix(in srgb, var(--navy) 6%, transparent))' : 'var(--bg)',
+                        border: `1px solid ${checked ? 'var(--navy, var(--navy))' : 'var(--border)'}`,
                         transition: 'all 0.15s ease',
                       }}
                     >

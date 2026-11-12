@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to the Leap Gym Multi-Tenant SaaS platform are documented in this file.
+All notable changes to the Forma multi-tenant SaaS platform are documented in this file.
 
 ## [Unreleased] - 2026-11-07
 

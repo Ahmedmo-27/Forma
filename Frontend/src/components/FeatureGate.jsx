@@ -31,7 +31,7 @@ export default function FeatureGate({ feature, fallback, children }) {
           height: 56,
           borderRadius: '50%',
           background: 'rgba(68, 41, 140, 0.08)',
-          color: '#44298C',
+          color: 'var(--navy)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -50,7 +50,7 @@ export default function FeatureGate({ feature, fallback, children }) {
         This module (<code>{feature}</code>) is part of a higher tier subscription. Contact your platform administrator to upgrade your gym’s plan and unlock this capability.
       </p>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 20, background: '#F3F4F6', fontSize: 12, fontWeight: 600, color: '#4B5563' }}>
-        Current Tier: <span style={{ color: '#44298C' }}>{plan?.name || 'Standard'}</span>
+        Current Tier: <span style={{ color: 'var(--navy)' }}>{plan?.name || 'Standard'}</span>
       </div>
     </div>
   );

@@ -32,9 +32,9 @@ export default function CoachTargets() {
 
   return (
     <Layout>
-      <PageHeader title="Coach Team" />
+      <PageHeader walkthrough="coach-team-header" title="Coach Team" />
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="coach-team-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
 
         {/* Summary */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>

@@ -225,7 +225,7 @@ export default function LifetimeCheckoutModal({ isOpen, onClose, defaultPlanKey 
                 Lifetime License Terms (v2026.1)
               </div>
               <p style={{ fontSize: 12, color: '#64748B', margin: 0, lineHeight: 1.5 }}>
-                Lifetime access refers exclusively to the duration of the Leap Gym SaaS cloud product service.
+                Lifetime access refers exclusively to the duration of the Forma cloud product service.
                 Access is non-transferable and subject to platform fair-use limits. Downgrades are not permitted.
                 Refunds are governed by the 30-day evaluation policy.
               </p>
@@ -240,7 +240,7 @@ export default function LifetimeCheckoutModal({ isOpen, onClose, defaultPlanKey 
                 style={{ marginTop: 3 }}
               />
               <span style={{ fontSize: 13, color: '#374151', lineHeight: 1.4 }}>
-                I have read and agree to the <strong>Leap Gym Lifetime Service Terms (v2026.1)</strong> and understand this is a perpetual license for this gym tenant.
+                I have read and agree to the <strong>Forma Lifetime Service Terms (v2026.1)</strong> and understand this is a perpetual license for this gym tenant.
               </span>
             </label>
 

@@ -12,7 +12,7 @@ const ROLE_META = {
   'Sales':           { icon: '💼', color: '#16a34a', bg: '#f0fdf4', group: 'staff' },
   'Coach':           { icon: '🏋️', color: '#d97706', bg: '#fffbeb', group: 'staff' },
   'Accountant':      { icon: '🧾', color: '#7c3aed', bg: '#f5f3ff', group: 'staff' },
-  'Sales Manager':   { icon: '👔', color: '#44298C', bg: 'rgba(68,41,140,0.08)', group: 'managers' },
+  'Sales Manager':   { icon: '👔', color: 'var(--navy)', bg: 'color-mix(in srgb, var(--navy) 8%, transparent)', group: 'managers' },
   'Coach Manager':   { icon: '🏅', color: '#b45309', bg: '#fef9c3', group: 'managers' },
   'General Manager': { icon: '🏢', color: '#0f766e', bg: '#f0fdfa', group: 'managers' },
   'Owner':           { icon: '👑', color: '#dc2626', bg: '#fef2f2', group: 'managers' },
@@ -266,8 +266,8 @@ export default function ReceptionContacts() {
       onClick={() => setFilter(value)}
       style={{
         padding: '7px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-        border: `1px solid ${filter === value ? '#44298C' : 'var(--border)'}`,
-        background: filter === value ? '#44298C' : 'transparent',
+        border: `1px solid ${filter === value ? 'var(--navy)' : 'var(--border)'}`,
+        background: filter === value ? 'var(--navy)' : 'transparent',
         color: filter === value ? '#fff' : 'var(--t3)',
         cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
         display: 'flex', alignItems: 'center', gap: 6,
@@ -285,11 +285,11 @@ export default function ReceptionContacts() {
 
   return (
     <Layout>
-      <PageHeader title="Contacts">
+      <PageHeader walkthrough="contacts-header" title="Contacts">
         <SearchInput value={search} onChange={setSearch} placeholder="Search name or number…" width={220} />
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="page-wrap" data-walkthrough="contacts-board" style={{ paddingTop: 20, paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         {/* ── Filter bar ──────────────────────────────────────── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>

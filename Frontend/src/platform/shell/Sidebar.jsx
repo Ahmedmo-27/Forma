@@ -95,9 +95,7 @@ function SidebarFrame({ collapsed, showMobileClose, onToggleCollapse, onCloseMob
     <div className="flex flex-col h-full bg-[var(--platform-surface)] border-r border-[var(--platform-border)] text-left select-none">
       <div className="h-14 px-3 flex items-center justify-between border-b border-[var(--platform-border-subtle)] shrink-0 gap-2">
         <div className="flex items-center gap-2.5 overflow-hidden min-w-0">
-          <div className="w-8 h-8 rounded-[var(--platform-radius-md)] bg-gradient-to-br from-blue-600 to-indigo-600 text-white flex items-center justify-center font-bold text-xs tracking-wider shrink-0 shadow-xs ring-1 ring-blue-500/30">
-            LP
-          </div>
+          <img src="/forma-favicon.png" alt="" className="w-8 h-8 rounded-[var(--platform-radius-md)] object-cover shrink-0" />
           {!collapsed && (
             <div className="truncate">
               <div className="text-sm font-semibold tracking-tight text-[var(--platform-text-primary)]">

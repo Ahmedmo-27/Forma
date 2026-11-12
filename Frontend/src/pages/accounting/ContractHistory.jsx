@@ -55,9 +55,9 @@ export default function ContractHistory() {
 
   return (
     <Layout>
-      <PageHeader title="Contract History" />
+      <PageHeader walkthrough="contracts-header" title="Contract History" />
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="contracts-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <Card style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
             <div style={{ flex: 1, minWidth: 150 }}>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -45,12 +45,14 @@ function Toggle({ checked, onChange, disabled }) {
 export default function CoachProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const profileTab = searchParams.get('tab');
   const { user: currentUser } = useAuth();
   const isManager = currentUser?.role === 'Coach Manager';
 
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);
-  const [tab, setTab]         = useState('members');
+  const [tab, setTab]         = useState(profileTab === 'access' ? 'access' : 'members');
   const [filter, setFilter]   = useState('all');
   const [savingAbility, setSavingAbility] = useState(null);
 
@@ -68,6 +70,12 @@ export default function CoachProfile() {
   }, [id, navigate]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    if (profileTab !== 'members' && profileTab !== 'access') return undefined;
+    const frame = requestAnimationFrame(() => setTab(profileTab));
+    return () => cancelAnimationFrame(frame);
+  }, [profileTab]);
 
   const handleToggleAbility = async (key, value) => {
     setData(prev => ({
@@ -97,7 +105,7 @@ export default function CoachProfile() {
 
   return (
     <Layout>
-      <PageHeader title={
+      <PageHeader walkthrough="coach-profile-header" title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => navigate('/coach/team')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', fontSize: 12 }}>
             ← Team
@@ -107,7 +115,7 @@ export default function CoachProfile() {
         </div>
       } />
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="staff-body" style={{ paddingTop: 20, paddingBottom: 32 }}>
         {loading ? <ProfileSkeleton /> : (
           <>
             {/* Profile header */}
@@ -167,6 +175,7 @@ export default function CoachProfile() {
 
             {/* Members tab */}
             {tab === 'members' && (
+              <div data-walkthrough="coach-profile-members">
               <Card noPad>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
@@ -209,10 +218,12 @@ export default function CoachProfile() {
                   </Table>
                 )}
               </Card>
+              </div>
             )}
 
             {/* Access Control tab */}
             {tab === 'access' && isManager && (
+              <div data-walkthrough="coach-profile-abilities">
               <Card>
                 <div style={{ marginBottom: 20 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
@@ -253,6 +264,7 @@ export default function CoachProfile() {
                   })}
                 </div>
               </Card>
+              </div>
             )}
           </>
         )}

@@ -167,7 +167,7 @@ export default function AssignedTasksPage({ embedded = false }) {
   ]);
 
   const content = (
-    <div className={embedded ? '' : 'page-wrap'} style={{ paddingTop: embedded ? 0 : 20, paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div className={embedded ? '' : 'page-wrap'} data-walkthrough={embedded ? undefined : 'my-tasks-board'} style={{ paddingTop: embedded ? 0 : 20, paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Tabs
         tabs={[
           { id: 'active', label: `Active Tasks (${activeAssignedMembers.length})` },
@@ -178,6 +178,7 @@ export default function AssignedTasksPage({ embedded = false }) {
       />
 
       {assigneeTab === 'active' ? (
+        <div data-walkthrough="my-tasks-active">
         <Card noPad>
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
@@ -244,6 +245,7 @@ export default function AssignedTasksPage({ embedded = false }) {
                           <Badge status="pending" />
                         </td>
                         <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                          <span data-walkthrough="my-tasks-complete">
                           <Btn
                             size="xs"
                             variant="success"
@@ -252,6 +254,7 @@ export default function AssignedTasksPage({ embedded = false }) {
                           >
                             {completingId === (item.member?._id || item._id) ? <Spinner size="sm" /> : '✓ Mark Completed'}
                           </Btn>
+                          </span>
                         </td>
                       </tr>
                     );
@@ -261,6 +264,7 @@ export default function AssignedTasksPage({ embedded = false }) {
             </div>
           )}
         </Card>
+        </div>
       ) : (
         <Card noPad>
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -515,7 +519,7 @@ export default function AssignedTasksPage({ embedded = false }) {
 
   return (
     <Layout>
-      <PageHeader title="My Tasks">
+      <PageHeader walkthrough="my-tasks-header" title="My Tasks">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Btn size="sm" variant="outline" onClick={fetchAssignedHistory} disabled={loadingAssigned}>
             ↻ Refresh

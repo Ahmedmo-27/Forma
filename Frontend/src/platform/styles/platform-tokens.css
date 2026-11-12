@@ -4,27 +4,27 @@
    ═══════════════════════════════════════════════════════════════════ */
 
 :root {
-  /* Canvas & Surfaces */
-  --platform-canvas: #f8fafc;           /* slate-50 */
+  /* Canvas & Surfaces — cream field, white cards */
+  --platform-canvas: #FCF3E2;
   --platform-surface: #ffffff;
   --platform-surface-raised: #ffffff;
-  --platform-surface-subtle: #f1f5f9;    /* slate-100 */
+  --platform-surface-subtle: #F6EDDC;
 
   /* Hairline Borders */
-  --platform-border: #e2e8f0;           /* slate-200 */
-  --platform-border-subtle: #f1f5f9;    /* slate-100 */
-  --platform-border-strong: #cbd5e1;    /* slate-300 */
+  --platform-border: #E6DCC8;
+  --platform-border-subtle: #F3E8D4;
+  --platform-border-strong: #D4C6A8;
 
   /* Text Ramps — muted stays at or above 4.5:1 on canvas and white */
-  --platform-text-primary: #0f172a;     /* slate-900 */
-  --platform-text-secondary: #475569;   /* slate-600 */
-  --platform-text-muted: #526277;
+  --platform-text-primary: #142843;
+  --platform-text-secondary: #3E5168;
+  --platform-text-muted: #5C6E84;
 
-  /* Restrained Brand Accent: Precision Cobalt */
-  --platform-accent: #2563eb;           /* blue-600 */
-  --platform-accent-hover: #1d4ed8;     /* blue-700 */
-  --platform-accent-subtle: #eff6ff;    /* blue-50 */
-  --platform-accent-fg: #ffffff;
+  /* Brand accent sampled from the Forma mark */
+  --platform-accent: #142843;
+  --platform-accent-hover: #1E3A5F;
+  --platform-accent-subtle: rgba(20, 40, 67, 0.10);
+  --platform-accent-fg: #FCF3E2;
 
   /* Semantic Status Colors */
   --platform-success: #059669;          /* emerald-600 */
@@ -87,10 +87,10 @@
   --platform-text-secondary: #cbd5e1;   /* slate-300 — secondary body text needs 4.5:1 */
   --platform-text-muted: #a1a1aa;       /* zinc-400 — ~7:1 on the dark canvas */
 
-  --platform-accent: #3b82f6;           /* blue-500 */
-  --platform-accent-hover: #60a5fa;     /* blue-400 */
-  --platform-accent-subtle: rgba(59, 130, 246, 0.12);
-  --platform-accent-fg: #ffffff;
+  --platform-accent: #FCF3E2;
+  --platform-accent-hover: #F6E7C8;
+  --platform-accent-subtle: rgba(252, 243, 226, 0.14);
+  --platform-accent-fg: #142843;
 
   --platform-success: #10b981;          /* emerald-500 */
   --platform-success-subtle: rgba(16, 185, 129, 0.12);
@@ -150,6 +150,23 @@
 }
 .platform-root ::-webkit-scrollbar-thumb:hover {
   background: var(--platform-text-muted);
+}
+
+/* Login stays on the cream card even when the console theme is dark. */
+.forma-auth {
+  color-scheme: light;
+  --platform-surface: #ffffff;
+  --platform-surface-subtle: #F6EDDC;
+  --platform-border: #E6DCC8;
+  --platform-border-subtle: #F3E8D4;
+  --platform-border-strong: #D4C6A8;
+  --platform-text-primary: #142843;
+  --platform-text-secondary: #3E5168;
+  --platform-text-muted: #5C6E84;
+  --platform-accent: #142843;
+  --platform-accent-hover: #1E3A5F;
+  --platform-accent-subtle: rgba(20, 40, 67, 0.10);
+  --platform-accent-fg: #FCF3E2;
 }
 
 /* ── Form Controls Isolation & Reset (Prevent Tenant Style Leakage) ── */

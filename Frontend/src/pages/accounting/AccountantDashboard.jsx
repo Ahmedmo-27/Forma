@@ -124,11 +124,11 @@ export default function AccountantDashboard() {
 
   return (
     <Layout>
-      <PageHeader title="Dashboard">
+      <PageHeader walkthrough="acct-dash-header" title="Dashboard">
         <span style={{ fontSize: 12, color: 'var(--t4)' }}>{dateLabel}</span>
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32, display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div className="page-wrap" data-walkthrough="acct-dash-board" style={{ paddingTop: 20, paddingBottom: 32, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
         <Card style={{ background: 'linear-gradient(135deg, var(--navy) 0%, #1e3a5f 100%)', border: 'none', color: '#fff' }}>
           <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.65)', marginBottom: 4 }}>Welcome back</p>

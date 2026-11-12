@@ -98,7 +98,7 @@ export default function OwnerUserProfile() {
   // ── Render ────────────────────────────────────────────────────────────────
   return (
     <Layout>
-      <PageHeader title={
+      <PageHeader walkthrough="roster-profile-header" title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button
             onClick={() => navigate('/owner/teams')}
@@ -117,7 +117,7 @@ export default function OwnerUserProfile() {
         )}
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="staff-body" style={{ paddingTop: 20, paddingBottom: 32 }}>
         {loading ? (
           <ProfileSkeleton />
         ) : (
@@ -196,7 +196,9 @@ export default function OwnerUserProfile() {
               )}
             </Card>
 
-            <UserAreaAccess target={user} />
+            <div data-walkthrough="roster-access">
+              <UserAreaAccess target={user} />
+            </div>
 
             {/* ── Members tab (only for Sales & Coach roles) ──────── */}
             {(isSales || isCoach) && (
@@ -216,7 +218,7 @@ export default function OwnerUserProfile() {
                 </div>
 
                 {/* Members list */}
-                <div style={{
+                <div data-walkthrough="roster-members" style={{
                   background: 'var(--card)', border: '1px solid var(--border)',
                   borderRadius: 8, overflow: 'hidden',
                 }}>
@@ -352,7 +354,7 @@ export default function OwnerUserProfile() {
           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>New Password</label>
           <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Min 6 characters"
             style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
-            onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+            onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
             onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
           />
         </div>
@@ -360,7 +362,7 @@ export default function OwnerUserProfile() {
           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Confirm Password</label>
           <input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder="Repeat new password"
             style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
-            onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+            onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
             onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
           />
         </div>

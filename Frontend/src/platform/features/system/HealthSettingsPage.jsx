@@ -87,7 +87,7 @@ export default function HealthSettingsPage() {
         setAddress(seller.address || "");
         setSellerSaved(true);
       } else {
-        setSellerName("Leap SaaS Platform Inc.");
+        setSellerName("Forma");
         setTaxId("EG-TAX-10293847");
         setSupportEmail("billing@leapgym.com");
         setAddress("Zamalek, Cairo, Egypt");
@@ -392,7 +392,7 @@ export default function HealthSettingsPage() {
                     Legal Company Name <span className="text-[var(--platform-danger)]">*</span>
                   </label>
                   <Input
-                    placeholder="e.g. Leap SaaS Platform Inc."
+                    placeholder="e.g. Forma"
                     value={sellerName}
                     onChange={(e) => setSellerName(e.target.value)}
                     required

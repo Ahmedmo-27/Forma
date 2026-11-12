@@ -5,20 +5,20 @@
 @import "./platform/styles/platform-tokens.css";
 
 /* ═══════════════════════════════════════════════════════════════
-   LEAP GYM — Design Tokens
-   Navbar: #1a1a2e / #13131f (dark, untouched)
-   Content: clean light theme below
+   Tenant workspace defaults
+   Gyms replace these from Settings. Forma’s navy and cream live
+   on the sign-in screens and in the platform console tokens.
 ═══════════════════════════════════════════════════════════════ */
 :root {
   /* Navigation Bar */
   --nav-bg:     #1E1535;
   --nav-tab-bg: #160F2A;
 
-  /* Brand */
+  /* Brand — starter gym palette, not Forma */
   --navy:       #44298C;
   --navy-2:     #5B38BA;
   --navy-3:     #6D47CC;
-  --accent:     #44298C;
+  --accent:     #6D47CC;
 
   /* Page surfaces */
   --bg:         #F4F5F7;
@@ -184,7 +184,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   select:focus,
   textarea:focus {
     border-color: var(--navy);
-    box-shadow: 0 0 0 3px rgba(68,41,140,0.10);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent);
     outline: none;
   }
 

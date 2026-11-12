@@ -174,7 +174,7 @@ export default function GlobalSearch() {
     return (
       <>
         {text.slice(0, idx)}
-        <mark style={{ background: 'rgba(68,41,140,0.12)', color: '#44298C', borderRadius: 2, padding: '0 1px' }}>
+        <mark style={{ background: 'color-mix(in srgb, var(--navy) 12%, transparent)', color: 'var(--navy)', borderRadius: 2, padding: '0 1px' }}>
           {text.slice(idx, idx + q.length)}
         </mark>
         {text.slice(idx + q.length)}
@@ -267,7 +267,7 @@ export default function GlobalSearch() {
                     cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.1s',
                     textAlign: 'left',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(68,41,140,0.25)'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'color-mix(in srgb, var(--navy) 25%, transparent)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'var(--card)'}
                 >
                   <div style={{
@@ -302,7 +302,7 @@ export default function GlobalSearch() {
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10,
                       padding: '9px 12px',
-                      background: isActive ? 'rgba(68,41,140,0.30)' : 'var(--card)',
+                      background: isActive ? 'color-mix(in srgb, var(--navy) 30%, transparent)' : 'var(--card)',
                       borderBottom: '1px solid var(--border)',
                       cursor: 'pointer', transition: 'background 0.1s',
                     }}
@@ -333,10 +333,10 @@ export default function GlobalSearch() {
                     background: 'var(--card)', borderTop: '1px solid var(--border)',
                     cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.1s',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(68,41,140,0.25)'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'color-mix(in srgb, var(--navy) 25%, transparent)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'var(--card)'}
                 >
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: 'rgba(68,41,140,0.30)', border: '1px dashed var(--border-md)', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 }}>+</div>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: 'color-mix(in srgb, var(--navy) 30%, transparent)', border: '1px dashed var(--border-md)', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 }}>+</div>
                   <span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600 }}>Add new person…</span>
                 </button>
               )}

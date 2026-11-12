@@ -1,6 +1,6 @@
 import { apiOrigin } from '../../api/axios';
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
@@ -48,11 +48,17 @@ const PALETTE_FIELDS = [
   { key: 'text', label: 'Primary Text', default: '#111827', hint: 'Headings, labels, and readable body text' },
 ];
 
+const SETTINGS_TABS = ['branding', 'locale', 'whatsapp', 'plan'];
+
 export default function TenantSettings() {
   usePageTitle('Gym Settings');
   const { tenant, refreshTenant, applyTenant, applyBranding, loading: tenantLoading } = useTenant();
+  const [searchParams] = useSearchParams();
+  const settingsTab = searchParams.get('tab');
 
-  const [activeTab, setActiveTab] = useState('branding');
+  const [activeTab, setActiveTab] = useState(() => (
+    SETTINGS_TABS.includes(settingsTab) ? settingsTab : 'branding'
+  ));
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -74,6 +80,12 @@ export default function TenantSettings() {
   const [waLoading, setWaLoading] = useState(true);
   const [waBusy, setWaBusy] = useState(false);
   const [waQrUrl, setWaQrUrl] = useState('');
+
+  useEffect(() => {
+    if (!SETTINGS_TABS.includes(settingsTab)) return undefined;
+    const frame = requestAnimationFrame(() => setActiveTab(settingsTab));
+    return () => cancelAnimationFrame(frame);
+  }, [settingsTab]);
 
   // Initialize from tenant
   useEffect(() => {
@@ -228,7 +240,7 @@ export default function TenantSettings() {
   const handleDefaultPalette = () => {
     setPalette(DEFAULT_PALETTE);
     if (applyBranding) applyBranding({ palette: DEFAULT_PALETTE });
-    toast.success('Restored default theme colors');
+    toast.success('Starter gym palette restored. Save settings to keep it.');
   };
 
   const handleSaveSettings = async (e) => {
@@ -369,7 +381,7 @@ export default function TenantSettings() {
 
   const logoKey = tenant?.settings?.branding?.logoKey;
   const logoFile = logoKey ? String(logoKey).split(/[\/\\]/).pop() : null;
-  const logoUrl = logoFile ? `${apiOrigin}/uploads/${encodeURIComponent(logoFile)}` : '/leap-logo.svg';
+  const logoUrl = logoFile ? `${apiOrigin}/uploads/${encodeURIComponent(logoFile)}` : '/forma-favicon.png';
 
   const plan = tenant?.plan;
   const usage = tenant?.usage || {};
@@ -379,6 +391,7 @@ export default function TenantSettings() {
     <Layout>
       <div style={{ maxWidth: 1040, margin: '0 auto', padding: '24px 16px' }}>
         <PageHeader
+          walkthrough="settings-header"
           title="Gym & Tenant Settings"
           sub="Manage your gym's brand identity, locale, offerings, and plan"
           action={
@@ -389,7 +402,7 @@ export default function TenantSettings() {
         />
 
         {/* Navigation Tabs */}
-        <div className="tabs-scroll" style={{ display: 'flex', gap: 8, borderBottom: '1px solid #E5E7EB', marginBottom: 24 }}>
+        <div className="tabs-scroll" data-walkthrough="settings-tabs" style={{ display: 'flex', gap: 8, borderBottom: '1px solid #E5E7EB', marginBottom: 24 }}>
           {[
             { id: 'branding', label: 'Branding & Palette' },
             { id: 'locale', label: 'Locale & Activities' },
@@ -442,7 +455,7 @@ export default function TenantSettings() {
 
         {/* Tab 1: Branding */}
         {activeTab === 'branding' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div data-walkthrough="settings-brand" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <Card>
               <CardHeader title="Gym Brand Identity" sub="Customize the name and logo that appear across your workspace" />
               <div style={{ display: 'flex', gap: 24, alignItems: 'center', marginTop: 16, flexWrap: 'wrap' }}>
@@ -475,7 +488,7 @@ export default function TenantSettings() {
                   label="Gym Display Name"
                   value={displayName}
                   onChange={e => setDisplayName(e.target.value)}
-                  placeholder="e.g. Flame Factory / Leap Fitness"
+                  placeholder="e.g. Flame Factory"
                 />
               </div>
             </Card>
@@ -487,15 +500,18 @@ export default function TenantSettings() {
                     Theme Palette & Live Preview
                   </h3>
                   <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--t3)' }}>
-                    Colors dynamically update the actual UI in real-time and persist across the entire workspace upon saving.
+                    These colors belong to this gym. They update the workspace when you save. Forma keeps its own navy and cream on the sign-in screen and the platform console.
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <Btn variant="outline" size="sm" onClick={handleResetPalette}>
+                  <Btn variant="outline" size="sm" onClick={handleResetPalette} disabled={saving}>
                     Revert to Saved
                   </Btn>
-                  <Btn variant="ghost" size="sm" onClick={handleDefaultPalette}>
+                  <Btn variant="ghost" size="sm" onClick={handleDefaultPalette} disabled={saving}>
                     Default Theme
+                  </Btn>
+                  <Btn variant="primary" size="sm" onClick={handleSaveSettings} disabled={saving}>
+                    {saving ? <><Spinner size="sm" /> Saving…</> : 'Save Palette'}
                   </Btn>
                 </div>
               </div>
@@ -587,7 +603,7 @@ export default function TenantSettings() {
 
                 {/* Simulated Top Navigation Bar */}
                 <div style={{
-                  background: palette.navbar || '#1E1535',
+                  background: palette.navbar || DEFAULT_PALETTE.navbar,
                   borderRadius: '10px 10px 0 0',
                   padding: '12px 18px',
                   display: 'flex',
@@ -605,7 +621,7 @@ export default function TenantSettings() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center',
                       color: '#FFFFFF', fontWeight: 800, fontSize: 12,
                     }}>
-                      L
+                      {((displayName || 'G').trim()[0] || 'G').toUpperCase()}
                     </div>
                     <span style={{ fontSize: 14, fontWeight: 800, color: '#FFFFFF', letterSpacing: '1px', textTransform: 'uppercase' }}>
                       {displayName || 'GYM WORKSPACE'}
@@ -617,7 +633,7 @@ export default function TenantSettings() {
                     <div style={{
                       padding: '6px 12px',
                       borderRadius: 6,
-                      background: palette.secondary || '#5B38BA',
+                      background: palette.secondary || DEFAULT_PALETTE.secondary,
                       color: '#FFFFFF',
                       fontSize: 12,
                       fontWeight: 700,
@@ -635,7 +651,7 @@ export default function TenantSettings() {
 
                 {/* Simulated Sub-nav Tab Row */}
                 <div style={{
-                  background: `color-mix(in srgb, ${palette.navbar || '#1E1535'} 82%, #000000)`,
+                  background: `color-mix(in srgb, ${palette.navbar || DEFAULT_PALETTE.navbar} 82%, #000000)`,
                   padding: '8px 18px',
                   display: 'flex',
                   alignItems: 'center',
@@ -646,7 +662,7 @@ export default function TenantSettings() {
                 }}>
                   <span style={{
                     fontSize: 11, fontWeight: 700, color: '#FFFFFF',
-                    background: palette.secondary || '#5B38BA',
+                    background: palette.secondary || DEFAULT_PALETTE.secondary,
                     padding: '3px 8px', borderRadius: 6,
                   }}>
                     Sub-nav Tab
@@ -736,7 +752,7 @@ export default function TenantSettings() {
                 </div>
 
                 <div style={{ marginTop: 12, fontSize: 12, color: palette.text, opacity: 0.75 }}>
-                  ✓ Colors chosen here are injected live into the app CSS variables (<code>--nav-bg</code>, <code>--navy</code>, <code>--navy-2</code>, <code>--accent</code>, <code>--bg</code>, <code>--t1</code>). Click &ldquo;Save Settings&rdquo; to permanently apply them.
+                  ✓ Colors chosen here update the workspace immediately. Click Save Palette to keep them.
                 </div>
               </div>
             </Card>
@@ -745,7 +761,7 @@ export default function TenantSettings() {
 
         {/* Tab 2: Locale & Activities */}
         {activeTab === 'locale' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div data-walkthrough="settings-locale" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <Card>
               <CardHeader title="Regional & Locale Settings" sub="Controls currency symbols, timezone dates, and system formatting" />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginTop: 16 }}>
@@ -833,7 +849,7 @@ export default function TenantSettings() {
 
         {/* Tab 3: WhatsApp */}
         {activeTab === 'whatsapp' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div data-walkthrough="settings-whatsapp" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <Card>
               <CardHeader
                 title="WhatsApp Account Linking"
@@ -1030,7 +1046,7 @@ export default function TenantSettings() {
                       </div>
 
                       <p style={{ margin: 0, fontSize: 13, color: '#4B5563', lineHeight: 1.5, maxWidth: 640 }}>
-                        This user account currently has no active WhatsApp connection. Connect your number so you can send WhatsApp invitations, renewals, check-in barcodes, and customer service messages directly through Leap.
+                        This user account currently has no active WhatsApp connection. Connect your number so you can send WhatsApp invitations, renewals, check-in barcodes, and customer service messages directly through Forma.
                         {waSession?.phone && (
                           <span style={{ display: 'block', marginTop: 6, fontWeight: 600, color: '#6B7280' }}>
                             Previously linked number: +{waSession.phone}
@@ -1097,7 +1113,7 @@ export default function TenantSettings() {
 
         {/* Tab 4: Plan & Usage */}
         {activeTab === 'plan' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          <div data-walkthrough="settings-plan" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <Card>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div>
@@ -1141,7 +1157,7 @@ export default function TenantSettings() {
                     <Btn
                       variant="primary"
                       onClick={() => setIsCheckoutOpen(true)}
-                      style={{ background: 'linear-gradient(135deg, #44298C 0%, #6D47CC 100%)' }}
+                      style={{ background: 'linear-gradient(135deg, var(--navy) 0%, var(--accent) 100%)' }}
                     >
                       Buy Lifetime License
                     </Btn>

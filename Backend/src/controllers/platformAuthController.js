@@ -196,7 +196,7 @@ async function setupMfa(req, res) {
         await user.save();
 
         const otpAuthUrl = getOtpAuthUrl({
-            issuer: "Leap SaaS Platform",
+            issuer: "Forma",
             accountName: user.email,
             secret: plainSecret,
         });

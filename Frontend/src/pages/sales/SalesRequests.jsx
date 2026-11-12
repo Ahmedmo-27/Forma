@@ -88,11 +88,11 @@ export default function SalesRequests() {
 
   return (
     <Layout>
-      <PageHeader title="Requests">
+      <PageHeader walkthrough="requests-header" title="Requests">
         {user?.role === 'Sales' && <Btn size="sm" onClick={() => setShowNew(true)}>+ New Request</Btn>}
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="requests-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
 
         {/* ── Sales rep filter (manager only) ──────────────────── */}
         {isManager && (
@@ -114,7 +114,7 @@ export default function SalesRequests() {
                   backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center',
                   transition: 'border-color 0.15s, box-shadow 0.15s',
                 }}
-                onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+                onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
                 onBlur={e => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
               >
                 <option value="all">All Reps</option>

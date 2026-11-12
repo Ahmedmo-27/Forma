@@ -71,7 +71,7 @@ export default function SetupPassword() {
         <button type="submit" disabled={loading} style={buttonStyle(loading)}>
           {loading ? <Spinner size="sm" /> : 'Save password'}
         </button>
-        <Link to="/login" style={{ fontSize: 13, color: '#44298C', fontWeight: 600, textAlign: 'center' }}>
+        <Link to="/login" style={{ fontSize: 13, color: '#142843', fontWeight: 600, textAlign: 'center' }}>
           Back to sign in
         </Link>
       </form>
@@ -83,7 +83,7 @@ export function AuthCard({ title, subtitle, children }) {
   return (
     <div style={{
       minHeight: '100svh',
-      background: '#F5F6FA',
+      background: '#142843',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
@@ -93,13 +93,13 @@ export function AuthCard({ title, subtitle, children }) {
       <div style={{
         width: '100%',
         maxWidth: 460,
-        background: '#FFFFFF',
-        border: '1px solid #E5E7EB',
+        background: '#FCF3E2',
+        border: '1px solid #E6DCC8',
         borderRadius: 20,
         boxShadow: '0 4px 24px rgba(0,0,0,0.07)',
         padding: 'clamp(28px, 6vw, 40px) clamp(18px, 5vw, 36px)',
       }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#111827', margin: '0 0 6px' }}>{title}</h1>
+        <h1 style={{ fontSize: 22, fontWeight: 800, color: '#142843', margin: '0 0 6px' }}>{title}</h1>
         <p style={{ fontSize: 14, color: '#6B7280', margin: '0 0 24px' }}>{subtitle}</p>
         {children}
       </div>
@@ -111,8 +111,8 @@ const labelStyle = { display: 'flex', flexDirection: 'column', gap: 6, fontSize:
 const inputStyle = {
   height: 44,
   borderRadius: 10,
-  border: '1px solid #E5E7EB',
-  background: '#F9FAFB',
+  border: '1px solid #E6DCC8',
+  background: '#FFFFFF',
   padding: '0 12px',
   fontSize: 14,
 };
@@ -121,8 +121,8 @@ function buttonStyle(loading) {
     height: 46,
     border: 'none',
     borderRadius: 10,
-    background: loading ? 'rgba(68,41,140,0.45)' : '#44298C',
-    color: '#fff',
+    background: loading ? 'rgba(20,40,67,0.45)' : '#142843',
+    color: '#FCF3E2',
     fontWeight: 700,
     cursor: loading ? 'not-allowed' : 'pointer',
   };

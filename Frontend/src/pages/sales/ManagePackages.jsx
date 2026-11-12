@@ -8,6 +8,7 @@ import {
 } from '../../components/ui';
 import PackageForm, { EMPTY_PACKAGE_FORM, validatePackageForm, packageFormToPayload } from '../../components/PackageForm';
 import { getPackages, createPackage, updatePackage, deletePackage } from '../../api/endpoints';
+import { useTourReveal } from '../../tutorials/walkthrough-context';
 
 const PAGE_SIZE = 15;
 
@@ -40,6 +41,7 @@ export default function ManagePackages() {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
 
   const [showCreate,    setShowCreate]    = useState(false);
+  useTourReveal('new-package', () => setShowCreate(true), () => setShowCreate(false));
   const [createForm,    setCreateForm]    = useState(EMPTY_PACKAGE_FORM);
   const [createErrors,  setCreateErrors]  = useState({});
   const [creating,      setCreating]      = useState(false);
@@ -131,16 +133,18 @@ export default function ManagePackages() {
 
   return (
     <Layout>
-      <PageHeader title="Packages">
+      <PageHeader walkthrough="packages-header" title="Packages">
+        <span data-walkthrough="packages-new">
         <Btn variant="blue" size="sm" onClick={() => { setCreateForm(EMPTY_PACKAGE_FORM); setCreateErrors({}); setShowCreate(true); }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
           New Package
         </Btn>
+        </span>
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="packages-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <Card noPad>
           <CardHeader title={`Active Packages (${pagination.total})`} />
           <Table

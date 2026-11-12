@@ -79,7 +79,7 @@ export default function AttendanceReport() {
                     <div style={{
                       width: '100%',
                       height: `${Math.max(4, (day.count / dayMax) * 100)}%`,
-                      background: day.count ? '#44298C' : 'var(--border)',
+                      background: day.count ? 'var(--navy)' : 'var(--border)',
                       borderRadius: 2,
                     }} />
                   </div>

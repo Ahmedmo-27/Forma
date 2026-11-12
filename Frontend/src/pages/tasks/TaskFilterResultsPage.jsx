@@ -299,8 +299,8 @@ export default function TaskFilterResultsPage() {
               onClick={handleModifyFilters}
               style={{
                 height: 32, padding: '0 14px', borderRadius: 7, fontSize: 12, fontWeight: 600,
-                border: '1px solid var(--navy, #44298C)', background: 'rgba(68,41,140,0.06)',
-                color: 'var(--navy, #44298C)', cursor: 'pointer', fontFamily: 'inherit',
+                border: '1px solid var(--navy, var(--navy))', background: 'color-mix(in srgb, var(--navy) 6%, transparent)',
+                color: 'var(--navy, var(--navy))', cursor: 'pointer', fontFamily: 'inherit',
                 display: 'inline-flex', alignItems: 'center', gap: 5,
               }}
             >
@@ -312,7 +312,7 @@ export default function TaskFilterResultsPage() {
         {/* ── RESULTS TABLE ── */}
         <Card noPad>
           {/* Toolbar */}
-          <div style={{
+          <div data-walkthrough="filter-results-select" style={{
             padding: '12px 16px', borderBottom: '1px solid var(--border)',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10,
           }}>
@@ -329,7 +329,7 @@ export default function TaskFilterResultsPage() {
               {selectedSet.size > 0 && (
                 <div style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px',
-                  borderRadius: 6, background: 'rgba(68,41,140,0.08)', color: 'var(--navy, #44298C)',
+                  borderRadius: 6, background: 'color-mix(in srgb, var(--navy) 8%, transparent)', color: 'var(--navy, var(--navy))',
                   fontSize: 12, fontWeight: 700,
                 }}>
                   <span>● {selectedSet.size} selected</span>
@@ -342,7 +342,7 @@ export default function TaskFilterResultsPage() {
               )}
             </div>
 
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <div data-walkthrough="filter-results-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {canSalesman && (
                 <Btn size="sm" variant="primary" disabled={!selectedSet.size} onClick={() => openTransferModal('sales')}>
                   👤 Assign Sales Rep ({selectedSet.size})
@@ -354,9 +354,11 @@ export default function TaskFilterResultsPage() {
                 </Btn>
               )}
               {canWhatsApp && (
-                <Btn size="sm" variant="outline" disabled={!selectedSet.size} onClick={openWaModal}>
-                  💬 WhatsApp ({selectedSet.size})
-                </Btn>
+                <span data-walkthrough="filter-results-wa">
+                  <Btn size="sm" variant="outline" disabled={!selectedSet.size} onClick={openWaModal}>
+                    💬 WhatsApp ({selectedSet.size})
+                  </Btn>
+                </span>
               )}
             </div>
           </div>

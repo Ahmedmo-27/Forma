@@ -3,6 +3,9 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { TenantProvider } from './context/TenantContext';
+import { WalkthroughProvider } from './tutorials/walkthrough-context';
+import WalkthroughOverlay from './components/tutorials/WalkthroughOverlay';
+import HelpScenariosDialog from './components/tutorials/HelpScenariosDialog';
 import FeatureGate from './components/FeatureGate';
 import ErrorBoundary from './components/errors/ErrorBoundary';
 import GlobalErrorContainer from './components/errors/GlobalErrorContainer';
@@ -366,6 +369,7 @@ function TenantAppRoutes() {
           <OwnerUserProfile />
         </PrivateRoute>
       } />
+      <Route path="/settings" element={<Navigate to="/owner/settings" replace />} />
       <Route path="/owner/settings" element={
         <PrivateRoute roles={['Owner']} access="settings">
           <TenantSettings />
@@ -509,7 +513,11 @@ export default function App() {
             element={
               <AuthProvider>
                 <TenantProvider>
-                  <TenantAppRoutes />
+                  <WalkthroughProvider>
+                    <TenantAppRoutes />
+                    <WalkthroughOverlay />
+                    <HelpScenariosDialog />
+                  </WalkthroughProvider>
                 </TenantProvider>
               </AuthProvider>
             }

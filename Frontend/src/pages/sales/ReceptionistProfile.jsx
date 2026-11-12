@@ -99,7 +99,7 @@ export default function ReceptionistProfile() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <Layout>
-      <PageHeader title={
+      <PageHeader walkthrough="receptionist-profile-header" title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => navigate('/sales/team')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', fontSize: 12 }}>
             ← Team
@@ -109,7 +109,7 @@ export default function ReceptionistProfile() {
         </div>
       } />
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32, maxWidth: 600 }}>
+      <div className="page-wrap" data-walkthrough="staff-body" style={{ paddingTop: 20, paddingBottom: 32, maxWidth: 600 }}>
         {loading ? <ProfileSkeleton /> : (
           <>
             {/* ── Profile header ──────────────────────────────────── */}
@@ -144,6 +144,7 @@ export default function ReceptionistProfile() {
 
             {/* ── Mobile Number ────────────────────────────────────── */}
             {isManager && (
+              <div data-walkthrough="receptionist-mobile">
               <Card style={{ marginBottom: 16 }}>
                 <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
                   📞 Mobile Number
@@ -168,9 +169,11 @@ export default function ReceptionistProfile() {
                   </Btn>
                 </div>
               </Card>
+              </div>
             )}
             {/* ── Phone Privacy Toggle ─────────────────────────────── */}
             {isManager && (
+              <div data-walkthrough="receptionist-privacy">
               <Card>
                 <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
                   🔒 Phone Number Access
@@ -199,6 +202,7 @@ export default function ReceptionistProfile() {
                   </div>
                 </div>
               </Card>
+              </div>
             )}
           </>
         )}

@@ -76,9 +76,9 @@ export default function CoachStaff() {
 
   return (
     <Layout>
-      <PageHeader title="Create Coach Account" />
+      <PageHeader walkthrough="coach-staff-header" title="Create Coach Account" />
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32, maxWidth: 480 }}>
+      <div className="page-wrap" data-walkthrough="coach-staff-board" style={{ paddingTop: 20, paddingBottom: 32, maxWidth: 480 }}>
         <Card>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <Input

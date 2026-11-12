@@ -9,6 +9,7 @@ import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, 
 import { formatSystemId } from '../../lib/systemId';
 import { getAllMembers } from '../../api/endpoints';
 import AddMemberModal from '../../components/AddMemberModal';
+import { useTourReveal } from '../../tutorials/walkthrough-context';
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
@@ -34,6 +35,7 @@ export default function SalesMembers() {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: DEFAULT_PAGE_SIZE });
   const [stats, setStats] = useState({ total: 0, active: 0, frozen: 0, expired: 0, guest: 0 });
   const [showAdd,  setShowAdd]  = useState(false);
+  useTourReveal('add-guest', () => setShowAdd(true), () => setShowAdd(false));
   const [extra, setExtra] = useState('');
   const debouncedSearch = useDebounce(search, 300);
 
@@ -88,12 +90,14 @@ export default function SalesMembers() {
 
   return (
     <Layout>
-      <PageHeader title="Members">
+      <PageHeader walkthrough="sales-members-header" title="Members">
         <SearchInput value={search} onChange={setSearch} placeholder="Name, phone, ID…" width={200} />
-        <Btn size="sm" onClick={() => setShowAdd(true)}>+ Add Guest</Btn>
+        <span data-walkthrough="add-guest-btn">
+          <Btn size="sm" onClick={() => setShowAdd(true)}>+ Add Guest</Btn>
+        </span>
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="sales-members-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <div style={{ maxWidth: 280, marginBottom: 12 }}>
           <Select label="More filters" value={extra} onChange={(e) => setExtra(e.target.value)}>
             <option value="">All of my members</option>

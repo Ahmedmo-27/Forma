@@ -97,7 +97,7 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
           </Btn>
         </>
       }>
-      <div className="grid-2-form">
+      <div data-walkthrough="add-guest-form" className="grid-2-form">
         <Input label="Full Name *" value={form.name} onChange={e => set('name', e.target.value)} error={errors.name} />
         <Input label="Phone *" value={form.phones} onChange={e => set('phones', e.target.value)} error={errors.phones} />
         <Select label="Gender" value={form.gender} onChange={e => set('gender', e.target.value)}>

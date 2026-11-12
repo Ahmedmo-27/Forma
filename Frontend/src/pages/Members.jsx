@@ -131,12 +131,12 @@ export default function Members() {
 
   return (
     <Layout>
-      <PageHeader title="Members">
+      <PageHeader walkthrough="members-header" title="Members">
         <SearchInput value={search} onChange={setSearch} placeholder="Name, phone, ID…" width={210} />
         {canAdd && <Btn size="sm" onClick={() => setShowAdd(true)}>+ Add Person</Btn>}
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="members-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         {/* Stats */}
         <div className="grid-stats-5">
           <StatCard label="Total"   value={loading ? '—' : stats.total}   color="brand" />
@@ -161,9 +161,9 @@ export default function Members() {
             style={{
               display: 'flex', alignItems: 'center', gap: 6,
               padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600,
-              border: `1px solid ${sortNewest ? '#44298C' : 'var(--border)'}`,
-              background: sortNewest ? 'rgba(68,41,140,0.08)' : 'transparent',
-              color: sortNewest ? '#44298C' : 'var(--t3)',
+              border: `1px solid ${sortNewest ? 'var(--navy)' : 'var(--border)'}`,
+              background: sortNewest ? 'color-mix(in srgb, var(--navy) 8%, transparent)' : 'transparent',
+              color: sortNewest ? 'var(--navy)' : 'var(--t3)',
               cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
             }}
           >
@@ -280,7 +280,7 @@ export default function Members() {
                       padding: '0 18px',
                       borderRadius: 8,
                       border: 'none',
-                      background: !quickId.trim() || !destId || quickBusy ? 'var(--border)' : 'var(--navy, #44298C)',
+                      background: !quickId.trim() || !destId || quickBusy ? 'var(--border)' : 'var(--navy, var(--navy))',
                       color: !quickId.trim() || !destId || quickBusy ? 'var(--t4)' : '#FFFFFF',
                       fontSize: 13,
                       fontWeight: 600,

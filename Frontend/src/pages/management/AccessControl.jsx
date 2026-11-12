@@ -327,9 +327,9 @@ export default function AccessControl({ defaultTab = 'staff' }) {
 
   return (
     <Layout>
-      <PageHeader title="Access Control" />
+      <PageHeader walkthrough="access-header" title="Access Control" />
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 96, maxWidth: 840 }}>
+      <div className="page-wrap" data-walkthrough="access-board" style={{ paddingTop: 20, paddingBottom: 96, maxWidth: 840 }}>
 
         {/* ── Sub-tabs Header ────────────────────────────────────────── */}
         <div style={{
@@ -393,7 +393,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
             TAB 1: STAFF MEMBERS & OVERRIDES
            ════════════════════════════════════════════════════════════════════ */}
         {activeTab === 'staff' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div data-walkthrough="access-staff" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
             {/* Step 1: Staff Picker */}
             <Card>
@@ -606,7 +606,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
             TAB 2: ROLE DEFAULTS
            ════════════════════════════════════════════════════════════════════ */}
         {activeTab === 'roles' && canViewRoleDefaults && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div data-walkthrough="access-roles" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {tenantLoading && !accessCatalog.length ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size="lg" /></div>
             ) : (

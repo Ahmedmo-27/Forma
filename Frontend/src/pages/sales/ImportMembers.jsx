@@ -130,26 +130,26 @@ export default function ImportMembers() {
 
   return (
     <Layout>
-      <PageHeader title="Import Members">
+      <PageHeader walkthrough="import-header" title="Import Members">
         <Btn variant="outline" size="sm" onClick={() => navigate(-1)}>← Back</Btn>
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 40 }}>
+      <div className="page-wrap" data-walkthrough="import-board" style={{ paddingTop: 20, paddingBottom: 40 }}>
         <Card>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'rgba(68,41,140,0.10)', border: '1px solid rgba(68,41,140,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>📥</div>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'color-mix(in srgb, var(--navy) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--navy) 20%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>📥</div>
             <div>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 6 }}>How to use</h3>
               <p style={{ fontSize: 13, color: 'var(--t3)', lineHeight: 1.6, marginBottom: 8 }}>
                 Upload an Excel file (<code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.xlsx</code> / <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.xls</code> / <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.csv</code>) with at least two columns. Large sheets are split into parts and imported in the background.
               </p>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <div data-walkthrough="import-columns" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {[
                   { col: 'name', desc: 'Full name of the person' },
                   { col: 'phone', desc: 'Phone number (also accepts "number", "mobile")' },
                 ].map(({ col, desc }) => (
                   <div key={col} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 14px', fontSize: 12 }}>
-                    <span style={{ fontWeight: 700, color: '#44298C', fontFamily: 'monospace' }}>{col}</span>
+                    <span style={{ fontWeight: 700, color: 'var(--navy)', fontFamily: 'monospace' }}>{col}</span>
                     <span style={{ color: 'var(--t3)', marginLeft: 8 }}>{desc}</span>
                   </div>
                 ))}
@@ -166,14 +166,15 @@ export default function ImportMembers() {
             <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }}
               onChange={(event) => handleFile(event.target.files[0])} />
             <div
+              data-walkthrough="import-drop"
               onClick={() => !file && fileRef.current?.click()}
               onDragOver={(event) => { event.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               style={{
-                border: `2px dashed ${dragOver ? '#44298C' : file ? 'var(--green)' : 'var(--border-md)'}`,
+                border: `2px dashed ${dragOver ? 'var(--navy)' : file ? 'var(--green)' : 'var(--border-md)'}`,
                 borderRadius: 12, padding: '40px 24px', textAlign: 'center',
-                background: dragOver ? 'rgba(68,41,140,0.04)' : file ? 'rgba(34,197,94,0.04)' : 'var(--bg)',
+                background: dragOver ? 'color-mix(in srgb, var(--navy) 4%, transparent)' : file ? 'rgba(34,197,94,0.04)' : 'var(--bg)',
                 cursor: file ? 'default' : 'pointer',
               }}
             >
@@ -221,7 +222,7 @@ export default function ImportMembers() {
             <ol style={{ listStyle: 'none', display: 'grid', gap: 8, marginBottom: 18 }}>
               {STEPS.map((step) => {
                 const state = stepState(uploading ? null : job, step.key);
-                const color = state === 'failed' ? 'var(--red)' : state === 'waiting' ? 'var(--t4)' : '#44298C';
+                const color = state === 'failed' ? 'var(--red)' : state === 'waiting' ? 'var(--t4)' : 'var(--navy)';
                 const detail = step.key === 'divided' && job
                   ? `${job.chunkCount} ${job.chunkCount === 1 ? 'part' : 'parts'}`
                   : step.key === 'importing' && job
@@ -250,7 +251,7 @@ export default function ImportMembers() {
               <div style={{
                 width: `${uploading ? 8 : job?.percent || 0}%`,
                 height: '100%',
-                background: job?.status === 'failed' ? 'var(--red)' : '#44298C',
+                background: job?.status === 'failed' ? 'var(--red)' : 'var(--navy)',
                 transition: 'width 0.3s ease',
               }} />
             </div>
@@ -270,7 +271,7 @@ export default function ImportMembers() {
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
               {[
-                { label: 'Total Rows', value: job.summary.total, accent: '#44298C' },
+                { label: 'Total Rows', value: job.summary.total, accent: 'var(--navy)' },
                 { label: 'Created', value: job.summary.created, accent: 'var(--green)' },
                 { label: 'Skipped', value: job.summary.skipped, accent: 'var(--amber)' },
                 { label: 'Errors', value: job.summary.errors, accent: 'var(--red)' },

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -53,12 +53,14 @@ function Toggle({ checked, onChange, disabled }) {
 export default function SalesPersonProfile() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const profileTab = searchParams.get('tab');
   const { user: currentUser } = useAuth();
   const isManager = ['Sales Manager', 'Owner'].includes(currentUser?.role);
 
   const [data,    setData]    = useState(null);
   const [loading, setLoading] = useState(true);
-  const [tab,     setTab]     = useState('members'); // 'members' | 'access'
+  const [tab,     setTab]     = useState(profileTab === 'access' ? 'access' : 'members');
   const [filter,  setFilter]  = useState('all');
 
   // Target
@@ -100,6 +102,12 @@ export default function SalesPersonProfile() {
   }, [id, navigate]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    if (profileTab !== 'members' && profileTab !== 'access') return undefined;
+    const frame = requestAnimationFrame(() => setTab(profileTab));
+    return () => cancelAnimationFrame(frame);
+  }, [profileTab]);
 
   useEffect(() => {
     if (!isManager) return;
@@ -210,7 +218,7 @@ export default function SalesPersonProfile() {
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <Layout>
-      <PageHeader title={
+      <PageHeader walkthrough="sales-profile-header" title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => navigate('/sales/team')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', fontSize: 12 }}>
             ← Team
@@ -226,7 +234,7 @@ export default function SalesPersonProfile() {
         )}
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="staff-body" style={{ paddingTop: 20, paddingBottom: 32 }}>
         {loading ? <ProfileSkeleton /> : (
           <>
             {/* ── Profile header card ──────────────────────────────── */}
@@ -336,6 +344,7 @@ export default function SalesPersonProfile() {
 
             {/* ── Tab: Members ─────────────────────────────────────── */}
             {tab === 'members' && (
+              <div data-walkthrough="sales-profile-members">
               <Card noPad>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
@@ -395,10 +404,12 @@ export default function SalesPersonProfile() {
                   </Table>
                 )}
               </Card>
+              </div>
             )}
 
             {/* ── Tab: Access Control ──────────────────────────────── */}
             {tab === 'access' && showAccessTab && (
+              <div data-walkthrough="sales-profile-abilities">
               <Card>
                 <div style={{ marginBottom: 20 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
@@ -480,6 +491,7 @@ export default function SalesPersonProfile() {
                   </div>
                 </div>
               </Card>
+              </div>
             )}
           </>
         )}
@@ -547,7 +559,7 @@ export default function SalesPersonProfile() {
           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>New Password</label>
           <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Min 6 characters"
             style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
-            onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+            onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
             onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
           />
         </div>
@@ -555,7 +567,7 @@ export default function SalesPersonProfile() {
           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Confirm Password</label>
           <input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder="Repeat new password"
             style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
-            onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+            onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
             onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
           />
         </div>

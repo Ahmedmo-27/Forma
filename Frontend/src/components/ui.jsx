@@ -820,9 +820,9 @@ export function StatCard({ label, value, color = 'default', sub, onClick }) {
 }
 
 // ── Page Header ───────────────────────────────────────────────────────────────
-export function PageHeader({ title, children }) {
+export function PageHeader({ title, children, walkthrough }) {
   return (
-    <div style={{ padding: '0 0 4px 0' }}>
+    <div style={{ padding: '0 0 4px 0' }} data-walkthrough={walkthrough || undefined}>
       <div className="wrap page-header-inner" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 48 }}>
         <h1 style={{ fontSize: 16, fontWeight: 800, color: 'var(--t1)', letterSpacing: '-0.3px', flexShrink: 0 }}>{title}</h1>
         {children && <div className="page-header-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>{children}</div>}

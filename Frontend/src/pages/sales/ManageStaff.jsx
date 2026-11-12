@@ -107,9 +107,9 @@ export default function ManageStaff() {
 
   return (
     <Layout>
-      <PageHeader title="Manage Staff" subtitle="Create a staff account for any role on the platform" />
+      <PageHeader walkthrough="staff-header" title="Manage Staff" subtitle="Create a staff account for any role on the platform" />
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32, maxWidth: 480 }}>
+      <div className="page-wrap" data-walkthrough="staff-board" style={{ paddingTop: 20, paddingBottom: 32, maxWidth: 480 }}>
         <Card>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <Input

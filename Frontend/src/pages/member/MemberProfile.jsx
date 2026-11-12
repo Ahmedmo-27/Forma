@@ -160,7 +160,7 @@ export default function MemberProfile() {
 
   return (
     <Layout>
-      <PageHeader title={
+      <PageHeader walkthrough="member-header" title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
             ← Back
@@ -169,7 +169,7 @@ export default function MemberProfile() {
           <span>{loading ? 'Loading…' : (member?.name ?? 'Profile')}</span>
         </div>
       }>
-        <div className="member-profile-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <div className="member-profile-actions" data-walkthrough="member-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {canSendQr && <MemberQrButton member={member} onSent={fetchProfile} />}
           {member && ['Receptionist', 'Owner', 'Sales Manager'].includes(user?.role) && (
             <Btn variant={canCheckIn ? 'success' : 'outline'} size="sm"
@@ -203,7 +203,7 @@ export default function MemberProfile() {
 
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="member-body" style={{ paddingTop: 20, paddingBottom: 32 }}>
         {loading ? <ProfileSkeleton /> : !member ? null : (
           <>
             {/* Blocked banner */}
@@ -224,8 +224,10 @@ export default function MemberProfile() {
               </div>
             )}
             <ProfileHeader member={member} stats={stats} user={user} onPhotoUploaded={fetchProfile} />
-            <Tabs tabs={TABS} active={activeTab} onChange={setTab} />
-            <div className="fade-up">
+            <div data-walkthrough="member-tabs">
+              <Tabs tabs={TABS} active={activeTab} onChange={setTab} />
+            </div>
+            <div className="fade-up" data-walkthrough="member-panel">
               {activeTab === 'dashboard'   && <DashboardTab   member={member} user={user} data={data} onTabChange={setTab} />}
               {activeTab === 'personal'    && <PersonalTab    member={member} user={user} onRefresh={fetchProfile} />}
               {activeTab === 'packages'    && <PackagesTab    member={member} user={user} onRefresh={fetchProfile} />}
@@ -373,7 +375,7 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
         <button
           onClick={() => copy(copyVal)}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', padding: '0 0 0 3px', display: 'inline-flex', alignItems: 'center', transition: 'color 0.12s' }}
-          onMouseEnter={e => e.currentTarget.style.color = '#44298C'}
+          onMouseEnter={e => e.currentTarget.style.color = 'var(--navy)'}
           onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
           title="Copy"
         >
@@ -400,7 +402,7 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
             <span style={{ fontFamily: 'monospace' }}>{phone}</span>
             <button onClick={() => copy(phone)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', padding: '0 0 0 2px', display: 'inline-flex', alignItems: 'center', transition: 'color 0.12s' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#44298C'}
+              onMouseEnter={e => e.currentTarget.style.color = 'var(--navy)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
               title="Copy"
             >

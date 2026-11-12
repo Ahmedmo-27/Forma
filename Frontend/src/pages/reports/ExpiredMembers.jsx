@@ -178,7 +178,7 @@ export default function ExpiredMembers() {
 
   return (
     <Layout>
-      <PageHeader title={
+      <PageHeader walkthrough="records-header" title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => navigate('/reports')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
             ← Reports
@@ -188,7 +188,7 @@ export default function ExpiredMembers() {
         </div>
       } />
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 40 }}>
+      <div className="page-wrap" data-walkthrough="records-board" style={{ paddingTop: 20, paddingBottom: 40 }}>
 
         {/* ── Filter card ──────────────────────────────────────── */}
         <Card>

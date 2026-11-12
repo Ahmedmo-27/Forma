@@ -263,8 +263,8 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
           <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', height: 'auto', maxHeight: 240, overflow: 'visible' }}>
             <defs>
               <linearGradient id="analyticsGrad" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="#44298C" stopOpacity="0.22" />
-                <stop offset="100%" stopColor="#44298C" stopOpacity="0.0" />
+                <stop offset="0%" stopColor="var(--navy)" stopOpacity="0.22" />
+                <stop offset="100%" stopColor="var(--navy)" stopOpacity="0.0" />
               </linearGradient>
             </defs>
 
@@ -303,7 +303,7 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
             {/* Trend Polyline */}
             <polyline
               fill="none"
-              stroke="#44298C"
+              stroke="var(--navy)"
               strokeWidth="2.5"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -346,7 +346,7 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
                       cy={cy}
                       r={isHovered ? 5 : 3.5}
                       fill="#FFFFFF"
-                      stroke="#44298C"
+                      stroke="var(--navy)"
                       strokeWidth={isHovered ? 2.5 : 2}
                     />
                   )}
@@ -637,7 +637,7 @@ export default function AnalyticsHome() {
 
   return (
     <Layout>
-      <PageHeader title="Analytics">
+      <PageHeader walkthrough="analytics-header" title="Analytics">
         <span style={{ fontSize: 12, color: 'var(--t4)' }}>
           {data?.asOf
             ? `Updated ${new Date(data.asOf).toLocaleString('en-EG', {
@@ -647,7 +647,7 @@ export default function AnalyticsHome() {
         </span>
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 48, display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div className="page-wrap" data-walkthrough="analytics-board" style={{ paddingTop: 20, paddingBottom: 48, display: 'flex', flexDirection: 'column', gap: 20 }}>
         {loading && <Skeleton h="140px" />}
         {error && <EmptyState message={error} />}
         {data?.empty && <EmptyState message={data.message} />}

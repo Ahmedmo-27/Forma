@@ -30,13 +30,13 @@ export default function CoachTransfers() {
 
   return (
     <Layout>
-      <PageHeader title="Today's Transfers">
+      <PageHeader walkthrough="transfers-header" title="Today's Transfers">
         <span style={{ fontSize: 12, color: 'var(--t4)' }}>
           {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
         </span>
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="transfers-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <Card noPad>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>

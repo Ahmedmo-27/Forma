@@ -116,7 +116,7 @@ export default function ImportedMembers() {
 
   return (
     <Layout>
-      <PageHeader title={
+      <PageHeader walkthrough="imported-header" title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => navigate('/reports')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', fontSize: 13, fontFamily: 'inherit' }}>
             ← Reports
@@ -128,7 +128,7 @@ export default function ImportedMembers() {
         <SearchInput value={search} onChange={setSearch} placeholder="Search name or phone…" width={220} />
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 40 }}>
+      <div className="page-wrap" data-walkthrough="imported-board" style={{ paddingTop: 20, paddingBottom: 40 }}>
 
         {/* ── Filter bar ──────────────────────────────────────── */}
         <Card>
@@ -187,7 +187,7 @@ export default function ImportedMembers() {
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
               Imported Members
-              <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, background: 'rgba(68,41,140,0.10)', color: '#44298C', padding: '2px 8px', borderRadius: 5 }}>
+              <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 600, background: 'color-mix(in srgb, var(--navy) 10%, transparent)', color: 'var(--navy)', padding: '2px 8px', borderRadius: 5 }}>
                 newest first
               </span>
             </span>

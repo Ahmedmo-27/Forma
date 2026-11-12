@@ -141,18 +141,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-[var(--platform-canvas)] bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(37,99,235,0.12),transparent)] text-[var(--platform-text-primary)] select-none">
-      <div className="w-full max-w-sm rounded-[var(--platform-radius-xl)] bg-[var(--platform-surface)] border border-[var(--platform-border)] p-6 shadow-xl space-y-6 text-left animate-in fade-in duration-200">
+    <div className="min-h-screen flex items-center justify-center p-4 bg-[#142843] text-[#142843] select-none">
+      <div className="forma-auth w-full max-w-sm rounded-[var(--platform-radius-xl)] bg-[#FCF3E2] border border-[#E6DCC8] p-6 shadow-xl space-y-6 text-left animate-in fade-in duration-200">
         {/* Header */}
         <div className="text-center space-y-2">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-[var(--platform-radius-md)] bg-gradient-to-br from-blue-600 to-indigo-600 text-white font-bold text-sm shadow-md ring-1 ring-blue-500/30">
-            LP
-          </div>
+          <img
+            src="/forma-horizontal.jpeg"
+            alt="Forma"
+            className="w-full max-w-[220px] h-auto mx-auto block"
+          />
           <div>
-            <h1 className="text-base font-semibold tracking-tight text-[var(--platform-text-primary)]">
+            <h1 className="text-base font-semibold tracking-tight text-[#142843]">
               Platform Console
             </h1>
-            <p className="text-xs text-[var(--platform-text-muted)] mt-0.5">
+            <p className="text-xs text-[#5C6E84] mt-0.5">
               Super Admin & Operator Authentication
             </p>
           </div>
@@ -174,7 +176,7 @@ export default function LoginPage() {
               required
               autoComplete="username"
               leftIcon={Mail}
-              placeholder="operator@leap.com"
+              placeholder="operator@forma.com"
               value={email}
               error={emailError}
               onChange={(e) => {

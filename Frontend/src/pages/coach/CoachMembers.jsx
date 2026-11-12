@@ -72,11 +72,11 @@ export default function CoachMembers() {
 
   return (
     <Layout>
-      <PageHeader title="Members">
+      <PageHeader walkthrough="coach-members-header" title="Members">
         <SearchInput value={search} onChange={setSearch} placeholder="Name, phone, ID…" width={200} />
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="coach-members-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <div className="grid-stats-5" style={{ marginBottom: 16 }}>
           <StatCard label="Total" value={stats.total} color="brand" />
           <StatCard label="Active" value={stats.active} color="success" />

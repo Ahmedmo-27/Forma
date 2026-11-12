@@ -38,7 +38,7 @@ async function createInvoiceForPayment({
     const sellerSetting = await PlatformSetting.findOne({ key: "seller_details" });
     const storedSeller = sellerSetting?.value || {};
     const sellerDetails = {
-        name: storedSeller.name || storedSeller.companyName || "Leap SaaS Platform Inc.",
+        name: storedSeller.name || storedSeller.companyName || "Forma",
         taxId: storedSeller.taxId || "EG-TAX-10293847",
         address: storedSeller.address || "Zamalek, Cairo, Egypt",
         supportEmail: storedSeller.supportEmail || storedSeller.billingEmail || "billing@leapgym.com",
@@ -94,7 +94,7 @@ function renderInvoiceHtml(invoice) {
 <body>
     <div class="header">
         <div>
-            <div class="title">LEAP SAAS</div>
+            <div class="title">Forma</div>
             <div>${invoice.sellerDetails.name}</div>
             <div>Tax ID: ${invoice.sellerDetails.taxId}</div>
             <div>${invoice.sellerDetails.address}</div>
@@ -145,7 +145,7 @@ function renderInvoiceHtml(invoice) {
     </div>
 
     <div class="footer">
-        Thank you for choosing Leap Gym Management Platform.<br>
+        Thank you for choosing Forma.<br>
         Questions? Contact ${invoice.sellerDetails.supportEmail}
     </div>
 </body>

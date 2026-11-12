@@ -18,7 +18,7 @@ function MgmtCard({ icon, title, sub, to, iconBg = '#F0F9FF' }) {
         boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
         flex: '1 1 220px', minWidth: 0,
       }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = '#44298C'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(68,41,140,0.12)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--navy)'; e.currentTarget.style.boxShadow = '0 4px 16px color-mix(in srgb, var(--navy) 12%, transparent)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; e.currentTarget.style.transform = 'none'; }}
     >
       <div style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
@@ -72,8 +72,8 @@ export default function Management() {
 
   return (
     <Layout>
-      <PageHeader title="Management" />
-      <div className="page-wrap" style={{ paddingTop: 24, paddingBottom: 40 }}>
+      <PageHeader walkthrough="management-header" title="Management" />
+      <div className="page-wrap" data-walkthrough="management-board" style={{ paddingTop: 24, paddingBottom: 40 }}>
 
         {/* ── Operations ──────────────────────────────────────── */}
         {(show.requests || show.packages || show.whatsapp) && (

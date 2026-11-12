@@ -115,11 +115,11 @@ export default function OwnerDashboard() {
 
   return (
     <Layout>
-      <PageHeader title="Dashboard">
+      <PageHeader walkthrough="owner-dash-header" title="Dashboard">
         <span style={{ fontSize: 12, color: 'var(--t4)' }}>{dateLabel}</span>
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="owner-dash-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
             <Spinner size="lg" />
@@ -131,7 +131,7 @@ export default function OwnerDashboard() {
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>Welcome back</p>
               <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.3px', marginBottom: 8 }}>{firstName}</h2>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, maxWidth: 560 }}>
-                Full overview of LEAP — members, sales, coaches, packages and revenue all in one place.
+                Full overview of Forma — members, sales, coaches, packages and revenue all in one place.
               </p>
             </Card>
 

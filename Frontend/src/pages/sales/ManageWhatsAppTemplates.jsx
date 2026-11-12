@@ -11,6 +11,7 @@ import {
   getPackages,
 } from '../../api/endpoints';
 import { composeWhatsAppTemplateMessage } from '../../utils/whatsapp';
+import { useTourReveal } from '../../tutorials/walkthrough-context';
 
 const PAGE_SIZE = 15;
 const ROLE_OPTIONS = [
@@ -194,7 +195,7 @@ function TemplateForm({ form, onChange, errors, packages }) {
         )}
       </div>
 
-      <div>
+      <div data-walkthrough="template-name">
         <div style={stepLabel}>Step 2 — Give it a clear title</div>
         <Input
           label="Template title"
@@ -211,7 +212,7 @@ function TemplateForm({ form, onChange, errors, packages }) {
         />
       </div>
 
-      <div>
+      <div data-walkthrough="template-body">
         <div style={stepLabel}>Step 3 — Write the message</div>
         <div style={{ ...tipBox, marginBottom: 10, background: 'var(--card)', borderColor: 'var(--border)', color: 'var(--t2)' }}>
           Tip: click <strong>Add member’s name</strong> where you want their name to appear. When sending, it becomes the real name automatically.
@@ -510,6 +511,7 @@ export default function ManageWhatsAppTemplates() {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
 
   const [showCreate, setShowCreate] = useState(false);
+  useTourReveal('new-template', () => setShowCreate(true), () => setShowCreate(false));
   const [createForm, setCreateForm] = useState(EMPTY_FORM);
   const [createErrors, setCreateErrors] = useState({});
   const [creating, setCreating] = useState(false);
@@ -597,17 +599,19 @@ export default function ManageWhatsAppTemplates() {
 
   return (
     <Layout>
-      <PageHeader title="WhatsApp Templates">
-        <Btn
-          variant="blue"
-          size="sm"
-          onClick={() => { setCreateForm(EMPTY_FORM); setCreateErrors({}); setShowCreate(true); }}
-        >
-          Create template
-        </Btn>
+      <PageHeader walkthrough="wa-header" title="WhatsApp Templates">
+        <span data-walkthrough="wa-new">
+          <Btn
+            variant="blue"
+            size="sm"
+            onClick={() => { setCreateForm(EMPTY_FORM); setCreateErrors({}); setShowCreate(true); }}
+          >
+            Create template
+          </Btn>
+        </span>
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="wa-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <div style={{
           ...tipBox,
           marginBottom: 16,

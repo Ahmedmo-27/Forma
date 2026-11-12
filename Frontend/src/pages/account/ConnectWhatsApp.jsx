@@ -98,8 +98,9 @@ export default function ConnectWhatsApp() {
     <Layout>
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
         <PageHeader
+          walkthrough="wa-connect-header"
           title="Connect WhatsApp"
-          sub="Link your own WhatsApp. Messages you send from Leap go out from this number."
+          sub="Link your own WhatsApp. Messages you send from Forma go out from this number."
         />
         <Card>
           {loading ? (
@@ -108,7 +109,7 @@ export default function ConnectWhatsApp() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
+              <div data-walkthrough="wa-connect-status">
                 <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: 'var(--t4)' }}>
                   Status
                 </div>
@@ -121,7 +122,7 @@ export default function ConnectWhatsApp() {
               </div>
 
               {status === 'qr' && (
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
+                <div data-walkthrough="wa-connect-qr" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
                   <p style={{ margin: 0, fontSize: 14, color: 'var(--t2)', maxWidth: 420 }}>
                     Open WhatsApp on your phone, go to Linked devices, and scan this code. It can change once just after it appears. Scan the code that is on the screen.
                   </p>
@@ -142,11 +143,11 @@ export default function ConnectWhatsApp() {
 
               {status === 'disconnected' && (
                 <p style={{ margin: 0, fontSize: 14, color: 'var(--t3)', maxWidth: 460 }}>
-                  Connect once. Leap keeps the link on this account, including after you sign out of the app. Disconnect here if you want sends to stop.
+                  Connect once. Forma keeps the link on this account, including after you sign out of the app. Disconnect here if you want sends to stop.
                 </p>
               )}
 
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div data-walkthrough="wa-connect-action" style={{ display: 'flex', gap: 8 }}>
                 {status !== 'connected' && (
                   <Btn variant="success" onClick={connect} disabled={busy || status === 'qr' || status === 'connecting'}>
                     {busy || status === 'connecting' ? 'Connecting…' : status === 'qr' ? 'Scan the code' : 'Connect'}

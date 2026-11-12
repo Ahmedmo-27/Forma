@@ -43,20 +43,20 @@ async function sendInvite({ to, name, gymName, setupUrl }) {
     const text = [
         `Hello ${name || "there"},`,
         "",
-        `Your gym workspace "${gymName}" is ready on Leap.`,
+        `Your gym workspace "${gymName}" is ready on Forma.`,
         "Set your password using this link (valid for 72 hours):",
         setupUrl,
         "",
         "If you did not expect this email, you can ignore it.",
     ].join("\n");
     const html = `<p>Hello ${escapeHtml(name || "there")},</p>
-<p>Your gym workspace <strong>${escapeHtml(gymName)}</strong> is ready on Leap.</p>
+<p>Your gym workspace <strong>${escapeHtml(gymName)}</strong> is ready on Forma.</p>
 <p><a href="${escapeHtml(setupUrl)}">Set your password</a>. This link is valid for 72 hours.</p>`;
     return sendMail({ to, subject, text, html });
 }
 
 async function sendPasswordReset({ to, name, setupUrl }) {
-    const subject = "Reset your Leap password";
+    const subject = "Reset your Forma password";
     const text = [
         `Hello ${name || "there"},`,
         "",
@@ -73,7 +73,7 @@ async function sendPasswordReset({ to, name, setupUrl }) {
 
 async function sendInvoiceEmail({ to, invoiceNumber, html }) {
     const subject = `Invoice ${invoiceNumber}`;
-    const text = `Your Leap invoice ${invoiceNumber} is attached in HTML form. Open this email in a browser to view it.`;
+    const text = `Your Forma invoice ${invoiceNumber} is attached in HTML form. Open this email in a browser to view it.`;
     return sendMail({ to, subject, text, html });
 }
 

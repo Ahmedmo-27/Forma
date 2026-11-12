@@ -8,7 +8,7 @@ import { memberQrPayload } from "../lib/systemId";
 
 function qrMessage(member, code) {
   const name = member?.name || "Member";
-  return `Hello ${name}, your Leap gym check-in code is ${code}. Show this QR at reception to check in.`;
+  return `Hello ${name}, your Forma check-in code is ${code}. Show this QR at reception to check in.`;
 }
 
 function wrapLines(ctx, text, maxWidth) {
@@ -45,13 +45,17 @@ async function buildCheckInCard(member, code) {
   ctx.fillStyle = "#ffffff";
   ctx.fillRect(0, 0, cardCanvas.width, cardCanvas.height);
 
+  const brand = getComputedStyle(document.documentElement);
+  const navy = brand.getPropertyValue('--navy').trim() || '#44298C';
+  const nav = brand.getPropertyValue('--nav-bg').trim() || '#1E1535';
+
   // Header Banner
-  ctx.fillStyle = "#44298C";
+  ctx.fillStyle = nav;
   ctx.fillRect(0, 0, cardCanvas.width, 86);
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "700 26px system-ui, -apple-system, Segoe UI, sans-serif";
-  ctx.fillText("Leap Check-In", 32, 54);
+  ctx.fillText("Forma Check-In", 32, 54);
 
   // Member Name
   ctx.fillStyle = "#111827";
@@ -68,7 +72,7 @@ async function buildCheckInCard(member, code) {
     width: qrSize,
     margin: 1,
     errorCorrectionLevel: "M",
-    color: { dark: "#1E1535", light: "#ffffff" },
+    color: { dark: navy, light: "#ffffff" },
   });
 
   // Draw QR centered

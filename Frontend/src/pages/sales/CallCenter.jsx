@@ -87,7 +87,7 @@ export default function CallCenter() {
 
   return (
     <Layout>
-      <PageHeader title="Call Center">
+      <PageHeader walkthrough="manager-calls-header" title="Call Center">
         <SearchInput
           value={search}
           onChange={setSearch}
@@ -96,7 +96,7 @@ export default function CallCenter() {
         />
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="manager-calls-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
 
         <div style={{
           display: 'grid',

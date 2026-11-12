@@ -31,7 +31,7 @@ function ForecastChart({ actuals, forecast }) {
 
   return (
     <svg viewBox={`0 0 ${width} ${height}`} width="100%" role="img" aria-label="Revenue and forecast">
-      <polyline fill="none" stroke="#44298C" strokeWidth="2.5" points={collected} />
+      <polyline fill="none" stroke="var(--navy)" strokeWidth="2.5" points={collected} />
       <polyline fill="none" stroke="#F59E0B" strokeWidth="2.5" points={forecastLine} />
       {prior && <polyline fill="none" stroke="#94A3B8" strokeWidth="1.5" strokeDasharray="4 4" points={prior} />}
       {rows.map((row, index) => (
@@ -40,7 +40,7 @@ function ForecastChart({ actuals, forecast }) {
           cx={index * step}
           cy={y(row.revenue)}
           r="3"
-          fill={row.forecasted ? '#F59E0B' : '#44298C'}
+          fill={row.forecasted ? '#F59E0B' : 'var(--navy)'}
         />
       ))}
       <line
@@ -76,7 +76,7 @@ export default function ForecastReport() {
         <Card>
           <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 8, fontSize: 12, color: 'var(--t3)' }}>
             <span>Trailing average: <strong style={{ color: 'var(--t1)' }}>{formatEgp(data.trailingAverage)}</strong></span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><i style={{ width: 14, height: 3, background: '#44298C', display: 'inline-block' }} /> Collected</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><i style={{ width: 14, height: 3, background: 'var(--navy)', display: 'inline-block' }} /> Collected</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><i style={{ width: 14, height: 3, background: '#F59E0B', display: 'inline-block' }} /> Forecast</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><i style={{ width: 14, height: 0, borderTop: '2px dashed #94A3B8', display: 'inline-block' }} /> Same month last year</span>
           </div>

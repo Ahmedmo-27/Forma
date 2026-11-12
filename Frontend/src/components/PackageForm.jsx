@@ -83,7 +83,7 @@ export default function PackageForm({ form, onChange, errors }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+    <div data-walkthrough="new-package-form" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
       <Input
         label="Package Name *" value={form.name} error={errors.name}
         onChange={e => set('name', e.target.value)} placeholder="e.g. Gold Membership"

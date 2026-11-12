@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
 import Layout from '../components/Layout';
@@ -37,7 +37,9 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50];
 export default function CheckIn() {
   usePageTitle('Check In');
   const navigate  = useNavigate();
+  const [searchParams] = useSearchParams();
   const inputRef  = useRef(null);
+  const checkInMode = searchParams.get('mode');
 
   const [query,      setQuery]      = useState('');
   const [member,     setMember]     = useState(null);
@@ -50,7 +52,9 @@ export default function CheckIn() {
   const [live,       setLive]       = useState('connecting');
   const [freshIds,   setFreshIds]   = useState(() => new Set());
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [activeTab,  setActiveTab]  = useState('scanner'); // 'scanner' | 'lookup'
+  const [activeTab,  setActiveTab]  = useState(() => (
+    checkInMode === 'lookup' || checkInMode === 'scanner' ? checkInMode : 'scanner'
+  ));
   const [lastScannedResult, setLastScannedResult] = useState(null);
 
   // Pagination for Today's Activity
@@ -81,6 +85,12 @@ export default function CheckIn() {
   useEffect(() => {
     if (page > totalPages) setPage(1);
   }, [totalPages, page]);
+
+  useEffect(() => {
+    if (checkInMode !== 'scanner' && checkInMode !== 'lookup') return undefined;
+    const frame = requestAnimationFrame(() => setActiveTab(checkInMode));
+    return () => cancelAnimationFrame(frame);
+  }, [checkInMode]);
 
   const handlePageSizeChange = (newSize) => {
     const valid = Math.max(1, Math.min(500, parseInt(newSize, 10) || DEFAULT_PAGE_SIZE));
@@ -354,7 +364,7 @@ export default function CheckIn() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{
                     width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                    background: 'rgba(68,41,140,0.10)',
+                    background: 'color-mix(in srgb, var(--navy) 10%, transparent)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
                   }}>✅</div>
                   <div>
@@ -370,7 +380,7 @@ export default function CheckIn() {
                 border: '1px solid var(--border)',
               }}>
                 {/* ── Mode Tabs: Scanner vs Manual Search ───────────── */}
-                <div style={{
+                <div data-walkthrough="checkin-modes" style={{
                   display: 'flex',
                   borderBottom: '1px solid var(--border)',
                   background: 'var(--bg)',
@@ -382,9 +392,9 @@ export default function CheckIn() {
                       flex: 1,
                       padding: '13px 16px',
                       border: 'none',
-                      borderBottom: activeTab === 'scanner' ? '2.5px solid #44298C' : '2.5px solid transparent',
+                      borderBottom: activeTab === 'scanner' ? '2.5px solid var(--navy)' : '2.5px solid transparent',
                       background: activeTab === 'scanner' ? 'var(--card)' : 'transparent',
-                      color: activeTab === 'scanner' ? '#44298C' : 'var(--t3)',
+                      color: activeTab === 'scanner' ? 'var(--navy)' : 'var(--t3)',
                       fontWeight: activeTab === 'scanner' ? 800 : 600,
                       fontSize: 13,
                       cursor: 'pointer',
@@ -403,8 +413,8 @@ export default function CheckIn() {
                       fontWeight: 700,
                       textTransform: 'uppercase',
                       letterSpacing: '0.4px',
-                      background: activeTab === 'scanner' ? 'rgba(68,41,140,0.12)' : 'rgba(0,0,0,0.05)',
-                      color: activeTab === 'scanner' ? '#44298C' : 'var(--t4)',
+                      background: activeTab === 'scanner' ? 'color-mix(in srgb, var(--navy) 12%, transparent)' : 'rgba(0,0,0,0.05)',
+                      color: activeTab === 'scanner' ? 'var(--navy)' : 'var(--t4)',
                       padding: '2px 6px',
                       borderRadius: 10,
                     }}>
@@ -422,9 +432,9 @@ export default function CheckIn() {
                       flex: 1,
                       padding: '13px 16px',
                       border: 'none',
-                      borderBottom: activeTab === 'lookup' ? '2.5px solid #44298C' : '2.5px solid transparent',
+                      borderBottom: activeTab === 'lookup' ? '2.5px solid var(--navy)' : '2.5px solid transparent',
                       background: activeTab === 'lookup' ? 'var(--card)' : 'transparent',
-                      color: activeTab === 'lookup' ? '#44298C' : 'var(--t3)',
+                      color: activeTab === 'lookup' ? 'var(--navy)' : 'var(--t3)',
                       fontWeight: activeTab === 'lookup' ? 800 : 600,
                       fontSize: 13,
                       cursor: 'pointer',
@@ -443,7 +453,7 @@ export default function CheckIn() {
 
                 {/* ── Tab Content ──────────────────────────────────── */}
                 {activeTab === 'scanner' ? (
-                  <div style={{ padding: '18px 20px' }}>
+                  <div data-walkthrough="checkin-scanner" style={{ padding: '18px 20px' }}>
                     <div style={{ marginBottom: 12 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>
                         Scanner
@@ -459,7 +469,7 @@ export default function CheckIn() {
                     />
                   </div>
                 ) : (
-                  <div>
+                  <div data-walkthrough="checkin-search">
                     <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>Manual Lookup & USB Scanner</div>
                       <div style={{ fontSize: 11, color: 'var(--t4)' }}>Type System ID (S100), Member ID (M100 or number), or scan with a USB scanner</div>
@@ -486,13 +496,13 @@ export default function CheckIn() {
                                 fontFamily: 'inherit', boxSizing: 'border-box',
                                 transition: 'border-color 0.15s, box-shadow 0.15s',
                               }}
-                              onFocus={e => { e.target.style.borderColor = '#44298C'; e.target.style.boxShadow = '0 0 0 3px rgba(68,41,140,0.10)'; }}
+                              onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
                               onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
                             />
                           </div>
                           <button type="submit" disabled={searching || !query.trim()} style={{
                             padding: '0 18px', minHeight: 44, borderRadius: 10, border: 'none', fontFamily: 'inherit',
-                            background: 'linear-gradient(135deg,#44298C,#5B38BA)', color: '#fff',
+                            background: 'linear-gradient(135deg,var(--navy),var(--navy-2))', color: '#fff',
                             fontSize: 13, fontWeight: 700, cursor: searching || !query.trim() ? 'not-allowed' : 'pointer',
                             opacity: !query.trim() ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6,
                             transition: 'opacity 0.15s',
@@ -542,7 +552,7 @@ export default function CheckIn() {
                 }}>
                   {/* Gradient header */}
                   <div style={{
-                    background: 'linear-gradient(135deg,#1E1535 0%,#44298C 100%)',
+                    background: 'linear-gradient(135deg,var(--nav-bg),var(--navy))',
                     padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 14,
                     position: 'relative', overflow: 'hidden',
                   }}>
@@ -681,7 +691,7 @@ export default function CheckIn() {
                           background: 'var(--bg)', color: 'var(--t2)', fontSize: 11, fontWeight: 600,
                           cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s', textAlign: 'center',
                         }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = '#44298C'; e.currentTarget.style.color = '#44298C'; e.currentTarget.style.background = 'rgba(68,41,140,0.05)'; }}
+                          onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--navy)'; e.currentTarget.style.color = 'var(--navy)'; e.currentTarget.style.background = 'color-mix(in srgb, var(--navy) 5%, transparent)'; }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--t2)'; e.currentTarget.style.background = 'var(--bg)'; }}
                         >{label}</button>
                       ))}
@@ -691,7 +701,7 @@ export default function CheckIn() {
               )}
 
             {/* Today's Activity spans the content width */}
-            <div style={{
+            <div data-walkthrough="checkin-board" style={{
               background: 'var(--card)', borderRadius: 16, overflow: 'hidden',
               border: '1px solid var(--border)',
               boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06)',
@@ -711,10 +721,10 @@ export default function CheckIn() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <div style={{
-                    background: 'linear-gradient(135deg,#44298C,#5B38BA)',
+                    background: 'linear-gradient(135deg,var(--navy),var(--navy-2))',
                     color: '#fff', fontSize: 14, fontWeight: 800,
                     padding: '4px 14px', borderRadius: 20,
-                    boxShadow: '0 2px 8px rgba(68,41,140,0.30)',
+                    boxShadow: '0 2px 8px color-mix(in srgb, var(--navy) 30%, transparent)',
                   }}>
                     {histLoad ? '…' : `${todayCount} check-in${todayCount !== 1 ? 's' : ''}`}
                   </div>
@@ -749,7 +759,7 @@ export default function CheckIn() {
                         {/* Serial number */}
                         <div style={{
                           width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                          background: isLatest ? 'linear-gradient(135deg,#44298C,#5B38BA)' : 'var(--bg)',
+                          background: isLatest ? 'linear-gradient(135deg,var(--navy),var(--navy-2))' : 'var(--bg)',
                           border: `1px solid ${isLatest ? 'transparent' : 'var(--border)'}`,
                           color: isLatest ? '#fff' : 'var(--t4)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -773,7 +783,7 @@ export default function CheckIn() {
                         <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
                           <span style={{
                             fontSize: 12, fontWeight: 700, color: 'var(--t1)',
-                            background: isLatest ? 'rgba(68,41,140,0.08)' : 'transparent',
+                            background: isLatest ? 'color-mix(in srgb, var(--navy) 8%, transparent)' : 'transparent',
                             padding: isLatest ? '2px 8px' : '0',
                             borderRadius: isLatest ? 6 : 0,
                           }}>

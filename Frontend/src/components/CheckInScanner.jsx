@@ -315,9 +315,9 @@ export default function CheckInScanner({
                 fontSize: 11,
                 fontWeight: 600,
                 border: '1px solid',
-                borderColor: scanMode === m.id ? '#44298C' : 'var(--border)',
-                background: scanMode === m.id ? 'rgba(68,41,140,0.10)' : 'var(--bg)',
-                color: scanMode === m.id ? '#44298C' : 'var(--t3)',
+                borderColor: scanMode === m.id ? 'var(--navy)' : 'var(--border)',
+                background: scanMode === m.id ? 'color-mix(in srgb, var(--navy) 10%, transparent)' : 'var(--bg)',
+                color: scanMode === m.id ? 'var(--navy)' : 'var(--t3)',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
               }}
@@ -530,7 +530,7 @@ export default function CheckInScanner({
                 padding: '10px 24px',
                 borderRadius: 10,
                 border: 'none',
-                background: 'linear-gradient(135deg,#44298C,#5B38BA)',
+                background: 'linear-gradient(135deg,var(--navy),var(--navy-2))',
                 color: '#fff',
                 fontSize: 13,
                 fontWeight: 700,
@@ -538,7 +538,7 @@ export default function CheckInScanner({
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                boxShadow: '0 4px 14px rgba(68,41,140,0.40)',
+                boxShadow: '0 4px 14px color-mix(in srgb, var(--navy) 40%, transparent)',
               }}
             >
               {starting ? <><Spinner size="sm" /> Opening Camera…</> : <>▶ Open Camera</>}

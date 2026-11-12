@@ -234,13 +234,13 @@ export default function SalesDashboard() {
 
   return (
     <Layout>
-      <PageHeader title="Dashboard">
+      <PageHeader walkthrough="sales-dash-header" title="Dashboard">
         <span style={{ fontSize: 12, color: 'var(--t4)' }}>
           {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
         </span>
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="sales-dash-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><Spinner size="lg" /></div>
         ) : (

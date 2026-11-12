@@ -152,7 +152,7 @@ export default function TaskFilterPage() {
 
   return (
     <Layout>
-      <PageHeader title="Filter Members">
+      <PageHeader walkthrough="task-filter-header" title="Filter Members">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Btn variant="ghost" size="sm" onClick={() => navigate('/tasks/assign')}>
             ← Back to Tasks
@@ -160,7 +160,7 @@ export default function TaskFilterPage() {
         </div>
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 48, maxWidth: 820, margin: '0 auto' }}>
+      <div className="page-wrap" data-walkthrough="task-filter-board" style={{ paddingTop: 20, paddingBottom: 48, maxWidth: 820, margin: '0 auto' }}>
         <Card style={{ padding: '28px 32px' }}>
           {refLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
@@ -366,10 +366,10 @@ export default function TaskFilterPage() {
                   onClick={handleFilterMembers}
                   style={{
                     height: 44, padding: '0 28px', borderRadius: 10, fontSize: 14, fontWeight: 700,
-                    border: 'none', background: 'var(--navy, #44298C)', color: '#fff',
+                    border: 'none', background: 'var(--navy, var(--navy))', color: '#fff',
                     cursor: 'pointer', fontFamily: 'inherit',
                     display: 'inline-flex', alignItems: 'center', gap: 8,
-                    boxShadow: '0 2px 10px rgba(68,41,140,0.3)',
+                    boxShadow: '0 2px 10px color-mix(in srgb, var(--navy) 30%, transparent)',
                   }}
                 >
                   <span>🔍 Filter Members</span>

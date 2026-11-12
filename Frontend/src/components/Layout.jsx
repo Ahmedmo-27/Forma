@@ -8,6 +8,7 @@ import GlobalSearch from './GlobalSearch';
 import NotificationBell from './NotificationBell';
 import { updateMyProfile } from '../api/endpoints';
 import { hasAccess } from '../lib/access';
+import HelpButton from './tutorials/HelpButton';
 
 const NAV = {
   Receptionist:  [{ to: '/checkin', label: 'Check In', access: 'check_in' }, { to: '/members', label: 'Members', access: 'members' }, { to: '/contacts', label: 'Contacts' }],
@@ -70,7 +71,7 @@ const BOTTOM_NAV_CONFIG = {
   ],
 };
 
-const NAVBAR_BG = 'var(--nav-bg, #1E1535)';   /* complements the logo */
+const NAVBAR_BG = 'var(--nav-bg, var(--navy))';   /* complements the logo */
 const TAB_BG    = 'var(--nav-tab-bg, #160F2A)';   /* slightly darker/cooler for the tab row */
 
 function ini(name = '') {
@@ -381,8 +382,8 @@ export default function Layout({ children }) {
 
   const logoKey = branding?.logoKey;
   const logoFile = logoKey ? String(logoKey).split(/[\/\\]/).pop() : null;
-  const logoUrl = logoFile ? `${apiOrigin}/uploads/${encodeURIComponent(logoFile)}` : '/leap-logo.svg';
-  const displayName = branding?.displayName || tenant?.name || 'LEAP';
+  const logoUrl = logoFile ? `${apiOrigin}/uploads/${encodeURIComponent(logoFile)}` : '/forma-favicon.png';
+  const displayName = branding?.displayName || tenant?.name || 'Workspace';
 
   useEffect(() => {
     const h = e => { if (dropRef.current && !dropRef.current.contains(e.target)) setDrop(false); };
@@ -468,7 +469,7 @@ export default function Layout({ children }) {
               lineHeight: 0,
               boxShadow: '0 3px 12px color-mix(in srgb, var(--navy) 50%, transparent)',
               overflow: 'hidden',
-              background: 'color-mix(in srgb, var(--nav-bg, #1E1535) 75%, #ffffff)',
+              background: 'color-mix(in srgb, var(--nav-bg, var(--navy)) 75%, #ffffff)',
             }}>
               <img key={logoUrl} src={logoUrl} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
@@ -476,7 +477,7 @@ export default function Layout({ children }) {
           </div>
 
           {/* Desktop Search */}
-          <div id="desk-search" style={{ flex: '1 1 auto', maxWidth: 460, minWidth: 0, marginLeft: 8 }}>
+          <div id="desk-search" data-walkthrough="global-search" style={{ flex: '1 1 auto', maxWidth: 460, minWidth: 0, marginLeft: 8 }}>
             <GlobalSearch />
           </div>
 
@@ -502,16 +503,18 @@ export default function Layout({ children }) {
               </svg>
             </button>
 
+            <HelpButton />
+
             {/* Notification Bell (Visible on both desktop & mobile) */}
             {showNotif && (
-              <div className="topbar-notif" style={{ display: 'flex', alignItems: 'center' }}>
+              <div className="topbar-notif" data-walkthrough="notif-bell" style={{ display: 'flex', alignItems: 'center' }}>
                 <NotificationBell />
               </div>
             )}
 
             {/* Profile Menu */}
             <div ref={dropRef} style={{ position: 'relative' }}>
-              <button onClick={() => setDrop(p => !p)} style={{
+              <button data-walkthrough="profile-menu" onClick={() => setDrop(p => !p)} style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)',
                 borderRadius: 8, padding: '5px 10px 5px 5px',
@@ -635,7 +638,7 @@ export default function Layout({ children }) {
       {/* END sticky row 1 */}
 
       {/* ── ROW 2 — tab nav (scrolls away with page on desktop) ── */}
-      <div id="tab-nav-bar" style={{
+      <div id="tab-nav-bar" data-walkthrough="tab-nav" style={{
         background: TAB_BG,
         borderTop: '1px solid rgba(255,255,255,0.06)',
         padding: '0 24px',
@@ -670,7 +673,7 @@ export default function Layout({ children }) {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 16px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-              <img src={logoUrl} alt="LEAP" style={{ width: 26, height: 26, objectFit: 'contain' }} />
+              <img src={logoUrl} alt={displayName} style={{ width: 26, height: 26, objectFit: 'contain' }} />
             </div>
             <span style={{ fontSize: 15, fontWeight: 900, color: '#fff', letterSpacing: '2px', textTransform: 'uppercase' }}>{displayName}</span>
           </div>
@@ -713,7 +716,7 @@ export default function Layout({ children }) {
       <main className="app-main-content">{children}</main>
 
       {/* ── MOBILE BOTTOM NAVIGATION BAR (1-Thumb Ergonomics) ────── */}
-      <nav className="mobile-bottom-nav" aria-label="Quick Navigation" style={{
+      <nav className="mobile-bottom-nav" data-walkthrough="mobile-nav" aria-label="Quick Navigation" style={{
         position: 'fixed', bottom: 0, left: 0, right: 0,
         height: 'calc(60px + env(safe-area-inset-bottom, 0px))',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',

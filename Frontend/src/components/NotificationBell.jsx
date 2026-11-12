@@ -105,7 +105,7 @@ export default function NotificationBell({ variant = 'bar' }) {
         aria-label="Notifications"
         style={{
           position: 'relative',
-          background: isDrawer ? 'rgba(68,41,140,0.07)' : 'rgba(68,41,140,0.07)',
+          background: isDrawer ? 'color-mix(in srgb, var(--navy) 7%, transparent)' : 'color-mix(in srgb, var(--navy) 7%, transparent)',
           border: '1px solid rgba(255,255,255,0.12)',
           borderRadius: 8,
           width: isDrawer ? '100%' : 42,
@@ -118,8 +118,8 @@ export default function NotificationBell({ variant = 'bar' }) {
           padding: isDrawer ? '0 12px' : 0,
           transition: 'background 0.12s',
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(68,41,140,0.10)'; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(68,41,140,0.07)'; }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'color-mix(in srgb, var(--navy) 10%, transparent)'; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'color-mix(in srgb, var(--navy) 7%, transparent)'; }}
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.80)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -182,12 +182,12 @@ export default function NotificationBell({ variant = 'bar' }) {
                   style={{
                     width: '100%', textAlign: 'left', padding: '10px 14px',
                     border: 'none', borderBottom: '1px solid var(--border)',
-                    background: n.read ? 'var(--card)' : 'rgba(68,41,140,0.06)',
+                    background: n.read ? 'var(--card)' : 'color-mix(in srgb, var(--navy) 6%, transparent)',
                     cursor: 'pointer', fontFamily: 'inherit',
                     transition: 'background 0.1s',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(68,41,140,0.25)'}
-                  onMouseLeave={e => e.currentTarget.style.background = n.read ? 'var(--card)' : 'rgba(68,41,140,0.06)'}
+                  onMouseEnter={e => e.currentTarget.style.background = 'color-mix(in srgb, var(--navy) 25%, transparent)'}
+                  onMouseLeave={e => e.currentTarget.style.background = n.read ? 'var(--card)' : 'color-mix(in srgb, var(--navy) 6%, transparent)'}
                 >
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{n.title}</div>
                   <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 4 }}>{n.message}</div>

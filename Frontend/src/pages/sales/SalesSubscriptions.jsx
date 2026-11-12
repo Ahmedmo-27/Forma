@@ -39,9 +39,9 @@ export default function SalesSubscriptions() {
 
   return (
     <Layout>
-      <PageHeader title="My Subscriptions" />
+      <PageHeader walkthrough="subs-header" title="My Subscriptions" />
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="subs-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
 
         {/* ── Filters ──────────────────────────────────────────────── */}
         <Card style={{ marginBottom: 20 }}>

@@ -802,9 +802,9 @@ export default function TargetDashboard() {
 
   return (
     <Layout>
-      <PageHeader title="Targets" />
+      <PageHeader walkthrough="targets-header" title="Targets" />
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="targets-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <TabBar tabs={TABS} active={tab} onChange={setTab} />
 
         {loading && !data ? (

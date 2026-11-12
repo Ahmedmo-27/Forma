@@ -52,7 +52,7 @@ const invoiceSchema = new mongoose.Schema(
             default: "manual_transfer",
         },
         sellerDetails: {
-            name: { type: String, default: "Leap SaaS Inc." },
+            name: { type: String, default: "Forma" },
             taxId: { type: String, default: "EG-TAX-10293847" },
             address: { type: String, default: "Cairo, Egypt" },
             supportEmail: { type: String, default: "billing@leapgym.com" },

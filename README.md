@@ -1,4 +1,4 @@
-# Leap Gym
+# Forma
 
 Sales-assisted multi-tenant gym platform. Platform operators onboard a gym, the owner sets a password from the invite link, and billing is confirmed from a manual bank transfer.
 

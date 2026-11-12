@@ -79,7 +79,7 @@ export default function FunnelReport() {
                     <span style={{ color: 'var(--t2)' }}>{stage.count}</span>
                   </div>
                   <div style={{ height: 10, background: 'var(--bg)', borderRadius: 99, overflow: 'hidden' }}>
-                    <div style={{ width: `${stage.key === 'created' ? 100 : width}%`, height: '100%', background: '#44298C' }} />
+                    <div style={{ width: `${stage.key === 'created' ? 100 : width}%`, height: '100%', background: 'var(--navy)' }} />
                   </div>
                 </div>
               );

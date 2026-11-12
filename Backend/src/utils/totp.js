@@ -146,7 +146,7 @@ async function verifyRecoveryCode(recoveryCode, hashedCodes = []) {
 /**
  * Generate standard otpauth URL for QR codes.
  */
-function getOtpAuthUrl({ issuer = "Leap Platform", accountName, secret }) {
+function getOtpAuthUrl({ issuer = "Forma", accountName, secret }) {
     const label = encodeURIComponent(`${issuer}:${accountName}`);
     const encodedIssuer = encodeURIComponent(issuer);
     return `otpauth://totp/${label}?secret=${secret}&issuer=${encodedIssuer}&algorithm=SHA1&digits=6&period=30`;

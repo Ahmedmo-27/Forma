@@ -81,7 +81,7 @@ export default function SalesCallCenter() {
 
   return (
     <Layout>
-      <PageHeader title="Call Center">
+      <PageHeader walkthrough="my-calls-header" title="Call Center">
         <SearchInput
           value={search}
           onChange={setSearch}
@@ -90,7 +90,7 @@ export default function SalesCallCenter() {
         />
       </PageHeader>
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="my-calls-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
 
         {/* ── Filter bar ──────────────────────────────────────── */}
         <div style={{

@@ -110,9 +110,9 @@ export default function OwnerTeams() {
 
   return (
     <Layout>
-      <PageHeader title="All Teams" />
+      <PageHeader walkthrough="teams-header" title="All Teams" />
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="teams-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
 
         {/* ── Summary strip ────────────────────────────────────── */}
         <div style={{
@@ -474,9 +474,9 @@ function UserCard({ member, tab, onClick }) {
                 fontWeight: 700,
                 padding: '1px 6px',
                 borderRadius: 999,
-                background: pct >= 100 ? 'var(--green-bg)' : pct >= 50 ? 'rgba(68,41,140,0.08)' : 'var(--amber-bg)',
+                background: pct >= 100 ? 'var(--green-bg)' : pct >= 50 ? 'color-mix(in srgb, var(--navy) 8%, transparent)' : 'var(--amber-bg)',
                 color: pct >= 100 ? 'var(--green)' : pct >= 50 ? 'var(--navy)' : 'var(--amber)',
-                border: `1px solid ${pct >= 100 ? 'var(--green-bd)' : pct >= 50 ? 'rgba(68,41,140,0.2)' : 'var(--amber-bd)'}`,
+                border: `1px solid ${pct >= 100 ? 'var(--green-bd)' : pct >= 50 ? 'color-mix(in srgb, var(--navy) 20%, transparent)' : 'var(--amber-bd)'}`,
                 fontVariantNumeric: 'tabular-nums',
               }}>
                 {pct}%

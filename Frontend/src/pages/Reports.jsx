@@ -22,7 +22,7 @@ function ReportCard({ icon, title, sub, to, iconBg = '#FEF2F2' }) {
         boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
         flex: '1 1 220px', minWidth: 0,
       }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = '#44298C'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(68,41,140,0.12)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--navy)'; e.currentTarget.style.boxShadow = '0 4px 16px color-mix(in srgb, var(--navy) 12%, transparent)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; e.currentTarget.style.transform = 'none'; }}
     >
       <div style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
@@ -64,13 +64,13 @@ export default function Reports() {
 
   return (
     <Layout>
-      <PageHeader title="Reports" />
-      <div className="page-wrap" style={{ paddingTop: 24, paddingBottom: 40 }}>
+      <PageHeader walkthrough="reports-header" title="Reports" />
+      <div className="page-wrap" data-walkthrough="reports-board" style={{ paddingTop: 24, paddingBottom: 40 }}>
 
         {canSeeAnalytics && (hasFeature('business_intelligence') || hasFeature('exec_analytics') || hasFeature('funnels')) && (
           <ReportSection title="Platinum" sub="Whole-gym figures from members, subscriptions, and check-ins">
             {hasFeature('business_intelligence') && (
-              <ReportCard icon="📈" title="Executive Summary" sub="Active members, churn, forecast, and conversion" to="/reports/executive" iconBg="rgba(68,41,140,0.08)" />
+              <ReportCard icon="📈" title="Executive Summary" sub="Active members, churn, forecast, and conversion" to="/reports/executive" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
             )}
             {hasFeature('exec_analytics') && (
               <>
@@ -81,7 +81,7 @@ export default function Reports() {
               </>
             )}
             {hasFeature('funnels') && (
-              <ReportCard icon="🧲" title="Conversion Funnel" sub="Lead to member, drop-off, and revenue by source" to="/reports/funnel" iconBg="rgba(68,41,140,0.08)" />
+              <ReportCard icon="🧲" title="Conversion Funnel" sub="Lead to member, drop-off, and revenue by source" to="/reports/funnel" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
             )}
           </ReportSection>
         )}
@@ -102,8 +102,8 @@ export default function Reports() {
         {/* ── Data — Sales Manager & Owner only ───────────────── */}
         {isDataManager && hasAccess(user, 'import_members') && (
           <ReportSection title="Data" sub="Import and manage bulk data">
-            <ReportCard icon="📥" title="Import Members"   sub="Upload Excel sheet of names & numbers"  to="/sales/import"     iconBg="rgba(68,41,140,0.08)" />
-            <ReportCard icon="📋" title="Imported Members" sub="View all members added via Excel import" to="/reports/imported" iconBg="rgba(68,41,140,0.08)" />
+            <ReportCard icon="📥" title="Import Members"   sub="Upload Excel sheet of names & numbers"  to="/sales/import"     iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
+            <ReportCard icon="📋" title="Imported Members" sub="View all members added via Excel import" to="/reports/imported" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
           </ReportSection>
         )}
 

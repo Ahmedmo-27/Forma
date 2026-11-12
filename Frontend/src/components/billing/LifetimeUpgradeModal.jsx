@@ -188,7 +188,7 @@ export default function LifetimeUpgradeModal({ isOpen, onClose, currentPlanKey, 
                 style={{ marginTop: 3 }}
               />
               <span style={{ fontSize: 13, color: '#374151' }}>
-                I agree to upgrade to <strong>{selectedTargetKey?.toUpperCase()} Lifetime</strong> and accept the Leap Gym Lifetime Service Terms (v2026.1).
+                I agree to upgrade to <strong>{selectedTargetKey?.toUpperCase()} Lifetime</strong> and accept the Forma Lifetime Service Terms (v2026.1).
               </span>
             </label>
 

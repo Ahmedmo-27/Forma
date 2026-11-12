@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -8,6 +8,7 @@ import { PageHeader, Card, Table, Badge, Btn, ConfirmDialog, EmptyState, Modal, 
 import { getPackageExceptions, updatePackageExceptionStatus } from '../../api/endpoints';
 import SalesManagerSection from '../../components/accounting/SalesManagerSection';
 import PackageAcceptModal from '../../components/accounting/PackageAcceptModal';
+import { useWalkthrough } from '../../tutorials/walkthrough-context';
 
 const PAGE_SIZE = 10;
 
@@ -46,11 +47,11 @@ function RequestDetailModal({ request, open, onClose, isReviewer, onApprove, onR
       size="lg"
       footer={
         isPending && isReviewer ? (
-          <>
+          <div data-walkthrough="pkg-request-actions" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
             <Btn variant="ghost" size="sm" onClick={onClose}>Close</Btn>
             <Btn variant="danger" size="sm" onClick={() => onReject(request)}>Reject</Btn>
             <Btn variant="success" size="sm" onClick={() => onApprove(request)}>Approve</Btn>
-          </>
+          </div>
         ) : (
           <Btn variant="ghost" size="sm" onClick={onClose}>Close</Btn>
         )
@@ -141,6 +142,24 @@ export default function PackageRequests() {
   const [actionLoading, setActionLoading] = useState(false);
 
   const isReviewer = user?.role === 'Accountant';
+  const { isActive, currentStep } = useWalkthrough();
+  const tourOpenedRequest = useRef(false);
+
+  useEffect(() => {
+    const open = isActive && currentStep?.reveal === 'package-request';
+    const frame = requestAnimationFrame(() => {
+      if (open && pending[0]) {
+        tourOpenedRequest.current = true;
+        setSelected(pending[0]);
+        return;
+      }
+      if (!open && tourOpenedRequest.current) {
+        tourOpenedRequest.current = false;
+        setSelected(null);
+      }
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [isActive, currentStep?.reveal, pending]);
 
   const fetchPending = useCallback(async () => {
     setLoadingPending(true);
@@ -248,9 +267,10 @@ export default function PackageRequests() {
 
   return (
     <Layout>
-      <PageHeader title="Package Requests" />
+      <PageHeader walkthrough="pkg-requests-header" title="Package Requests" />
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="pkg-requests-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
+        <div data-walkthrough="pkg-requests-pending">
         <Card noPad style={{ marginBottom: 16 }}>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Pending ({pendingPagination.total})</span>
@@ -274,6 +294,7 @@ export default function PackageRequests() {
             </>
           }
         </Card>
+        </div>
 
         <Card noPad>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>

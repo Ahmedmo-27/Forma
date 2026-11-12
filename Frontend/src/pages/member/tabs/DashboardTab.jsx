@@ -15,7 +15,7 @@ function thisMonthCount(logs = [], type) {
   return logs.filter(l => l.type === type && new Date(l.createdAt) >= start).length;
 }
 
-function StatBox({ icon, label, value, sub, accent = '#44298C', onClick }) {
+function StatBox({ icon, label, value, sub, accent = 'var(--navy)', onClick }) {
   return (
     <div onClick={onClick} style={{
       background: 'var(--card)', border: '1px solid var(--border)',
@@ -60,7 +60,7 @@ function InfoPair({ label, value, valueColor }) {
   );
 }
 
-function QuickActionBtn({ icon, label, sub, onClick, accent = '#44298C' }) {
+function QuickActionBtn({ icon, label, sub, onClick, accent = 'var(--navy)' }) {
   return (
     <button onClick={onClick} style={{
       background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 10px',
@@ -127,7 +127,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
       border: '1px solid var(--border-md)', color: 'var(--t2)', fontSize: 12,
       fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s', width: '100%',
     }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor = '#44298C'; e.currentTarget.style.color = '#44298C'; }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--navy)'; e.currentTarget.style.color = 'var(--navy)'; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-md)'; e.currentTarget.style.color = 'var(--t2)'; }}
     >View Package Details →</button>
   );
@@ -144,7 +144,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
         <StatBox icon="📅" label="Package Expiry"
           value={activeSub?.endDate ? fmtDate(activeSub.endDate) : '—'}
           sub={expiryDays === null ? undefined : expiryDays < 0 ? `Expired ${Math.abs(expiryDays)}d ago` : expiringSoon ? `⚠ ${expiryDays}d left` : `${expiryDays}d remaining`}
-          accent={expiringSoon || isExpired ? '#ef4444' : '#44298C'} onClick={() => go('packages')} />
+          accent={expiringSoon || isExpired ? '#ef4444' : 'var(--navy)'} onClick={() => go('packages')} />
         <StatBox icon="✅" label="Total Check-Ins"
           value={checkInTotal} sub={`${thisMonthCheckIns} this month`}
           accent="#22c55e" onClick={() => go('checkins')} />
@@ -195,7 +195,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
             <div className="dash-quick-actions">
               <QuickActionBtn icon="🎟️" label="Invitations"   sub={`${invitationsRemain} left`}    onClick={() => go('invitations')} accent="#22c55e" />
               <QuickActionBtn icon="✅" label="Check-Ins"     sub={`${checkInTotal} total`}      onClick={() => go('checkins')}    accent="#22c55e" />
-              <QuickActionBtn icon="�" label="Packages"                                             onClick={() => go('packages')}   accent="#44298C" />
+              <QuickActionBtn icon="�" label="Packages"                                             onClick={() => go('packages')}   accent="var(--navy)" />
               <QuickActionBtn icon="🧊" label="Freeze"        sub={`${freezeRemain}d left`}          onClick={() => go('freeze')}     accent="#38bdf8" />
               <QuickActionBtn icon="💬" label="Call Center"   sub={`${notes.length} notes`}          onClick={() => go('callcenter')} accent="#f59e0b" />
               <QuickActionBtn icon="📁" label="Files"                                                 onClick={() => go('files')}     accent="#A6A0C2" />
@@ -203,7 +203,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
           </SectionCard>
 
           {/* PT Sessions card */}
-          <div style={{ background: 'linear-gradient(135deg,#44298C,#5B38BA)', border: '1px solid rgba(91,56,186,0.4)', borderRadius: 12, padding: '16px 18px', boxShadow: '0 4px 20px rgba(68,41,140,0.25)' }}>
+          <div style={{ background: 'linear-gradient(135deg,var(--navy),var(--navy-2))', border: '1px solid rgba(91,56,186,0.4)', borderRadius: 12, padding: '16px 18px', boxShadow: '0 4px 20px color-mix(in srgb, var(--navy) 25%, transparent)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
               <span style={{ fontSize: 16 }}>💪</span>
               <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>PT Sessions</span>
@@ -230,7 +230,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
         <SectionCard
           title={isCoach ? `Coach Notes (${notes.length})` : `Call Center (${notes.length})`}
           icon="📞"
-          action={<button onClick={() => go('callcenter')} style={{ fontSize: 11, fontWeight: 600, color: '#44298C', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>View all →</button>}
+          action={<button onClick={() => go('callcenter')} style={{ fontSize: 11, fontWeight: 600, color: 'var(--navy)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>View all →</button>}
         >
           {lastNote ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -301,7 +301,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
 
         {/* Alerts */}
         <SectionCard title="Alerts" icon="🚨"
-          action={<button onClick={() => go('alerts')} style={{ fontSize: 11, fontWeight: 600, color: '#44298C', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Manage →</button>}
+          action={<button onClick={() => go('alerts')} style={{ fontSize: 11, fontWeight: 600, color: 'var(--navy)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Manage →</button>}
         >
           {(member.alert ?? []).filter(a => a.active).length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

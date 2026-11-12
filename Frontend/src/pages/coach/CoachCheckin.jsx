@@ -110,9 +110,9 @@ export default function CoachCheckin() {
 
   return (
     <Layout>
-      <PageHeader title="Session Check-In" />
+      <PageHeader walkthrough="coach-checkin-header" title="Session Check-In" />
 
-      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 32 }}>
+      <div className="page-wrap" data-walkthrough="coach-checkin-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <div className="grid-checkin">
 
           {/* ── Left: Search + Member ──────────────────────────────── */}

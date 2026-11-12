@@ -122,7 +122,7 @@ export const ERROR_MESSAGES = {
   },
   MAINTENANCE_MODE: {
     title: "Scheduled Maintenance",
-    message: "Leap is temporarily performing scheduled upgrades. We will be back online shortly.",
+    message: "Forma is temporarily performing scheduled upgrades. We will be back online shortly.",
     severity: "info",
     presentation: "banner",
     primaryAction: { label: "Refresh", action: "reload" },

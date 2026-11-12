@@ -63,7 +63,7 @@ export default function ForgotPassword() {
             height: 46,
             border: 'none',
             borderRadius: 10,
-            background: loading ? 'rgba(68,41,140,0.45)' : '#44298C',
+            background: loading ? 'rgba(20,40,67,0.45)' : '#142843',
             color: '#fff',
             fontWeight: 700,
             cursor: loading ? 'not-allowed' : 'pointer',
@@ -71,7 +71,7 @@ export default function ForgotPassword() {
         >
           {loading ? <Spinner size="sm" /> : 'Send reset link'}
         </button>
-        <Link to="/login" style={{ fontSize: 13, color: '#44298C', fontWeight: 600, textAlign: 'center' }}>
+        <Link to="/login" style={{ fontSize: 13, color: '#142843', fontWeight: 600, textAlign: 'center' }}>
           Back to sign in
         </Link>
       </form>

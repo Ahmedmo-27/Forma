@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 
-const APP = 'Leap Gym';
+const APP = 'Forma';
 
 export default function usePageTitle() {
   useEffect(() => {
