@@ -1,14 +1,95 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { Shield, User } from 'lucide-react';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Btn, Spinner, Avatar, Badge } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
-import { listAccessUsersByRole, getUserAccess, updateUserAccess, updateRoleAccess } from '../../api/endpoints';
+import {
+  listAccessUsersByRole,
+  getUserAccess,
+  updateUserAccess,
+  updateRoleAccess,
+  listLocations,
+} from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import ChangeRoleField from '../../components/ChangeRoleField';
 import { canChangeUserRole } from '../../lib/roles';
+import { FeatureIcon } from '../../lib/featureIcons';
+
+function LocationAccessEditor({
+  title = 'Branch viewing access',
+  description,
+  locations,
+  canAccessAll,
+  onCanAccessAllChange,
+  selectedIds,
+  onToggleId,
+  allMeansNoRestriction = false,
+  disabled = false,
+}) {
+  return (
+    <Card>
+      <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 8 }}>
+        {title}
+      </h3>
+      {description && (
+        <p style={{ fontSize: 12, color: 'var(--t3)', margin: '0 0 12px', lineHeight: 1.45 }}>
+          {description}
+        </p>
+      )}
+      <label style={{
+        display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12,
+        cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.6 : 1,
+      }}>
+        <input
+          type="checkbox"
+          checked={Boolean(canAccessAll)}
+          disabled={disabled}
+          onChange={(e) => onCanAccessAllChange?.(e.target.checked)}
+        />
+        <span style={{ fontSize: 13, fontWeight: 600 }}>
+          {allMeansNoRestriction ? 'All locations (no restriction)' : 'All locations'}
+        </span>
+      </label>
+      {!canAccessAll && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {locations.length === 0 && (
+            <p style={{ fontSize: 12, color: 'var(--t3)', margin: 0 }}>
+              No locations configured yet. Add branches in Settings → Locations.
+            </p>
+          )}
+          {locations.map((loc) => {
+            const checked = selectedIds.includes(String(loc._id));
+            return (
+              <label
+                key={loc._id}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '10px 12px', borderRadius: 8,
+                  border: '1px solid var(--border)',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  opacity: disabled ? 0.6 : 1,
+                  background: checked ? 'color-mix(in srgb, var(--navy) 6%, var(--card))' : 'var(--card)',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  disabled={disabled}
+                  onChange={(e) => onToggleId?.(String(loc._id), e.target.checked)}
+                />
+                <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{loc.name}</span>
+                <span style={{ fontSize: 11, color: 'var(--t3)' }}>{loc.locationId}</span>
+              </label>
+            );
+          })}
+        </div>
+      )}
+    </Card>
+  );
+}
 
 function canEditFeatureAccess(actor, targetRole) {
   const actorRole = typeof actor === 'string' ? actor : actor?.role;
@@ -89,6 +170,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
     accessCatalog = [],
     checklistRoles = [],
     roleAccess = {},
+    roleLocationAccess = {},
     roleDefaults = {},
     effectiveAccess = [],
     hasFeature,
@@ -97,6 +179,8 @@ export default function AccessControl({ defaultTab = 'staff' }) {
   } = useTenant();
 
   const isOwner = user?.role === 'Owner';
+  const canManageLocations = isOwner || user?.role === 'General Manager';
+  const multiBranches = typeof hasFeature === 'function' && hasFeature('multi_branches');
   const hasStaff = Boolean(
     isOwner ||
     user?.role === 'General Manager' ||
@@ -153,8 +237,31 @@ export default function AccessControl({ defaultTab = 'staff' }) {
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [groups, setGroups] = useState([]);
   const [staffDraft, setStaffDraft] = useState({});
+  const [accessLocations, setAccessLocations] = useState([]);
+  const [locationDraft, setLocationDraft] = useState({
+    canAccessAllLocations: false,
+    allowedLocationIds: [],
+  });
+  const [savedLocationDraft, setSavedLocationDraft] = useState({
+    canAccessAllLocations: false,
+    allowedLocationIds: [],
+  });
   const [loadingAccess, setLoadingAccess] = useState(false);
   const [savingStaff, setSavingStaff] = useState(false);
+  const [catalogLocations, setCatalogLocations] = useState([]);
+
+  useEffect(() => {
+    if (!canManageLocations) return undefined;
+    let cancelled = false;
+    listLocations()
+      .then((res) => {
+        if (!cancelled) setCatalogLocations(res.data?.locations || []);
+      })
+      .catch(() => {
+        if (!cancelled) setCatalogLocations([]);
+      });
+    return () => { cancelled = true; };
+  }, [canManageLocations]);
 
   useEffect(() => {
     if (!staffRole) {
@@ -181,6 +288,9 @@ export default function AccessControl({ defaultTab = 'staff' }) {
     if (!canEditFeatureAccess(user, person.role)) {
       setGroups([]);
       setStaffDraft({});
+      setAccessLocations([]);
+      setLocationDraft({ canAccessAllLocations: false, allowedLocationIds: [] });
+      setSavedLocationDraft({ canAccessAllLocations: false, allowedLocationIds: [] });
       setLoadingAccess(false);
       return;
     }
@@ -196,9 +306,20 @@ export default function AccessControl({ defaultTab = 'staff' }) {
         });
       });
       setStaffDraft(flags);
+      const locs = (res.data.locations || []).length
+        ? res.data.locations
+        : catalogLocations;
+      setAccessLocations(locs);
+      const nextLoc = {
+        canAccessAllLocations: Boolean(res.data.user?.canAccessAllLocations),
+        allowedLocationIds: (res.data.user?.allowedLocationIds || []).map(String),
+      };
+      setLocationDraft(nextLoc);
+      setSavedLocationDraft(nextLoc);
     } catch (error) {
       setGroups([]);
       setStaffDraft({});
+      setAccessLocations([]);
       const blockedFromFeatures = error.response?.status === 403 && canChangeUserRole(user, person.role);
       if (!blockedFromFeatures) {
         toast.error(error.response?.data?.message || 'Could not load access');
@@ -213,14 +334,38 @@ export default function AccessControl({ defaultTab = 'staff' }) {
     () => Object.entries(staffDraft).filter(([, on]) => on).map(([key]) => key).sort().join('|'),
     [staffDraft],
   );
-  const isStaffDirty = Boolean(selectedPerson) && savedKeys !== draftKeys;
+  const locationDirty = useMemo(() => {
+    if (!canManageLocations) return false;
+    const a = savedLocationDraft;
+    const b = locationDraft;
+    if (Boolean(a.canAccessAllLocations) !== Boolean(b.canAccessAllLocations)) return true;
+    const sa = [...(a.allowedLocationIds || [])].sort().join('|');
+    const sb = [...(b.allowedLocationIds || [])].sort().join('|');
+    return sa !== sb;
+  }, [canManageLocations, savedLocationDraft, locationDraft]);
+  const isStaffDirty = Boolean(selectedPerson) && (savedKeys !== draftKeys || locationDirty);
+  const staffLocationList = accessLocations.length ? accessLocations : catalogLocations;
+  const showStaffLocationAccess = Boolean(
+    canManageLocations
+    && selectedPerson
+    && selectedPerson.role !== 'Owner'
+    && !loadingAccess
+  );
 
   const confirmStaffAccess = async () => {
     if (!selectedPerson || !isStaffDirty) return;
     const features = Object.entries(staffDraft).filter(([, on]) => on).map(([key]) => key);
     setSavingStaff(true);
     try {
-      const res = await updateUserAccess(selectedPerson._id, features);
+      const locationGrants = canManageLocations
+        ? {
+            canAccessAllLocations: Boolean(locationDraft.canAccessAllLocations),
+            allowedLocationIds: locationDraft.canAccessAllLocations
+              ? []
+              : (locationDraft.allowedLocationIds || []),
+          }
+        : {};
+      const res = await updateUserAccess(selectedPerson._id, features, locationGrants);
       const nextGroups = res.data.groups || [];
       setGroups(nextGroups);
       const flags = {};
@@ -230,6 +375,13 @@ export default function AccessControl({ defaultTab = 'staff' }) {
         });
       });
       setStaffDraft(flags);
+      if (res.data.locations) setAccessLocations(res.data.locations);
+      const nextLoc = {
+        canAccessAllLocations: Boolean(res.data.user?.canAccessAllLocations),
+        allowedLocationIds: (res.data.user?.allowedLocationIds || []).map(String),
+      };
+      setLocationDraft(nextLoc);
+      setSavedLocationDraft(nextLoc);
       toast.success(`Access updated for ${selectedPerson.name}`);
     } catch (error) {
       toast.error(error.response?.data?.message || 'Could not save access');
@@ -265,6 +417,10 @@ export default function AccessControl({ defaultTab = 'staff' }) {
     isOwner ? 'General Manager' : user?.role === 'Sales Manager' ? 'Sales' : user?.role === 'Coach Manager' ? 'Coach' : 'Sales'
   ));
   const [roleDraft, setRoleDraft] = useState([]);
+  const [roleLocationDraft, setRoleLocationDraft] = useState({
+    canAccessAll: true,
+    locationIds: [],
+  });
   const [savingRole, setSavingRole] = useState(false);
 
   useEffect(() => {
@@ -281,6 +437,18 @@ export default function AccessControl({ defaultTab = 'staff' }) {
   useEffect(() => {
     setRoleDraft(Array.isArray(roleBase) ? [...roleBase] : []);
   }, [defaultRoleChoice, roleAccess, roleDefaults]);
+
+  useEffect(() => {
+    const saved = roleLocationAccess?.[defaultRoleChoice];
+    if (!Array.isArray(saved) || saved.length === 0) {
+      setRoleLocationDraft({ canAccessAll: true, locationIds: [] });
+    } else {
+      setRoleLocationDraft({
+        canAccessAll: false,
+        locationIds: saved.map(String),
+      });
+    }
+  }, [defaultRoleChoice, roleLocationAccess]);
 
   const actorAreas = useMemo(() => new Set(effectiveAccess || []), [effectiveAccess]);
   const isReadOnlyRole = !isOwner && (
@@ -314,7 +482,10 @@ export default function AccessControl({ defaultTab = 'staff' }) {
         const area = accessCatalog.find((item) => item.key === key);
         return area && !planLocked(area);
       });
-      await updateRoleAccess(defaultRoleChoice, areas);
+      const locationIds = canManageLocations
+        ? (roleLocationDraft.canAccessAll ? [] : roleLocationDraft.locationIds)
+        : undefined;
+      await updateRoleAccess(defaultRoleChoice, areas, locationIds);
       toast.success(`Access updated for ${defaultRoleChoice}`);
       if (typeof refreshTenant === 'function') await refreshTenant();
       if (typeof refreshUser === 'function') refreshUser();
@@ -358,7 +529,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
               transition: 'all 0.15s ease',
             }}
           >
-            <span>👤</span>
+            <User size={16} aria-hidden="true" />
             <span>Staff Members & Roles</span>
           </button>
 
@@ -383,7 +554,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                 transition: 'all 0.15s ease',
               }}
             >
-              <span>🛡️</span>
+              <Shield size={16} aria-hidden="true" />
               <span>Role Defaults</span>
             </button>
           )}
@@ -522,12 +693,84 @@ export default function AccessControl({ defaultTab = 'staff' }) {
               </p>
             )}
 
-            {/* Step 3: Feature Overrides Checklist */}
+            {/* Step 3: Branch viewing + feature overrides */}
+            {showStaffLocationAccess && groups.length === 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginTop: 8 }}>
+                <LocationAccessEditor
+                  description={
+                    multiBranches
+                      ? `Choose which branches ${selectedPerson.name} can view in the navbar and data screens.`
+                      : `Choose which branches ${selectedPerson.name} can view. Multi-branch viewing is most useful on Gold/Platinum.`
+                  }
+                  locations={staffLocationList}
+                  canAccessAll={Boolean(locationDraft.canAccessAllLocations)}
+                  onCanAccessAllChange={(checked) => setLocationDraft((prev) => ({
+                    ...prev,
+                    canAccessAllLocations: checked,
+                    allowedLocationIds: checked ? [] : prev.allowedLocationIds,
+                  }))}
+                  selectedIds={locationDraft.allowedLocationIds}
+                  onToggleId={(id, checked) => {
+                    setLocationDraft((prev) => {
+                      const set = new Set(prev.allowedLocationIds);
+                      if (checked) set.add(id);
+                      else set.delete(id);
+                      return { ...prev, allowedLocationIds: [...set] };
+                    });
+                  }}
+                />
+                <div style={{
+                  position: 'sticky', bottom: 16, zIndex: 5,
+                  display: 'flex', justifyContent: 'flex-end', gap: 10,
+                  background: 'var(--card)', border: '1px solid var(--border)',
+                  borderRadius: 12, padding: '12px 14px',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
+                }}>
+                  <Btn
+                    variant="ghost"
+                    disabled={!locationDirty || savingStaff}
+                    onClick={() => setLocationDraft(savedLocationDraft)}
+                  >
+                    Reset
+                  </Btn>
+                  <Btn disabled={!isStaffDirty || savingStaff} onClick={confirmStaffAccess}>
+                    {savingStaff ? <Spinner size="sm" /> : 'Confirm Access'}
+                  </Btn>
+                </div>
+              </div>
+            )}
+
             {!loadingAccess && selectedPerson && groups.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <p style={{ fontSize: 13, color: 'var(--t3)', margin: 0 }}>
                   Feature overrides for <strong>{selectedPerson.name}</strong> ({selectedPerson.role}). Role defaults remain active unless individually toggled.
                 </p>
+
+                {showStaffLocationAccess && (
+                  <LocationAccessEditor
+                    description={
+                      multiBranches
+                        ? 'Choose which branches this person can view in the navbar and data screens.'
+                        : 'Choose which branches this person can view. Multi-branch viewing is most useful on Gold/Platinum.'
+                    }
+                    locations={staffLocationList}
+                    canAccessAll={Boolean(locationDraft.canAccessAllLocations)}
+                    onCanAccessAllChange={(checked) => setLocationDraft((prev) => ({
+                      ...prev,
+                      canAccessAllLocations: checked,
+                      allowedLocationIds: checked ? [] : prev.allowedLocationIds,
+                    }))}
+                    selectedIds={locationDraft.allowedLocationIds}
+                    onToggleId={(id, checked) => {
+                      setLocationDraft((prev) => {
+                        const set = new Set(prev.allowedLocationIds);
+                        if (checked) set.add(id);
+                        else set.delete(id);
+                        return { ...prev, allowedLocationIds: [...set] };
+                      });
+                    }}
+                  />
+                )}
 
                 {groups.map((group) => (
                   <Card key={group.role}>
@@ -544,7 +787,9 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                             background: 'var(--card)', padding: '14px 16px',
                             opacity: feature.locked ? 0.72 : 1,
                           }}>
-                            <span style={{ fontSize: 20, flexShrink: 0 }}>{feature.icon}</span>
+                            <span style={{ flexShrink: 0, display: 'inline-flex' }}>
+                              <FeatureIcon name={feature.icon} size={20} />
+                            </span>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{feature.label}</span>
@@ -589,6 +834,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                       const flags = {};
                       groups.forEach((group) => group.features.forEach((feature) => { flags[feature.key] = feature.enabled; }));
                       setStaffDraft(flags);
+                      setLocationDraft(savedLocationDraft);
                     }}
                   >
                     Reset Overrides
@@ -665,6 +911,32 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                     );
                   })}
                 </div>
+
+                {canManageLocations && (
+                  <div style={{ marginTop: 20 }}>
+                    <LocationAccessEditor
+                      title={`Default branch viewing · ${defaultRoleChoice}`}
+                      description="Staff in this role inherit these branch permissions unless they have personal overrides on the Staff Members tab. Empty / All locations means no branch restriction."
+                      locations={catalogLocations}
+                      canAccessAll={Boolean(roleLocationDraft.canAccessAll)}
+                      onCanAccessAllChange={(checked) => setRoleLocationDraft({
+                        canAccessAll: checked,
+                        locationIds: checked ? [] : roleLocationDraft.locationIds,
+                      })}
+                      selectedIds={roleLocationDraft.locationIds}
+                      onToggleId={(id, checked) => {
+                        setRoleLocationDraft((prev) => {
+                          const set = new Set(prev.locationIds);
+                          if (checked) set.add(id);
+                          else set.delete(id);
+                          return { canAccessAll: false, locationIds: [...set] };
+                        });
+                      }}
+                      allMeansNoRestriction
+                      disabled={isReadOnlyRole || !hasStaff}
+                    />
+                  </div>
+                )}
 
                 <div style={{ marginTop: 20 }}>
                   <Btn onClick={saveRoleDefaults} disabled={savingRole || !hasStaff || isReadOnlyRole}>

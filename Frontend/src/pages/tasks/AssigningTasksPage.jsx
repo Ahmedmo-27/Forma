@@ -22,6 +22,10 @@ import {
   SELECTION_TEMPLATES, applySelectionTemplate, invertSelection,
 } from './taskMembers';
 import AssignedTasksPage from './AssignedTasksPage';
+import {
+  ChevronDown, ChevronUp, CircleDot, ClipboardList, Dumbbell, FolderOpen,
+  RefreshCw, Search, UserRound, Users, X, Zap,
+} from 'lucide-react';
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
@@ -560,11 +564,11 @@ export default function AssigningTasksPage() {
       <PageHeader walkthrough="assign-tasks-header" title="Tasks Management">
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <Btn variant="outline" size="sm" onClick={() => navigate('/tasks/filter')}>
-            🔍 Filter &amp; Bulk Actions
+            <Search size={14} aria-hidden /> Filter &amp; Bulk Actions
           </Btn>
 
           <Btn variant="outline" size="sm" onClick={openTasksHistoryModal}>
-            📋 View Created Tasks
+            <ClipboardList size={14} aria-hidden /> View Created Tasks
           </Btn>
 
           <Btn variant="outline" size="sm" onClick={() => setColumnsOpen(true)}>
@@ -757,7 +761,7 @@ export default function AssigningTasksPage() {
                           }}
                           title="Clear search"
                         >
-                          ✕
+                          <X size={12} aria-hidden />
                         </button>
                       )}
                     </div>
@@ -786,7 +790,9 @@ export default function AssigningTasksPage() {
                         whiteSpace: 'nowrap',
                       }}
                     >
-                      <span>{moreFiltersOpen ? '▲ Less Filters' : '▼ More Filters'}</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        {moreFiltersOpen ? <><ChevronUp size={12} aria-hidden /> Less Filters</> : <><ChevronDown size={12} aria-hidden /> More Filters</>}
+                      </span>
                       {activeFilterCount > 0 && (
                         <span
                           style={{
@@ -874,7 +880,7 @@ export default function AssigningTasksPage() {
                           fontWeight: 700,
                         }}
                       >
-                        <span>● {selectedSet.size} selected</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CircleDot size={12} aria-hidden /> {selectedSet.size} selected</span>
                         <button
                           type="button"
                           onClick={handleClearSelection}
@@ -910,7 +916,7 @@ export default function AssigningTasksPage() {
                         }}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                       >
-                        <span>⚡</span> Selection Templates <span style={{ fontSize: 10, opacity: 0.7 }}>▼</span>
+                        <Zap size={14} aria-hidden /> Selection Templates <ChevronDown size={10} aria-hidden style={{ opacity: 0.7 }} />
                       </Btn>
 
                       {templateMenuOpen && (
@@ -1299,7 +1305,7 @@ export default function AssigningTasksPage() {
                       disabled={!selectedSet.size}
                       onClick={() => openTransferModal('sales')}
                     >
-                      👤 Assign Sales Rep ({selectedSet.size})
+                      <UserRound size={14} aria-hidden /> Assign Sales Rep ({selectedSet.size})
                     </Btn>
                   )}
                   {canCoach && (
@@ -1309,7 +1315,7 @@ export default function AssigningTasksPage() {
                       disabled={!selectedSet.size}
                       onClick={() => openTransferModal('coach')}
                     >
-                      🏋️ Assign Coach ({selectedSet.size})
+                      <Dumbbell size={14} aria-hidden /> Assign Coach ({selectedSet.size})
                     </Btn>
                   )}
                 </div>
@@ -1318,7 +1324,7 @@ export default function AssigningTasksPage() {
               {loading ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="lg" /></div>
               ) : filtered.length === 0 ? (
-                <EmptyState icon="👥" message="No members found" sub="Adjust your filters or scope selection." />
+                <EmptyState icon={Users} message="No members found" sub="Adjust your filters or scope selection." />
               ) : (
                 <>
                   <div className="table-responsive-container">
@@ -1554,14 +1560,14 @@ export default function AssigningTasksPage() {
                   All task batches created and assigned to staff members.
                 </p>
                 <Btn size="xs" variant="ghost" onClick={fetchCreatedTasks} disabled={loadingCreatedTasks}>
-                  ↻ Refresh
+                  <RefreshCw size={14} aria-hidden /> Refresh
                 </Btn>
               </div>
 
               {loadingCreatedTasks ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="lg" /></div>
               ) : createdTasks.length === 0 ? (
-                <EmptyState icon="📂" message="No tasks created yet" sub="Create your first task by selecting members and transferring them." />
+                <EmptyState icon={FolderOpen} message="No tasks created yet" sub="Create your first task by selecting members and transferring them." />
               ) : (
                 <div className="table-responsive-container">
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>

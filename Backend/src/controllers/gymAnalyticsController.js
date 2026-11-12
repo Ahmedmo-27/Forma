@@ -37,7 +37,7 @@ function funnelRange(query) {
 const getChurn = async (req, res) => {
     try {
         const months = clampInt(req.query.months, 12, 1, 24);
-        res.json(await analytics.getChurn({ months }));
+        res.json(await analytics.getChurn({ months, locationFilter: req.locationFilter || {} }));
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
@@ -46,7 +46,7 @@ const getChurn = async (req, res) => {
 const getForecast = async (req, res) => {
     try {
         const currency = req.tenant?.settings?.locale?.currency || "EGP";
-        res.json(await analytics.getForecast({ currency }));
+        res.json(await analytics.getForecast({ currency, locationFilter: req.locationFilter || {} }));
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
@@ -55,7 +55,7 @@ const getForecast = async (req, res) => {
 const getCohorts = async (req, res) => {
     try {
         const months = clampInt(req.query.months, 12, 1, 24);
-        res.json(await analytics.getCohorts({ months }));
+        res.json(await analytics.getCohorts({ months, locationFilter: req.locationFilter || {} }));
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
@@ -65,7 +65,11 @@ const getAttendance = async (req, res) => {
     try {
         const weeks = clampInt(req.query.weeks, 8, 1, 26);
         const timeZone = req.tenant?.settings?.locale?.timezone || "Africa/Cairo";
-        res.json(await analytics.getAttendance({ weeks, timeZone }));
+        res.json(await analytics.getAttendance({
+            weeks,
+            timeZone,
+            locationFilter: req.locationFilter || {},
+        }));
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
@@ -74,7 +78,11 @@ const getAttendance = async (req, res) => {
 const getFunnel = async (req, res) => {
     try {
         const currency = req.tenant?.settings?.locale?.currency || "EGP";
-        res.json(await analytics.getFunnel({ ...funnelRange(req.query), currency }));
+        res.json(await analytics.getFunnel({
+            ...funnelRange(req.query),
+            currency,
+            locationFilter: req.locationFilter || {},
+        }));
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
@@ -83,7 +91,10 @@ const getFunnel = async (req, res) => {
 const getExecutive = async (req, res) => {
     try {
         const currency = req.tenant?.settings?.locale?.currency || "EGP";
-        res.json(await analytics.getExecutive({ currency }));
+        res.json(await analytics.getExecutive({
+            currency,
+            locationFilter: req.locationFilter || {},
+        }));
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }

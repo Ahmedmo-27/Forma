@@ -2,9 +2,11 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Spinner, EmptyState, Avatar, fmtDate, toLocalDateString } from '../../components/ui';
 import { getSalesMySubscriptions } from '../../api/endpoints';
+import { ClipboardList } from 'lucide-react';
 
 const fmt   = (n) => Number(n ?? 0).toLocaleString('en-EG');
 const TODAY = toLocalDateString();
@@ -30,7 +32,7 @@ export default function SalesSubscriptions() {
     }
   }, [dateFrom, dateTo]);
 
-  useEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { load(); }, [load]);
 
   const entries      = data?.entries ?? [];
   const newCount     = entries.filter(e => !e.subscription.isRenewal).length;
@@ -89,7 +91,7 @@ export default function SalesSubscriptions() {
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
           ) : entries.length === 0 ? (
-            <EmptyState icon="📋" message="No subscriptions in this period" sub="Try adjusting the date range" />
+            <EmptyState icon={ClipboardList} message="No subscriptions in this period" sub="Try adjusting the date range" />
           ) : (
             <div className="table-responsive-container">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>

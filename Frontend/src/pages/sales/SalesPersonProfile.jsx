@@ -14,13 +14,16 @@ import {
   bulkTransferSalesReps, updateSalesRepAbilities, updatePhonePrivacy,
   resetUserPassword,
 } from '../../api/endpoints';
+import {
+  ClipboardList, KeyRound, Lock, MessageCircle, RefreshCw, Smartphone,
+} from 'lucide-react';
 
 // ── Abilities config ──────────────────────────────────────────────────────────
 const ABILITIES = [
-  { key: 'canCommentOnMembers',  label: 'Comment on Members',  desc: 'Can add notes to member profiles',                     icon: '💬' },
-  { key: 'canRequestAssignment', label: 'Request Assignment',  desc: 'Can request to be assigned to unassigned members',     icon: '📋' },
-  { key: 'canRequestTakeover',   label: 'Request Takeover',    desc: 'Can request to take over members from other reps',     icon: '🔁' },
-  { key: 'canSendWhatsAppTemplates', label: 'Send WhatsApp Templates', desc: 'Can send pre-made WhatsApp messages from member profiles', icon: '📱' },
+  { key: 'canCommentOnMembers',  label: 'Comment on Members',  desc: 'Can add notes to member profiles',                     icon: MessageCircle },
+  { key: 'canRequestAssignment', label: 'Request Assignment',  desc: 'Can request to be assigned to unassigned members',     icon: ClipboardList },
+  { key: 'canRequestTakeover',   label: 'Request Takeover',    desc: 'Can request to take over members from other reps',     icon: RefreshCw },
+  { key: 'canSendWhatsAppTemplates', label: 'Send WhatsApp Templates', desc: 'Can send pre-made WhatsApp messages from member profiles', icon: Smartphone },
 ];
 
 // ── Toggle switch ─────────────────────────────────────────────────────────────
@@ -229,7 +232,7 @@ export default function SalesPersonProfile() {
       }>
         {!loading && data?.user && (
           <Btn variant="outline" size="sm" onClick={() => { setNewPwd(''); setConfirmPwd(''); setShowResetPwd(true); }}>
-            🔑 Reset Password
+            <KeyRound size={14} aria-hidden /> Reset Password
           </Btn>
         )}
       </PageHeader>
@@ -425,12 +428,13 @@ export default function SalesPersonProfile() {
                   {ABILITIES.map(ability => {
                     const active  = user?.abilities?.[ability.key] !== false;
                     const isSaving = savingAbility === ability.key;
+                    const AbilityIcon = ability.icon;
                     return (
                       <div key={ability.key} style={{
                         display: 'flex', alignItems: 'center', gap: 14,
                         background: 'var(--card)', padding: '14px 16px',
                       }}>
-                        <span style={{ fontSize: 20, flexShrink: 0 }}>{ability.icon}</span>
+                        <span style={{ display: 'flex', flexShrink: 0, color: 'var(--t2)' }}><AbilityIcon size={20} aria-hidden /></span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', marginBottom: 2 }}>
                             {ability.label}
@@ -469,7 +473,7 @@ export default function SalesPersonProfile() {
                     display: 'flex', alignItems: 'center', gap: 14,
                     background: 'var(--card)', padding: '14px 16px',
                   }}>
-                    <span style={{ fontSize: 20, flexShrink: 0 }}>🔒</span>
+                    <span style={{ display: 'flex', flexShrink: 0, color: 'var(--t2)' }}><Lock size={20} aria-hidden /></span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', marginBottom: 2 }}>
                         Can View Phone Numbers
@@ -548,7 +552,7 @@ export default function SalesPersonProfile() {
             } catch (e) { toast.error(e.response?.data?.message ?? 'Failed to reset password'); }
             finally { setResettingPwd(false); }
           }}>
-            {resettingPwd ? <Spinner size="sm" /> : '🔑 Reset Password'}
+            {resettingPwd ? <Spinner size="sm" /> : <><KeyRound size={14} aria-hidden /> Reset Password</>}
           </Btn>
         </>}
       >

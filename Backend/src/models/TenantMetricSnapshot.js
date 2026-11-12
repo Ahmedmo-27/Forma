@@ -6,6 +6,12 @@ const tenantMetricSnapshotSchema = new mongoose.Schema(
         localDate: { type: String, required: true },
         grain: { type: String, enum: ["day", "today", "cohort"], default: "day" },
         timezone: { type: String, required: true },
+        // null = tenant-wide rollup; set for per-branch snapshots
+        locationId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Location",
+            default: null,
+        },
         metrics: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
         segments: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
         hours: { type: [Number], default: () => [] },
@@ -22,7 +28,10 @@ const tenantMetricSnapshotSchema = new mongoose.Schema(
 );
 
 tenantMetricSnapshotSchema.plugin(tenantPlugin);
-tenantMetricSnapshotSchema.index({ tenantId: 1, grain: 1, localDate: 1 }, { unique: true });
+tenantMetricSnapshotSchema.index(
+    { tenantId: 1, grain: 1, localDate: 1, locationId: 1 },
+    { unique: true }
+);
 
 module.exports = mongoose.models.TenantMetricSnapshot
     || mongoose.model("TenantMetricSnapshot", tenantMetricSnapshotSchema);

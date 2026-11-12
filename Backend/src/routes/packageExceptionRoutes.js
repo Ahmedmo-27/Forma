@@ -6,6 +6,7 @@ const validate = require("../middleware/validate");
 const { requireFeature } = require("../middleware/featureGating");
 const { cacheResponse } = require("../middleware/apiCache");
 const { autoInvalidate } = require("../utils/cacheInvalidator");
+const { locationScopeOptional } = require("../middleware/locationScope");
 const {
     createExceptionSchema,
     exceptionStatusSchema,
@@ -19,6 +20,7 @@ const {
 
 router.use(protect);
 router.use(requireFeature("exception_approvals"));
+router.use(locationScopeOptional);
 
 router.get("/", allowRoles("package_approvals", "Accountant", "Owner"), cacheResponse({ ttlSeconds: 60, tags: ["package-exceptions"] }), getExceptions);
 router.get("/member/:memberId", allowRoles("package_approvals", "Sales Manager", "Owner", "Accountant", "Receptionist"), cacheResponse({ ttlSeconds: 60, tags: ["package-exceptions"] }), getMemberPendingException);

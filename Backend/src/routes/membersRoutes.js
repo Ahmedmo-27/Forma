@@ -11,6 +11,7 @@ const { enforceMemberLimit, enforceSubscriptionStatus } = require("../middleware
 const { cacheResponse } = require("../middleware/apiCache");
 const { liveStream } = require("../utils/liveEvents");
 const { autoInvalidate } = require("../utils/cacheInvalidator");
+const { locationScopeOptional } = require("../middleware/locationScope");
 const {
     createMemberSchema,
     updateMemberSchema,
@@ -60,6 +61,7 @@ const {
 router.use(protect);
 router.use(enforceSubscriptionStatus);
 router.use(requireFeature("members"));
+router.use(locationScopeOptional);
 
 // ── Routes ────────────────────────────────────────────────────────────────────
 

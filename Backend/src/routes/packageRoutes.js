@@ -8,10 +8,12 @@ const { cacheResponse } = require("../middleware/apiCache");
 const { autoInvalidate } = require("../utils/cacheInvalidator");
 const { createPackageSchema, updatePackageSchema } = require("../validation/schemas");
 const { createPackage, getAllPackages, updatePackage, deletePackage } = require("../controllers/packageController");
+const { locationScopeOptional } = require("../middleware/locationScope");
 
 router.use(protect);
 router.use(requireFeature("packages"));
 router.use(requireAccess("packages"));
+router.use(locationScopeOptional);
 
 router.get("/", cacheResponse({ ttlSeconds: 300, tags: ["packages"] }), getAllPackages);
 router.post("/", allowRoles("packages", "Owner", "Sales Manager"), validate(createPackageSchema), autoInvalidate(["packages"]), createPackage);

@@ -54,6 +54,7 @@ const createMemberSchema = z.object({
     source: z.preprocess(emptyToNull, memberSource.nullable().optional()),
     packageId: nullableObjectId,
     assignedSales: nullableObjectId,
+    locationId: nullableObjectId,
 });
 
 const updateMemberSchema = z.object({
@@ -62,6 +63,7 @@ const updateMemberSchema = z.object({
     gender: z.preprocess(emptyToNull, z.enum(["male", "female"]).nullable().optional()),
     birthdate: z.preprocess(emptyToNull, z.string().max(40).nullable().optional()),
     source: z.preprocess(emptyToNull, memberSource.nullable().optional()),
+    locationId: nullableObjectId,
 });
 
 const freezeMemberSchema = z.object({
@@ -144,7 +146,9 @@ const createStaffSchema = z.object({
     role: z.enum(GYM_ROLES),
 });
 
-const createPackageSchema = z.object({
+// Zod v4: .partial() cannot run on schemas that already have refinements — keep the
+// object shape separate, then attach superRefine to create/update variants.
+const packageFieldsSchema = z.object({
     name: z.string().trim().min(1).max(120),
     activityType,
     duration,
@@ -153,11 +157,25 @@ const createPackageSchema = z.object({
     invitationLimit: z.coerce.number().int().nonnegative().optional(),
     renewalDiscountPercent: z.coerce.number().min(0).max(100).optional(),
     description: z.string().trim().max(1000).nullable().optional(),
+    locationScope: z.enum(["all", "branches"]).optional(),
+    eligibleLocationIds: z.array(z.string().trim().min(1)).optional(),
 });
 
-const updatePackageSchema = createPackageSchema.partial().extend({
+function refinePackageLocationScope(data, ctx) {
+    if (data.locationScope === "branches" && (!data.eligibleLocationIds || data.eligibleLocationIds.length === 0)) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Select at least one branch when location scope is branches",
+            path: ["eligibleLocationIds"],
+        });
+    }
+}
+
+const createPackageSchema = packageFieldsSchema.superRefine(refinePackageLocationScope);
+
+const updatePackageSchema = packageFieldsSchema.partial().extend({
     isActive: z.boolean().optional(),
-});
+}).superRefine(refinePackageLocationScope);
 
 const optionalText = (maxLen) =>
     z.preprocess(
@@ -263,6 +281,7 @@ const tenantSettingsSchema = z.object({
             accent: z.string().optional(),
             background: z.string().optional(),
             text: z.string().optional(),
+            icon: z.string().optional(),
         }).optional(),
     }).optional(),
     locale: z.object({
@@ -289,6 +308,7 @@ const tenantSettingsSchema = z.object({
                 accent: z.string().optional(),
                 background: z.string().optional(),
                 text: z.string().optional(),
+                icon: z.string().optional(),
             }).optional(),
         }).optional(),
         locale: z.object({
@@ -383,6 +403,16 @@ const planPriceSchema = z.object({
     maxLifetimeSeats: z.preprocess(emptyToNull, z.coerce.number().int().min(1).nullable().optional()),
 });
 
+const publicSignupSchema = z.object({
+    name: z.string().trim().min(2).max(120),
+    slug: tenantSlugSchema,
+    ownerName: z.string().trim().min(2).max(120),
+    ownerEmail: z.string().trim().email().toLowerCase(),
+    planKey: planKeySchema.default("basic"),
+    cycle: z.enum(["monthly", "yearly", "lifetime"]).default("monthly"),
+    trialDays: z.coerce.number().int().min(1).max(90).optional().default(14),
+});
+
 module.exports = {
     loginSchema,
     setupPasswordSchema,
@@ -417,4 +447,5 @@ module.exports = {
     adminLifetimeRevokeSchema,
     updateEntitlementPolicySchema,
     planPriceSchema,
+    publicSignupSchema,
 };

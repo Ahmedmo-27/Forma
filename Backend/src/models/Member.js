@@ -43,7 +43,13 @@ const logSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true
-    }
+    },
+    // Branch where a check-in (or related event) occurred
+    locationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Location",
+        default: null,
+    },
 }, { timestamps: true });
 
 const freezeSchema = new mongoose.Schema({
@@ -113,7 +119,9 @@ const packageSnapshotSchema = new mongoose.Schema({
     renewalDiscountPercent: { type: Number, default: 0, min: 0, max: 100 },
     description: { type: String, default: null },
     hasException: { type: Boolean, default: false },
-    free_pt_sessions: { type: Number, default: 0 }
+    free_pt_sessions: { type: Number, default: 0 },
+    locationScope: { type: String, enum: ["all", "branches"], default: "all" },
+    eligibleLocationIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Location" }],
 }, { _id: false });
 
 const subscriptionSchema = new mongoose.Schema({
@@ -273,6 +281,13 @@ const memberSchema = new mongoose.Schema({
         default: null
     },
 
+    // Home / primary branch for this member
+    locationId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Location",
+        default: null,
+    },
+
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -416,5 +431,7 @@ memberSchema.index({ tenantId: 1, current_couch: 1 });
 memberSchema.index({ tenantId: 1, isBlocked: 1 });
 memberSchema.index({ tenantId: 1, name: 1 });
 memberSchema.index({ tenantId: 1, phones: 1 });
+memberSchema.index({ tenantId: 1, locationId: 1 });
+memberSchema.index({ tenantId: 1, locationId: 1, status: 1 });
 
 module.exports = mongoose.models.Member || mongoose.model("Member", memberSchema);

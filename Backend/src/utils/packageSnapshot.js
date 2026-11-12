@@ -14,6 +14,8 @@ const SNAPSHOT_FIELDS = [
     "description",
     "hasException",
     "free_pt_sessions",
+    "locationScope",
+    "eligibleLocationIds",
 ];
 
 /**
@@ -23,6 +25,10 @@ function buildPackageSnapshot(source) {
     if (!source) return null;
 
     const plain = typeof source.toObject === "function" ? source.toObject() : source;
+    const locationScope = plain.locationScope === "branches" ? "branches" : "all";
+    const eligibleLocationIds = Array.isArray(plain.eligibleLocationIds)
+        ? plain.eligibleLocationIds.map((id) => id?._id || id).filter(Boolean)
+        : [];
 
     return {
         name: plain.name,
@@ -35,6 +41,8 @@ function buildPackageSnapshot(source) {
         description: plain.description ?? null,
         hasException: Boolean(plain.hasException),
         free_pt_sessions: Number(plain.free_pt_sessions) || 0,
+        locationScope,
+        eligibleLocationIds: locationScope === "branches" ? eligibleLocationIds : [],
     };
 }
 

@@ -9,12 +9,13 @@ import {
   EmptyState, Avatar, fmtDate, Skeleton,
 } from '../../components/ui';
 import { getCoachProfile, updateCoachRepAbilities } from '../../api/endpoints';
+import { ClipboardList, Dumbbell, MessageCircle, RefreshCw } from 'lucide-react';
 
 // ── Abilities config ──────────────────────────────────────────────────────────
 const ABILITIES = [
-  { key: 'canCommentOnMembers',  label: 'Comment on Members',  desc: 'Can add notes to member profiles', icon: '💬' },
-  { key: 'canRequestAssignment', label: 'Request Assignment',  desc: 'Can request to be assigned to members', icon: '📋' },
-  { key: 'canRequestTakeover',   label: 'Request Takeover',    desc: 'Can request to take over members from other coaches', icon: '🔁' },
+  { key: 'canCommentOnMembers',  label: 'Comment on Members',  desc: 'Can add notes to member profiles', icon: MessageCircle },
+  { key: 'canRequestAssignment', label: 'Request Assignment',  desc: 'Can request to be assigned to members', icon: ClipboardList },
+  { key: 'canRequestTakeover',   label: 'Request Takeover',    desc: 'Can request to take over members from other coaches', icon: RefreshCw },
 ];
 
 function Toggle({ checked, onChange, disabled }) {
@@ -125,8 +126,8 @@ export default function CoachProfile() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                     <h2 style={{ fontSize: 17, fontWeight: 800, color: 'var(--t1)', margin: 0 }}>{user?.name}</h2>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)', background: 'var(--bg)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 4 }}>
-                      🏋️ Coach
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)', background: 'var(--bg)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Dumbbell size={12} aria-hidden /> Coach
                     </span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: 'var(--t3)' }}>
@@ -238,12 +239,13 @@ export default function CoachProfile() {
                   {ABILITIES.map(ability => {
                     const active = user?.abilities?.[ability.key] !== false;
                     const isSaving = savingAbility === ability.key;
+                    const AbilityIcon = ability.icon;
                     return (
                       <div key={ability.key} style={{
                         display: 'flex', alignItems: 'center', gap: 14,
                         background: 'var(--card)', padding: '14px 16px',
                       }}>
-                        <span style={{ fontSize: 20, flexShrink: 0 }}>{ability.icon}</span>
+                        <span style={{ display: 'flex', flexShrink: 0, color: 'var(--t2)' }}><AbilityIcon size={20} aria-hidden /></span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', marginBottom: 2 }}>
                             {ability.label}

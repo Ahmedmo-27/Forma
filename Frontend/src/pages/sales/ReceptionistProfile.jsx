@@ -9,6 +9,7 @@ import {
 } from '../../components/ui';
 import { getUserById, updateStaffMobile, updatePhonePrivacy } from '../../api/endpoints';
 import ChangeRoleField from '../../components/ChangeRoleField';
+import { Lock, Monitor, Phone } from 'lucide-react';
 
 // ── Toggle switch ─────────────────────────────────────────────────────────────
 function Toggle({ checked, onChange, disabled }) {
@@ -119,8 +120,8 @@ export default function ReceptionistProfile() {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                     <h2 style={{ fontSize: 17, fontWeight: 800, color: 'var(--t1)', margin: 0 }}>{user?.name}</h2>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)', background: 'var(--bg)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 4 }}>
-                      🖥️ Receptionist
+                    <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)', background: 'var(--bg)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Monitor size={12} aria-hidden /> Receptionist
                     </span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: 'var(--t3)' }}>
@@ -146,8 +147,8 @@ export default function ReceptionistProfile() {
             {isManager && (
               <div data-walkthrough="receptionist-mobile">
               <Card style={{ marginBottom: 16 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
-                  📞 Mobile Number
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Phone size={16} aria-hidden /> Mobile Number
                 </h3>
                 <p style={{ fontSize: 12, color: 'var(--t4)', marginBottom: 12 }}>
                   Edit the mobile number for <strong>{user?.name}</strong>.
@@ -175,8 +176,8 @@ export default function ReceptionistProfile() {
             {isManager && (
               <div data-walkthrough="receptionist-privacy">
               <Card>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
-                  🔒 Phone Number Access
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Lock size={16} aria-hidden /> Phone Number Access
                 </h3>
                 <p style={{ fontSize: 12, color: 'var(--t4)', marginBottom: 16 }}>
                   Control whether <strong>{user?.name}</strong> can view member phone numbers.

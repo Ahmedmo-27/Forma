@@ -12,6 +12,7 @@ import {
   Btn,
 } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import { useTenant } from '../../context/TenantContext';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -21,6 +22,25 @@ import {
   getBiInsights,
   suggestBiObjectives,
 } from '../../api/endpoints';
+import {
+  AlertTriangle,
+  BarChart3,
+  Check,
+  Clock,
+  CreditCard,
+  Dumbbell,
+  Handshake,
+  Info,
+  Snowflake,
+  Sparkles,
+  Table,
+  Timer,
+  TrendingUp,
+  User,
+  Users,
+  Wallet,
+  Zap,
+} from 'lucide-react';
 
 function formatPiasters(value, currency = 'EGP') {
   const n = Math.round(Number(value) || 0);
@@ -92,23 +112,23 @@ function renderDeltaBadge(kpi, currency = 'EGP') {
 }
 
 const KPI_CATEGORIES = [
-  { id: 'all', label: 'All Telemetry', icon: '📊' },
+  { id: 'all', label: 'All Telemetry', icon: BarChart3 },
   {
     id: 'financial',
     label: 'Revenue & Sales',
-    icon: '💰',
+    icon: Wallet,
     keys: ['membershipSalesPiasters', 'ptSalesPiasters', 'refundsPiasters', 'discountGapPiasters'],
   },
   {
     id: 'membership',
     label: 'Members & Retention',
-    icon: '👥',
+    icon: Users,
     keys: ['activeMembers', 'newJoins', 'renewalRate', 'churnEvents'],
   },
   {
     id: 'operations',
     label: 'Activity & Leads',
-    icon: '⚡',
+    icon: Zap,
     keys: ['checkIns', 'ptSessionsSold', 'ptSessionsUsed', 'peopleAdded', 'peopleConverted'],
   },
 ];
@@ -233,9 +253,13 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
               color: viewMode === 'chart' ? 'var(--navy)' : 'var(--t3)',
               boxShadow: viewMode === 'chart' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
               transition: 'all 0.12s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
             }}
           >
-            📈 Trend Chart
+            <TrendingUp size={14} aria-hidden />
+            <span>Trend Chart</span>
           </button>
           <button
             type="button"
@@ -251,9 +275,13 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
               color: viewMode === 'table' ? 'var(--navy)' : 'var(--t3)',
               boxShadow: viewMode === 'table' ? '0 1px 3px rgba(0,0,0,0.06)' : 'none',
               transition: 'all 0.12s ease',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
             }}
           >
-            📋 Data Table
+            <Table size={14} aria-hidden />
+            <span>Data Table</span>
           </button>
         </div>
       </div>
@@ -436,7 +464,7 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
   );
 }
 
-function MemberList({ title, rows, empty, icon = '👤' }) {
+function MemberList({ title, rows, empty, icon: ListIcon = User }) {
   return (
     <Card noPad>
       <div
@@ -449,7 +477,7 @@ function MemberList({ title, rows, empty, icon = '👤' }) {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 16 }}>{icon}</span>
+          <span style={{ display: 'flex', color: 'var(--icon, var(--navy))' }}><ListIcon size={16} aria-hidden /></span>
           <h2 style={{ fontSize: 13, fontWeight: 700, margin: 0, color: 'var(--t1)' }}>{title}</h2>
         </div>
         <span
@@ -468,7 +496,9 @@ function MemberList({ title, rows, empty, icon = '👤' }) {
       </div>
       {!rows?.length ? (
         <div style={{ padding: '28px 16px', textAlign: 'center' }}>
-          <div style={{ fontSize: 18, marginBottom: 4 }}>✓</div>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4, color: 'var(--t3)' }}>
+            <Check size={18} aria-hidden />
+          </div>
           <div style={{ fontSize: 12, color: 'var(--t3)' }}>{empty}</div>
         </div>
       ) : (
@@ -589,7 +619,7 @@ export default function AnalyticsHome() {
     }
   }
 
-  useEffect(() => {
+  useLocationEffect(() => {
     load();
   }, []);
 
@@ -609,21 +639,21 @@ export default function AnalyticsHome() {
       {
         key: 'membershipSalesPiasters',
         label: 'Membership Sales',
-        icon: '💳',
+        icon: CreditCard,
         unit: 'piasters',
         description: 'Daily net sales from new and renewed memberships over the past 30 days',
       },
       {
         key: 'checkIns',
         label: 'Daily Check-Ins',
-        icon: '⏱️',
+        icon: Timer,
         unit: 'count',
         description: 'Daily gym attendance and member visit volume over the past 30 days',
       },
       {
         key: 'newJoins',
         label: 'New Joins',
-        icon: '🤝',
+        icon: Handshake,
         unit: 'count',
         description: 'New member subscriptions initiated over the past 30 days',
       },
@@ -664,7 +694,7 @@ export default function AnalyticsHome() {
               gap: 12,
             }}
           >
-            <span style={{ fontSize: 20 }}>⚠️</span>
+            <AlertTriangle size={20} color="var(--amber)" aria-hidden />
             <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.4 }}>
               <strong>Snapshot Pending:</strong> The latest telemetry snapshot is older than yesterday. Metrics reflect the last computed interval.
             </div>
@@ -712,6 +742,7 @@ export default function AnalyticsHome() {
                         : data.kpis.filter((k) => cat.keys.includes(k.key)).length;
                     if (count === 0 && cat.id !== 'all') return null;
                     const isActive = activeCategory === cat.id;
+                    const CatIcon = cat.icon;
                     return (
                       <button
                         key={cat.id}
@@ -733,7 +764,7 @@ export default function AnalyticsHome() {
                           transition: 'all 0.12s ease',
                         }}
                       >
-                        <span>{cat.icon}</span>
+                        <CatIcon size={14} aria-hidden />
                         <span>{cat.label}</span>
                         <span
                           style={{
@@ -808,7 +839,7 @@ export default function AnalyticsHome() {
                         onMouseEnter={(e) => (e.currentTarget.style.color = 'var(--navy)')}
                         onMouseLeave={(e) => (e.currentTarget.style.color = 'var(--t4)')}
                       >
-                        ⓘ
+                        <Info size={14} aria-hidden />
                       </button>
                     </div>
 
@@ -904,6 +935,7 @@ export default function AnalyticsHome() {
                   >
                     {seriesOptions.map((series) => {
                       const isSelected = selectedSeriesKey === series.key;
+                      const SeriesIcon = series.icon;
                       return (
                         <button
                           key={series.key}
@@ -925,7 +957,7 @@ export default function AnalyticsHome() {
                             transition: 'all 0.12s ease',
                           }}
                         >
-                          <span>{series.icon}</span>
+                          <SeriesIcon size={14} aria-hidden />
                           <span>{series.label}</span>
                         </button>
                       );
@@ -958,10 +990,9 @@ export default function AnalyticsHome() {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: 18,
                       }}
                     >
-                      🔮
+                      <Sparkles size={18} aria-hidden />
                     </div>
                     <div>
                       <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>
@@ -1034,14 +1065,14 @@ export default function AnalyticsHome() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 14 }}>
               <MemberList
                 title="Expiring Soon"
-                icon="⏰"
+                icon={Clock}
                 rows={data.lists?.expiring}
                 empty="No memberships end in the next 14 days."
               />
               {hasFeature('exec_analytics') && (
                 <MemberList
                   title="At-Risk Members"
-                  icon="⚠️"
+                  icon={AlertTriangle}
                   rows={data.lists?.atRisk}
                   empty="No members flagged for quiet or low-visit warning."
                 />
@@ -1049,7 +1080,7 @@ export default function AnalyticsHome() {
               {hasFeature('pt_tracking') && (
                 <MemberList
                   title="PT Sessions Expiring"
-                  icon="🏋️"
+                  icon={Dumbbell}
                   rows={data.lists?.ptExpiring}
                   empty="No unused sessions expire in the next 30 days."
                 />
@@ -1057,7 +1088,7 @@ export default function AnalyticsHome() {
               {data.lists?.frozenDue && (
                 <MemberList
                   title="Freezes Ending Today"
-                  icon="❄️"
+                  icon={Snowflake}
                   rows={data.lists.frozenDue}
                   empty="No member freeze periods end today."
                 />

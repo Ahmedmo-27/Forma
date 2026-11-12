@@ -7,6 +7,8 @@ import CatalogPackageForm, { EMPTY_PACKAGE_FORM, validatePackageForm, packageFor
 import PackageAcceptModal from '../../../components/accounting/PackageAcceptModal';
 import { useTenant } from '../../../context/TenantContext';
 import { useTourReveal } from '../../../tutorials/walkthrough-context';
+import useLocationEffect from '../../../hooks/useLocationEffect';
+import { Ban, Banknote, Calendar, CornerDownLeft } from 'lucide-react';
 
 const ACTIVITY_TYPES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 const DURATIONS = ['1 month', '3 months', '6 months', '1 year'];
@@ -147,7 +149,7 @@ function PTSessionsContent({ member, user, onRefresh }) {
         <CardHeader title="Active Private Sessions">
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {canRefund && (member.pt_subscriptions?.length ?? 0) > 0 && (
-              <Btn variant="outline" size="xs" onClick={() => setShowPTRefundModal(true)}>💸 Refund</Btn>
+              <Btn variant="outline" size="xs" onClick={() => setShowPTRefundModal(true)}><Banknote size={14} aria-hidden /> Refund</Btn>
             )}
             {canAdd && (
               <Btn size="xs" onClick={() => setShowAddModal(true)}>+ Add Sessions</Btn>
@@ -208,7 +210,7 @@ function PTSessionsContent({ member, user, onRefresh }) {
                         background: 'var(--red-bg)', color: 'var(--red)',
                         border: '1px solid var(--red-bd)',
                         padding: '2px 8px', borderRadius: 4,
-                      }}>↩ Refunded</span>
+                      }}><CornerDownLeft size={12} aria-hidden /> Refunded</span>
                       {sub.refundAmount > 0 && (
                         <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 600 }}>−EGP {sub.refundAmount}</span>
                       )}
@@ -493,7 +495,7 @@ function PackagesContent({ member, user, onRefresh }) {
         <CardHeader title="Active Package">
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {canRefund && (member.subscriptions?.length ?? 0) > 0 && (
-              <Btn variant="outline" size="xs" onClick={() => setShowRefundModal(true)}>💸 Refund</Btn>
+              <Btn variant="outline" size="xs" onClick={() => setShowRefundModal(true)}><Banknote size={14} aria-hidden /> Refund</Btn>
             )}
             {canAddPackage && !loadingPending && !member.isBlocked && (
               <span data-walkthrough="add-package-btn">
@@ -510,7 +512,7 @@ function PackagesContent({ member, user, onRefresh }) {
             background: 'var(--red-bg)', border: '1px solid var(--red-bd)',
             display: 'flex', alignItems: 'center', gap: 8,
           }}>
-            <span style={{ fontSize: 16 }}>🚫</span>
+            <Ban size={18} color="var(--red)" aria-hidden />
             <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--red)' }}>
               Package deactivated — member is blocked
             </span>
@@ -544,7 +546,7 @@ function PackagesContent({ member, user, onRefresh }) {
             padding: '8px 12px', background: 'var(--amber-bg)', border: '1px solid var(--amber-bd)',
             borderRadius: 6,
           }}>
-            <span style={{ fontSize: 18 }}>📅</span>
+            <Calendar size={18} color="var(--amber)" aria-hidden />
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--amber)' }}>
               Starts on {fmtDate(upcomingSub.startDate)}
             </span>
@@ -607,7 +609,7 @@ function PackagesContent({ member, user, onRefresh }) {
                         border: '1px solid var(--red-bd)',
                         padding: '2px 8px', borderRadius: 4,
                       }}>
-                        ↩ Refunded
+                        <CornerDownLeft size={12} aria-hidden /> Refunded
                       </span>
                       <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 600 }}>−EGP {s.refundAmount}</span>
                     </div>
@@ -771,7 +773,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
       .catch(() => toast.error('Failed to load packages.'));
   }, []);
 
-  useEffect(() => {
+  useLocationEffect(() => {
     if (!open) return;
     setMakeException(false);
     // Pre-fill start date with current package end date if active
@@ -783,7 +785,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAcc
     setCreateForm(EMPTY_PACKAGE_FORM);
     setCreateErrors({});
     loadPackages();
-  }, [open, loadPackages]);
+  }, [open, loadPackages, member]);
 
   const set = (k, v) => setForm(f => {
     const updated = { ...f, [k]: v };

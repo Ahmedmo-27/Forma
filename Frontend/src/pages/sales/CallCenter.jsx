@@ -6,6 +6,7 @@ import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Btn, SearchInput, EmptyState, Avatar, Badge, Spinner, fmtDateTime, Pagination } from '../../components/ui';
 import { getAllNotes, getSalesUsers } from '../../api/endpoints';
+import { Check, X } from 'lucide-react';
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
@@ -171,7 +172,7 @@ export default function CallCenter() {
                       textAlign: 'left', fontFamily: 'inherit', padding: 0,
                     }}
                   >
-                    ✕ Clear dates
+                    <X size={12} aria-hidden style={{ display: 'inline', verticalAlign: 'middle' }} /> Clear dates
                   </button>
                 )}
               </div>
@@ -234,7 +235,7 @@ export default function CallCenter() {
                   onMouseLeave={e => { if (salesFilter !== 'all') e.currentTarget.style.background = 'var(--card)'; }}
                 >
                   <span style={{ fontSize: 12, fontWeight: salesFilter === 'all' ? 700 : 500, color: salesFilter === 'all' ? 'var(--navy)' : 'var(--t1)' }}>All Authors</span>
-                  {salesFilter === 'all' && <span style={{ fontSize: 12, color: 'var(--navy)', fontWeight: 800 }}>✓</span>}
+                  {salesFilter === 'all' && <Check size={14} strokeWidth={2.5} style={{ color: 'var(--navy)' }} aria-hidden />}
                 </button>
 
                 {filteredAuthors.map((u, idx) => {
@@ -267,7 +268,7 @@ export default function CallCenter() {
                         </div>
                         <div style={{ fontSize: 10, color: 'var(--t4)' }}>{u.role}</div>
                       </div>
-                      {isActive && <span style={{ fontSize: 12, color: 'var(--navy)', fontWeight: 800 }}>✓</span>}
+                      {isActive && <Check size={14} strokeWidth={2.5} style={{ color: 'var(--navy)' }} aria-hidden />}
                     </button>
                   );
                 })}

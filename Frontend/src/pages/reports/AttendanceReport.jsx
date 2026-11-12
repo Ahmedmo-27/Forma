@@ -4,6 +4,7 @@ import { getAttendanceHeatmap } from '../../api/endpoints';
 import ReportFrame from './ReportFrame';
 import useAnalyticsReport from './useAnalyticsReport';
 import { WEEKDAYS } from './analyticsFormat';
+import { MoveHorizontal } from 'lucide-react';
 
 function heatColor(count, max) {
   if (!count || !max) return 'var(--bg)';
@@ -33,7 +34,7 @@ export default function AttendanceReport() {
           <p style={{ fontSize: 13, color: 'var(--t2)', marginBottom: 8 }}>
             {data.totalCheckIns} check-ins
           </p>
-          <p className="sm:hidden" style={{ fontSize: 11, color: 'var(--t4)', marginBottom: 6 }}>👉 Swipe horizontally to view all 24 hours</p>
+          <p className="sm:hidden" style={{ fontSize: 11, color: 'var(--t4)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><MoveHorizontal size={12} aria-hidden /> Swipe horizontally to view all 24 hours</p>
           <div className="table-responsive-container">
           <Card style={{ overflowX: 'auto', marginBottom: 16 }}>
             <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(24, minmax(28px, 1fr))', gap: 3, minWidth: 760 }}>

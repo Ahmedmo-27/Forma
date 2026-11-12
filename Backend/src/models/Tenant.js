@@ -136,6 +136,12 @@ const tenantSchema = new mongoose.Schema(
             type: mongoose.Schema.Types.Mixed,
             default: undefined,
         },
+        // Default location grants per role when a user has no personal allowedLocationIds.
+        // Shape: { "Receptionist": ["<ObjectId>", ...], ... }
+        roleLocationAccess: {
+            type: mongoose.Schema.Types.Mixed,
+            default: undefined,
+        },
         limitOverrides: {
             maxMembers: { type: Number, default: null },
             maxStaff: { type: Number, default: null },

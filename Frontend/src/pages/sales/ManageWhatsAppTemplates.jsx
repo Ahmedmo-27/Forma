@@ -6,6 +6,7 @@ import {
   PageHeader, Card, CardHeader, Btn, Input, Select, Textarea,
   Spinner, Modal, ConfirmDialog, Table, EmptyState, fmtDate, Pagination,
 } from '../../components/ui';
+import { MessageCircle } from 'lucide-react';
 import {
   getWhatsAppTemplates, createWhatsAppTemplate, updateWhatsAppTemplate, deleteWhatsAppTemplate,
   getPackages,
@@ -630,7 +631,7 @@ export default function ManageWhatsAppTemplates() {
               <tr>
                 <td colSpan={5}>
                   <EmptyState
-                    icon="💬"
+                    icon={MessageCircle}
                     message="No templates yet"
                     sub="Create one for packages, discounts, or any other message"
                   />

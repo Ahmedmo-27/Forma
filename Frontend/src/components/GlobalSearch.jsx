@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { searchAllMembers } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
+import { useLocationScope } from '../context/LocationContext';
 import { Avatar } from './ui';
 import AddMemberModal from './AddMemberModal';
 
@@ -42,6 +43,7 @@ async function loadSharedCache(fetchFn) {
 export default function GlobalSearch() {
   const navigate  = useNavigate();
   const { user }  = useAuth();
+  const { version: locationVersion } = useLocationScope();
   const phoneRef  = useRef(null);
   const idRef     = useRef(null);
   const wrapRef   = useRef(null);
@@ -61,8 +63,13 @@ export default function GlobalSearch() {
     return loadSharedCache(searchAllMembers);
   }, []);
 
-  // Preload cache on mount
-  useEffect(() => { loadCache(); }, [loadCache]);
+  // Clear shared cache when branch selector changes so results match the branch
+  useEffect(() => {
+    _sharedCache = null;
+    _sharedFetchPromise = null;
+    clearTimeout(_cacheInvalidateTimer);
+    loadCache();
+  }, [locationVersion, loadCache]);
 
   // Invalidate cache every 60s so new members show up
   // (handled by the shared cache timer — no per-instance timer needed)

@@ -4,6 +4,15 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import usePageTitle from '../hooks/usePageTitle';
 import { Spinner } from '../components/ui';
+import { goToStaffHome, staffHomeHref, shouldHardRedirectToApp } from '../marketing/host';
+
+function roleHomePath(role) {
+  if (role === 'Accountant') return '/accounting/dashboard';
+  if (['Sales', 'Sales Manager'].includes(role)) return '/sales/dashboard';
+  if (['Coach', 'Coach Manager'].includes(role)) return '/coach/dashboard';
+  if (['Owner', 'General Manager'].includes(role)) return '/owner/dashboard';
+  return '/members';
+}
 
 export default function Login() {
   usePageTitle('Sign In');
@@ -16,11 +25,12 @@ export default function Login() {
   const [errors, setErrors]     = useState({});
 
   if (user) {
-    if (user.role === 'Accountant') return <Navigate to="/accounting/dashboard" replace />;
-    if (['Sales', 'Sales Manager'].includes(user.role)) return <Navigate to="/sales/dashboard" replace />;
-    if (['Coach', 'Coach Manager'].includes(user.role)) return <Navigate to="/coach/dashboard" replace />;
-    if (['Owner', 'General Manager'].includes(user.role)) return <Navigate to="/owner/dashboard" replace />;
-    return <Navigate to="/members" replace />;
+    const home = roleHomePath(user.role);
+    if (shouldHardRedirectToApp()) {
+      window.location.replace(staffHomeHref(home));
+      return null;
+    }
+    return <Navigate to={home} replace />;
   }
 
   const validate = () => {
@@ -38,17 +48,7 @@ export default function Login() {
     try {
       const user = await signIn(username.trim(), password);
       toast.success(`Welcome back, ${user.name}!`);
-      if (user.role === 'Accountant') {
-        navigate('/accounting/dashboard', { replace: true });
-      } else if (['Sales', 'Sales Manager'].includes(user.role)) {
-        navigate('/sales/dashboard', { replace: true });
-      } else if (['Coach', 'Coach Manager'].includes(user.role)) {
-        navigate('/coach/dashboard', { replace: true });
-      } else if (['Owner', 'General Manager'].includes(user.role)) {
-        navigate('/owner/dashboard', { replace: true });
-      } else {
-        navigate('/members', { replace: true });
-      }
+      goToStaffHome(roleHomePath(user.role), navigate);
     } catch (err) {
       let msg;
       if (!err.response) {

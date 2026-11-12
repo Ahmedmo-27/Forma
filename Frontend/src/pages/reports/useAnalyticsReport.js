@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { reportError } from './analyticsFormat';
+import useLocationEffect from '../../hooks/useLocationEffect';
 
 export default function useAnalyticsReport(load) {
   const [state, setState] = useState({ data: null, error: '', request: null });
 
-  useEffect(() => {
+  useLocationEffect(() => {
     let cancelled = false;
     load()
       .then((res) => {

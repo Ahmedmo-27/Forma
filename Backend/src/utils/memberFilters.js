@@ -21,8 +21,16 @@ function buildMemberListFilter({
     packageId,
     gender,
     transferType,
+    locationId,
+    locationFilter,
 }) {
     const filter = {};
+
+    if (locationFilter && typeof locationFilter === "object") {
+        Object.assign(filter, locationFilter);
+    } else if (locationId && locationId !== "all") {
+        filter.locationId = locationId;
+    }
 
     if (status === "blocked") {
         filter.isBlocked = true;

@@ -114,6 +114,31 @@ describe("API Caching Architecture", () => {
             expect(keyRep2).toContain("user:sales_rep_2");
             expect(keyRep1).not.toEqual(keyRep2);
         });
+
+        it("differs cache keys by X-Location-Id / locationScope.selected", () => {
+            const base = {
+                baseUrl: "/api/members",
+                path: "",
+                query: {},
+                user: { tenantId: "gym_1", role: "Owner", id: "owner_1" },
+            };
+            const allKey = buildCacheKey({ ...base, headers: {}, locationScope: { selected: "all" } }, "tenant");
+            const branchKey = buildCacheKey({
+                ...base,
+                headers: { "x-location-id": "loc_abc" },
+                locationScope: { selected: "loc_abc" },
+            }, "tenant");
+            const headerOnlyKey = buildCacheKey({
+                ...base,
+                headers: { "x-location-id": "loc_xyz" },
+            }, "tenant");
+
+            expect(allKey).toContain("loc:all");
+            expect(branchKey).toContain("loc:loc_abc");
+            expect(headerOnlyKey).toContain("loc:loc_xyz");
+            expect(allKey).not.toEqual(branchKey);
+            expect(branchKey).not.toEqual(headerOnlyKey);
+        });
     });
 
     describe("Express Middleware: cacheResponse", () => {

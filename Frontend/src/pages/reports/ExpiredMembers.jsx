@@ -5,6 +5,7 @@ import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, Pagination, fmtDate,
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAllMembers, getSalesUsers, getCoachTeam, getPackages } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
+import { Calendar } from 'lucide-react';
 
 const TODAY       = toLocalDateString();
 const MONTH_START = `${TODAY.slice(0, 7)}-01`;
@@ -297,7 +298,7 @@ export default function ExpiredMembers() {
                 <Spinner size="lg" />
               </div>
             ) : results.length === 0 ? (
-              <EmptyState icon="📅" message="No members found" sub="Try adjusting your filters." />
+              <EmptyState icon={Calendar} message="No members found" sub="Try adjusting your filters." />
             ) : (
               <div className="table-responsive-container">
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>

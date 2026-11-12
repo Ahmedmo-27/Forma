@@ -39,8 +39,15 @@ function privateCache(res) {
     res.set("Cache-Control", "private, max-age=60");
 }
 
-async function loadDays(limit = 120) {
-    return TenantMetricSnapshot.find({ grain: "day" }).sort({ localDate: 1 }).limit(limit).lean();
+async function loadDays(limit = 120, locationScope = null) {
+    const filter = { grain: "day" };
+    // Per-branch snapshots when a single location is selected; otherwise tenant-wide (null locationId)
+    if (locationScope?.mode === "one" && locationScope.locationId) {
+        filter.locationId = locationScope.locationId;
+    } else {
+        filter.$or = [{ locationId: null }, { locationId: { $exists: false } }];
+    }
+    return TenantMetricSnapshot.find(filter).sort({ localDate: 1 }).limit(limit).lean();
 }
 
 function sum(days, key) {
@@ -81,7 +88,7 @@ async function getDashboard(req, res, next) {
         const timeZone = req.tenant?.settings?.locale?.timezone || "Africa/Cairo";
         const today = localDateKey(new Date(), timeZone);
         const yesterday = addLocalDays(today, -1);
-        const days = await loadDays(180);
+        const days = await loadDays(180, req.locationScope);
         if (!days.length) {
             return res.json({
                 empty: true,
@@ -184,7 +191,7 @@ async function getCohorts(req, res, next) {
 async function getHeatmap(req, res, next) {
     try {
         privateCache(res);
-        const days = (await loadDays(40)).slice(-28);
+        const days = (await loadDays(40, req.locationScope)).slice(-28);
         const heat = quietHourShare(days);
         res.json({
             empty: heat.total === 0,
@@ -206,7 +213,7 @@ async function getForecast(req, res, next) {
         privateCache(res);
         const timeZone = req.tenant?.settings?.locale?.timezone || "Africa/Cairo";
         const today = localDateKey(new Date(), timeZone);
-        const days = await loadDays(120);
+        const days = await loadDays(120, req.locationScope);
         const latest = days.at(-1);
         res.json({
             forecast: latest ? forecastFrom(latest, days.filter((day) => day.localDate > addLocalDays(today, -90))) : { revenuePiasters: null, insufficient: true },
@@ -222,7 +229,7 @@ async function getFunnel(req, res, next) {
     try {
         privateCache(res);
         const { from, to } = req.query;
-        const days = sliceWindow(await loadDays(400), from, to);
+        const days = sliceWindow(await loadDays(400, req.locationScope), from, to);
         const rates = windowRates(days);
         const byAssignee = new Map();
         for (const day of days) {
@@ -318,7 +325,7 @@ function baselineFrom(template, days) {
 
 async function suggestObjectives(req, res, next) {
     try {
-        const days = await loadDays(120);
+        const days = await loadDays(120, req.locationScope);
         if (days.length < 14) {
             return res.json({
                 suggestions: [],
@@ -364,7 +371,7 @@ async function createObjective(req, res, next) {
         const template = TEMPLATES.find((row) => row.key === req.body?.templateKey);
         const metricKey = template?.metric || req.body?.metricKey;
         if (!metricKey) throw new ValidationError("Choose a metric.");
-        const days = await loadDays(120);
+        const days = await loadDays(120, req.locationScope);
         if (days.length < 14) throw new ValidationError("At least 14 daily snapshots are required.");
         const latest = days[days.length - 1];
         const windowDays = template?.window || 30;
@@ -446,7 +453,7 @@ async function insightToObjective(req, res, next) {
             pending: "cut_refunds",
         };
         req.body = { ...(req.body || {}), templateKey: req.body?.templateKey || templateByHref[row.href] || "grow_renewals" };
-        const days = await loadDays(120);
+        const days = await loadDays(120, req.locationScope);
         if (days.length < 14) throw new ValidationError("At least 14 daily snapshots are required.");
         row.status = "actioned";
         await row.save();
@@ -461,7 +468,7 @@ async function exportMetric(req, res, next) {
         const key = String(req.query.metric || "membershipSalesPiasters");
         const allowed = ["membershipSalesPiasters", "newJoins", "checkIns", "refundsPiasters", "peopleAdded", "peopleConverted", "ptSessionsUsed", "churnEvents"];
         if (!allowed.includes(key)) throw new ForbiddenError("AUTH_FORBIDDEN", "That export is not available.");
-        const days = await loadDays(400);
+        const days = await loadDays(400, req.locationScope);
         const header = "date,value";
         const lines = days.slice(0, 2000).map((day) => `${day.localDate},${Number(day.metrics?.[key]) || 0}`);
         await writeAudit({

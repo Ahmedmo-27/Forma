@@ -7,6 +7,7 @@ import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, EmptyState, Avatar, Badge, Spinner, SearchInput, Btn, Pagination, fmtDateTime, toLocalDateString } from '../../components/ui';
 import { getAllNotes } from '../../api/endpoints';
+import { MessageCircle, X } from 'lucide-react';
 
 const TODAY = toLocalDateString();
 const DEFAULT_PAGE_SIZE = 10;
@@ -113,7 +114,7 @@ export default function SalesCallCenter() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 2 }}>
             {hasFilters && (
               <Btn variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); setSearch(''); }}>
-                ✕ Clear
+                <X size={14} aria-hidden /> Clear
               </Btn>
             )}
             <span style={{ fontSize: 12, color: 'var(--t4)' }}>
@@ -136,7 +137,7 @@ export default function SalesCallCenter() {
             </div>
           ) : notes.length === 0 ? (
             <EmptyState
-              icon="💬"
+              icon={MessageCircle}
               message={hasFilters ? 'No notes match your filters' : 'No notes written yet'}
               sub={hasFilters ? 'Try adjusting the date range or search.' : 'Notes you add to member profiles will appear here.'}
             />

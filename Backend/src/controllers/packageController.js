@@ -1,6 +1,20 @@
 const Package = require("../models/Package");
+const Location = require("../models/Location");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const { publishLive } = require("../utils/liveEvents");
+const {
+    normalizeLocationEligibility,
+    packageListLocationFilter,
+} = require("../utils/packageLocationEligibility");
+
+async function assertLocationsExist(ids) {
+    if (!ids.length) return null;
+    const found = await Location.find({ _id: { $in: ids } }).select("_id").lean();
+    if (found.length !== ids.length) {
+        return "One or more eligible locations were not found";
+    }
+    return null;
+}
 
 // Create catalog package (Sales Manager / Owner)
 const createPackage = async (req, res) => {
@@ -14,11 +28,20 @@ const createPackage = async (req, res) => {
             invitationLimit,
             renewalDiscountPercent,
             description,
+            locationScope,
+            eligibleLocationIds,
         } = req.body;
 
         if (!name?.trim() || price == null) {
             return res.status(400).json({ message: "Name and price are required" });
         }
+
+        const eligibility = normalizeLocationEligibility({ locationScope, eligibleLocationIds });
+        if (eligibility.error) {
+            return res.status(400).json({ message: eligibility.error });
+        }
+        const missing = await assertLocationsExist(eligibility.eligibleLocationIds);
+        if (missing) return res.status(400).json({ message: missing });
 
         const pkg = await Package.create({
             name: name.trim(),
@@ -29,6 +52,8 @@ const createPackage = async (req, res) => {
             invitationLimit: Number(invitationLimit) || 0,
             renewalDiscountPercent: Number(renewalDiscountPercent) || 0,
             description: description?.trim() || null,
+            locationScope: eligibility.locationScope,
+            eligibleLocationIds: eligibility.eligibleLocationIds,
             isActive: true,
             hasException: false,
             createdBy: req.user.id,
@@ -39,15 +64,24 @@ const createPackage = async (req, res) => {
     }
 };
 
-// Get all active packages
+// Get all active packages (optionally filtered by navbar branch)
 const getAllPackages = async (req, res) => {
     try {
         const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 50 });
-        const filter = { isActive: true, hasException: { $ne: true } };
+        const locationFrag = packageListLocationFilter(req);
+        const filter = {
+            isActive: true,
+            hasException: { $ne: true },
+            ...locationFrag,
+        };
 
         const [total, packages] = await Promise.all([
             Package.countDocuments(filter),
-            Package.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit),
+            Package.find(filter)
+                .populate("eligibleLocationIds", "name locationId")
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
         ]);
 
         res.status(200).json({
@@ -79,6 +113,21 @@ const updatePackage = async (req, res) => {
         for (const key of PACKAGE_UPDATE_FIELDS) {
             if (req.body[key] !== undefined) update[key] = req.body[key];
         }
+
+        if (req.body.locationScope !== undefined || req.body.eligibleLocationIds !== undefined) {
+            const eligibility = normalizeLocationEligibility({
+                locationScope: req.body.locationScope,
+                eligibleLocationIds: req.body.eligibleLocationIds,
+            });
+            if (eligibility.error) {
+                return res.status(400).json({ message: eligibility.error });
+            }
+            const missing = await assertLocationsExist(eligibility.eligibleLocationIds);
+            if (missing) return res.status(400).json({ message: missing });
+            update.locationScope = eligibility.locationScope;
+            update.eligibleLocationIds = eligibility.eligibleLocationIds;
+        }
+
         if (!Object.keys(update).length) {
             return res.status(400).json({ message: "No changes to save" });
         }
@@ -87,7 +136,7 @@ const updatePackage = async (req, res) => {
             req.params.id,
             { $set: update },
             { returnDocument: "after", runValidators: true }
-        );
+        ).populate("eligibleLocationIds", "name locationId");
         if (!pkg) return res.status(404).json({ message: "Package not found" });
         publishLive(req.user.tenantId, {
             type: "package",

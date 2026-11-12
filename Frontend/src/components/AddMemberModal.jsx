@@ -4,9 +4,18 @@ import { Modal, Input, Select, Btn, Spinner } from './ui';
 import { createMember, getSalesUsers, getCoachTeam } from '../api/endpoints';
 import { mapFieldErrors, focusFirstInvalidField } from '../lib/formErrors';
 import { isValidPhone, isDateInFuture } from '../lib/validation';
+import { useLocationScope, ALL_LOCATIONS } from '../context/LocationContext';
 
 export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesRep = null, initialPhone = '' }) {
-  const init = { name: '', phones: initialPhone, gender: '', birthdate: '', source: '', assignedSales: '', coachId: '' };
+  const { multiEnabled, locations, selectedLocationId } = useLocationScope();
+  const defaultLoc =
+    selectedLocationId && selectedLocationId !== ALL_LOCATIONS
+      ? selectedLocationId
+      : (locations[0]?._id || '');
+  const init = {
+    name: '', phones: initialPhone, gender: '', birthdate: '', source: '',
+    assignedSales: '', coachId: '', locationId: defaultLoc,
+  };
   const [form, setForm] = useState(init);
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -17,9 +26,13 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
   // Reset form and pre-fill phone when modal opens
   useEffect(() => {
     if (!open) return;
-    setForm({ ...init, phones: initialPhone });
+    const loc =
+      selectedLocationId && selectedLocationId !== ALL_LOCATIONS
+        ? selectedLocationId
+        : (locations[0]?._id || '');
+    setForm({ ...init, phones: initialPhone, locationId: loc });
     setErrors({});
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open, selectedLocationId, locations]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load sales users and coaches when modal opens
   useEffect(() => {
@@ -68,10 +81,14 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
         birthdate: form.birthdate || null, 
         source: form.source || null, 
         assignedSales: form.assignedSales || defaultSalesRep || null,
-        coachId: form.coachId || null
+        coachId: form.coachId || null,
+        locationId: form.locationId || null,
       });
       toast.success('Member added!');
-      setForm({ name: '', phones: '', gender: '', birthdate: '', source: '', assignedSales: '', coachId: '' }); 
+      setForm({
+        name: '', phones: '', gender: '', birthdate: '', source: '',
+        assignedSales: '', coachId: '', locationId: defaultLoc,
+      }); 
       setErrors({});
       window.dispatchEvent(new CustomEvent('members-changed'));
       onSuccess(res.data?.member?.systemId);
@@ -113,6 +130,15 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
           )}
         </Select>
       </div>
+      {multiEnabled && locations.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <Select label="Location" value={form.locationId} onChange={e => set('locationId', e.target.value)}>
+            {locations.map((loc) => (
+              <option key={loc._id} value={loc._id}>{loc.name}</option>
+            ))}
+          </Select>
+        </div>
+      )}
       <div className="grid-2-form" style={{ marginTop: 12 }}>
         <div>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 5 }}>

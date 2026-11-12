@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
@@ -128,7 +129,9 @@ export default function SalesRequests() {
                 onClick={() => setRepFilter('all')}
                 style={{ fontSize: 12, fontWeight: 600, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
               >
-                ✕ Clear
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <X size={12} strokeWidth={2.5} /> Clear
+                </span>
               </button>
             )}
           </div>

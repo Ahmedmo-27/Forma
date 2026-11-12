@@ -10,6 +10,7 @@ import {
 import { getUserById, getSalesProfile, getCoachProfile, resetUserPassword } from '../../api/endpoints';
 import UserAreaAccess from '../../components/UserAreaAccess';
 import ChangeRoleField from '../../components/ChangeRoleField';
+import { KeyRound, Mail, Phone } from 'lucide-react';
 
 // ── Role badge colour map ─────────────────────────────────────────────────────
 const ROLE_COLOUR = {
@@ -112,7 +113,7 @@ export default function OwnerUserProfile() {
       }>
         {!loading && profile?.user && (
           <Btn variant="outline" size="sm" onClick={() => { setNewPwd(''); setConfirmPwd(''); setShowResetPwd(true); }}>
-            🔑 Reset Password
+            <KeyRound size={14} aria-hidden /> Reset Password
           </Btn>
         )}
       </PageHeader>
@@ -145,8 +146,8 @@ export default function OwnerUserProfile() {
                   </div>
 
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: 'var(--t3)', marginBottom: 8 }}>
-                    {user?.email && <span>✉ {user.email}</span>}
-                    {user?.mobile_number && <span>📞 {user.mobile_number}</span>}
+                    {user?.email && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Mail size={12} aria-hidden /> {user.email}</span>}
+                    {user?.mobile_number && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Phone size={12} aria-hidden /> {user.mobile_number}</span>}
                     <span>Joined {fmtDate(user?.createdAt)}</span>
                   </div>
                   <div style={{ maxWidth: 420, marginTop: 4 }}>
@@ -343,7 +344,7 @@ export default function OwnerUserProfile() {
             } catch (e) { toast.error(e.response?.data?.message ?? 'Failed to reset password'); }
             finally { setResettingPwd(false); }
           }}>
-            {resettingPwd ? <Spinner size="sm" /> : '🔑 Reset Password'}
+            {resettingPwd ? <Spinner size="sm" /> : <><KeyRound size={14} aria-hidden /> Reset Password</>}
           </Btn>
         </>}
       >

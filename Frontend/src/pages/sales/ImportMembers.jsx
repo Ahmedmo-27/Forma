@@ -6,6 +6,9 @@ import { PageHeader, Card, Btn, Spinner } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { bulkImportMembers, getMemberImportJob } from '../../api/endpoints';
 import { validateFile, SPREADSHEET_EXTENSIONS } from '../../lib/validation';
+import {
+  AlertTriangle, BarChart3, Check, Circle, CircleDot, Download, FolderOpen, X,
+} from 'lucide-react';
 
 const STEPS = [
   { key: 'received', label: 'File received' },
@@ -137,7 +140,7 @@ export default function ImportMembers() {
       <div className="page-wrap" data-walkthrough="import-board" style={{ paddingTop: 20, paddingBottom: 40 }}>
         <Card>
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'color-mix(in srgb, var(--navy) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--navy) 20%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, flexShrink: 0 }}>📥</div>
+            <div style={{ width: 40, height: 40, borderRadius: 10, background: 'color-mix(in srgb, var(--navy) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--navy) 20%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--navy)' }}><Download size={20} aria-hidden /></div>
             <div>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 6 }}>How to use</h3>
               <p style={{ fontSize: 13, color: 'var(--t3)', lineHeight: 1.6, marginBottom: 8 }}>
@@ -180,17 +183,17 @@ export default function ImportMembers() {
             >
               {file ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                  <div style={{ fontSize: 40 }}>📊</div>
+                  <BarChart3 size={40} strokeWidth={1.25} aria-hidden style={{ color: 'var(--t2)' }} />
                   <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>{file.name}</p>
                   <p style={{ fontSize: 12, color: 'var(--t4)' }}>{(file.size / 1024).toFixed(1)} KB</p>
                   <button type="button" onClick={(event) => { event.stopPropagation(); reset(); }}
-                    style={{ fontSize: 12, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600 }}>
-                    ✕ Remove
+                    style={{ fontSize: 12, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <X size={12} aria-hidden /> Remove
                   </button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-                  <div style={{ fontSize: 40, opacity: 0.3 }}>📁</div>
+                  <FolderOpen size={40} strokeWidth={1.25} aria-hidden style={{ opacity: 0.3, color: 'var(--t2)' }} />
                   <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--t2)' }}>Drop your Excel file here</p>
                   <p style={{ fontSize: 12, color: 'var(--t4)' }}>or click to browse</p>
                   <p style={{ fontSize: 11, color: 'var(--t4)' }}>.xlsx · .xls · .csv — max 5 MB</p>
@@ -199,7 +202,7 @@ export default function ImportMembers() {
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
               {!file && <Btn variant="outline" size="md" onClick={() => fileRef.current?.click()}>Browse File</Btn>}
-              {file && <Btn size="md" onClick={handleImport}>📥 Import Now</Btn>}
+              {file && <Btn size="md" onClick={handleImport}><Download size={16} aria-hidden /> Import Now</Btn>}
             </div>
           </Card>
         )}
@@ -230,8 +233,8 @@ export default function ImportMembers() {
                     : null;
                 return (
                   <li key={step.key} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color }}>
-                    <span aria-hidden="true" style={{ width: 18, textAlign: 'center', fontWeight: 800 }}>
-                      {state === 'done' ? '✓' : state === 'failed' ? '!' : state === 'active' ? '●' : '○'}
+                    <span aria-hidden="true" style={{ width: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      {state === 'done' ? <Check size={14} strokeWidth={2.5} /> : state === 'failed' ? <AlertTriangle size={14} /> : state === 'active' ? <CircleDot size={14} /> : <Circle size={12} />}
                     </span>
                     <span style={{ fontWeight: state === 'active' ? 700 : 500 }}>{step.label}</span>
                     {detail && <span style={{ color: 'var(--t4)', fontWeight: 500 }}>{detail}</span>}

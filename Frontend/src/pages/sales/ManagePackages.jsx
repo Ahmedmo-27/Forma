@@ -1,13 +1,21 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, CardHeader, Btn,
   Spinner, Modal, ConfirmDialog, Table, EmptyState, fmtDate, Pagination,
 } from '../../components/ui';
-import PackageForm, { EMPTY_PACKAGE_FORM, validatePackageForm, packageFormToPayload } from '../../components/PackageForm';
+import PackageForm, {
+  EMPTY_PACKAGE_FORM,
+  validatePackageForm,
+  packageFormToPayload,
+  packageToForm,
+  packageEligibilityLabel,
+} from '../../components/PackageForm';
 import { getPackages, createPackage, updatePackage, deletePackage } from '../../api/endpoints';
+import { Package } from 'lucide-react';
 import { useTourReveal } from '../../tutorials/walkthrough-context';
 
 const PAGE_SIZE = 15;
@@ -58,14 +66,14 @@ export default function ManagePackages() {
     const pageNum = override.page ?? page;
     setLoading(true);
     try {
-      const res = await getPackages({ page: pageNum, limit: PAGE_SIZE });
+      const res = await getPackages({ page: pageNum, limit: PAGE_SIZE, catalog: 'all' });
       setPackages(res.data.packages ?? []);
       setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
     } catch { toast.error('Failed to load packages'); }
     finally { setLoading(false); }
   }, [page]);
 
-  useEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { load(); }, [load]);
 
   // ── Create ──────────────────────────────────────────────────────────────
   const handleCreate = async () => {
@@ -87,16 +95,7 @@ export default function ManagePackages() {
   // ── Edit ────────────────────────────────────────────────────────────────
   const openEdit = pkg => {
     setEditTarget(pkg);
-    setEditForm({
-      name:                   pkg.name,
-      activityType:           pkg.activityType,
-      duration:               pkg.duration,
-      price:                  String(pkg.price),
-      freezeLimitDays:        String(pkg.freezeLimitDays ?? 0),
-      invitationLimit:        String(pkg.invitationLimit ?? 0),
-      renewalDiscountPercent: String(pkg.renewalDiscountPercent ?? 0),
-      description:            pkg.description ?? '',
-    });
+    setEditForm(packageToForm(pkg));
     setEditErrors({});
   };
 
@@ -148,11 +147,11 @@ export default function ManagePackages() {
         <Card noPad>
           <CardHeader title={`Active Packages (${pagination.total})`} />
           <Table
-            headers={['Name', 'Activity', 'Duration', 'Price', 'Freeze', 'Invites', 'Discount', 'Created', '']}
+            headers={['Name', 'Activity', 'Duration', 'Price', 'Branches', 'Freeze', 'Invites', 'Discount', 'Created', '']}
             loading={loading} skeletonRows={4}
           >
             {!loading && packages.length === 0 && (
-              <tr><td colSpan={9}><EmptyState icon="📦" message="No packages yet" sub="Create your first package above" /></td></tr>
+              <tr><td colSpan={10}><EmptyState icon={Package} message="No packages yet" sub="Create your first package above" /></td></tr>
             )}
             {packages.map(pkg => (
               <tr key={pkg._id} style={{ borderBottom: '1px solid var(--border)' }}
@@ -171,6 +170,9 @@ export default function ManagePackages() {
                 <td style={{ padding: '11px 14px', color: 'var(--t2)', fontSize: 13 }}>{pkg.duration}</td>
                 <td style={{ padding: '11px 14px', fontWeight: 700, color: 'var(--t1)', fontSize: 13 }}>
                   {pkg.price.toLocaleString()} EGP
+                </td>
+                <td style={{ padding: '11px 14px', color: 'var(--t2)', fontSize: 12, maxWidth: 160 }}>
+                  {packageEligibilityLabel(pkg)}
                 </td>
                 <td style={{ padding: '11px 14px', color: 'var(--t2)', fontSize: 13 }}>
                   {pkg.freezeLimitDays > 0 ? `${pkg.freezeLimitDays}d` : <span style={{ color: 'var(--t4)' }}>—</span>}

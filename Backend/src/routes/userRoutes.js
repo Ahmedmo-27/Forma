@@ -44,6 +44,7 @@ const { enforceStaffLimit, enforceSubscriptionStatus } = require("../middleware/
 const { requireFeature } = require("../middleware/featureGating");
 const { cacheResponse } = require("../middleware/apiCache");
 const { autoInvalidate } = require("../utils/cacheInvalidator");
+const { locationScopeOptional } = require("../middleware/locationScope");
 
 // Public auth — rate limited + validated
 router.post("/login", loginLimiter, validate(loginSchema), loginUser);
@@ -52,6 +53,7 @@ router.post("/forgot-password", loginLimiter, validate(forgotPasswordSchema), fo
 
 router.use(protect);
 router.use(enforceSubscriptionStatus);
+router.use(locationScopeOptional);
 
 // Registration is Owner-only (was publicly open — anyone could create Receptionist accounts)
 router.post("/register", authorizeRoles("Owner"), enforceStaffLimit, autoInvalidate(["users"]), registerUser);

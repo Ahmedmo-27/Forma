@@ -4,9 +4,11 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Table, Badge, StatCard, Spinner, EmptyState, SearchInput, Avatar, formatSystemId } from '../../components/ui';
 import { getAllMembers } from '../../api/endpoints';
+import { Dumbbell } from 'lucide-react';
 
 export default function CoachMembers() {
   usePageTitle('Members');
@@ -32,7 +34,7 @@ export default function CoachMembers() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { load(); }, [load]);
 
   // Filter to coach's members (Coach sees only theirs, Coach Manager sees ALL)
   const coachMembers = isManager
@@ -108,7 +110,7 @@ export default function CoachMembers() {
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
           ) : filtered.length === 0 ? (
-            <EmptyState icon="🏋️" message="No members match" />
+            <EmptyState icon={Dumbbell} message="No members match" />
           ) : (
             <Table headers={['ID', 'Name', ...(isManager ? ['Coach'] : []), 'Status', 'Sessions', 'Used', 'Remaining']}>
               {filtered.map(m => (

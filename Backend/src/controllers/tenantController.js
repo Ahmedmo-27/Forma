@@ -82,6 +82,7 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
         usage: {
             members: usage.members ?? 0,
             staff: usage.staff ?? 0,
+            branches: usage.branches ?? usage.branchCount ?? 0,
             storageGb: usage.storageGb ?? 0,
             whatsappMonthlyMessages: usage.whatsappMonthlyMessages ?? 0,
         },
@@ -127,6 +128,15 @@ const getMyTenant = async (req, res) => {
             return res.status(404).json({ message: "Tenant not found" });
         }
 
+        const { ensureTenantMultiBranches } = require("../utils/ensureMultiBranches");
+        await ensureTenantMultiBranches(tenant, tenant.planId);
+        // Refresh plan after possible gold/platinum feature backfill
+        if (tenant.planId?._id) {
+            const Plan = require("../models/Plan");
+            const freshPlan = await runAsPlatform(async () => Plan.findById(tenant.planId._id));
+            if (freshPlan) tenant.planId = freshPlan;
+        }
+
         const timezone = tenant.settings?.locale?.timezone || "Africa/Cairo";
 
         const [membersCount, staffCount, whatsappMonthlyCount, announcements] = await Promise.all([
@@ -151,9 +161,13 @@ const getMyTenant = async (req, res) => {
             storageGb = 0;
         }
 
+        const Location = require("../models/Location");
+        const branchCount = await Location.countDocuments({}).catch(() => 0);
+
         const response = sanitizeTenantResponse(tenant, tenant.planId, {
             members: membersCount,
             staff: staffCount,
+            branches: branchCount,
             storageGb,
             whatsappMonthlyMessages: whatsappMonthlyCount,
         });
@@ -169,6 +183,7 @@ const getMyTenant = async (req, res) => {
             accessOverrides: req.user.accessOverrides,
         };
         response.roleAccess = plainRoleAccess(tenant.roleAccess) || {};
+        response.roleLocationAccess = plainRoleAccess(tenant.roleLocationAccess) || {};
         response.accessCatalog = AREAS;
         response.checklistRoles = req.user.role === "Owner"
             ? CHECKLIST_ROLES
@@ -396,6 +411,27 @@ const updateRoleAccess = async (req, res) => {
         next[role] = areas;
         tenant.roleAccess = next;
         tenant.markModified("roleAccess");
+
+        let nextRoleLocations = plainRoleAccess(tenant.roleLocationAccess) || {};
+        if (Array.isArray(req.body?.locationIds) && (req.user.role === "Owner" || req.user.role === "General Manager")) {
+            const mongoose = require("mongoose");
+            const Location = require("../models/Location");
+            const ids = req.body.locationIds.map((id) => String(id || "").trim()).filter(Boolean);
+            if (ids.some((id) => !mongoose.Types.ObjectId.isValid(id))) {
+                return res.status(400).json({ message: "locationIds must be valid location ids" });
+            }
+            if (ids.length) {
+                const found = await Location.find({ _id: { $in: ids } }).select("_id").lean();
+                if (found.length !== ids.length) {
+                    return res.status(400).json({ message: "One or more locations were not found" });
+                }
+            }
+            // Empty array = all locations (no role restriction); explicit ids = default subset
+            nextRoleLocations = { ...nextRoleLocations, [role]: ids };
+            tenant.roleLocationAccess = nextRoleLocations;
+            tenant.markModified("roleLocationAccess");
+        }
+
         await runAsPlatform(async () => {
             await tenant.save();
         });
@@ -406,7 +442,7 @@ const updateRoleAccess = async (req, res) => {
             actorRole: req.user.role,
             targetType: "tenant",
             targetId: tenant._id,
-            meta: { role, areas },
+            meta: { role, areas, locationIds: nextRoleLocations[role] },
             req,
         });
 
@@ -415,6 +451,8 @@ const updateRoleAccess = async (req, res) => {
             role,
             areas,
             roleAccess: next,
+            roleLocationAccess: nextRoleLocations,
+            locationIds: nextRoleLocations[role] || [],
         });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });

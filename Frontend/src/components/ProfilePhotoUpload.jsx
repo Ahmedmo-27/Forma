@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import toast from 'react-hot-toast';
+import { X } from 'lucide-react';
 import { Avatar, Btn, Modal, Spinner } from './ui';
 import { deleteMemberPhoto, uploadMemberPhoto } from '../api/endpoints';
 import { validateFile, PHOTO_EXTENSIONS, PHOTO_ACCEPT, UPLOAD_INTAKE_MB } from '../lib/validation';
@@ -260,7 +261,7 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
               boxShadow: '0 1px 4px rgba(15,23,42,0.2)',
             }}
           >
-            {deleting ? <Spinner size="sm" /> : '×'}
+            {deleting ? <Spinner size="sm" /> : <X size={12} strokeWidth={3} />}
           </button>
         )}
       </div>

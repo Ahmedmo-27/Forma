@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
 import toast from 'react-hot-toast';
+import { IdCard } from 'lucide-react';
 import { Card, CardHeader, Btn, Spinner, EmptyState } from '../../../components/ui';
 import { uploadNationalId } from '../../../api/endpoints';
 import { fetchProtectedUploadBlobUrl } from '../../../api/axios';
@@ -134,7 +135,7 @@ export default function FilesTab({ member, user, onRefresh }) {
           </div>
         ) : (
           <EmptyState
-            icon="🪪"
+            icon={IdCard}
             message="No national ID uploaded"
             sub={isAccountant ? 'Click Upload to add the scanned national ID.' : 'The Accountant has not uploaded this file yet.'}
           />

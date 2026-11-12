@@ -4,9 +4,20 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, CardHeader, StatCard, Spinner, Avatar, Badge, EmptyState, fmtDate, fmtTimeWithSeconds, toLocalDateString } from '../../components/ui';
 import { getAllMembers, getSalesTeam, getRequests, getTodayCheckIns, getSalesManagerRevenue } from '../../api/endpoints';
+import {
+  BarChart3,
+  Check,
+  FileText,
+  Package,
+  RefreshCw,
+  Timer,
+  Users,
+  X,
+} from 'lucide-react';
 
 const fmt = (n) => {
   const num = typeof n === 'number' ? n : Number(String(n ?? 0).replace(/,/g, ''));
@@ -130,7 +141,7 @@ export default function SalesDashboard() {
     }
   }, [isManager]);
 
-  useEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { load(); }, [load]);
 
   // Refetch when window regains focus (after navigating back)
   useEffect(() => {
@@ -281,11 +292,13 @@ export default function SalesDashboard() {
                     </div>
                     <div style={{ padding: 12, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                       {[
-                        { label: 'Targets', sub: 'Revenue tracking', to: '/sales/targets', icon: '📊', access: 'targets' },
-                        { label: 'Packages', sub: 'Manage plans', to: '/sales/packages', icon: '📦', access: 'packages' },
-                        { label: 'Task Assignment', sub: 'Distribute members', to: '/tasks', icon: '🔄', access: 'members' },
-                        { label: 'Staff Accounts', sub: 'Manage team access', to: '/sales/staff', icon: '👥', access: 'staff' },
-                      ].filter((c) => hasAccess(user, c.access)).map(c => (
+                        { label: 'Targets', sub: 'Revenue tracking', to: '/sales/targets', icon: BarChart3, access: 'targets' },
+                        { label: 'Packages', sub: 'Manage plans', to: '/sales/packages', icon: Package, access: 'packages' },
+                        { label: 'Task Assignment', sub: 'Distribute members', to: '/tasks', icon: RefreshCw, access: 'members' },
+                        { label: 'Staff Accounts', sub: 'Manage team access', to: '/sales/staff', icon: Users, access: 'staff' },
+                      ].filter((c) => hasAccess(user, c.access)).map(c => {
+                        const ShortcutIcon = c.icon;
+                        return (
                         <button key={c.to} onClick={() => navigate(c.to)}
                           style={{
                             background: 'var(--bg)',
@@ -317,16 +330,16 @@ export default function SalesDashboard() {
                             width: 36, height: 36, borderRadius: 8,
                             background: 'var(--card)', border: '1px solid var(--border)',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: 18, flexShrink: 0
+                            flexShrink: 0, color: 'var(--icon, var(--navy))',
                           }}>
-                            {c.icon}
+                            <ShortcutIcon size={18} aria-hidden />
                           </div>
                           <div style={{ minWidth: 0 }}>
                             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{c.label}</div>
                             <div style={{ fontSize: 11, color: 'var(--t4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.sub}</div>
                           </div>
                         </button>
-                      ))}
+                      );})}
                     </div>
                   </Card>
                 )}
@@ -350,9 +363,9 @@ export default function SalesDashboard() {
                           width: 36, height: 36, borderRadius: '50%',
                           background: 'var(--green-bg)', color: 'var(--green)',
                           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 16, marginBottom: 8, border: '1px solid var(--green-bd)'
+                          marginBottom: 8, border: '1px solid var(--green-bd)'
                         }}>
-                          ✓
+                          <Check size={18} strokeWidth={2.5} aria-hidden />
                         </div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>
                           All memberships in good standing
@@ -394,7 +407,7 @@ export default function SalesDashboard() {
                       </span>
                     </div>
                     {recentNotes.length === 0 ? (
-                      <EmptyState icon="📝" message="No recent notes" sub="Notes added to your members will appear here" />
+                      <EmptyState icon={FileText} message="No recent notes" sub="Notes added to your members will appear here" />
                     ) : (
                       <div style={{ maxHeight: 280, overflowY: 'auto' }}>
                         {recentNotes.slice(0, 8).map((note, i) => (
@@ -450,7 +463,9 @@ export default function SalesDashboard() {
                   </div>
                   {myCheckIns.length === 0 ? (
                     <div style={{ padding: '24px 16px', textAlign: 'center' }}>
-                      <div style={{ fontSize: 18, marginBottom: 4 }}>⏱️</div>
+                      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4, color: 'var(--t3)' }}>
+                        <Timer size={20} aria-hidden />
+                      </div>
                       <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)' }}>No check-ins recorded yet today</div>
                       <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>Activity will appear in real time as members arrive</div>
                     </div>
@@ -652,7 +667,7 @@ export default function SalesDashboard() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
               <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>Today's Check-Ins ({myCheckIns.length})</h2>
-              <button onClick={() => setShowActivity(false)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              <button type="button" onClick={() => setShowActivity(false)} aria-label="Close" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} aria-hidden /></button>
             </div>
             {myCheckIns.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center' }}>
@@ -705,7 +720,7 @@ export default function SalesDashboard() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
               <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>Today's Contracts ({todaySubscriptions.length})</h2>
-              <button onClick={() => setShowTodaySubs(false)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              <button type="button" onClick={() => setShowTodaySubs(false)} aria-label="Close" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} aria-hidden /></button>
             </div>
             {todaySubscriptions.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center' }}>

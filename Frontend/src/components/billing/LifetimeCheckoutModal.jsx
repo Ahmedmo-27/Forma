@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { getBillingPrices, checkoutLifetimeBilling, confirmLifetimeBilling } from '../../api/endpoints';
 import { Btn, Spinner } from '../ui';
+import { Check, X } from 'lucide-react';
 
 export default function LifetimeCheckoutModal({ isOpen, onClose, defaultPlanKey = 'gold', onSuccess }) {
   const [plans, setPlans] = useState([]);
@@ -108,15 +109,19 @@ export default function LifetimeCheckoutModal({ isOpen, onClose, defaultPlanKey 
           </div>
           <button
             onClick={onClose}
+            type="button"
+            aria-label="Close"
             style={{
               background: 'none',
               border: 'none',
-              fontSize: 22,
               cursor: 'pointer',
               color: '#9CA3AF',
+              display: 'flex',
+              alignItems: 'center',
+              padding: 4,
             }}
           >
-            ×
+            <X size={22} aria-hidden />
           </button>
         </div>
 
@@ -128,7 +133,9 @@ export default function LifetimeCheckoutModal({ isOpen, onClose, defaultPlanKey 
         ) : checkoutSession ? (
           <div style={{ padding: '16px 0' }}>
             <div style={{ background: '#ECFDF5', border: '1px solid #10B981', borderRadius: 10, padding: 16, marginBottom: 20 }}>
-              <div style={{ fontWeight: 700, color: '#065F46', fontSize: 15 }}>✓ Lifetime License Activated!</div>
+              <div style={{ fontWeight: 700, color: '#065F46', fontSize: 15, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Check size={18} aria-hidden /> Lifetime License Activated!
+              </div>
               <div style={{ fontSize: 13, color: '#047857', marginTop: 6 }}>
                 Payment Ref: <code style={{ fontWeight: 700 }}>{checkoutSession.paymentRef}</code>
               </div>

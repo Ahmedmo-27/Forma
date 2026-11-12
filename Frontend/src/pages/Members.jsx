@@ -4,11 +4,13 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import usePageTitle from '../hooks/usePageTitle';
 import useDebounce from '../hooks/useDebounce';
+import useLocationEffect from '../hooks/useLocationEffect';
 import Layout from '../components/Layout';
 import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, fmtDate, Pagination, PageSizeFilter, Spinner } from '../components/ui';
 import { getAllMembers, getSalesUsers, getCoachTeam, switchSalesRep, switchCoach } from '../api/endpoints';
 import AddMemberModal from '../components/AddMemberModal';
 import { formatSystemId } from '../lib/systemId';
+import { Zap } from 'lucide-react';
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
@@ -108,7 +110,7 @@ export default function Members() {
     finally { setLoading(false); }
   }, [page, pageSize, filter, debouncedSearch, sortNewest]);
 
-  useEffect(() => { fetchMembers(); }, [fetchMembers]);
+  useLocationEffect(() => { fetchMembers(); }, [fetchMembers]);
   useEffect(() => { setPage(1); }, [filter, debouncedSearch, sortNewest]);
 
   const handlePageSizeChange = (newSize, order) => {
@@ -293,7 +295,7 @@ export default function Members() {
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    {quickBusy ? <Spinner size="sm" /> : <><span>⚡</span> Quick Transfer</>}
+                    {quickBusy ? <Spinner size="sm" /> : <><Zap size={14} aria-hidden /> Quick Transfer</>}
                   </button>
                 </div>
               </form>

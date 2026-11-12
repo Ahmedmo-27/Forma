@@ -6,6 +6,7 @@ import { toWhatsAppUrl, WhatsAppBtn } from '../../../utils/whatsapp';
 import WhatsAppTemplateSendModal from '../../../components/WhatsAppTemplateSendModal';
 import { mapFieldErrors, focusFirstInvalidField } from '../../../lib/formErrors';
 import { isValidPhone, isDateInFuture } from '../../../lib/validation';
+import { useLocationScope } from '../../../context/LocationContext';
 
 const SOURCES = ['Social media', 'Walk in', 'Word of mouth', 'referral', 'sales call', 'data entry', 'others'];
 const EDIT_ROLES = ['Owner', 'Sales Manager', 'Receptionist', 'Sales', 'Accountant', 'General Manager'];
@@ -20,6 +21,7 @@ function toDateInput(value) {
 }
 
 export default function PersonalTab({ member, user, onRefresh }) {
+  const { multiEnabled, locations } = useLocationScope();
   const [showAssign, setShowAssign] = useState(false);
   const [showPhone, setShowPhone]   = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
@@ -59,12 +61,14 @@ export default function PersonalTab({ member, user, onRefresh }) {
   };
 
   const openEdit = () => {
+    const locId = member.locationId?._id || member.locationId || '';
     setEditForm({
       name: member.name || '',
       phones: canEditPhone ? member.phones : '',
       gender: member.gender || '',
       birthdate: toDateInput(member.birthdate),
       source: member.source || '',
+      locationId: locId ? String(locId) : '',
     });
     setEditErrors({});
     setShowEdit(true);
@@ -96,6 +100,7 @@ export default function PersonalTab({ member, user, onRefresh }) {
       source: editForm.source || null,
     };
     if (canEditPhone) payload.phones = editForm.phones.trim();
+    if (multiEnabled && editForm.locationId) payload.locationId = editForm.locationId;
 
     setSaving(true);
     try {
@@ -168,6 +173,16 @@ export default function PersonalTab({ member, user, onRefresh }) {
         <InfoRow label="Gender"            value={member.gender} />
         <InfoRow label="Birthdate"         value={fmtDate(member.birthdate)} />
         <InfoRow label="Source"            value={member.source} />
+        {multiEnabled && (
+          <InfoRow
+            label="Location"
+            value={
+              member.locationId?.name
+              || locations.find((l) => String(l._id) === String(member.locationId?._id || member.locationId))?.name
+              || '—'
+            }
+          />
+        )}
         <InfoRow label="System ID"         value={`#${member.systemId}`} />
         <InfoRow label="Member ID"         value={member.memberId ? `M${member.memberId}` : '—'} />
         <InfoRow label="Status"            value={<Badge status={member.status} />} />
@@ -205,6 +220,13 @@ export default function PersonalTab({ member, user, onRefresh }) {
               <option value="">— Select —</option>
               {SOURCES.map((source) => <option key={source} value={source}>{source}</option>)}
             </Select>
+            {multiEnabled && locations.length > 0 && (
+              <Select label="Location" value={editForm.locationId || ''} onChange={(e) => setEdit('locationId', e.target.value)}>
+                {locations.map((loc) => (
+                  <option key={loc._id} value={loc._id}>{loc.name}</option>
+                ))}
+              </Select>
+            )}
           </div>
         )}
       </Modal>

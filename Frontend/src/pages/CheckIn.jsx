@@ -11,7 +11,25 @@ import QrCheckInCamera from '../components/QrCheckInCamera';
 import CheckInScanner from '../components/CheckInScanner';
 import { parseScannedIdentifier } from '../lib/scannerParser';
 import useHardwareScanner from '../hooks/useHardwareScanner';
+import useLocationEffect from '../hooks/useLocationEffect';
 import { playCheckInSound } from '../lib/audioFeedback';
+import {
+  AlertTriangle,
+  Ban,
+  Bell,
+  Camera,
+  Check,
+  CheckCircle2,
+  Package,
+  Phone,
+  RefreshCw,
+  Search,
+  Snowflake,
+  Ticket,
+  User,
+  X,
+  XCircle,
+} from 'lucide-react';
 
 // ── small stat pill ───────────────────────────────────────────────────────────
 function StatPill({ label, value, color = 'var(--t1)' }) {
@@ -106,7 +124,7 @@ export default function CheckIn() {
   const announce = useCallback((key, message, icon) => {
     if (!key || !message || seenRef.current.has(key)) return;
     seenRef.current.add(key);
-    toast(message, { icon: icon || '🔔' });
+    toast(message, { icon: icon ?? <Bell size={16} /> });
   }, []);
 
   const applyHistory = useCallback((next, { notify }) => {
@@ -123,7 +141,7 @@ export default function CheckIn() {
         const id = String(entry._id);
         const systemId = String(entry.member?.systemId ?? '');
         if (!known.has(id)) {
-          announce(`in:${id}`, `${entry.member?.name || 'A member'} checked in`, '✅');
+          announce(`in:${id}`, `${entry.member?.name || 'A member'} checked in`, <CheckCircle2 size={16} />);
           arrived.push(id);
           return;
         }
@@ -133,7 +151,7 @@ export default function CheckIn() {
           announce(
             `status:${systemId}:${entry.member?.status}`,
             `${entry.member?.name || 'A member'} is now ${entry.member?.status}`,
-            '🔄',
+            <RefreshCw size={16} />,
           );
         }
         const beforePkg = before.member?.package?.name || '';
@@ -142,7 +160,7 @@ export default function CheckIn() {
           announce(
             `pkg:${systemId}:${nextPkg}`,
             `${entry.member?.name || 'A member'}'s package is now ${nextPkg || 'none'}`,
-            '📦',
+            <Package size={16} />,
           );
         }
       });
@@ -191,22 +209,22 @@ export default function CheckIn() {
     }
   }, [refreshBoard]);
 
-  useEffect(() => { loadHistory(); }, [loadHistory]);
+  useLocationEffect(() => { loadHistory(); }, [loadHistory]);
   useEffect(() => { memberRef.current = member; }, [member]);
 
   useEffect(() => {
     const stop = subscribeLiveEvents((event) => {
       if (!event || event.type === 'ready') return;
       if (event.type === 'check-in' && event.checkInId) {
-        announce(`in:${event.checkInId}`, event.message, '✅');
+        announce(`in:${event.checkInId}`, event.message, <CheckCircle2 size={16} />);
       } else if (event.type === 'member') {
         announce(
           `status:${event.systemId}:${event.status}:${event.packageName || ''}`,
           event.message,
-          '🔄',
+          <RefreshCw size={16} />,
         );
       } else if (event.type === 'package') {
-        announce(`catalog:${event.packageId}:${event.packageName}`, event.message, '📦');
+        announce(`catalog:${event.packageId}:${event.packageName}`, event.message, <Package size={16} />);
       }
       refreshBoard({
         notify: false,
@@ -366,7 +384,7 @@ export default function CheckIn() {
                     width: 36, height: 36, borderRadius: 10, flexShrink: 0,
                     background: 'color-mix(in srgb, var(--navy) 10%, transparent)',
                     display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
-                  }}>✅</div>
+                  }}><CheckCircle2 size={20} color="var(--navy)" aria-hidden /></div>
                   <div>
                     <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--t1)', margin: 0, letterSpacing: '-0.3px' }}>Check In</h1>
                     <p style={{ fontSize: 12, color: 'var(--t4)', margin: '2px 0 0' }}>{today}</p>
@@ -406,7 +424,7 @@ export default function CheckIn() {
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <span>📷</span>
+                    <Camera size={16} aria-hidden />
                     <span>Scanner</span>
                     <span style={{
                       fontSize: 9,
@@ -446,7 +464,7 @@ export default function CheckIn() {
                       transition: 'all 0.15s ease',
                     }}
                   >
-                    <span>🔍</span>
+                    <Search size={16} aria-hidden />
                     <span>Manual Search</span>
                   </button>
                 </div>
@@ -507,16 +525,16 @@ export default function CheckIn() {
                             opacity: !query.trim() ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6,
                             transition: 'opacity 0.15s',
                           }}>
-                            {searching ? <Spinner size="sm" /> : 'Search'}
+                            {searching ? <Spinner size="sm" /> : <><Search size={15} aria-hidden /> Search</>}
                           </button>
                           <button type="button" onClick={() => setActiveTab('scanner')} style={{
                             padding: '0 14px', minHeight: 44, borderRadius: 10, fontFamily: 'inherit',
                             background: 'var(--bg)', color: 'var(--t1)',
                             border: '1.5px solid var(--border)',
                             fontSize: 13, fontWeight: 700, cursor: 'pointer',
-                            whiteSpace: 'nowrap',
+                            whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6,
                           }}>
-                            📷 Open Camera
+                            <Camera size={15} aria-hidden /> Open Camera
                           </button>
                         </div>
                       </form>
@@ -575,7 +593,9 @@ export default function CheckIn() {
                         )}
                       </div>
                       {member.phones && (
-                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 4 }}>📞 {member.phones}</div>
+                        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Phone size={12} aria-hidden /> {member.phones}
+                        </div>
                       )}
                     </div>
                   </div>
@@ -595,7 +615,9 @@ export default function CheckIn() {
                           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{fmtDate(sub?.endDate)}</div>
                           {expiryDays !== null && (
                             <div style={{ fontSize: 11, fontWeight: 600, color: expiryDays < 0 ? 'var(--red)' : expiryDays <= 7 ? 'var(--amber)' : 'var(--green)' }}>
-                              {expiryDays < 0 ? 'Expired' : expiryDays <= 7 ? `⚠ ${expiryDays}d left` : `${expiryDays}d remaining`}
+                              {expiryDays < 0 ? 'Expired' : expiryDays <= 7 ? (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12} aria-hidden /> {expiryDays}d left</span>
+                              ) : `${expiryDays}d remaining`}
                             </div>
                           )}
                         </div>
@@ -614,7 +636,7 @@ export default function CheckIn() {
                     {/* Blocked banner */}
                     {member.isBlocked && (
                       <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--red-bg)', border: '1px solid var(--red-bd)', borderLeft: '4px solid var(--red)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <span style={{ fontSize: 18 }}>🚫</span>
+                        <Ban size={20} color="var(--red)" aria-hidden />
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)' }}>Member is Blocked</div>
                           {member.blockedReason && <div style={{ fontSize: 11, color: 'var(--red)', opacity: 0.8, marginTop: 1 }}>Reason: {member.blockedReason}</div>}
@@ -630,7 +652,10 @@ export default function CheckIn() {
                         color: result.ok ? 'var(--green)' : 'var(--red)',
                         border: `1px solid ${result.ok ? 'var(--green-bd)' : 'var(--red-bd)'}`,
                       }}>
-                        {result.ok ? '✓ ' : '✗ '}{result.msg}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
+                          {result.ok ? <Check size={16} aria-hidden /> : <XCircle size={16} aria-hidden />}
+                          {result.msg}
+                        </span>
                       </div>
                     )}
 
@@ -682,18 +707,19 @@ export default function CheckIn() {
                     {/* Quick nav buttons */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
                       {[
-                        { label: '👤 Profile',   to: `/members/${member.systemId}` },
-                        { label: '🧊 Freeze',    to: `/members/${member.systemId}?tab=freeze` },
-                        { label: '🎟️ Invitations', to: `/members/${member.systemId}?tab=invitations` },
-                      ].map(({ label, to }) => (
+                        { label: 'Profile', Icon: User, to: `/members/${member.systemId}` },
+                        { label: 'Freeze', Icon: Snowflake, to: `/members/${member.systemId}?tab=freeze` },
+                        { label: 'Invitations', Icon: Ticket, to: `/members/${member.systemId}?tab=invitations` },
+                      ].map(({ label, Icon, to }) => (
                         <button key={to} onClick={() => navigate(to)} style={{
                           padding: '9px 6px', borderRadius: 8, border: '1px solid var(--border)',
                           background: 'var(--bg)', color: 'var(--t2)', fontSize: 11, fontWeight: 600,
                           cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s', textAlign: 'center',
+                          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4,
                         }}
                           onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--navy)'; e.currentTarget.style.color = 'var(--navy)'; e.currentTarget.style.background = 'color-mix(in srgb, var(--navy) 5%, transparent)'; }}
                           onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--t2)'; e.currentTarget.style.background = 'var(--bg)'; }}
-                        >{label}</button>
+                        ><Icon size={14} aria-hidden /><span>{label}</span></button>
                       ))}
                     </div>
                   </div>
@@ -736,7 +762,7 @@ export default function CheckIn() {
                 {histLoad ? (
                   <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
                 ) : history.length === 0 ? (
-                  <EmptyState icon="✅" message="No check-ins yet today" sub="Search for a member above to check them in" />
+                  <EmptyState icon={CheckCircle2} message="No check-ins yet today" sub="Search for a member above to check them in" />
                 ) : (
                   paginatedHistory.map((entry, i) => {
                     const globalIndex = (page - 1) * pageSize + i;
@@ -837,7 +863,9 @@ export default function CheckIn() {
             borderRadius: 20, padding: '40px 48px', maxWidth: 480, width: '100%',
             textAlign: 'center', boxShadow: '0 32px 80px rgba(0,0,0,0.25)',
           }}>
-            <div style={{ fontSize: 56, marginBottom: 16 }}>⚠️</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, color: '#92400e' }}>
+              <AlertTriangle size={56} strokeWidth={1.5} aria-hidden />
+            </div>
             <h2 style={{ fontSize: 22, fontWeight: 900, color: '#92400e', marginBottom: 16, letterSpacing: '-0.3px' }}>Member Alert</h2>
             {alertPopup.map((text, i) => (
               <p key={i} style={{ fontSize: 16, fontWeight: 600, color: '#78350f', lineHeight: 1.6, marginBottom: 8 }}>{text}</p>

@@ -5,7 +5,9 @@ import Layout from '../../components/Layout';
 import { PageHeader, Card, Spinner, EmptyState, Badge, Avatar, fmtDate, Btn, SearchInput, toLocalDateString, parseDateBoundary, formatSystemId } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import { getAllMembers, getSalesUsers } from '../../api/endpoints';
+import { Download, X } from 'lucide-react';
 
 const PAGE_SIZE = 25;
 const TODAY = toLocalDateString();
@@ -62,7 +64,7 @@ export default function ImportedMembers() {
     }
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useLocationEffect(() => { fetchAll(); }, [fetchAll]);
 
   useEffect(() => {
     getSalesUsers()
@@ -169,7 +171,7 @@ export default function ImportedMembers() {
             {hasFilters && (
               <div style={{ paddingBottom: 2 }}>
                 <Btn variant="ghost" size="sm" onClick={() => { setSearch(''); setSalesMan('all'); setStatus('all'); setDateFrom(''); setDateTo(''); }}>
-                  ✕ Clear
+                  <X size={14} aria-hidden /> Clear
                 </Btn>
               </div>
             )}
@@ -197,7 +199,7 @@ export default function ImportedMembers() {
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
           ) : filtered.length === 0 ? (
-            <EmptyState icon="📥" message="No imported members found"
+            <EmptyState icon={Download} message="No imported members found"
               sub={hasFilters ? 'Try adjusting your filters.' : 'Import an Excel file to add members.'} />
           ) : (
             <>

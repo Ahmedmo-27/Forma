@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, Children, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { Inbox, X } from 'lucide-react';
 import { fetchProtectedUploadBlobUrl } from '../api/axios';
 
 // ── Spinner ───────────────────────────────────────────────────────────────────
@@ -678,7 +679,7 @@ export function Modal({ open = true, onClose, title, children, footer, size = 'm
             aria-label="Close dialog"
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = 'var(--red)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--t3)'; }}
-          >✕</button>
+          ><X size={14} strokeWidth={2.5} /></button>
         </div>
         <div style={{ padding: '18px 20px', flex: 1, overflowY: 'auto' }}>{children}</div>
         {footer && (
@@ -832,10 +833,16 @@ export function PageHeader({ title, children, walkthrough }) {
 }
 
 // ── Empty State ───────────────────────────────────────────────────────────────
-export function EmptyState({ icon = '—', message = 'No data', sub }) {
+export function EmptyState({ icon: Icon = Inbox, message = 'No data', sub }) {
   return (
     <div style={{ padding: '56px 24px', textAlign: 'center' }}>
-      <p style={{ fontSize: 40, opacity: 0.2, marginBottom: 10 }}>{icon}</p>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10, opacity: 0.45, color: 'var(--icon, var(--navy))' }}>
+        {typeof Icon === 'string' ? (
+          <span style={{ fontSize: 40, lineHeight: 1 }}>{Icon}</span>
+        ) : Icon ? (
+          <Icon size={40} strokeWidth={1.5} aria-hidden="true" />
+        ) : null}
+      </div>
       <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{message}</p>
       {sub && <p style={{ fontSize: 13, color: 'var(--t4)' }}>{sub}</p>}
     </div>

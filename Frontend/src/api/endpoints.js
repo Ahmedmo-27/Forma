@@ -67,9 +67,14 @@ export const getUserById = (id) => api.get(`/users/${id}`);
 export const searchAccessUsers = (q) => api.get('/users/access/search', { params: { q } });
 export const listAccessUsersByRole = (role) => api.get('/users/access/search', { params: { role } });
 export const getUserAccess = (id) => api.get(`/users/${id}/access`);
-export const updateUserAccess = (id, features) => api.put(`/users/${id}/access`, { features });
+export const updateUserAccess = (id, features, locationGrants = {}) =>
+  api.put(`/users/${id}/access`, { features, ...locationGrants });
 export const updateUserAreaAccess = (id, add, remove) => api.patch(`/users/${id}/access`, { add, remove });
-export const updateRoleAccess = (role, areas) => api.put(`/tenant/access/${encodeURIComponent(role)}`, { areas });
+export const updateRoleAccess = (role, areas, locationIds) =>
+  api.put(`/tenant/access/${encodeURIComponent(role)}`, {
+    areas,
+    ...(Array.isArray(locationIds) ? { locationIds } : {}),
+  });
 export const createStaffUser = (data) => api.post('/users/staff', data);
 
 // ── Notifications ─────────────────────────────────────────────────────────────
@@ -190,6 +195,12 @@ export const getTenantMe = () => api.get('/tenant/me', {
 export const updateTenantMe = (data) => api.patch('/tenant/me', data);
 export const uploadTenantLogo = (formData) =>
   api.post('/tenant/me/logo', formData);
+
+// ── Locations / branches ──────────────────────────────────────────────────────
+export const listLocations = () => api.get('/locations');
+export const createLocation = (data) => api.post('/locations', data);
+export const updateLocation = (id, data) => api.patch(`/locations/${id}`, data);
+export const deleteLocation = (id) => api.delete(`/locations/${id}`);
 
 // ── Multi-Tenant Billing & Lifetime ───────────────────────────────────────────
 export const getBillingPrices = () => api.get('/tenant/billing/prices');

@@ -5,6 +5,7 @@ import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, CardHeader, Table, Badge, Btn, Spinner, EmptyState, SearchInput, Avatar, Modal, Select, formatSystemId } from '../../components/ui';
 import { getAllMembers, getCoachTeam, switchCoach, assignCoach, bulkTransferCoach } from '../../api/endpoints';
+import { RefreshCw } from 'lucide-react';
 
 const PAGE_SIZE = 25;
 
@@ -208,7 +209,7 @@ export default function CoachTransfer() {
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
           ) : filtered.length === 0 ? (
-            <EmptyState icon="🔄" message="No members match" />
+            <EmptyState icon={RefreshCw} message="No members match" />
           ) : (
             <>
               <Table headers={['', 'ID', 'Name', 'Coach', 'PT Status', 'Sessions Left', '']}>

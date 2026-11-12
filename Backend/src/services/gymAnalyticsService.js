@@ -498,12 +498,16 @@ function memberModel() {
 
 const MEMBER_FIELDS = "name systemId memberId status source createdAt isMember subscriptions freeze";
 
-async function loadMembers() {
-    return memberModel().find().select(MEMBER_FIELDS).lean();
+async function loadMembers(locationFilter = {}) {
+    return memberModel().find(locationFilter || {}).select(MEMBER_FIELDS).lean();
 }
 
-async function countCheckIns(from, to) {
-    const rows = await memberModel().aggregate([
+async function countCheckIns(from, to, locationFilter = {}) {
+    const pipeline = [];
+    if (locationFilter && Object.keys(locationFilter).length) {
+        pipeline.push({ $match: locationFilter });
+    }
+    pipeline.push(
         {
             $project: {
                 checkIns: {
@@ -523,13 +527,18 @@ async function countCheckIns(from, to) {
         },
         { $project: { n: { $size: "$checkIns" } } },
         { $group: { _id: null, total: { $sum: "$n" } } },
-    ]);
+    );
+    const rows = await memberModel().aggregate(pipeline);
     return rows[0]?.total || 0;
 }
 
-async function loadAttendanceBuckets(from, to, timeZone) {
+async function loadAttendanceBuckets(from, to, timeZone, locationFilter = {}) {
     const timezone = serverTimezone(timeZone);
-    const rows = await memberModel().aggregate([
+    const pipeline = [];
+    if (locationFilter && Object.keys(locationFilter).length) {
+        pipeline.push({ $match: locationFilter });
+    }
+    pipeline.push(
         {
             $project: {
                 checkIns: {
@@ -582,7 +591,8 @@ async function loadAttendanceBuckets(from, to, timeZone) {
                 ],
             },
         },
-    ]);
+    );
+    const rows = await memberModel().aggregate(pipeline);
     return rows[0] || { cells: [], days: [] };
 }
 
@@ -616,33 +626,33 @@ function attendanceFromBuckets(buckets, from, to, weeks, timeZone) {
     };
 }
 
-async function getChurn({ months = 12 } = {}) {
-    const members = await loadMembers();
+async function getChurn({ months = 12, locationFilter = {} } = {}) {
+    const members = await loadMembers(locationFilter);
     return buildChurn(members, new Date(), months);
 }
 
-async function getForecast({ currency = "EGP" } = {}) {
-    const members = await loadMembers();
+async function getForecast({ currency = "EGP", locationFilter = {} } = {}) {
+    const members = await loadMembers(locationFilter);
     return buildForecast(members, new Date(), { currency });
 }
 
-async function getCohorts({ months = 12 } = {}) {
-    const members = await loadMembers();
+async function getCohorts({ months = 12, locationFilter = {} } = {}) {
+    const members = await loadMembers(locationFilter);
     return buildCohorts(members, new Date(), months);
 }
 
-async function getAttendance({ weeks = 8, timeZone } = {}) {
+async function getAttendance({ weeks = 8, timeZone, locationFilter = {} } = {}) {
     const now = new Date();
     const from = startOfDay(now);
     from.setDate(from.getDate() - weeks * 7);
     const to = endOfDay(now);
-    const buckets = await loadAttendanceBuckets(from, to, timeZone);
+    const buckets = await loadAttendanceBuckets(from, to, timeZone, locationFilter);
     return attendanceFromBuckets(buckets, from, to, weeks, timeZone);
 }
 
-async function getFunnel({ from, to, includeImported = false, currency = "EGP" } = {}) {
+async function getFunnel({ from, to, includeImported = false, currency = "EGP", locationFilter = {} } = {}) {
     const now = new Date();
-    const members = await loadMembers();
+    const members = await loadMembers(locationFilter);
     return buildFunnel(members, {
         from: from || startOfMonth(now),
         to: to || endOfDay(now),
@@ -651,10 +661,10 @@ async function getFunnel({ from, to, includeImported = false, currency = "EGP" }
     });
 }
 
-async function getExecutive({ currency = "EGP" } = {}) {
+async function getExecutive({ currency = "EGP", locationFilter = {} } = {}) {
     const now = new Date();
-    const members = await loadMembers();
-    const checkInsThisWeek = await countCheckIns(startOfWeekMonday(now), endOfDay(now));
+    const members = await loadMembers(locationFilter);
+    const checkInsThisWeek = await countCheckIns(startOfWeekMonday(now), endOfDay(now), locationFilter);
     return buildExecutive(members, checkInsThisWeek, now, { currency });
 }
 

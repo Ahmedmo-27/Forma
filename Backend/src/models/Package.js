@@ -83,7 +83,18 @@ const packageSchema = new mongoose.Schema({
     free_pt_sessions: {
         type: Number,
         default: 0
-    }
+    },
+
+    // Branch eligibility: all locations, or only the listed ones (one or many)
+    locationScope: {
+        type: String,
+        enum: ["all", "branches"],
+        default: "all",
+    },
+    eligibleLocationIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Location",
+    }],
 
 },
     { timestamps: true }
@@ -92,6 +103,7 @@ const packageSchema = new mongoose.Schema({
 packageSchema.plugin(tenantPlugin);
 packageSchema.index({ tenantId: 1, name: 1, hasException: 1 });
 packageSchema.index({ tenantId: 1, isActive: 1 });
+packageSchema.index({ tenantId: 1, isActive: 1, locationScope: 1 });
 
 try {
     module.exports = mongoose.model("Package");

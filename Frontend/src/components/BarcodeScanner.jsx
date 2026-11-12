@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { ScanBarcode } from 'lucide-react';
 
 /**
  * USB Barcode Scanner support.
@@ -29,7 +30,7 @@ export default function BarcodeScanner({ inputRef }) {
       border: '1px solid var(--border)',
       borderRadius: 8,
     }}>
-      <span style={{ fontSize: 20 }}>🔫</span>
+      <ScanBarcode size={22} color="var(--navy)" aria-hidden />
       <div>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>
           Barcode Scanner Ready

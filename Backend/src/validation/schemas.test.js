@@ -89,6 +89,7 @@ describe("tenantSettingsSchema", () => {
                     accent: "#abcdef",
                     background: "#f0f0f0",
                     text: "#111111",
+                    icon: "#445566",
                 },
             },
             locale: {

@@ -1,4 +1,16 @@
 import { useNavigate } from 'react-router-dom';
+import {
+  Calendar,
+  ClipboardList,
+  Download,
+  Flame,
+  Magnet,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  Users,
+  Wallet,
+} from 'lucide-react';
 import Layout from '../components/Layout';
 import { PageHeader } from '../components/ui';
 import usePageTitle from '../hooks/usePageTitle';
@@ -9,7 +21,7 @@ import { useTenant } from '../context/TenantContext';
 const ANALYTICS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Accountant'];
 
 // ── Card ──────────────────────────────────────────────────────────────────────
-function ReportCard({ icon, title, sub, to, iconBg = '#FEF2F2' }) {
+function ReportCard({ icon: Icon, title, sub, to, iconBg = '#FEF2F2' }) {
   const navigate = useNavigate();
   return (
     <div
@@ -25,8 +37,8 @@ function ReportCard({ icon, title, sub, to, iconBg = '#FEF2F2' }) {
       onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--navy)'; e.currentTarget.style.boxShadow = '0 4px 16px color-mix(in srgb, var(--navy) 12%, transparent)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.05)'; e.currentTarget.style.transform = 'none'; }}
     >
-      <div style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22 }}>
-        {icon}
+      <div style={{ width: 44, height: 44, borderRadius: 10, flexShrink: 0, background: iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--icon, var(--navy))' }}>
+        {Icon ? <Icon size={22} strokeWidth={1.75} aria-hidden="true" /> : null}
       </div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{title}</p>
@@ -70,40 +82,40 @@ export default function Reports() {
         {canSeeAnalytics && (hasFeature('business_intelligence') || hasFeature('exec_analytics') || hasFeature('funnels')) && (
           <ReportSection title="Platinum" sub="Whole-gym figures from members, subscriptions, and check-ins">
             {hasFeature('business_intelligence') && (
-              <ReportCard icon="📈" title="Executive Summary" sub="Active members, churn, forecast, and conversion" to="/reports/executive" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
+              <ReportCard icon={TrendingUp} title="Executive Summary" sub="Active members, churn, forecast, and conversion" to="/reports/executive" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
             )}
             {hasFeature('exec_analytics') && (
               <>
-                <ReportCard icon="📉" title="Churn" sub="Lapses, reactivations, and expiring coverage" to="/reports/churn" iconBg="#FEF2F2" />
-                <ReportCard icon="💰" title="Revenue Forecast" sub="Collected revenue and a three-month average" to="/reports/forecast" iconBg="#F0FFF4" />
-                <ReportCard icon="🗓️" title="Retention Cohorts" sub="Share of each joining month still covered" to="/reports/cohorts" iconBg="#F0FFF4" />
-                <ReportCard icon="🔥" title="Attendance" sub="Check-ins by weekday and hour" to="/reports/attendance" iconBg="#FEF2F2" />
+                <ReportCard icon={TrendingDown} title="Churn" sub="Lapses, reactivations, and expiring coverage" to="/reports/churn" iconBg="#FEF2F2" />
+                <ReportCard icon={Wallet} title="Revenue Forecast" sub="Collected revenue and a three-month average" to="/reports/forecast" iconBg="#F0FFF4" />
+                <ReportCard icon={Calendar} title="Retention Cohorts" sub="Share of each joining month still covered" to="/reports/cohorts" iconBg="#F0FFF4" />
+                <ReportCard icon={Flame} title="Attendance" sub="Check-ins by weekday and hour" to="/reports/attendance" iconBg="#FEF2F2" />
               </>
             )}
             {hasFeature('funnels') && (
-              <ReportCard icon="🧲" title="Conversion Funnel" sub="Lead to member, drop-off, and revenue by source" to="/reports/funnel" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
+              <ReportCard icon={Magnet} title="Conversion Funnel" sub="Lead to member, drop-off, and revenue by source" to="/reports/funnel" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
             )}
           </ReportSection>
         )}
         {hasAccess(user, 'reports') && (
           <ReportSection title="Members" sub="Member status and activity">
-            <ReportCard icon="👥" title="Guest Members"   sub="Guest member list"            to="/reports/guests"  iconBg="#FEF2F2" />
-            <ReportCard icon="📅" title="Members" sub="Member records"                       to="/reports/expired" iconBg="#FEF2F2" />
+            <ReportCard icon={Users} title="Guest Members"   sub="Guest member list"            to="/reports/guests"  iconBg="#FEF2F2" />
+            <ReportCard icon={Calendar} title="Members" sub="Member records"                       to="/reports/expired" iconBg="#FEF2F2" />
           </ReportSection>
         )}
 
         {/* ── Revenue & Performance ───────────────────────────── */}
         {hasAccess(user, 'targets') && (
           <ReportSection title="Revenue & Performance" sub="Targets and financial reports">
-            <ReportCard icon="🎯" title="Targets"       sub="Revenue targets & performance" to="/sales/targets"   iconBg="#F0FFF4" />
+            <ReportCard icon={Target} title="Targets"       sub="Revenue targets & performance" to="/sales/targets"   iconBg="#F0FFF4" />
           </ReportSection>
         )}
 
         {/* ── Data — Sales Manager & Owner only ───────────────── */}
         {isDataManager && hasAccess(user, 'import_members') && (
           <ReportSection title="Data" sub="Import and manage bulk data">
-            <ReportCard icon="📥" title="Import Members"   sub="Upload Excel sheet of names & numbers"  to="/sales/import"     iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
-            <ReportCard icon="📋" title="Imported Members" sub="View all members added via Excel import" to="/reports/imported" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
+            <ReportCard icon={Download} title="Import Members"   sub="Upload Excel sheet of names & numbers"  to="/sales/import"     iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
+            <ReportCard icon={ClipboardList} title="Imported Members" sub="View all members added via Excel import" to="/reports/imported" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
           </ReportSection>
         )}
 

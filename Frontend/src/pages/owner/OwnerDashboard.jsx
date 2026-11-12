@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { hasAccess } from '../../lib/access';
 import { useTenant } from '../../context/TenantContext';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, CardHeader, StatCard, Spinner,
@@ -21,6 +22,22 @@ import {
   getContracts,
   getReceptionistTeam,
 } from '../../api/endpoints';
+import {
+  Bell,
+  Briefcase,
+  CheckCircle2,
+  ClipboardList,
+  Dumbbell,
+  LayoutDashboard,
+  Monitor,
+  Package,
+  RefreshCw,
+  Shield,
+  TrendingUp,
+  Users,
+  Wallet,
+  X,
+} from 'lucide-react';
 
 const fmt = (n) => Number(n ?? 0).toLocaleString();
 
@@ -87,7 +104,7 @@ export default function OwnerDashboard() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { load(); }, [load]);
 
   // derived stats
   const activeMembers  = members.filter(m => m.status === 'active').length;
@@ -160,7 +177,7 @@ export default function OwnerDashboard() {
                   )}
                 </div>
                 {expiringSoon.length === 0 ? (
-                  <EmptyState icon="✓" message="No members expiring this week" />
+                  <EmptyState icon={CheckCircle2} message="No members expiring this week" />
                 ) : (
                   <div style={{ maxHeight: 300, overflowY: 'auto' }}>
                     {expiringSoon.slice(0, 10).map(m => {
@@ -230,20 +247,22 @@ export default function OwnerDashboard() {
                 </CardHeader>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {[
-                    { label: 'Sales Reps',    count: salesReps.length,        icon: '💼', route: '/owner/teams' },
-                    { label: 'Coaches',       count: coachTeam.length,        icon: '🏋️', route: '/owner/teams' },
-                    { label: 'Receptionists', count: receptionists.length,    icon: '🖥️', route: '/owner/teams' },
-                  ].map(t => (
+                    { label: 'Sales Reps',    count: salesReps.length,        icon: Briefcase, route: '/owner/teams' },
+                    { label: 'Coaches',       count: coachTeam.length,        icon: Dumbbell, route: '/owner/teams' },
+                    { label: 'Receptionists', count: receptionists.length,    icon: Monitor, route: '/owner/teams' },
+                  ].map(t => {
+                    const TeamIcon = t.icon;
+                    return (
                     <div key={t.label} onClick={hasAccess(user, 'teams_overview') ? () => navigate(t.route) : undefined}
                       style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'var(--bg)', borderRadius: 6, border: '1px solid var(--border)', cursor: hasAccess(user, 'teams_overview') ? 'pointer' : 'default' }}
                       onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--navy)'}
                       onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
                     >
-                      <span style={{ fontSize: 20 }}>{t.icon}</span>
+                      <span style={{ display: 'flex', color: 'var(--icon, var(--navy))' }}><TeamIcon size={20} aria-hidden /></span>
                       <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{t.label}</span>
                       <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--navy)' }}>{t.count}</span>
                     </div>
-                  ))}
+                  );})}
                 </div>
               </Card>
 
@@ -252,17 +271,19 @@ export default function OwnerDashboard() {
                 <CardHeader title="Quick Links" />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   {[
-                    ...(hasFeature('business_intelligence') && hasAccess(user, ['reports', 'owner_dashboard']) ? [{ label: 'Executive Summary', icon: '📈', to: '/reports/executive', accent: 'var(--navy)' }] : []),
-                    { label: 'All Members',       icon: '👥', to: '/members',                      accent: 'var(--navy)', access: 'members' },
-                    { label: 'Sales Dashboard',   icon: '📊', to: '/sales/dashboard',              accent: 'var(--blue)', access: 'sales_dashboard' },
-                    { label: 'Packages',          icon: '📦', to: '/sales/packages',               accent: 'var(--green)', access: 'packages' },
-                    { label: 'Transfer',          icon: '🔄', to: '/tasks',                        accent: 'var(--amber)', access: 'members' },
-                    { label: 'Contracts',         icon: '📋', to: '/accounting/contract-history',  accent: 'var(--sky)', access: 'contracts' },
-                    { label: 'Revenue',           icon: '💰', to: '/sales/targets',                accent: 'var(--green)', access: 'targets' },
-                    { label: 'Pkg Requests',      icon: '🔔', to: '/accounting/package-requests',  accent: 'var(--amber)', access: 'package_approvals' },
-                    { label: 'Check-In',          icon: '✅', to: '/checkin',                       accent: 'var(--green)', access: 'check_in' },
-                    { label: 'Role Access',       icon: '🛡️', to: '/owner/access',                 accent: 'var(--navy)', access: 'access_control' },
-                  ].filter((q) => hasAccess(user, q.access)).map(q => (
+                    ...(hasFeature('business_intelligence') && hasAccess(user, ['reports', 'owner_dashboard']) ? [{ label: 'Executive Summary', icon: TrendingUp, to: '/reports/executive', accent: 'var(--navy)' }] : []),
+                    { label: 'All Members',       icon: Users, to: '/members',                      accent: 'var(--navy)', access: 'members' },
+                    { label: 'Sales Dashboard',   icon: LayoutDashboard, to: '/sales/dashboard',              accent: 'var(--blue)', access: 'sales_dashboard' },
+                    { label: 'Packages',          icon: Package, to: '/sales/packages',               accent: 'var(--green)', access: 'packages' },
+                    { label: 'Transfer',          icon: RefreshCw, to: '/tasks',                        accent: 'var(--amber)', access: 'members' },
+                    { label: 'Contracts',         icon: ClipboardList, to: '/accounting/contract-history',  accent: 'var(--sky)', access: 'contracts' },
+                    { label: 'Revenue',           icon: Wallet, to: '/sales/targets',                accent: 'var(--green)', access: 'targets' },
+                    { label: 'Pkg Requests',      icon: Bell, to: '/accounting/package-requests',  accent: 'var(--amber)', access: 'package_approvals' },
+                    { label: 'Check-In',          icon: CheckCircle2, to: '/checkin',                       accent: 'var(--green)', access: 'check_in' },
+                    { label: 'Role Access',       icon: Shield, to: '/owner/access',                 accent: 'var(--navy)', access: 'access_control' },
+                  ].filter((q) => hasAccess(user, q.access)).map(q => {
+                    const LinkIcon = q.icon;
+                    return (
                     <button key={q.to} onClick={() => navigate(q.to)} style={{
                       background: 'var(--bg)', border: '1px solid var(--border)',
                       borderLeft: `3px solid ${q.accent}`, borderRadius: 7,
@@ -272,10 +293,10 @@ export default function OwnerDashboard() {
                       onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 8px rgba(15,23,42,0.08)'}
                       onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
                     >
-                      <div style={{ fontSize: 18, marginBottom: 4 }}>{q.icon}</div>
+                      <div style={{ marginBottom: 4, color: 'var(--icon, var(--navy))' }}><LinkIcon size={18} aria-hidden /></div>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t1)' }}>{q.label}</div>
                     </button>
-                  ))}
+                  );})}
                 </div>
               </Card>
             </div>
@@ -297,7 +318,7 @@ export default function OwnerDashboard() {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
               <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>Today's Check-Ins ({checkIns.length})</h2>
-              <button onClick={() => setShowActivity(false)} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+              <button type="button" onClick={() => setShowActivity(false)} aria-label="Close" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} aria-hidden /></button>
             </div>
             {checkIns.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center' }}>

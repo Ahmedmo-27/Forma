@@ -13,6 +13,7 @@ import {
 import {
   toLocalDateString, taskPermissions,
 } from './taskMembers';
+import { ArrowRight, Search, X } from 'lucide-react';
 
 export default function TaskFilterPage() {
   usePageTitle('Filter Members');
@@ -199,7 +200,7 @@ export default function TaskFilterPage() {
                         position: 'absolute', right: 10, background: 'none',
                         border: 'none', color: 'var(--t4)', cursor: 'pointer', padding: 4, fontSize: 14,
                       }}
-                    >✕</button>
+                    ><X size={14} aria-hidden /></button>
                   )}
                 </div>
               </div>
@@ -372,14 +373,14 @@ export default function TaskFilterPage() {
                     boxShadow: '0 2px 10px color-mix(in srgb, var(--navy) 30%, transparent)',
                   }}
                 >
-                  <span>🔍 Filter Members</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Search size={16} aria-hidden /> Filter Members</span>
                   {activeFilterCount > 0 && (
                     <span style={{
                       background: 'rgba(255,255,255,0.25)', color: '#fff',
                       fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
                     }}>{activeFilterCount} active</span>
                   )}
-                  <span>→</span>
+                  <ArrowRight size={16} aria-hidden />
                 </button>
               </div>
 

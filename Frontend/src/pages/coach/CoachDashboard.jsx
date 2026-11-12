@@ -4,9 +4,11 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, CardHeader, StatCard, Spinner, Avatar, Badge, EmptyState } from '../../components/ui';
 import { getAllMembers } from '../../api/endpoints';
+import { Check, Dumbbell, Users } from 'lucide-react';
 
 export default function CoachDashboard() {
   usePageTitle('Coach Dashboard');
@@ -34,7 +36,7 @@ export default function CoachDashboard() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { load(); }, [load]);
 
   // Filter members that have coach subscription
   const coachMembers = isManager
@@ -79,7 +81,7 @@ export default function CoachDashboard() {
                 <span onClick={() => navigate('/coach/members')} style={{ fontSize: 11, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>View all →</span>
               </div>
               {coachMembers.length === 0 ? (
-                <EmptyState icon="🏋️" message="No members assigned" sub="Members will appear here once assigned" />
+                <EmptyState icon={Dumbbell} message="No members assigned" sub="Members will appear here once assigned" />
               ) : (
                 <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                   {coachMembers.slice(0, 10).map(m => (
@@ -103,9 +105,11 @@ export default function CoachDashboard() {
             {/* Quick actions */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginTop: 16 }}>
               {[
-                { label: 'Session Check-in', icon: '✓', to: '/coach/checkin', access: 'coach_checkin' },
-                { label: 'My Members', icon: '👥', to: '/coach/members', access: 'coach_members' },
-              ].filter((c) => hasAccess(user, c.access)).map(c => (
+                { label: 'Session Check-in', icon: Check, to: '/coach/checkin', access: 'coach_checkin' },
+                { label: 'My Members', icon: Users, to: '/coach/members', access: 'coach_members' },
+              ].filter((c) => hasAccess(user, c.access)).map(c => {
+                const ActionIcon = c.icon;
+                return (
                 <button key={c.to} onClick={() => navigate(c.to)} style={{
                   background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8,
                   padding: '16px', textAlign: 'center', cursor: 'pointer', fontFamily: 'inherit',
@@ -114,10 +118,12 @@ export default function CoachDashboard() {
                   onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--navy)'}
                   onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
                 >
-                  <div style={{ fontSize: 24, marginBottom: 6 }}>{c.icon}</div>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6, color: 'var(--icon, var(--navy))' }}>
+                    <ActionIcon size={24} aria-hidden />
+                  </div>
                   <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{c.label}</div>
                 </button>
-              ))}
+              );})}
             </div>
           </>
         )}

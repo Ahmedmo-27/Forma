@@ -18,8 +18,11 @@ const leadership = allowRoles("reports", "Owner", "General Manager", "Sales Mana
 const memberCache = cacheResponse({ ttlSeconds: 120, tags: ["members", "revenue"] });
 const attendanceCache = cacheResponse({ ttlSeconds: 120, tags: ["members", "revenue", "checkins"] });
 
+const { locationScopeOptional } = require("../middleware/locationScope");
+
 router.use(protect);
 router.use(enforceSubscriptionStatus);
+router.use(locationScopeOptional);
 
 router.get("/churn", leadership, requireFeature("exec_analytics"), memberCache, getChurn);
 router.get("/forecast", leadership, requireFeature("exec_analytics"), memberCache, getForecast);

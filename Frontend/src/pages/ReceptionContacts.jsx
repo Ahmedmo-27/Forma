@@ -6,16 +6,19 @@ import { PageHeader, Spinner, EmptyState, Avatar, SearchInput, Pagination } from
 import { getReceptionists } from '../api/endpoints';
 import { WhatsAppBtn } from '../utils/whatsapp';
 import useDebounce from '../hooks/useDebounce';
+import {
+  Briefcase, Building2, Crown, Dumbbell, Medal, Monitor, Phone, Receipt, Shirt, UserRound, X,
+} from 'lucide-react';
 
 const ROLE_META = {
-  'Receptionist':    { icon: '🖥️', color: '#0284c7', bg: '#f0f9ff', group: 'staff' },
-  'Sales':           { icon: '💼', color: '#16a34a', bg: '#f0fdf4', group: 'staff' },
-  'Coach':           { icon: '🏋️', color: '#d97706', bg: '#fffbeb', group: 'staff' },
-  'Accountant':      { icon: '🧾', color: '#7c3aed', bg: '#f5f3ff', group: 'staff' },
-  'Sales Manager':   { icon: '👔', color: 'var(--navy)', bg: 'color-mix(in srgb, var(--navy) 8%, transparent)', group: 'managers' },
-  'Coach Manager':   { icon: '🏅', color: '#b45309', bg: '#fef9c3', group: 'managers' },
-  'General Manager': { icon: '🏢', color: '#0f766e', bg: '#f0fdfa', group: 'managers' },
-  'Owner':           { icon: '👑', color: '#dc2626', bg: '#fef2f2', group: 'managers' },
+  'Receptionist':    { icon: Monitor, color: '#0284c7', bg: '#f0f9ff', group: 'staff' },
+  'Sales':           { icon: Briefcase, color: '#16a34a', bg: '#f0fdf4', group: 'staff' },
+  'Coach':           { icon: Dumbbell, color: '#d97706', bg: '#fffbeb', group: 'staff' },
+  'Accountant':      { icon: Receipt, color: '#7c3aed', bg: '#f5f3ff', group: 'staff' },
+  'Sales Manager':   { icon: Shirt, color: 'var(--navy)', bg: 'color-mix(in srgb, var(--navy) 8%, transparent)', group: 'managers' },
+  'Coach Manager':   { icon: Medal, color: '#b45309', bg: '#fef9c3', group: 'managers' },
+  'General Manager': { icon: Building2, color: '#0f766e', bg: '#f0fdfa', group: 'managers' },
+  'Owner':           { icon: Crown, color: '#dc2626', bg: '#fef2f2', group: 'managers' },
 };
 
 const STAFF_ROLES   = ['Receptionist', 'Sales', 'Coach', 'Accountant'];
@@ -23,7 +26,8 @@ const MANAGER_ROLES = ['General Manager', 'Sales Manager', 'Coach Manager', 'Own
 const ALL_ROLES     = [...STAFF_ROLES, ...MANAGER_ROLES];
 
 function ContactCard({ person }) {
-  const meta = ROLE_META[person.role] ?? { icon: '👤', color: 'var(--t3)', bg: 'var(--bg)', group: 'staff' };
+  const meta = ROLE_META[person.role] ?? { icon: UserRound, color: 'var(--t3)', bg: 'var(--bg)', group: 'staff' };
+  const RoleIcon = meta.icon;
 
   return (
     <div
@@ -71,7 +75,7 @@ function ContactCard({ person }) {
               boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
             }}
           >
-            {meta.icon}
+            <RoleIcon size={11} aria-hidden />
           </div>
         </div>
 
@@ -300,7 +304,8 @@ export default function ReceptionContacts() {
             <button onClick={() => { setSearch(''); setFilter('all'); }} style={{
               fontSize: 12, fontWeight: 600, color: 'var(--red)',
               background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-            }}>✕ Clear</button>
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+            }}><X size={12} aria-hidden /> Clear</button>
           )}
           <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--t4)' }}>
             {loading ? '…' : `${sorted.length} contact${sorted.length !== 1 ? 's' : ''}`}
@@ -311,7 +316,7 @@ export default function ReceptionContacts() {
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
         ) : sorted.length === 0 ? (
-          <EmptyState icon="📞" message="No contacts found" sub="Try adjusting your search or filter." />
+          <EmptyState icon={Phone} message="No contacts found" sub="Try adjusting your search or filter." />
         ) : (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 14 }}>

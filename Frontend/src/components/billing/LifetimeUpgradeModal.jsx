@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { X } from 'lucide-react';
 import { getBillingPrices, upgradeLifetimeBilling } from '../../api/endpoints';
 import { Btn, Spinner } from '../ui';
 
@@ -100,15 +101,19 @@ export default function LifetimeUpgradeModal({ isOpen, onClose, currentPlanKey, 
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             style={{
               background: 'none',
               border: 'none',
-              fontSize: 22,
               cursor: 'pointer',
               color: '#9CA3AF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: 4,
             }}
           >
-            ×
+            <X size={18} />
           </button>
         </div>
 

@@ -82,19 +82,24 @@ const hydrateMemberRefs = async (member, { userlogLimit = null, summary = false 
         for (const log of logs) addUser(log.createdBy);
     }
 
-    const [users, packages] = await Promise.all([
+    const locationRef = refId(member.locationId);
+    const [users, packages, locationDoc] = await Promise.all([
         userIds.size ? User.find({ _id: { $in: [...userIds] } }).select("name email role").lean() : [],
         packageIds.size
             ? Package.find({ _id: { $in: [...packageIds] } })
                 .select("name duration activityType price freezeLimitDays invitationLimit renewalDiscountPercent hasException")
                 .lean()
             : [],
+        locationRef
+            ? Location.findById(locationRef).select("name locationId branch_location").lean()
+            : null,
     ]);
     const usersById = new Map(users.map((user) => [String(user._id), user]));
     const packagesById = new Map(packages.map((pkg) => [String(pkg._id), pkg]));
     const fillUser = (value) => usersById.get(refId(value)) || value;
 
     member.assignedSales = fillUser(member.assignedSales);
+    if (locationDoc) member.locationId = locationDoc;
     for (const sub of member.subscriptions || []) {
         sub.package = packagesById.get(refId(sub.package)) || sub.package;
     }
@@ -166,16 +171,44 @@ const findMember = async (id) => {
 };
 
 // ─── 1. Add Person (guest or member) ─────────────────────────────────────────
+const Location = require("../models/Location");
+const { userCanAccessLocation } = require("../utils/locationScope");
+
+async function resolveMemberLocationId(req, explicitLocationId) {
+    const raw = explicitLocationId || req.locationScope?.locationId || null;
+    if (raw) {
+        if (!userCanAccessLocation(req.user, req.tenant, raw) && req.user.role !== "Owner") {
+            return { error: "You do not have access to this location", status: 403 };
+        }
+        const exists = await Location.findById(raw).select("_id").lean();
+        if (!exists) return { error: "Location not found", status: 404 };
+        return { locationId: exists._id };
+    }
+
+    // Fallback: first location in tenant (Main)
+    const first = await Location.findOne({}).sort({ createdAt: 1 }).select("_id").lean();
+    if (!first) {
+        const { ensureMainLocation } = require("./locationController");
+        const main = await ensureMainLocation(req.user.tenantId);
+        return { locationId: main._id };
+    }
+    return { locationId: first._id };
+}
+
 const createMember = async (req, res) => {
     try {
         const {
             name, phones,
             gender, birthdate, source,
-            packageId, assignedSales
+            packageId, assignedSales, locationId: bodyLocationId,
         } = req.body;
 
         const systemId = await generateSystemId();
         const salesAssignee = await resolveSalesAssignee(assignedSales || null);
+        const loc = await resolveMemberLocationId(req, bodyLocationId);
+        if (loc.error) {
+            return res.status(loc.status || 400).json({ message: loc.error });
+        }
 
         const personData = {
             systemId,
@@ -187,6 +220,7 @@ const createMember = async (req, res) => {
             birthdate:     birthdate     || null,
             source:        source        || null,
             assignedSales: salesAssignee,
+            locationId:    loc.locationId,
             createdBy:     req.user.id
         };
 
@@ -319,6 +353,7 @@ const getAllMembers = async (req, res) => {
             packageId:       req.query.packageId,
             gender:          req.query.gender,
             transferType:    req.query.transferType,
+            locationFilter:  req.locationFilter,
         });
 
         // Source filter (e.g. source=data entry for imported members)
@@ -507,12 +542,17 @@ const checkInMember = async (req, res) => {
         }
 
         const now = new Date();
+        const checkInLocationId = req.locationScope?.locationId
+            || (req.locationFilter?.locationId && !(req.locationFilter.locationId.$in)
+                ? req.locationFilter.locationId
+                : null);
         const entry = {
             _id: new mongoose.Types.ObjectId(),
             type: "check-in",
             text: "Member checked in",
             createdBy: req.user.id,
             createdAt: now,
+            locationId: checkInLocationId || null,
         };
 
         // Active members with an active subscription only append a log entry. One update, no full-document save.
@@ -816,7 +856,11 @@ const salesMemberQuery = () =>
 const getMembers = async (req, res) => {
     try {
         if (req.user.role === "Coach") {
-            const members = await Member.find({ current_couch: req.user.id })
+            const coachFilter = {
+                current_couch: req.user.id,
+                ...(req.locationFilter || {}),
+            };
+            const members = await Member.find(coachFilter)
                 .select(MEMBER_LIST_SELECT)
                 .populate("current_couch", "name email")
                 .populate("subscriptions.package", "name price duration activityType");
@@ -840,6 +884,7 @@ const getMembers = async (req, res) => {
             recent: req.query.recent,
             expiringSoon: req.query.expiringSoon,
             currentCouch: req.query.currentCouch,
+            locationFilter: req.locationFilter,
         });
 
         const statsFilter = statsFilterFromListFilter(filter);
@@ -1229,20 +1274,36 @@ const addInvitation = async (req, res) => {
 const getTodayCheckIns = async (req, res) => {
     try {
         const { start: today, end: tomorrow } = cairoDayBounds();
+        const { checkInLocationElemMatch, memberLocationFilter } = require("../utils/locationScope");
+        const elem = checkInLocationElemMatch(req.locationScope, { start: today, end: tomorrow });
+        const homeFilter = memberLocationFilter(req.locationScope);
+
+        // Prefer stamped check-in locationId; legacy logs without locationId match via member home branch.
+        const dateElem = {
+            type: "check-in",
+            createdAt: { $gte: today, $lt: tomorrow },
+        };
+        let match;
+        if (homeFilter.locationId) {
+            const stamped = { ...dateElem, locationId: homeFilter.locationId };
+            const legacy = {
+                ...dateElem,
+                $or: [{ locationId: null }, { locationId: { $exists: false } }],
+            };
+            match = {
+                $or: [
+                    { userlog: { $elemMatch: stamped } },
+                    { ...homeFilter, userlog: { $elemMatch: legacy } },
+                ],
+            };
+        } else {
+            match = { userlog: { $elemMatch: elem } };
+        }
 
         // Project today's log entries only. Populating userlog.createdBy loaded
         // every historical author for each member who checked in.
         const members = await Member.aggregate([
-            {
-                $match: {
-                    userlog: {
-                        $elemMatch: {
-                            type: "check-in",
-                            createdAt: { $gte: today, $lte: tomorrow },
-                        },
-                    },
-                },
-            },
+            { $match: Object.keys(match).length ? match : { userlog: { $elemMatch: elem } } },
             {
                 $project: {
                     name: 1,
@@ -1563,6 +1624,14 @@ const assignPackage = async (req, res) => {
             return res.status(400).json({ message: "Package not found or unavailable" });
         }
 
+        const { packageEligibleForLocation } = require("../utils/packageLocationEligibility");
+        if (!packageEligibleForLocation(basePkg, member.locationId)) {
+            return res.status(400).json({
+                code: "PACKAGE_NOT_ELIGIBLE_FOR_BRANCH",
+                message: "This package is not eligible for the member's branch",
+            });
+        }
+
         const terms = {
             name: name.trim(),
             activityType: activityType ?? basePkg.activityType,
@@ -1580,6 +1649,8 @@ const assignPackage = async (req, res) => {
             hasException: false,
             free_pt_sessions: basePkg.free_pt_sessions || 0,
             description: basePkg.description ?? null,
+            locationScope: basePkg.locationScope || "all",
+            eligibleLocationIds: basePkg.eligibleLocationIds || [],
         };
 
         if (packageTermsDiffer(basePkg, terms)) {
@@ -1591,6 +1662,8 @@ const assignPackage = async (req, res) => {
                 freezeLimitDays: terms.freezeLimitDays,
                 invitationLimit: terms.invitationLimit,
                 renewalDiscountPercent: terms.renewalDiscountPercent,
+                locationScope: basePkg.locationScope || "all",
+                eligibleLocationIds: basePkg.eligibleLocationIds || [],
                 isActive: true,
                 hasException: true,
                 basedOn: basePkg._id,
@@ -2537,13 +2610,22 @@ const updateMember = async (req, res) => {
 
         const visible = redactMemberForViewer(member.toObject(), req.user);
         const canEditPhone = Boolean(visible.phones && visible.phones !== "hidden");
-        const { name, phones, gender, birthdate, source } = req.body;
+        const { name, phones, gender, birthdate, source, locationId } = req.body;
 
         member.name = name;
         if (canEditPhone && phones !== undefined) member.phones = phones;
         member.gender = gender || null;
         member.birthdate = birthdate || null;
         member.source = source || null;
+
+        if (locationId !== undefined && locationId !== null && locationId !== "") {
+            const loc = await resolveMemberLocationId(req, locationId);
+            if (loc.error) {
+                return res.status(loc.status || 400).json({ message: loc.error });
+            }
+            member.locationId = loc.locationId;
+        }
+
         member.userlog.push({
             type: "other",
             text: "Personal information updated",

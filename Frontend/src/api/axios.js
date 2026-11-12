@@ -65,6 +65,10 @@ api.interceptors.request.use((config) => {
   const tenantSlug = localStorage.getItem("ff_tenant_slug");
   if (tenantSlug) config.headers["X-Tenant-Slug"] = tenantSlug;
 
+  // Branch / location scope (all | ObjectId)
+  const locationId = localStorage.getItem("ff_location_id");
+  if (locationId) config.headers["X-Location-Id"] = locationId;
+
   const reqId = `req_${crypto.randomUUID().slice(0, 8)}`;
   config.headers["X-Request-Id"] = reqId;
   logRequest(config);

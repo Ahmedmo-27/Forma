@@ -6,6 +6,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Spinner, EmptyState, Avatar, Badge, fmtTime } from '../../components/ui';
 import { getTodayCoachTransfers } from '../../api/endpoints';
+import { RefreshCw } from 'lucide-react';
 
 export default function CoachTransfers() {
   usePageTitle('Today\'s Transfers');
@@ -54,7 +55,7 @@ export default function CoachTransfers() {
           {loading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
           ) : transfers.length === 0 ? (
-            <EmptyState icon="🔄" message="No transfers today" sub={isManager ? 'All coach transfers for today will appear here' : 'Members assigned to you today will appear here'} />
+            <EmptyState icon={RefreshCw} message="No transfers today" sub={isManager ? 'All coach transfers for today will appear here' : 'Members assigned to you today will appear here'} />
           ) : (
             <div>
               {transfers.map((t, i) => (

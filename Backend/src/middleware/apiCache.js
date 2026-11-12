@@ -22,6 +22,15 @@ function normalizeQuery(query) {
 /**
  * Build tenant/role/user-scoped cache key.
  */
+function locationCacheSegment(req) {
+    const fromScope = req.locationScope?.selected;
+    const fromHeader = req.headers?.["x-location-id"];
+    const raw = fromScope != null && fromScope !== ""
+        ? String(fromScope)
+        : (fromHeader != null && fromHeader !== "" ? String(fromHeader) : "all");
+    return `loc:${raw}`;
+}
+
 function buildCacheKey(req, scope = "auto") {
     const tenantId = req.user?.tenantId?.toString() || req.tenant?.id?.toString() || null;
     const userId = req.user?.id?.toString() || req.user?._id?.toString() || null;
@@ -29,17 +38,18 @@ function buildCacheKey(req, scope = "auto") {
     const path = (req.baseUrl || "") + (req.path || "");
     const queryString = normalizeQuery(req.query);
     const fullPath = queryString ? `${path}?${queryString}` : path;
+    const loc = locationCacheSegment(req);
 
     if (scope === "platform" || (!tenantId && req.platformUser)) {
-        return `platform:${fullPath}`;
+        return `platform:${loc}:${fullPath}`;
     }
 
     if (scope === "user" || (scope === "auto" && ["Sales", "Coach"].includes(role))) {
-        return `tenant:${tenantId || "default"}:user:${userId || "anon"}:${role}:${fullPath}`;
+        return `tenant:${tenantId || "default"}:user:${userId || "anon"}:${role}:${loc}:${fullPath}`;
     }
 
     // Role-scoped within tenant:
-    return `tenant:${tenantId || "default"}:role:${role}:${fullPath}`;
+    return `tenant:${tenantId || "default"}:role:${role}:${loc}:${fullPath}`;
 }
 
 /**

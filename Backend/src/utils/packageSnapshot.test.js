@@ -28,6 +28,8 @@ describe("packageSnapshot", () => {
             description: "Standard",
             hasException: false,
             free_pt_sessions: 1,
+            locationScope: "all",
+            eligibleLocationIds: [],
         });
         expect(snap).not.toHaveProperty("_id");
     });

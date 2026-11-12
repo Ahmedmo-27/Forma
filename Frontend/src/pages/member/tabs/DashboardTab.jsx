@@ -1,6 +1,24 @@
 import { useNavigate } from 'react-router-dom';
 import { Badge, fmtDate, fmtDateTime } from '../../../components/ui';
 import { useTenant } from '../../../context/TenantContext';
+import {
+  AlertTriangle,
+  Ban,
+  Bell,
+  Calendar,
+  CheckCircle2,
+  Clock,
+  Dumbbell,
+  Folder,
+  Medal,
+  MessageCircle,
+  Package,
+  Phone,
+  Snowflake,
+  Ticket,
+  User,
+  Zap,
+} from 'lucide-react';
 
 function daysUntil(d) {
   if (!d) return null;
@@ -15,7 +33,7 @@ function thisMonthCount(logs = [], type) {
   return logs.filter(l => l.type === type && new Date(l.createdAt) >= start).length;
 }
 
-function StatBox({ icon, label, value, sub, accent = 'var(--navy)', onClick }) {
+function StatBox({ icon: Icon, label, value, sub, accent = 'var(--navy)', onClick }) {
   return (
     <div onClick={onClick} style={{
       background: 'var(--card)', border: '1px solid var(--border)',
@@ -26,7 +44,9 @@ function StatBox({ icon, label, value, sub, accent = 'var(--navy)', onClick }) {
       onMouseEnter={e => { if (onClick) { e.currentTarget.style.transform = 'translateY(-2px)'; e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.10)'; } }}
       onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)'; }}
     >
-      <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: `${accent}18`, border: `1px solid ${accent}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{icon}</div>
+      <div style={{ width: 40, height: 40, borderRadius: 10, flexShrink: 0, background: `${accent}18`, border: `1px solid ${accent}33`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: accent }}>
+        {Icon && <Icon size={20} aria-hidden />}
+      </div>
       <div style={{ minWidth: 0 }}>
         <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.7px', color: 'var(--t4)', marginBottom: 4 }}>{label}</p>
         <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--t1)', letterSpacing: '-0.3px', lineHeight: 1 }}>{value}</p>
@@ -36,12 +56,12 @@ function StatBox({ icon, label, value, sub, accent = 'var(--navy)', onClick }) {
   );
 }
 
-function SectionCard({ title, icon, children, action }) {
+function SectionCard({ title, icon: Icon, children, action }) {
   return (
     <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          {icon && <span style={{ fontSize: 16 }}>{icon}</span>}
+          {Icon && <Icon size={16} color="var(--t2)" aria-hidden />}
           <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{title}</span>
         </div>
         {action}
@@ -60,7 +80,7 @@ function InfoPair({ label, value, valueColor }) {
   );
 }
 
-function QuickActionBtn({ icon, label, sub, onClick, accent = 'var(--navy)' }) {
+function QuickActionBtn({ icon: Icon, label, sub, onClick, accent = 'var(--navy)' }) {
   return (
     <button onClick={onClick} style={{
       background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 10px',
@@ -70,7 +90,7 @@ function QuickActionBtn({ icon, label, sub, onClick, accent = 'var(--navy)' }) {
       onMouseEnter={e => { e.currentTarget.style.borderColor = accent; e.currentTarget.style.background = `${accent}12`; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.background = 'var(--bg)'; }}
     >
-      <span style={{ fontSize: 20 }}>{icon}</span>
+      {Icon && <Icon size={22} color={accent} aria-hidden />}
       <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t1)', textAlign: 'center', lineHeight: 1.3 }}>{label}</span>
       {sub && <span style={{ fontSize: 10, color: 'var(--t4)', textAlign: 'center' }}>{sub}</span>}
     </button>
@@ -137,18 +157,20 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
 
       {/* ── Row 1: Stats ──────────────────────────────────────── */}
       <div className="dash-stats">
-        <StatBox icon="🏅" label="Membership Status"
+        <StatBox icon={Medal} label="Membership Status"
           value={member.status ? member.status.charAt(0).toUpperCase() + member.status.slice(1) : '—'}
           sub={activeSub?.startDate ? `Since ${fmtDate(activeSub.startDate)}` : undefined}
           accent={statusColor} onClick={() => go('packages')} />
-        <StatBox icon="📅" label="Package Expiry"
+        <StatBox icon={Calendar} label="Package Expiry"
           value={activeSub?.endDate ? fmtDate(activeSub.endDate) : '—'}
-          sub={expiryDays === null ? undefined : expiryDays < 0 ? `Expired ${Math.abs(expiryDays)}d ago` : expiringSoon ? `⚠ ${expiryDays}d left` : `${expiryDays}d remaining`}
+          sub={expiryDays === null ? undefined : expiryDays < 0 ? `Expired ${Math.abs(expiryDays)}d ago` : expiringSoon ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={11} aria-hidden /> {expiryDays}d left</span>
+          ) : `${expiryDays}d remaining`}
           accent={expiringSoon || isExpired ? '#ef4444' : 'var(--navy)'} onClick={() => go('packages')} />
-        <StatBox icon="✅" label="Total Check-Ins"
+        <StatBox icon={CheckCircle2} label="Total Check-Ins"
           value={checkInTotal} sub={`${thisMonthCheckIns} this month`}
           accent="#22c55e" onClick={() => go('checkins')} />
-        <StatBox icon="💪" label="PT Sessions"
+        <StatBox icon={Dumbbell} label="PT Sessions"
           value={hasPT ? remainPT : 0} sub={hasPT ? `${usedPT} used · ${totalPT} total` : 'No active PT'}
           accent="#f59e0b" onClick={() => go('packages')} />
       </div>
@@ -157,7 +179,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
       <div className="dash-row2">
 
         {/* My Package */}
-        <SectionCard title="My Package" icon="📦">
+        <SectionCard title="My Package" icon={Package}>
           {pkg ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -175,8 +197,8 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
                 <InfoPair label="Freeze Left"  value={`${freezeRemain} days`} valueColor={freezeRemain > 0 ? 'var(--sky)' : 'var(--t4)'} />
               </div>
               {activeFreeze && (
-                <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', fontSize: 12, color: 'var(--sky)' }}>
-                  🧊 Frozen until {fmtDate(activeFreeze.endDate)}
+                <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', fontSize: 12, color: 'var(--sky)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Snowflake size={14} aria-hidden /> Frozen until {fmtDate(activeFreeze.endDate)}
                 </div>
               )}
               {viewBtn('packages')}
@@ -191,21 +213,21 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
 
         {/* Quick Actions + PT */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <SectionCard title="Quick Actions" icon="⚡">
+          <SectionCard title="Quick Actions" icon={Zap}>
             <div className="dash-quick-actions">
-              <QuickActionBtn icon="🎟️" label="Invitations"   sub={`${invitationsRemain} left`}    onClick={() => go('invitations')} accent="#22c55e" />
-              <QuickActionBtn icon="✅" label="Check-Ins"     sub={`${checkInTotal} total`}      onClick={() => go('checkins')}    accent="#22c55e" />
-              <QuickActionBtn icon="�" label="Packages"                                             onClick={() => go('packages')}   accent="var(--navy)" />
-              <QuickActionBtn icon="🧊" label="Freeze"        sub={`${freezeRemain}d left`}          onClick={() => go('freeze')}     accent="#38bdf8" />
-              <QuickActionBtn icon="💬" label="Call Center"   sub={`${notes.length} notes`}          onClick={() => go('callcenter')} accent="#f59e0b" />
-              <QuickActionBtn icon="📁" label="Files"                                                 onClick={() => go('files')}     accent="#A6A0C2" />
+              <QuickActionBtn icon={Ticket} label="Invitations"   sub={`${invitationsRemain} left`}    onClick={() => go('invitations')} accent="#22c55e" />
+              <QuickActionBtn icon={CheckCircle2} label="Check-Ins"     sub={`${checkInTotal} total`}      onClick={() => go('checkins')}    accent="#22c55e" />
+              <QuickActionBtn icon={Package} label="Packages"                                             onClick={() => go('packages')}   accent="var(--navy)" />
+              <QuickActionBtn icon={Snowflake} label="Freeze"        sub={`${freezeRemain}d left`}          onClick={() => go('freeze')}     accent="#38bdf8" />
+              <QuickActionBtn icon={MessageCircle} label="Call Center"   sub={`${notes.length} notes`}          onClick={() => go('callcenter')} accent="#f59e0b" />
+              <QuickActionBtn icon={Folder} label="Files"                                                 onClick={() => go('files')}     accent="#A6A0C2" />
             </div>
           </SectionCard>
 
           {/* PT Sessions card */}
           <div style={{ background: 'linear-gradient(135deg,var(--navy),var(--navy-2))', border: '1px solid rgba(91,56,186,0.4)', borderRadius: 12, padding: '16px 18px', boxShadow: '0 4px 20px color-mix(in srgb, var(--navy) 25%, transparent)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
-              <span style={{ fontSize: 16 }}>💪</span>
+              <Dumbbell size={16} color="#fff" aria-hidden />
               <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>PT Sessions</span>
               {hasPT && !ptExpired && <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, background: 'rgba(255,255,255,0.15)', color: '#fff', padding: '2px 8px', borderRadius: 20 }}>ACTIVE</span>}
             </div>
@@ -229,7 +251,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
         {/* Call Center */}
         <SectionCard
           title={isCoach ? `Coach Notes (${notes.length})` : `Call Center (${notes.length})`}
-          icon="📞"
+          icon={Phone}
           action={<button onClick={() => go('callcenter')} style={{ fontSize: 11, fontWeight: 600, color: 'var(--navy)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>View all →</button>}
         >
           {lastNote ? (
@@ -276,7 +298,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
       <div className="dash-row3">
 
         {/* Last Check-In */}
-        <SectionCard title="Last Check-In" icon="🕐">
+        <SectionCard title="Last Check-In" icon={Clock}>
           {lastCheckIn ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)' }}>
@@ -300,13 +322,15 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
         </SectionCard>
 
         {/* Alerts */}
-        <SectionCard title="Alerts" icon="🚨"
+        <SectionCard title="Alerts" icon={Bell}
           action={<button onClick={() => go('alerts')} style={{ fontSize: 11, fontWeight: 600, color: 'var(--navy)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Manage →</button>}
         >
           {(member.alert ?? []).filter(a => a.active).length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {(member.alert ?? []).filter(a => a.active).slice(0, 3).map((a, i) => (
-                <div key={a._id ?? i} style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', fontSize: 12, color: 'var(--amber)' }}>⚠ {a.text}</div>
+                <div key={a._id ?? i} style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', fontSize: 12, color: 'var(--amber)', display: 'flex', alignItems: 'flex-start', gap: 6 }}>
+                  <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} aria-hidden /> {a.text}
+                </div>
               ))}
               {(member.alert ?? []).filter(a => a.active).length > 3 && (
                 <p style={{ fontSize: 11, color: 'var(--t4)', textAlign: 'center' }}>+{(member.alert ?? []).filter(a => a.active).length - 3} more</p>
@@ -314,14 +338,16 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <p style={{ fontSize: 22, opacity: 0.2, marginBottom: 6 }}>🚨</p>
+              <div style={{ display: 'flex', justifyContent: 'center', opacity: 0.2, marginBottom: 6, color: 'var(--t4)' }}>
+                <Bell size={28} aria-hidden />
+              </div>
               <p style={{ fontSize: 13, color: 'var(--t4)' }}>No active alerts</p>
             </div>
           )}
         </SectionCard>
 
         {/* Member Info */}
-        <SectionCard title="Member Info" icon="👤">
+        <SectionCard title="Member Info" icon={User}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div className="dash-info-grid">
               <InfoPair label="Member ID"     value={member.memberId ? `M${member.memberId}` : '—'} />
@@ -335,7 +361,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
             </div>
             {member.isBlocked && (
               <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 12, color: 'var(--red)' }}>
-                🚫 Blocked{member.blockedReason ? `: ${member.blockedReason}` : ''}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Ban size={14} aria-hidden /> Blocked{member.blockedReason ? `: ${member.blockedReason}` : ''}</span>
               </div>
             )}
           </div>

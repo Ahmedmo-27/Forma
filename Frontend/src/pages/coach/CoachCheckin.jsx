@@ -7,6 +7,7 @@ import Layout from '../../components/Layout';
 import { PageHeader, Card, CardHeader, Btn, Spinner, Badge, Avatar, Input, EmptyState, fmtTimeWithSeconds } from '../../components/ui';
 import { getMemberProfile, getAllMembers } from '../../api/endpoints';
 import api from '../../api/axios';
+import { Check, Dumbbell, XCircle } from 'lucide-react';
 
 export default function CoachCheckin() {
   usePageTitle('Session Check-In');
@@ -197,7 +198,10 @@ export default function CoachCheckin() {
                     color: result.ok ? 'var(--green)' : 'var(--red)',
                     border: `1px solid ${result.ok ? 'var(--green-bd)' : 'var(--red-bd)'}`,
                   }}>
-                    {result.ok ? '✓ ' : '✗ '}{result.msg}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                      {result.ok ? <Check size={16} aria-hidden /> : <XCircle size={16} aria-hidden />}
+                      {result.msg}
+                    </span>
                   </div>
                 )}
 
@@ -209,7 +213,7 @@ export default function CoachCheckin() {
                     disabled={checking || !canCheckIn}
                     fullWidth size="lg"
                   >
-                    {checking ? <><Spinner size="sm" /> Processing…</> : `✓ Check In ${isManager ? sessions + ' Session(s)' : '1 Session'}`}
+                    {checking ? <><Spinner size="sm" /> Processing…</> : <><Check size={16} aria-hidden /> Check In {isManager ? `${sessions} Session(s)` : '1 Session'}</>}
                   </Btn>
                   <Btn variant="outline" size="lg" onClick={() => navigate(`/members/${member.systemId}`)}>
                     Profile
@@ -247,7 +251,7 @@ export default function CoachCheckin() {
               {historyLoad ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
               ) : todaySessions.length === 0 ? (
-                <EmptyState icon="🏋️" message="No sessions checked today" sub="Check in a member using the search on the left" />
+                <EmptyState icon={Dumbbell} message="No sessions checked today" sub="Check in a member using the search on the left" />
               ) : (
                 <div>
                   {todaySessions.map((entry, i) => (

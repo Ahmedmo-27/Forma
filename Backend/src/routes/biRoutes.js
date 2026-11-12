@@ -39,8 +39,11 @@ const sales = allowRoles("reports", "Owner", "General Manager", "Sales Manager",
 const biCache = cacheResponse({ ttlSeconds: 120, tags: ["bi"] });
 const dropBi = autoInvalidate(["bi"]);
 
+const { locationScopeOptional } = require("../middleware/locationScope");
+
 router.use(protect);
 router.use(enforceSubscriptionStatus);
+router.use(locationScopeOptional);
 
 router.get("/dashboard", readers, requireFeature("members"), biCache, getDashboard);
 router.get("/cohorts", leadership, requireFeature("exec_analytics"), biCache, getCohorts);

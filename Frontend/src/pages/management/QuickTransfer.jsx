@@ -6,6 +6,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Btn, Spinner } from '../../components/ui';
 import { getSalesUsers, getCoachTeam, switchSalesRep, switchCoach } from '../../api/endpoints';
+import { CheckCircle2, Zap } from 'lucide-react';
 
 const iStyle = {
   width: '100%', height: 38, borderRadius: 8,
@@ -113,7 +114,7 @@ export default function QuickTransfer() {
         {result ? (
           /* ── Success State ── */
           <Card style={{ padding: '36px 32px', textAlign: 'center' }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>✅</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, color: 'var(--green)' }}><CheckCircle2 size={48} strokeWidth={1.5} aria-hidden /></div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--t1)', marginBottom: 8 }}>
               Transfer Complete
             </h2>
@@ -123,7 +124,7 @@ export default function QuickTransfer() {
               <span style={{ color: 'var(--t3)', fontSize: 12 }}>({result.destRole})</span>
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Btn variant="primary" onClick={handleReset}>⚡ Transfer Another</Btn>
+              <Btn variant="primary" onClick={handleReset}><Zap size={14} aria-hidden /> Transfer Another</Btn>
               <Btn variant="outline" onClick={() => navigate(`/members/${systemId}`)}>View Member Profile</Btn>
             </div>
           </Card>
@@ -212,7 +213,7 @@ export default function QuickTransfer() {
                     fontFamily: 'inherit', transition: 'all 0.15s',
                   }}
                 >
-                  {busy ? <Spinner size="sm" /> : <><span>⚡</span> Transfer Member</>}
+                  {busy ? <Spinner size="sm" /> : <><Zap size={14} aria-hidden /> Transfer Member</>}
                 </button>
               </div>
 

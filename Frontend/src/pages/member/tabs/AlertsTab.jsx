@@ -2,6 +2,7 @@ import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Card, CardHeader, Btn, Spinner, EmptyState, Badge, fmtDateTime, Textarea } from '../../../components/ui';
 import { addAlert, deactivateAlert } from '../../../api/endpoints';
+import { AlertTriangle, Bell, X } from 'lucide-react';
 
 export default function AlertsTab({ member, user, onRefresh }) {
   const [text, setText]       = useState('');
@@ -68,7 +69,7 @@ export default function AlertsTab({ member, user, onRefresh }) {
       <Card>
         <CardHeader title={`Active Alerts (${activeAlerts.length})`} />
         {activeAlerts.length === 0 ? (
-          <EmptyState icon="🔔" message="No active alerts" sub="Add an alert above to notify anyone who views this profile" />
+          <EmptyState icon={Bell} message="No active alerts" sub="Add an alert above to notify anyone who views this profile" />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {activeAlerts.map(a => (
@@ -77,7 +78,7 @@ export default function AlertsTab({ member, user, onRefresh }) {
                 padding: '12px 14px', borderRadius: 6,
                 background: 'var(--amber-bg)', border: '1px solid var(--amber-bd)',
               }}>
-                <span style={{ fontSize: 18, flexShrink: 0, lineHeight: 1.2 }}>⚠️</span>
+                <AlertTriangle size={18} color="var(--amber)" style={{ flexShrink: 0 }} aria-hidden />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', marginBottom: 4, lineHeight: 1.5 }}>
                     {a.text}
@@ -111,7 +112,7 @@ export default function AlertsTab({ member, user, onRefresh }) {
                 background: 'var(--bg)', border: '1px solid var(--border)',
                 opacity: 0.6,
               }}>
-                <span style={{ fontSize: 14, flexShrink: 0 }}>✗</span>
+                <X size={14} color="var(--t4)" style={{ flexShrink: 0, marginTop: 2 }} aria-hidden />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <p style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 2, lineHeight: 1.5 }}>
                     {a.text}

@@ -1,3 +1,4 @@
+import { AlertTriangle } from 'lucide-react';
 import Layout from '../../components/Layout';
 import { PageHeader, Spinner, EmptyState } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
@@ -17,7 +18,7 @@ export default function ReportFrame({ title, definition, windowLabel, loading, e
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><Spinner size="lg" /></div>
         ) : error ? (
-          <EmptyState icon="!" message={error} />
+          <EmptyState icon={AlertTriangle} message={error} />
         ) : children}
       </div>
     </Layout>

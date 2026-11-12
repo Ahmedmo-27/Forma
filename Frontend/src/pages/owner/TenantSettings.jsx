@@ -27,6 +27,7 @@ import {
   LOGO_ACCEPT,
   UPLOAD_INTAKE_MB,
 } from '../../lib/validation';
+import { Check, LayoutDashboard, Package, Plus, RefreshCw, Star, Users } from 'lucide-react';
 
 const KNOWN_ACTIVITIES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 
@@ -37,6 +38,7 @@ const DEFAULT_PALETTE = {
   accent: '#6D47CC',
   background: '#F4F5F7',
   text: '#111827',
+  icon: '#44298C',
 };
 
 const PALETTE_FIELDS = [
@@ -46,9 +48,12 @@ const PALETTE_FIELDS = [
   { key: 'accent', label: 'Accent Highlight', default: '#6D47CC', hint: 'Special badges, active tags, and accent chips' },
   { key: 'background', label: 'Page Background', default: '#F4F5F7', hint: 'Workspace surface and canvas background' },
   { key: 'text', label: 'Primary Text', default: '#111827', hint: 'Headings, labels, and readable body text' },
+  { key: 'icon', label: 'Icon Color', default: '#44298C', hint: 'Lucide SVG icons on cards, empty states, and feature lists' },
 ];
 
-const SETTINGS_TABS = ['branding', 'locale', 'whatsapp', 'plan'];
+import LocationsSettingsPanel from './LocationsSettingsPanel';
+
+const SETTINGS_TABS = ['branding', 'locale', 'whatsapp', 'locations', 'plan'];
 
 export default function TenantSettings() {
   usePageTitle('Gym Settings');
@@ -411,6 +416,7 @@ export default function TenantSettings() {
               label: 'WhatsApp',
               badge: waSession?.status === 'connected' ? 'connected' : (waSession?.status === 'qr' ? 'qr' : 'disconnected'),
             },
+            { id: 'locations', label: 'Locations' },
             { id: 'plan', label: 'Plan & Usage' },
           ].map(t => {
             const isTabActive = activeTab === t.id;
@@ -749,10 +755,44 @@ export default function TenantSettings() {
                       Page Surface Chip
                     </span>
                   </div>
+
+                  <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    marginTop: 4,
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    border: '1px solid #E5E7EB',
+                    background: palette.background,
+                  }}>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: palette.text, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
+                      Icons
+                    </span>
+                    {[LayoutDashboard, Users, Package].map((Icon, i) => (
+                      <span
+                        key={i}
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 8,
+                          background: '#FFFFFF',
+                          border: '1px solid #E5E7EB',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: palette.icon || DEFAULT_PALETTE.icon,
+                        }}
+                      >
+                        <Icon size={18} strokeWidth={1.75} aria-hidden />
+                      </span>
+                    ))}
+                  </div>
                 </div>
 
-                <div style={{ marginTop: 12, fontSize: 12, color: palette.text, opacity: 0.75 }}>
-                  ✓ Colors chosen here update the workspace immediately. Click Save Palette to keep them.
+                <div style={{ marginTop: 12, fontSize: 12, color: palette.text, opacity: 0.75, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <Check size={14} aria-hidden style={{ color: palette.icon || DEFAULT_PALETTE.icon }} />
+                  <span>Colors chosen here update the workspace immediately. Click Save Palette to keep them.</span>
                 </div>
               </div>
             </Card>
@@ -827,7 +867,7 @@ export default function TenantSettings() {
                       }}
                     >
                       <span>{act}</span>
-                      {active ? '✓' : '+'}
+                      {active ? <Check size={14} aria-hidden /> : <Plus size={14} aria-hidden />}
                     </button>
                   );
                 })}
@@ -922,7 +962,7 @@ export default function TenantSettings() {
                           onClick={handleRefreshWhatsApp}
                           disabled={waBusy}
                         >
-                          {waBusy ? <Spinner size="sm" /> : '↻ Refresh Status'}
+                          {waBusy ? <Spinner size="sm" /> : <><RefreshCw size={14} aria-hidden /> Refresh Status</>}
                         </Btn>
                         <Link
                           to="/account/whatsapp"
@@ -994,7 +1034,7 @@ export default function TenantSettings() {
                           Cancel Connection
                         </Btn>
                         <Btn variant="ghost" size="sm" onClick={handleRefreshWhatsApp} disabled={waBusy}>
-                          ↻ Refresh Status
+                          <><RefreshCw size={14} aria-hidden /> Refresh Status</>
                         </Btn>
                       </div>
                     </div>
@@ -1069,7 +1109,7 @@ export default function TenantSettings() {
                           onClick={handleRefreshWhatsApp}
                           disabled={waBusy}
                         >
-                          ↻ Refresh Status
+                          <><RefreshCw size={14} aria-hidden /> Refresh Status</>
                         </Btn>
                         <Link
                           to="/account/whatsapp"
@@ -1111,6 +1151,12 @@ export default function TenantSettings() {
           </div>
         )}
 
+        {activeTab === 'locations' && (
+          <div data-walkthrough="settings-locations">
+            <LocationsSettingsPanel />
+          </div>
+        )}
+
         {/* Tab 4: Plan & Usage */}
         {activeTab === 'plan' && (
           <div data-walkthrough="settings-plan" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -1134,7 +1180,10 @@ export default function TenantSettings() {
                           boxShadow: '0 2px 4px rgba(217, 119, 6, 0.2)',
                         }}
                       >
-                        ★ LIFETIME LICENSE
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                          <Star size={12} fill="currentColor" aria-hidden />
+                          LIFETIME LICENSE
+                        </span>
                       </span>
                     )}
                   </div>
@@ -1273,7 +1322,10 @@ export default function TenantSettings() {
                       border: '1px solid rgba(22, 163, 74, 0.25)',
                     }}
                   >
-                    ✓ {feat}
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <Check size={12} aria-hidden />
+                      {feat}
+                    </span>
                   </span>
                 ))}
               </div>

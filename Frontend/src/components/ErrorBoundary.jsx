@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { AlertTriangle } from 'lucide-react';
 
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -19,7 +20,9 @@ export default class ErrorBoundary extends Component {
     return (
       <div style={{ minHeight: '100svh', background: 'var(--bg)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: '32px 28px', maxWidth: 440, width: '100%', textAlign: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.40)' }}>
-          <p style={{ fontSize: 36, marginBottom: 12 }}>⚠</p>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 12, color: 'var(--amber)' }}>
+            <AlertTriangle size={40} strokeWidth={1.5} aria-hidden />
+          </div>
           <h2 style={{ fontSize: 16, fontWeight: 700, color: 'var(--t1)', marginBottom: 8 }}>Something went wrong</h2>
           <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 20 }}>An unexpected error occurred. Refresh the page to continue.</p>
           {import.meta.env.DEV && this.state.error && (

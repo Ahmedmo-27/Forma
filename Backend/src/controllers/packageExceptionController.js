@@ -335,10 +335,17 @@ const getExceptions = async (req, res) => {
             }
         }
 
+        const locFilter = req.locationFilter || {};
+        if (Object.keys(locFilter).length > 0) {
+            const Member = require("../models/Member");
+            const memberIds = await Member.find(locFilter).distinct("_id");
+            filter.member = { $in: memberIds };
+        }
+
         const [total, requests] = await Promise.all([
             PackageExceptionRequest.countDocuments(filter),
             PackageExceptionRequest.find(filter)
-                .populate("member", "name systemId memberId status")
+                .populate("member", "name systemId memberId status locationId")
                 .populate("basePackage", "name duration price activityType")
                 .populate("proposedBy", "name email")
                 .populate("reviewedBy", "name")

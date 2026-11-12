@@ -1,4 +1,9 @@
 const { hasAccess, resolveEffectiveKeys, explicitGrantKeys, navExtrasFor, areaGrantKeys, effectiveAreas } = require("./accessControl");
+const {
+    userHasAllLocations,
+    resolveAllowedLocationIds,
+    toIdStrings,
+} = require("./locationScope");
 
 function resolveAbilities(user, context) {
     const commentKey = user?.role === "Coach" || user?.role === "Coach Manager"
@@ -16,6 +21,7 @@ function resolveAbilities(user, context) {
 
 function formatUserResponse(user, options = {}) {
     const context = options.accessContext || null;
+    const tenant = options.tenant || context?.tenant || null;
     const base = {
         _id: user._id,
         name: user.name,
@@ -49,6 +55,14 @@ function formatUserResponse(user, options = {}) {
             add: user.accessOverrides.add || [],
             remove: user.accessOverrides.remove || [],
         };
+    }
+
+    const canAll = userHasAllLocations(user);
+    base.canAccessAllLocations = canAll;
+    base.allowedLocationIds = toIdStrings(user.allowedLocationIds);
+    if (tenant || canAll) {
+        const resolved = resolveAllowedLocationIds(user, tenant);
+        base.resolvedLocationIds = resolved; // null = all
     }
 
     return base;

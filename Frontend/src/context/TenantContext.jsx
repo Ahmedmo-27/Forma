@@ -13,7 +13,7 @@ function clearBrandingOverrides() {
   const root = document.documentElement;
   [
     '--nav-bg', '--nav-tab-bg', '--navy', '--blue',
-    '--navy-2', '--navy-3', '--blue-dark', '--accent', '--bg', '--t1',
+    '--navy-2', '--navy-3', '--blue-dark', '--accent', '--bg', '--t1', '--icon',
   ].forEach((name) => root.style.removeProperty(name));
   if (document.body) {
     document.body.style.backgroundColor = '';
@@ -32,7 +32,7 @@ export function TenantProvider({ children }) {
       clearBrandingOverrides();
       return;
     }
-    const { navbar, primary, secondary, accent, background, text } = palette;
+    const { navbar, primary, secondary, accent, background, text, icon } = palette;
     const root = document.documentElement;
 
     const normNav = normalizeHexColor(navbar);
@@ -68,6 +68,10 @@ export function TenantProvider({ children }) {
       if (document.body) {
         document.body.style.color = normText;
       }
+    }
+    const normIcon = normalizeHexColor(icon) || normPrimary || normText;
+    if (normIcon) {
+      root.style.setProperty('--icon', normIcon);
     }
   }, []);
 
@@ -149,6 +153,7 @@ export function TenantProvider({ children }) {
     limits: tenant?.limits || tenant?.effectiveLimits || {},
     usage: tenant?.usage || {},
     roleAccess: tenant?.roleAccess || EMPTY_OBJECT,
+    roleLocationAccess: tenant?.roleLocationAccess || EMPTY_OBJECT,
     accessCatalog: tenant?.accessCatalog || EMPTY_LIST,
     checklistRoles: tenant?.checklistRoles || EMPTY_LIST,
     roleDefaults: tenant?.roleDefaults || EMPTY_OBJECT,

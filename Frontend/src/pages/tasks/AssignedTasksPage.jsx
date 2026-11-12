@@ -12,6 +12,9 @@ import {
 } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
 import {
+  Check, ChevronDown, ChevronUp, FolderOpen, PartyPopper, RefreshCw, X,
+} from 'lucide-react';
+import {
   formatTaskDateTime, filterAssignedHistoryAdvanced, toLocalDateString,
 } from './taskMembers';
 
@@ -192,7 +195,7 @@ export default function AssignedTasksPage({ embedded = false }) {
           {loadingAssigned ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="lg" /></div>
           ) : activeAssignedMembers.length === 0 ? (
-            <EmptyState icon="🎉" message="No pending tasks" sub="You have no members waiting to be processed." />
+            <EmptyState icon={PartyPopper} message="No pending tasks" sub="You have no members waiting to be processed." />
           ) : (
             <div className="table-responsive-container">
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -252,7 +255,7 @@ export default function AssignedTasksPage({ embedded = false }) {
                             disabled={completingId === (item.member?._id || item._id)}
                             onClick={() => handleCompleteMember(item.taskId, item.member?._id || item._id)}
                           >
-                            {completingId === (item.member?._id || item._id) ? <Spinner size="sm" /> : '✓ Mark Completed'}
+                            {completingId === (item.member?._id || item._id) ? <Spinner size="sm" /> : <><Check size={14} aria-hidden /> Mark Completed</>}
                           </Btn>
                           </span>
                         </td>
@@ -277,11 +280,11 @@ export default function AssignedTasksPage({ embedded = false }) {
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Btn size="xs" variant="outline" onClick={() => setHistoryMoreFiltersOpen((o) => !o)}>
-                  {historyMoreFiltersOpen ? '▲ Less Filters' : '▼ More Filters'}
+                  {historyMoreFiltersOpen ? <><ChevronUp size={12} aria-hidden /> Less Filters</> : <><ChevronDown size={12} aria-hidden /> More Filters</>}
                 </Btn>
                 {hasActiveAssigneeFilters && (
                   <Btn size="xs" variant="ghost" onClick={resetAssigneeHistoryFilters}>
-                    ✕ Reset Filters
+                    <X size={14} aria-hidden /> Reset Filters
                   </Btn>
                 )}
               </div>
@@ -431,7 +434,7 @@ export default function AssignedTasksPage({ embedded = false }) {
           {loadingAssigned ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="lg" /></div>
           ) : filteredHistory.length === 0 ? (
-            <EmptyState icon="📂" message="No matching history items" sub="Try adjusting your filters or search terms." />
+            <EmptyState icon={FolderOpen} message="No matching history items" sub="Try adjusting your filters or search terms." />
           ) : (
             <div className="table-responsive-container">
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -480,7 +483,7 @@ export default function AssignedTasksPage({ embedded = false }) {
                         <td style={{ padding: '12px 14px', color: 'var(--t3)', fontSize: 12 }}>
                           {item.status === 'completed' ? (
                             <div>
-                              <span style={{ color: 'var(--green)', fontWeight: 600 }}>✓ {formatTaskDateTime(item.completedAt)}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--green)', fontWeight: 600 }}><Check size={12} aria-hidden /> {formatTaskDateTime(item.completedAt)}</span>
                               {item.completedBy?.name && (
                                 <div style={{ fontSize: 10, color: 'var(--t4)' }}>by {item.completedBy.name}</div>
                               )}
@@ -522,7 +525,7 @@ export default function AssignedTasksPage({ embedded = false }) {
       <PageHeader walkthrough="my-tasks-header" title="My Tasks">
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Btn size="sm" variant="outline" onClick={fetchAssignedHistory} disabled={loadingAssigned}>
-            ↻ Refresh
+            <RefreshCw size={14} aria-hidden /> Refresh
           </Btn>
         </div>
       </PageHeader>

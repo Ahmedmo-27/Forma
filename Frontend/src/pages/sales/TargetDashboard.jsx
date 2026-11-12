@@ -2,12 +2,14 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, CardHeader, Spinner, EmptyState, Badge, Avatar, fmtDate, Select, toLocalDateString } from '../../components/ui';
 import { getSalesManagerRevenue, getSubscriptionsByDate, getSalesUsers, getCoachTeam, getAllMembers, getPackages } from '../../api/endpoints';
 import {
   buildPackageOptions, filterByPackage, sharePercent, summarizePackages,
 } from './packageSales';
+import { ClipboardList, Dumbbell, Package } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmt  = (n) => Number(n ?? 0).toLocaleString('en-EG');
@@ -375,7 +377,7 @@ function SalesSubscriptionsContent() {
     }
   }, [dateFrom, dateTo, salesRepId]);
 
-  useEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { load(); }, [load]);
 
   const allEntries = data?.entries ?? [];
   const packageStats = summarizePackages(allEntries);
@@ -479,7 +481,7 @@ function SalesSubscriptionsContent() {
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 28 }}><Spinner /></div>
         ) : packageStats.length === 0 ? (
-          <EmptyState icon="📦" message="No packages sold in this range" sub="Try This month or widen the dates" />
+          <EmptyState icon={Package} message="No packages sold in this range" sub="Try This month or widen the dates" />
         ) : (
           <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -547,7 +549,7 @@ function SalesSubscriptionsContent() {
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
         ) : entries.length === 0 ? (
-          <EmptyState icon="📋" message="No subscriptions found" sub="Try adjusting the date range, package, or sales rep filter" />
+          <EmptyState icon={ClipboardList} message="No subscriptions found" sub="Try adjusting the date range, package, or sales rep filter" />
         ) : (
           <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -643,7 +645,7 @@ function CoachSessionsContent() {
     } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { load(); }, [load]);
 
   // Filter members that have PT sessions
   const ptMembers = members.filter(m => {
@@ -701,7 +703,7 @@ function CoachSessionsContent() {
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
         ) : ptMembers.length === 0 ? (
-          <EmptyState icon="🏋️" message="No members with private sessions" sub="Adjust the coach filter or add PT sessions to members" />
+          <EmptyState icon={Dumbbell} message="No members with private sessions" sub="Adjust the coach filter or add PT sessions to members" />
         ) : (
           <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
@@ -791,7 +793,7 @@ export default function TargetDashboard() {
     }
   }, [selectedDate]);
 
-  useEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { load(); }, [load]);
 
   const TABS = [
     { id: 'today',         label: 'Today / Date' },

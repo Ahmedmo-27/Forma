@@ -20,6 +20,18 @@ import OthersTab      from './tabs/OthersTab';
 import FilesTab       from './tabs/FilesTab';
 import AlertsTab      from './tabs/AlertsTab';
 import DashboardTab   from './tabs/DashboardTab';
+import {
+  AlertTriangle,
+  Ban,
+  BarChart3,
+  Briefcase,
+  Clock,
+  Dumbbell,
+  Hash,
+  IdCard,
+  Phone,
+  User,
+} from 'lucide-react';
 
 const TABS = [
   { id: 'dashboard',   label: 'Dashboard' },
@@ -214,7 +226,7 @@ export default function MemberProfile() {
                 padding: '12px 16px', marginBottom: 14,
                 display: 'flex', alignItems: 'center', gap: 12,
               }}>
-                <span style={{ fontSize: 22 }}>🚫</span>
+                <Ban size={22} color="var(--red)" aria-hidden />
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--red)', marginBottom: 2 }}>This member is blocked</p>
                   {member.blockedReason && (
@@ -331,7 +343,9 @@ export default function MemberProfile() {
             borderRadius: 16, padding: '32px 40px', maxWidth: 500, width: '100%',
             textAlign: 'center', boxShadow: '0 20px 60px rgba(245,158,11,0.3)',
           }}>
-            <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, color: '#92400e' }}>
+              <AlertTriangle size={48} strokeWidth={1.5} aria-hidden />
+            </div>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: '#92400e', marginBottom: 16 }}>
               Member Alert
             </h2>
@@ -362,14 +376,14 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
   const copy = (val) => { navigator.clipboard?.writeText(String(val)); toast.success('Copied!'); };
 
   // ── reusable chip ──────────────────────────────────────────
-  const Chip = ({ icon, label, copyVal, accent }) => (
+  const Chip = ({ icon: Icon, label, copyVal, accent }) => (
     <span style={{
       display: 'inline-flex', alignItems: 'center', gap: 5,
       fontSize: 13, color: accent ? accent : 'var(--t2)',
       background: 'var(--bg)', border: `1px solid ${accent ? accent + '33' : 'var(--border)'}`,
       borderRadius: 7, padding: '4px 10px', whiteSpace: 'nowrap',
     }}>
-      <span style={{ fontSize: 12, opacity: 0.8 }}>{icon}</span>
+      {Icon && <Icon size={13} style={{ opacity: 0.8, flexShrink: 0 }} aria-hidden />}
       {label}
       {copyVal && (
         <button
@@ -396,7 +410,7 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
         background: 'var(--bg)', border: '1px solid var(--border)',
         borderRadius: 7, padding: '4px 10px', whiteSpace: 'nowrap',
       }}>
-        <span style={{ fontSize: 12, opacity: 0.8 }}>📞</span>
+        <Phone size={13} style={{ opacity: 0.8, flexShrink: 0 }} aria-hidden />
         {visible ? (
           <>
             <span style={{ fontFamily: 'monospace' }}>{phone}</span>
@@ -452,20 +466,20 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
 
         {/* Row 2: IDs + gender + phone + last check-in */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-          {member.memberId  && <Chip icon="🪪" label={`Member ID: ${member.memberId}`}    copyVal={String(member.memberId)} />}
-          {member.systemId  && <Chip icon="🔢" label={`System ID: ${formatSystemId(member.systemId)}`}  copyVal={formatSystemId(member.systemId)} />}
-          {member.gender    && <Chip icon="👤" label={member.gender.charAt(0).toUpperCase() + member.gender.slice(1)} />}
+          {member.memberId  && <Chip icon={IdCard} label={`Member ID: ${member.memberId}`}    copyVal={String(member.memberId)} />}
+          {member.systemId  && <Chip icon={Hash} label={`System ID: ${formatSystemId(member.systemId)}`}  copyVal={formatSystemId(member.systemId)} />}
+          {member.gender    && <Chip icon={User} label={member.gender.charAt(0).toUpperCase() + member.gender.slice(1)} />}
           {member.phones && <PhoneChip phone={member.phones} />}
           {lastCheckIn      && (
-            <Chip icon="🕐" label={`Last Check-In: ${fmtDateTime(lastCheckIn.createdAt)}`} />
+            <Chip icon={Clock} label={`Last Check-In: ${fmtDateTime(lastCheckIn.createdAt)}`} />
           )}
         </div>
 
         {/* Row 3: Coach + Sales + Total Visits — separated by a divider dot */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-          {member.current_couch && <Chip icon="🏋️" label={`Coach: ${member.current_couch.name}`} accent="var(--sky)" />}
-          {member.assignedSales && <Chip icon="💼" label={`Sales: ${member.assignedSales.name}`} accent="var(--amber)" />}
-          <Chip icon="📊" label={`${totalCheckIns} Total Visits`} />
+          {member.current_couch && <Chip icon={Dumbbell} label={`Coach: ${member.current_couch.name}`} accent="var(--sky)" />}
+          {member.assignedSales && <Chip icon={Briefcase} label={`Sales: ${member.assignedSales.name}`} accent="var(--amber)" />}
+          <Chip icon={BarChart3} label={`${totalCheckIns} Total Visits`} />
         </div>
       </div>
     </div>

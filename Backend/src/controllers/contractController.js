@@ -84,8 +84,13 @@ const getContracts = async (req, res) => {
         const { page, limit, skip } = parsePagination(req.query);
         const { dateFrom, dateTo } = req.query;
 
+        const memberFilter = {
+            "subscriptions.0": { $exists: true },
+            ...(req.locationFilter || {}),
+        };
+
         const [members, acceptedRequests, financeUsers] = await Promise.all([
-            Member.find({ "subscriptions.0": { $exists: true } })
+            Member.find(memberFilter)
                 .populate(`subscriptions.package`, PACKAGE_FIELDS)
                 .populate("subscriptions.createdBy", "name email role")
                 .populate("subscriptions.approvedBy", "name email role")

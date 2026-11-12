@@ -54,6 +54,16 @@ const userSchema = new mongoose.Schema({
         add: { type: [String], default: [] },
         remove: { type: [String], default: [] },
     },
+
+    // Branches this staff member may view. Owner always bypasses (treated as all).
+    allowedLocationIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Location",
+    }],
+    canAccessAllLocations: {
+        type: Boolean,
+        default: false,
+    },
 }, { timestamps: true });
 
 userSchema.plugin(tenantPlugin);

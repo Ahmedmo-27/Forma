@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Table, Badge, Btn, ConfirmDialog, EmptyState, Modal, fmtDate, fmtDateTime, Pagination } from '../../components/ui';
 import { getPackageExceptions, updatePackageExceptionStatus } from '../../api/endpoints';
@@ -192,8 +193,8 @@ export default function PackageRequests() {
     fetchResolved();
   }, [fetchPending, fetchResolved]);
 
-  useEffect(() => { fetchPending(); }, [fetchPending]);
-  useEffect(() => { fetchResolved(); }, [fetchResolved]);
+  useLocationEffect(() => { fetchPending(); }, [fetchPending]);
+  useLocationEffect(() => { fetchResolved(); }, [fetchResolved]);
 
   const handleAction = async () => {
     if (!confirm) return;

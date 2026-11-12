@@ -2,13 +2,71 @@ import { apiOrigin } from '../api/axios';
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import {
+  AlertTriangle,
+  ArrowLeftRight,
+  CheckSquare,
+  ClipboardList,
+  Headphones,
+  LayoutDashboard,
+  Phone,
+  Tag,
+  Users,
+  X,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
+import { useLocationScope, ALL_LOCATIONS } from '../context/LocationContext';
 import GlobalSearch from './GlobalSearch';
 import NotificationBell from './NotificationBell';
 import { updateMyProfile } from '../api/endpoints';
 import { hasAccess } from '../lib/access';
 import HelpButton from './tutorials/HelpButton';
+
+function LocationSwitcher({ compact = false }) {
+  const {
+    showSwitcher,
+    locations,
+    selectedLocationId,
+    setSelectedLocationId,
+    canAccessAllLocations,
+  } = useLocationScope();
+
+  if (!showSwitcher) return null;
+
+  return (
+    <select
+      aria-label="Select location"
+      value={selectedLocationId}
+      onChange={(e) => setSelectedLocationId(e.target.value)}
+      style={{
+        flexShrink: 0,
+        maxWidth: compact ? '100%' : 180,
+        width: compact ? '100%' : undefined,
+        height: compact ? 40 : 36,
+        padding: '0 10px',
+        borderRadius: 8,
+        border: '1px solid rgba(255,255,255,0.18)',
+        background: 'rgba(0,0,0,0.28)',
+        color: '#fff',
+        fontSize: 13,
+        fontWeight: 600,
+        fontFamily: 'inherit',
+        cursor: 'pointer',
+        outline: 'none',
+      }}
+    >
+      {(canAccessAllLocations || locations.length > 1) && (
+        <option value={ALL_LOCATIONS} style={{ color: '#111' }}>All locations</option>
+      )}
+      {locations.map((loc) => (
+        <option key={loc._id} value={loc._id} style={{ color: '#111' }}>
+          {loc.name}
+        </option>
+      ))}
+    </select>
+  );
+}
 
 const NAV = {
   Receptionist:  [{ to: '/checkin', label: 'Check In', access: 'check_in' }, { to: '/members', label: 'Members', access: 'members' }, { to: '/contacts', label: 'Contacts' }],
@@ -78,63 +136,20 @@ function ini(name = '') {
   return name.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
 }
 
+const NAV_ICONS = {
+  dashboard: LayoutDashboard,
+  members: Users,
+  checkin: CheckSquare,
+  tasks: Tag,
+  contacts: Phone,
+  contracts: ClipboardList,
+  callcenter: Headphones,
+  transfer: ArrowLeftRight,
+};
+
 function NavIcon({ name, size = 20 }) {
-  switch (name) {
-    case 'dashboard':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/>
-        </svg>
-      );
-    case 'members':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-        </svg>
-      );
-    case 'checkin':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m9 11 3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>
-        </svg>
-      );
-    case 'tasks':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2H2v10l9.29 9.29c.94.94 2.48.94 3.42 0l6.58-6.58c.94-.94.94-2.48 0-3.42L12 2Z"/><path d="M7 7h.01"/>
-        </svg>
-      );
-    case 'contacts':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
-        </svg>
-      );
-    case 'contracts':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/>
-        </svg>
-      );
-    case 'callcenter':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M3 14h3a2 2 0 0 1 2 2v3a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a9 9 0 0 1 18 0v10a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3"/>
-        </svg>
-      );
-    case 'transfer':
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="m16 3 4 4-4 4"/><path d="M20 7H4"/><path d="m8 21-4-4 4-4"/><path d="M4 17h16"/>
-        </svg>
-      );
-    default:
-      return (
-        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-        </svg>
-      );
-  }
+  const Icon = NAV_ICONS[name] || LayoutDashboard;
+  return <Icon size={size} strokeWidth={2} aria-hidden="true" />;
 }
 
 // ── Check if a navigation tab should be highlighted as active ──────────────────
@@ -314,6 +329,7 @@ function DrawerItem({ item, active, onNavigate }) {
 export default function Layout({ children }) {
   const { user, signOut } = useAuth();
   const { tenant, branding, hasFeature } = useTenant();
+  const { version: locationVersion } = useLocationScope();
   const navigate = useNavigate();
   const location = useLocation();
   const [mob, setMob]         = useState(false);
@@ -421,7 +437,7 @@ export default function Layout({ children }) {
           boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, overflow: 'hidden' }}>
-            <span style={{ fontSize: 14 }}>⚠️</span>
+            <AlertTriangle size={14} aria-hidden="true" />
             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
               Support Mode ({user?.readOnly ? 'READ-ONLY' : 'READ-WRITE'})
             </span>
@@ -474,6 +490,10 @@ export default function Layout({ children }) {
               <img key={logoUrl} src={logoUrl} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
             <span className="nav-logo-text" style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '2px', textTransform: 'uppercase' }}>{displayName}</span>
+          </div>
+
+          <div className="nav-location-switcher" style={{ flexShrink: 0, marginLeft: 4 }}>
+            <LocationSwitcher />
           </div>
 
           {/* Desktop Search */}
@@ -677,9 +697,10 @@ export default function Layout({ children }) {
             </div>
             <span style={{ fontSize: 15, fontWeight: 900, color: '#fff', letterSpacing: '2px', textTransform: 'uppercase' }}>{displayName}</span>
           </div>
-          <button onClick={() => setMob(false)} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 6, width: 32, height: 32, cursor: 'pointer', color: 'rgba(255,255,255,0.7)', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+          <button onClick={() => setMob(false)} aria-label="Close menu" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 6, width: 32, height: 32, cursor: 'pointer', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
         </div>
-        <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <LocationSwitcher compact />
           <GlobalSearch />
         </div>
         <nav style={{ flex: 1, padding: '10px 12px', overflowY: 'auto' }}>
@@ -713,7 +734,7 @@ export default function Layout({ children }) {
       </div>
 
       {/* ── PAGE CONTENT ───────────────────────────────────────── */}
-      <main className="app-main-content">{children}</main>
+      <main className="app-main-content" key={`loc-${locationVersion}`}>{children}</main>
 
       {/* ── MOBILE BOTTOM NAVIGATION BAR (1-Thumb Ergonomics) ────── */}
       <nav className="mobile-bottom-nav" data-walkthrough="mobile-nav" aria-label="Quick Navigation" style={{
@@ -795,10 +816,10 @@ export default function Layout({ children }) {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
               <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', margin: 0 }}>Edit Profile</h2>
-              <button onClick={() => setEditProfile(false)} disabled={profileSaving} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 28, height: 28, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              <button onClick={() => setEditProfile(false)} disabled={profileSaving} aria-label="Close" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 28, height: 28, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--red-bg)'; e.currentTarget.style.color = 'var(--red)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--t3)'; }}
-              >✕</button>
+              ><X size={14} /></button>
             </div>
 
             <div style={{ padding: '20px' }}>

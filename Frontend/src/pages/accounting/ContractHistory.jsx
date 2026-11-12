@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Table, EmptyState, fmtDate, fmtDateTime, Pagination, toLocalDateString } from '../../components/ui';
 import { getContracts } from '../../api/endpoints';
@@ -48,7 +49,7 @@ export default function ContractHistory() {
     }
   }, [page, dateFrom, dateTo]);
 
-  useEffect(() => { fetchContracts(); }, [fetchContracts]);
+  useLocationEffect(() => { fetchContracts(); }, [fetchContracts]);
 
   const rowStyle = { borderBottom: '1px solid var(--border)', cursor: 'pointer' };
   const headers = ['Contract #', 'Member', 'Package', 'Price Paid', 'Start Date', 'Sales Manager', 'Processed By', 'Date Added'];

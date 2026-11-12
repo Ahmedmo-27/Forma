@@ -14,6 +14,9 @@ import {
   bulkTransferSalesReps, bulkTransferCoach, sendWhatsAppMessage,
 } from '../../api/endpoints';
 import {
+  CircleDot, Dumbbell, MessageCircle, RefreshCw, Search, UserRound, Users,
+} from 'lucide-react';
+import {
   filterMembersAdvanced, packageName, columnValue,
   taskPermissions, toggleId, toggleIds,
 } from './taskMembers';
@@ -271,7 +274,7 @@ export default function TaskFilterResultsPage() {
             ← Modify Filters
           </Btn>
           <Btn variant="outline" size="sm" onClick={fetchMembers} disabled={loading}>
-            {loading ? <Spinner size="sm" /> : '↻ Reload'}
+            {loading ? <Spinner size="sm" /> : <><RefreshCw size={14} aria-hidden /> Reload</>}
           </Btn>
         </div>
       </PageHeader>
@@ -332,7 +335,7 @@ export default function TaskFilterResultsPage() {
                   borderRadius: 6, background: 'color-mix(in srgb, var(--navy) 8%, transparent)', color: 'var(--navy, var(--navy))',
                   fontSize: 12, fontWeight: 700,
                 }}>
-                  <span>● {selectedSet.size} selected</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CircleDot size={12} aria-hidden /> {selectedSet.size} selected</span>
                   <button
                     type="button"
                     onClick={() => setSelected(new Set())}
@@ -345,18 +348,18 @@ export default function TaskFilterResultsPage() {
             <div data-walkthrough="filter-results-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {canSalesman && (
                 <Btn size="sm" variant="primary" disabled={!selectedSet.size} onClick={() => openTransferModal('sales')}>
-                  👤 Assign Sales Rep ({selectedSet.size})
+                  <UserRound size={14} aria-hidden /> Assign Sales Rep ({selectedSet.size})
                 </Btn>
               )}
               {canCoach && (
                 <Btn size="sm" variant="outline" disabled={!selectedSet.size} onClick={() => openTransferModal('coach')}>
-                  🏋️ Assign Coach ({selectedSet.size})
+                  <Dumbbell size={14} aria-hidden /> Assign Coach ({selectedSet.size})
                 </Btn>
               )}
               {canWhatsApp && (
                 <span data-walkthrough="filter-results-wa">
                   <Btn size="sm" variant="outline" disabled={!selectedSet.size} onClick={openWaModal}>
-                    💬 WhatsApp ({selectedSet.size})
+                    <MessageCircle size={14} aria-hidden /> WhatsApp ({selectedSet.size})
                   </Btn>
                 </span>
               )}
@@ -369,9 +372,9 @@ export default function TaskFilterResultsPage() {
               <Spinner size="lg" />
             </div>
           ) : !loaded ? (
-            <EmptyState icon="🔍" message="Loading members…" sub="Please wait while we fetch the data." />
+            <EmptyState icon={Search} message="Loading members…" sub="Please wait while we fetch the data." />
           ) : filtered.length === 0 ? (
-            <EmptyState icon="👥" message="No members found" sub="Go back and adjust your filters to see results." />
+            <EmptyState icon={Users} message="No members found" sub="Go back and adjust your filters to see results." />
           ) : (
             <>
               <div className="table-responsive-container">

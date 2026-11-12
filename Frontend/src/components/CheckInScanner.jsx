@@ -4,6 +4,18 @@ import { Spinner, Badge, fmtTimeWithSeconds } from './ui';
 import { parseScannedIdentifier } from '../lib/scannerParser';
 import { formatSystemId } from '../lib/systemId';
 import { playCheckInSound } from '../lib/audioFeedback';
+import {
+  Camera,
+  CheckCircle2,
+  FlipHorizontal,
+  IdCard,
+  Play,
+  Square,
+  Ticket,
+  X,
+  XCircle,
+  Zap,
+} from 'lucide-react';
 
 export default function CheckInScanner({
   onScan,
@@ -301,9 +313,9 @@ export default function CheckInScanner({
             Scan As:
           </span>
           {[
-            { id: 'auto', label: '⚡ Auto (All)' },
-            { id: 'systemId', label: '🆔 System ID' },
-            { id: 'memberId', label: '🎟️ Member ID' },
+            { id: 'auto', label: 'Auto (All)', Icon: Zap },
+            { id: 'systemId', label: 'System ID', Icon: IdCard },
+            { id: 'memberId', label: 'Member ID', Icon: Ticket },
           ].map(m => (
             <button
               key={m.id}
@@ -320,8 +332,12 @@ export default function CheckInScanner({
                 color: scanMode === m.id ? 'var(--navy)' : 'var(--t3)',
                 cursor: 'pointer',
                 transition: 'all 0.15s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 4,
               }}
             >
+              <m.Icon size={12} aria-hidden />
               {m.label}
             </button>
           ))}
@@ -348,7 +364,7 @@ export default function CheckInScanner({
                 gap: 5,
               }}
             >
-              🔄 Flip Camera
+              <FlipHorizontal size={14} aria-hidden /> Flip Camera
             </button>
           )}
 
@@ -372,7 +388,7 @@ export default function CheckInScanner({
                 boxShadow: '0 2px 8px rgba(34,197,94,0.30)',
               }}
             >
-              {starting ? <><Spinner size="sm" /> Opening Camera…</> : <>📷 Open Camera</>}
+              {starting ? <><Spinner size="sm" /> Opening Camera…</> : <><Camera size={15} aria-hidden /> Open Camera</>}
             </button>
           ) : (
             <button
@@ -393,7 +409,7 @@ export default function CheckInScanner({
                 boxShadow: '0 2px 8px rgba(239,68,68,0.15)',
               }}
             >
-              ⏹ Close Camera
+              <Square size={14} fill="currentColor" aria-hidden /> Close Camera
             </button>
           )}
         </div>
@@ -484,7 +500,7 @@ export default function CheckInScanner({
               boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
             }}
           >
-            ✕ Close Camera
+            <X size={14} aria-hidden /> Close Camera
           </button>
         )}
 
@@ -511,10 +527,10 @@ export default function CheckInScanner({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: 26,
               marginBottom: 12,
+              color: '#94a3b8',
             }}>
-              📷
+              <Camera size={28} aria-hidden />
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#f8fafc', marginBottom: 4 }}>
               QR Code Scanner Ready
@@ -541,7 +557,7 @@ export default function CheckInScanner({
                 boxShadow: '0 4px 14px color-mix(in srgb, var(--navy) 40%, transparent)',
               }}
             >
-              {starting ? <><Spinner size="sm" /> Opening Camera…</> : <>▶ Open Camera</>}
+              {starting ? <><Spinner size="sm" /> Opening Camera…</> : <><Play size={15} aria-hidden /> Open Camera</>}
             </button>
           </div>
         )}
@@ -653,11 +669,12 @@ export default function CheckInScanner({
           alignItems: 'center',
           gap: 12,
         }}>
-          <div style={{
-            fontSize: 20,
-            lineHeight: 1,
-          }}>
-            {lastScannedResult.ok ? '✅' : '❌'}
+          <div style={{ lineHeight: 1, flexShrink: 0 }}>
+            {lastScannedResult.ok ? (
+              <CheckCircle2 size={22} color="var(--green)" aria-hidden />
+            ) : (
+              <XCircle size={22} color="var(--red)" aria-hidden />
+            )}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{

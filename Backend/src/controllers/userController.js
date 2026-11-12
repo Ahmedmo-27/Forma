@@ -460,9 +460,10 @@ const getSalesManagerRevenue = async (req, res) => {
         const selectedDate = req.query.date  || null; // YYYY-MM-DD  – specific day filter
         const currentYear  = Number(dayKey(now).slice(0, 4));
 
+        const memberQuery = { ...(req.locationFilter || {}) };
         const [members, reps] = await Promise.all([
-            Member.find()
-                .select("subscriptions assignedSales status")
+            Member.find(memberQuery)
+                .select("subscriptions assignedSales status locationId")
                 .populate("subscriptions.package", "name price")
                 .lean(),
             User.find({ role: "Sales" }).select("name email _id monthlyTarget").lean(),
@@ -554,7 +555,14 @@ const getMyProfile = async (req, res) => {
             });
             accessContext = accessContextFor(tenant);
         }
-        const formatted = formatUserResponse(user, { includeAccess: true, accessContext });
+        const tenantForLoc = accessContext
+            ? (req.tenant || null)
+            : null;
+        const formatted = formatUserResponse(user, {
+            includeAccess: true,
+            accessContext,
+            tenant: tenantForLoc || req.tenant || null,
+        });
         if (req.user?.tenantSlug) formatted.tenantSlug = req.user.tenantSlug;
         if (req.user?.tenantId) formatted.tenantId = req.user.tenantId;
 
@@ -852,6 +860,7 @@ const getSubscriptionsByDate = async (req, res) => {
 
         const filter = {
             "subscriptions.startDate": { $gte: dayStart, $lte: dayEnd },
+            ...(req.locationFilter || {}),
         };
         if (salesRepId) {
             filter.assignedSales = salesRepId;
@@ -935,6 +944,7 @@ const getSalesMySubscriptions = async (req, res) => {
         const members = await Member.find({
             assignedSales: req.user.id,
             "subscriptions.startDate": { $gte: dayStart, $lte: dayEnd },
+            ...(req.locationFilter || {}),
         })
             .populate("subscriptions.package", "name price duration activityType")
             .populate("assignedSales", "name role");

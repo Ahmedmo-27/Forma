@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, StatCard, Table, Btn, EmptyState, fmtDate, fmtDateTime, toLocalDateString } from '../../components/ui';
 import {
@@ -112,7 +113,7 @@ export default function AccountantDashboard() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { load(); }, [load]);
 
   const firstName = user?.name?.split(' ')[0] ?? 'there';
   const dateLabel = new Date().toLocaleDateString('en-GB', {
