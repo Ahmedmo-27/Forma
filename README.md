@@ -4,7 +4,9 @@ Sales-assisted multi-tenant gym platform. Platform operators onboard a gym, the 
 
 ## Applications
 
-- `Frontend` — gym app and platform console (`/platform`). Production on Vercel (`app` / `www` on `forma-official.com`).
+- `Frontend` — one Vercel SPA, split by hostname in production:
+  - **`www.forma-official.com`** (apex → www) — public marketing, plans, signup
+  - **`app.forma-official.com`** — gym staff login, tenant dashboards, `/platform` console
 - `Backend` — Express API. Bind `0.0.0.0` and use `PORT`.
   - **Production:** Railway (`api.forma-official.com`)
   - **Testing:** Render (`render.yaml` / default `*.onrender.com` — no custom domain)

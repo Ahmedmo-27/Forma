@@ -16,9 +16,11 @@ Keep production secrets, MongoDB, and bank payment config on Railway. Treat Rend
 | Host | Serves | Deploy target |
 |------|--------|----------------|
 | `api.forma-official.com` | Express API (`/api/*`, `/api/platform/*`, `/api/tenant/*`, `/uploads/*`, health) | Railway custom domain |
-| `app.forma-official.com` | Gym staff SPA (`/login`, role routes) + `/auth/*` | Vercel |
+| `app.forma-official.com` | Gym staff SPA (`/login`, role dashboards) + `/auth/*` + `/platform/*` (default) | Vercel |
 | `platform.forma-official.com` | Platform console (optional; else use `app…/platform`) | Same Vercel project |
-| `www.forma-official.com` (apex → www) | Public marketing + plans + purchase / signup | Same Vercel project |
+| `www.forma-official.com` (apex → www) | Public marketing only (`/`, `/plans`, `/get-started`); staff/auth/platform URLs hard-redirect to `app.` | Same Vercel project |
+
+SPA host branching is in `Frontend/src/marketing/host.js` + `Frontend/src/App.jsx`: www never keeps tenants logged into dashboards on the marketing origin.
 
 ```mermaid
 flowchart LR
@@ -84,7 +86,7 @@ Auth is Bearer + `localStorage` with CORS `credentials: false`, so sessions do n
 |----------|--------------------------|
 | `PORT` | Provided by Railway; bind `0.0.0.0` |
 | `BASE_DOMAIN` | `forma-official.com` |
-| `FRONTEND_ORIGIN` | `https://app.forma-official.com,https://www.forma-official.com,https://platform.forma-official.com` — **list `app` first** so invite/reset links from `passwordSetupService` hit the gym app |
+| `FRONTEND_ORIGIN` | `https://app.forma-official.com,https://www.forma-official.com,https://platform.forma-official.com,https://forma-official.com` — **list `app` first** so invite/reset links hit the gym app |
 | `MAIL_FROM` | `Forma <noreply@forma-official.com>` |
 | `PAYMENT_*` | Full bank fields required; production checkout fails closed if bank name, account name, or IBAN is empty |
 | `PAYMENT_GATEWAY_URL` | Optional later: `https://www.forma-official.com/checkout` |
@@ -103,7 +105,7 @@ Auth is Bearer + `localStorage` with CORS `credentials: false`, so sessions do n
 
 | Variable | Production value / notes |
 |----------|--------------------------|
-| `BACKEND_ORIGIN` | `https://api.forma-official.com` — never the Render URL for production builds |
+| `BACKEND_ORIGIN` | **`https://api.forma-official.com`** (scheme required). Never the Render URL for production builds. Bare `api.forma-official.com` makes the browser POST to `https://app.forma-official.com/api.forma-official.com/...` → **405**. |
 
 ### Local development
 
@@ -115,7 +117,8 @@ Auth is Bearer + `localStorage` with CORS `credentials: false`, so sessions do n
 ## 5. CORS and invite-link rules
 
 - CORS allowlist is driven by `FRONTEND_ORIGIN` in `Backend/src/app.js` (comma-separated, trailing slashes stripped).
-- Production Railway: the three `forma-official.com` browser origins above.
+- When `BASE_DOMAIN=forma-official.com`, the API also allows HTTPS origins on that apex and any single subdomain (`https://forma-official.com`, `https://www.forma-official.com`, `https://app.forma-official.com`, `https://platform.forma-official.com`, …). Still set `FRONTEND_ORIGIN` explicitly; list **`app` first** for invite links.
+- Recommended production `FRONTEND_ORIGIN`: `https://app.forma-official.com,https://www.forma-official.com,https://platform.forma-official.com,https://forma-official.com`
 - Testing Render: localhost / preview only.
 - Login host heuristic already treats `railway.app` and `onrender.com` as non-tenant hosts (no subdomain gym hint on PaaS URLs).
 - Invite and password-reset absolute URLs use the **first** origin in `FRONTEND_ORIGIN` — keep `https://app.forma-official.com` first in production.
@@ -126,26 +129,29 @@ Auth is Bearer + `localStorage` with CORS `credentials: false`, so sessions do n
 |---------|------|------------|
 | Gym staff (tenant) | Tenant JWT (`JWT_SECRET`) | `/api/*` (scoped), `/api/tenant/*` |
 | Platform console | Platform JWT (`PLATFORM_JWT_SECRET`, audience `leap-platform`) | `/api/platform/*` |
-| Public marketing / plans (next) | None (rate-limited) | Planned `/api/public/*` only — **never** anonymous `/api/platform/*` |
+| Public marketing / plans | None (rate-limited signup) | `/api/public/*` only — **never** anonymous `/api/platform/*` |
 
 Do not present a tenant bearer token to `/api/platform/*` or a platform token to tenant gym routes.
 
 Default platform ops URL: `https://app.forma-official.com/platform/login`.
 
-## 7. Public plans + purchase (contract for next build)
+## 7. Public plans + purchase (implemented)
 
-Public site on `www.forma-official.com`:
+Public site on `www.forma-official.com` (gated by platform `public_site` published flag; see `Frontend/src/marketing/` + `PublicSiteGate`):
 
-- `GET /` — marketing
-- `GET /plans` — catalog
-- `GET /get-started` or `/checkout` — signup + bank-transfer instructions
+- `GET /` — marketing home
+- `GET /why-forma` — positioning / ERP comparison
+- `GET /plans` — live catalog
+- `GET /get-started` (and `/checkout` → redirect) — signup + bank-transfer instructions
+- Coming-soon surface when unpublished; super_admin preview via `forma_www_preview` cookie
 
-Planned unauthenticated API on **Railway**:
+Unauthenticated API on **Railway** (`Backend/src/routes/publicRoutes.js`):
 
+- `GET /api/public/site-config` — published state + preview allow
 - `GET /api/public/plans` — active plans and prices via `runAsPlatform`
 - `POST /api/public/signup` — rate-limited; create trial/pending tenant + owner invite; return bank-transfer instructions
 
-Purchase completion stays **manual confirm** in the platform billing console (sales-assisted wire transfer). Fix known onboard/AuditLog issues before exposing public signup.
+Purchase completion stays **manual confirm** in the platform billing console (sales-assisted wire transfer). Toggle publish from platform Health / system settings.
 
 ```mermaid
 sequenceDiagram
@@ -166,16 +172,14 @@ sequenceDiagram
   Buyer->>App: Setup password and login
 ```
 
-This document freezes the contract; it does not implement the public UI or `/api/public/*` routes.
-
 ## 8. Cutover checklist
 
 1. Attach `api.forma-official.com` on the **Railway** API service; wait for TLS.
 2. Attach `app`, `www` (and optional `platform` / apex) on the **Vercel** project; wait for TLS.
 3. Set Railway env: `FRONTEND_ORIGIN` (app first), `BASE_DOMAIN`, `MAIL_FROM`, production `PAYMENT_*`, production secrets.
-4. Set Vercel `BACKEND_ORIGIN=https://api.forma-official.com` and **redeploy** (build-time inject).
+4. Set Vercel `BACKEND_ORIGIN=https://api.forma-official.com` (must include `https://`) and **redeploy** (build-time inject).
 5. Confirm CSP allows `https://api.forma-official.com` (see §9). Keep `*.onrender.com` only if preview/test frontends still talk to Render.
-6. Smoke-test: CORS from `app` and `www`, gym login, `/platform/login`, invite email link host = `app.forma-official.com`.
+6. Smoke-test: CORS from `app` and `www`, gym login POST to `https://api.forma-official.com/api/users/login` (not a path under `app`), `/platform/login`, invite email link host = `app.forma-official.com`.
 7. Do **not** migrate the custom domain onto Render.
 
 ## 9. Vercel CSP + origin cutover
