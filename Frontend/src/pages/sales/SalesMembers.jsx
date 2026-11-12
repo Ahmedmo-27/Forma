@@ -179,8 +179,9 @@ export default function SalesMembers() {
           setShowAdd(false);
           setFilter('all');
           setSearch('');
+          setSortNewest(true);
           setPage(1);
-          fetchMembers({ status: 'all', page: 1, search: '' });
+          fetchMembers({ status: 'all', page: 1, search: '', sortNewest: true });
         }}
         defaultSalesRep={user?._id}
       />

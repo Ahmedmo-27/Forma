@@ -1,6 +1,6 @@
 // ─── Flame Factory UI — sharp, data-dense design system ────────────────────────
 
-import { useState, useEffect, useLayoutEffect, useRef, useMemo, Children, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, Children, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { fetchProtectedUploadBlobUrl } from '../api/axios';
 
@@ -914,7 +914,7 @@ export function parsePageSizeOptionValue(val, currentSize = 10, currentOrder = '
   if (!val) {
     return { size: currentSize, order: currentOrder, isCustomPrompt: false };
   }
-  const strVal = String(val).trim();
+  const strVal = String(val).trim().toLowerCase();
   if (strVal === 'custom' || strVal === 'custom_prompt') {
     return { size: currentSize, order: currentOrder, isCustomPrompt: true };
   }
@@ -954,8 +954,6 @@ export function PageSizeFilter({
   label = 'Show:',
   showOrderOptions = true,
 }) {
-  const [, setPromptTick] = useState(0);
-
   const opts = (pageSizeOptions && pageSizeOptions.length)
     ? pageSizeOptions
     : (options && options.length ? options : [10, 20, 30, 50]);
@@ -966,6 +964,10 @@ export function PageSizeFilter({
 
   // Normalize legacy default label "Show first:" if callers or legacy usage passed it
   const resolvedLabel = (label === 'Show first:' && showOrderOptions) ? 'Show:' : label;
+
+  const selectValue = !showOrderOptions
+    ? (isCustom ? 'custom' : currentSize)
+    : (isCustom ? `custom:${currentOrder}` : `${currentOrder}:${currentSize}`);
 
   const triggerChange = (newSize, newOrder) => {
     const meta = { pageSize: newSize, order: newOrder };
@@ -987,12 +989,12 @@ export function PageSizeFilter({
           : null;
         if (input !== null) {
           const parsed = parseInt(input, 10);
-          if (Number.isFinite(parsed) && parsed > 0) {
+          if (Number.isFinite(parsed) && parsed >= 0) {
             triggerChange(Math.min(500, Math.max(1, parsed)), currentOrder);
             return;
           }
         }
-        setPromptTick((t) => t + 1);
+        if (e?.target) e.target.value = String(selectValue);
         return;
       }
       triggerChange(Number(val), currentOrder);
@@ -1007,22 +1009,18 @@ export function PageSizeFilter({
         : null;
       if (input !== null) {
         const parsedNum = parseInt(input, 10);
-        if (Number.isFinite(parsedNum) && parsedNum > 0) {
+        if (Number.isFinite(parsedNum) && parsedNum >= 0) {
           const clamped = Math.min(500, Math.max(1, parsedNum));
           triggerChange(clamped, parsed.order);
           return;
         }
       }
-      setPromptTick((t) => t + 1);
+      if (e?.target) e.target.value = String(selectValue);
       return;
     }
 
     triggerChange(parsed.size, parsed.order);
   };
-
-  const selectValue = !showOrderOptions
-    ? (isCustom ? 'custom' : currentSize)
-    : (isCustom ? `custom:${currentOrder}` : `${currentOrder}:${currentSize}`);
 
   return (
     <div
@@ -1134,10 +1132,12 @@ export function Pagination({
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === 'custom') {
-                  const input = window.prompt('Enter number of items per page (1–500):', String(size));
+                  const input = typeof window !== 'undefined' && window.prompt
+                    ? window.prompt('Enter number of items per page (1–500):', String(size))
+                    : null;
                   if (input !== null) {
                     const parsed = parseInt(input, 10);
-                    if (Number.isFinite(parsed) && parsed > 0) {
+                    if (Number.isFinite(parsed) && parsed >= 0) {
                       onPageSizeChange(Math.min(500, Math.max(1, parsed)));
                     }
                   }
