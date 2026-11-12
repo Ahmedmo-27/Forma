@@ -24,14 +24,14 @@ import { protect } from "../middleware/authMiddleware";
 describe("Phase 6: Support, Impersonation & Operations Tools", () => {
     const superAdmin = {
         id: new mongoose.Types.ObjectId().toString(),
-        email: "superadmin@leapplatform.com",
+        email: "superadmin@forma.app",
         name: "Super Admin",
         role: "super_admin",
     };
 
     const supportUser = {
         id: new mongoose.Types.ObjectId().toString(),
-        email: "support@leapplatform.com",
+        email: "support@forma.app",
         name: "Support Specialist",
         role: "support",
     };

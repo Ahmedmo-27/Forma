@@ -28,7 +28,7 @@ async function migrateUploads(options = {}) {
 
     if (!tenant) {
         if (isDryRun) {
-            tenant = { _id: "default-leap-id", name: "Leap Gym (dry-run)" };
+            tenant = { _id: "default-leap-id", name: "Founding tenant (dry-run)" };
         } else {
             throw new Error(`Migration error: No tenant found with slug '${targetSlug}'. Create default tenant first.`);
         }

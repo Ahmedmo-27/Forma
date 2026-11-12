@@ -164,7 +164,7 @@ describe("Phase 1: Platform Identity, Security & RBAC", () => {
 
         it("middleware blocks unauthorized role with 403", () => {
             const req = {
-                platformUser: { id: "u-1", email: "support@leap.com", role: "support" },
+                platformUser: { id: "u-1", email: "support@forma.app", role: "support" },
                 originalUrl: "/api/platform/billing/refunds",
                 method: "POST",
             };
@@ -186,7 +186,7 @@ describe("Phase 1: Platform Identity, Security & RBAC", () => {
 
         it("middleware allows authorized role to pass through", () => {
             const req = {
-                platformUser: { id: "u-2", email: "billing@leap.com", role: "billing" },
+                platformUser: { id: "u-2", email: "billing@forma.app", role: "billing" },
                 originalUrl: "/api/platform/billing/refunds",
                 method: "POST",
             };

@@ -74,7 +74,7 @@ export default function HealthSettingsPage() {
 
   const maintenance = healthData?.maintenance || { enabled: false, message: "" };
   const memory = healthData?.memory || { rssMb: 0, heapUsedMb: 0, heapTotalMb: 1 };
-  const database = healthData?.database || { status: "unknown", name: "leap" };
+  const database = healthData?.database || { status: "unknown", name: "forma" };
 
   // Sync settings when data arrives
   useEffect(() => {
@@ -89,7 +89,7 @@ export default function HealthSettingsPage() {
       } else {
         setSellerName("Forma");
         setTaxId("EG-TAX-10293847");
-        setSupportEmail("billing@leapgym.com");
+        setSupportEmail("billing@forma.app");
         setAddress("Zamalek, Cairo, Egypt");
         setSellerSaved(false);
       }
@@ -418,7 +418,7 @@ export default function HealthSettingsPage() {
                 </label>
                 <Input
                   type="email"
-                  placeholder="billing@leapgym.com"
+                  placeholder="billing@forma.app"
                   value={supportEmail}
                   onChange={(e) => setSupportEmail(e.target.value)}
                   required

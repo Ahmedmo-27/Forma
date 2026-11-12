@@ -21,7 +21,7 @@ describe("manual transfer bank details", () => {
         snapshotEnv();
         process.env.NODE_ENV = "production";
         process.env.PAYMENT_BANK_NAME = "National Bank of Egypt";
-        process.env.PAYMENT_ACCOUNT_NAME = "Leap Gym";
+        process.env.PAYMENT_ACCOUNT_NAME = "Forma";
         process.env.PAYMENT_IBAN = "EG380001234567890123456789012";
         process.env.PAYMENT_SWIFT = "NBEGEGCX";
 
@@ -34,7 +34,7 @@ describe("manual transfer bank details", () => {
         });
 
         expect(session.instructions.bankName).toBe("National Bank of Egypt");
-        expect(session.instructions.accountName).toBe("Leap Gym");
+        expect(session.instructions.accountName).toBe("Forma");
         expect(session.instructions.iban).toBe("EG380001234567890123456789012");
         expect(session.instructions.swift).toBe("NBEGEGCX");
         expect(session.instructions.referenceCode).toBe(session.paymentRef);

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Lock, Mail, KeyRound, Shield, AlertCircle } from "lucide-react";
 import { usePlatformAuth } from "../../lib/auth/AuthContext";
@@ -13,6 +13,10 @@ import { isValidEmail } from "../../lib/utils/validation";
 export default function LoginPage() {
   const navigate = useNavigate();
   const { loginSuccess } = usePlatformAuth();
+
+  useEffect(() => {
+    document.title = "Sign In · Forma";
+  }, []);
 
   const [step, setStep] = useState("login"); // "login" | "mfa_challenge" | "mfa_setup" | "mfa_recovery_display"
   const [email, setEmail] = useState("");
@@ -152,7 +156,7 @@ export default function LoginPage() {
           />
           <div>
             <h1 className="text-base font-semibold tracking-tight text-[#142843]">
-              Platform Console
+              Forma Platform
             </h1>
             <p className="text-xs text-[#5C6E84] mt-0.5">
               Super Admin & Operator Authentication

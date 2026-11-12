@@ -5,10 +5,12 @@ import { Btn, fmtDateTime } from "./ui";
 import { toWhatsAppUrl } from "../utils/whatsapp";
 import { sendWhatsAppImage } from "../api/endpoints";
 import { memberQrPayload } from "../lib/systemId";
+import { useTenant } from "../context/TenantContext";
 
-function qrMessage(member, code) {
+function qrMessage(member, code, gymName) {
   const name = member?.name || "Member";
-  return `Hello ${name}, your Forma check-in code is ${code}. Show this QR at reception to check in.`;
+  const brand = gymName || "your gym";
+  return `Hello ${name}, your ${brand} check-in code is ${code}. Show this QR at reception to check in.`;
 }
 
 function wrapLines(ctx, text, maxWidth) {
@@ -35,7 +37,7 @@ function wrapLines(ctx, text, maxWidth) {
  * - Exports as optimized JPEG (quality 0.88), reducing payload size from ~500KB to ~45KB.
  * - 10x faster network upload and instant Baileys media processing without socket timeouts.
  */
-async function buildCheckInCard(member, code) {
+async function buildCheckInCard(member, code, gymName) {
   const cardCanvas = document.createElement("canvas");
   cardCanvas.width = 540;
   cardCanvas.height = 720;
@@ -48,6 +50,7 @@ async function buildCheckInCard(member, code) {
   const brand = getComputedStyle(document.documentElement);
   const navy = brand.getPropertyValue('--navy').trim() || '#44298C';
   const nav = brand.getPropertyValue('--nav-bg').trim() || '#1E1535';
+  const headerLabel = `${gymName || "Check-In"}`.slice(0, 28);
 
   // Header Banner
   ctx.fillStyle = nav;
@@ -55,7 +58,7 @@ async function buildCheckInCard(member, code) {
 
   ctx.fillStyle = "#ffffff";
   ctx.font = "700 26px system-ui, -apple-system, Segoe UI, sans-serif";
-  ctx.fillText("Forma Check-In", 32, 54);
+  ctx.fillText(headerLabel, 32, 54);
 
   // Member Name
   ctx.fillStyle = "#111827";
@@ -110,6 +113,8 @@ function CheckmarkMark() {
 }
 
 export default function MemberQrButton({ member, onSent }) {
+  const { branding, tenant } = useTenant();
+  const gymName = branding?.displayName || tenant?.name || "";
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("");
   const [lastSentAt, setLastSentAt] = useState(member?.lastQrSentAt || null);
@@ -145,13 +150,13 @@ export default function MemberQrButton({ member, onSent }) {
     setStage("Generating card…");
 
     try {
-      const blob = await buildCheckInCard(member, code);
+      const blob = await buildCheckInCard(member, code, gymName);
 
       setStage("Sending on WhatsApp…");
       const body = new FormData();
       body.append("image", blob, "check-in.jpg");
       body.append("phone", member.phones);
-      body.append("caption", qrMessage(member, code));
+      body.append("caption", qrMessage(member, code, gymName));
       body.append("kind", "qr_checkin");
       body.append("code", String(code));
 

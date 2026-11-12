@@ -21,7 +21,7 @@ describe("updateMyTenantSettings controller", () => {
 
         mockTenant = {
             _id: new mongoose.Types.ObjectId(tenantId),
-            name: "Flame Factory",
+            name: "Acme Gym",
             planId: { _id: new mongoose.Types.ObjectId(), key: "gold", name: "Gold Plan" },
             settings: {
                 branding: {

@@ -16,7 +16,7 @@ import {
 describe("Phase 3: Plans, Features & Pricing Management", () => {
     const adminUser = {
         id: new mongoose.Types.ObjectId().toString(),
-        email: "superadmin@leapplatform.com",
+        email: "superadmin@forma.app",
         name: "Platform Super Admin",
         role: "super_admin",
     };

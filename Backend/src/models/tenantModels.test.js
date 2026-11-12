@@ -137,11 +137,11 @@ describe("Phase 1: Core Models & Tenant Helpers", () => {
 
         it("validates valid tenant payload", () => {
             const validTenant = {
-                name: "Flame Factory Gym",
-                slug: "flame-factory",
+                name: "Acme Gym",
+                slug: "acme-gym",
                 planId: new mongoose.Types.ObjectId().toString(),
                 settings: {
-                    branding: { displayName: "Flame Factory" },
+                    branding: { displayName: "Acme Gym" },
                     locale: { currency: "EGP", timezone: "Africa/Cairo" },
                     enabledActivities: ["gym", "crossfit"],
                 },

@@ -32,7 +32,8 @@ const TODAY = toLocalDateString();
 export default function OwnerDashboard() {
   usePageTitle('Owner Dashboard');
   const { user } = useAuth();
-  const { hasFeature } = useTenant();
+  const { hasFeature, branding, tenant } = useTenant();
+  const gymName = branding?.displayName || tenant?.name || 'your gym';
   const navigate = useNavigate();
 
   const [loading, setLoading]       = useState(true);
@@ -131,7 +132,7 @@ export default function OwnerDashboard() {
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>Welcome back</p>
               <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.3px', marginBottom: 8 }}>{firstName}</h2>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, maxWidth: 560 }}>
-                Full overview of Forma — members, sales, coaches, packages and revenue all in one place.
+                Full overview of {gymName} — members, sales, coaches, packages and revenue all in one place.
               </p>
             </Card>
 

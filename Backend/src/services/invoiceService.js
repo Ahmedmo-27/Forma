@@ -41,7 +41,7 @@ async function createInvoiceForPayment({
         name: storedSeller.name || storedSeller.companyName || "Forma",
         taxId: storedSeller.taxId || "EG-TAX-10293847",
         address: storedSeller.address || "Zamalek, Cairo, Egypt",
-        supportEmail: storedSeller.supportEmail || storedSeller.billingEmail || "billing@leapgym.com",
+        supportEmail: storedSeller.supportEmail || storedSeller.billingEmail || "billing@forma.app",
     };
 
     const invoice = await Invoice.create({

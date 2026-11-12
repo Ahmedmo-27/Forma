@@ -56,7 +56,7 @@ describe("Platform runtime logs", () => {
     it("denies runtime logs to roles without system.health", () => {
         const middleware = requirePlatformPermission(PERMISSIONS.SYSTEM_HEALTH);
         const req = {
-            platformUser: { id: "user-1", email: "billing@leap.test", role: "billing" },
+            platformUser: { id: "user-1", email: "billing@forma.test", role: "billing" },
             originalUrl: "/api/platform/system/logs/backend",
             method: "GET",
         };

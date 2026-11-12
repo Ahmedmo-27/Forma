@@ -184,7 +184,7 @@ Verified against the local API and, where noted, the UI.
 
 | Check | Result |
 |---|---|
-| Health endpoint | **Partial.** `GET /` returns `Flame Factory API is running` (200). `GET /api/platform/system/health` returns `status: healthy`, database `test`, memory, and cache stats. It does not list jobs. |
+| Health endpoint | **Partial.** `GET /` returns `Forma API is running` (200). `GET /api/platform/system/health` returns `status: healthy`, database `test`, memory, and cache stats. It does not list jobs. |
 | Structured logs and request ids | **Partial.** JSON logs on the server. Newer errors include `requestId` (`req_…`). `X-Request-Id` is on responses. 500s from plan/tenant controllers often omit it and include `err.message`. |
 | Error monitoring | **No.** No Sentry or equivalent in the dependencies reviewed. |
 | Scheduled jobs | **Partial.** `startScheduledTasks` runs member expiry and freeze every 30 minutes and once at boot. No last-run status. No dunning, no usage rollup, no metrics cron. Lifetime tenants are not special-cased in those two jobs because the jobs operate on members, not subscriptions. |

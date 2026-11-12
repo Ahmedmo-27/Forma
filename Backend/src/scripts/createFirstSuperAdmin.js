@@ -3,7 +3,7 @@
  * Usage:
  *   node src/scripts/createFirstSuperAdmin.js
  * Or with arguments:
- *   node src/scripts/createFirstSuperAdmin.js --name "Admin" --email "super@leapgym.com" --password "SecurePass123!"
+ *   node src/scripts/createFirstSuperAdmin.js --name "Admin" --email "super@forma.app" --password "SecurePass123!"
  */
 
 const readline = require("readline");

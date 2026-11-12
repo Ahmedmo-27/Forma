@@ -11,9 +11,9 @@ const STARTER_TEMPLATES = [
     {
         name: "Our packages",
         type: "packages",
-        introText: "Hi {{name}}!\nHere are Flame Factory's current membership packages:",
+        introText: "Hi {{name}}!\nHere are our current membership packages:",
         bodyText: "Tell me which package you prefer and I’ll help you get started.",
-        introTextAr: "مرحباً {{name}}!\nهذه باقات العضوية الحالية في Flame Factory:",
+        introTextAr: "مرحباً {{name}}!\nهذه باقات العضوية الحالية لدينا:",
         bodyTextAr: "أخبرني أي باقة تفضل وسأساعدك على البدء.",
         includeLiveData: true,
         isDefault: true,

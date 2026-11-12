@@ -1,7 +1,7 @@
 /**
- * Barcode helper for Flame Factory gym member cards.
+ * Barcode helper for gym member cards.
  * Format: "FF" + zero-padded memberId (6 digits) → e.g. FF000105
- * 
+ *
  * This produces a Code128-compatible alphanumeric string suitable for:
  * - USB barcode scanners (act as keyboard input)
  * - Printed membership cards, key tags, key holders
@@ -22,7 +22,7 @@ function generateBarcode(memberId) {
 }
 
 /**
- * Check if a given string looks like a Flame Factory barcode.
+ * Check if a given string looks like a member barcode.
  * @param {string} value
  * @returns {boolean}
  */

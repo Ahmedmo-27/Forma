@@ -1,4 +1,4 @@
-// ─── Flame Factory UI — sharp, data-dense design system ────────────────────────
+// ─── Forma UI — sharp, data-dense design system ─────────────────────────────
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, Children, useCallback } from 'react';
 import { createPortal } from 'react-dom';

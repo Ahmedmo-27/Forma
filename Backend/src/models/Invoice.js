@@ -55,7 +55,7 @@ const invoiceSchema = new mongoose.Schema(
             name: { type: String, default: "Forma" },
             taxId: { type: String, default: "EG-TAX-10293847" },
             address: { type: String, default: "Cairo, Egypt" },
-            supportEmail: { type: String, default: "billing@leapgym.com" },
+            supportEmail: { type: String, default: "billing@forma.app" },
         },
         buyerDetails: {
             tenantName: { type: String, required: true },

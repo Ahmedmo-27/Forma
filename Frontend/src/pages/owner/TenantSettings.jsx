@@ -488,7 +488,7 @@ export default function TenantSettings() {
                   label="Gym Display Name"
                   value={displayName}
                   onChange={e => setDisplayName(e.target.value)}
-                  placeholder="e.g. Flame Factory"
+                  placeholder="e.g. Spartan Gym"
                 />
               </div>
             </Card>

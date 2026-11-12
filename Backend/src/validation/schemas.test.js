@@ -82,7 +82,7 @@ describe("tenantSettingsSchema", () => {
     it("accepts top-level branding with palette", () => {
         const payload = {
             branding: {
-                displayName: "Leap Gym Pro",
+                displayName: "Acme Gym Pro",
                 palette: {
                     primary: "#123456",
                     secondary: "#654321",

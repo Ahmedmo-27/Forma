@@ -42,10 +42,10 @@ describe("parseScannedIdentifier", () => {
   });
 
   it("extracts identifier from URLs", () => {
-    expect(parseScannedIdentifier("https://gym.leap.com/members/S105")).toBe("S105");
-    expect(parseScannedIdentifier("https://gym.leap.com/checkin?id=S105")).toBe("S105");
-    expect(parseScannedIdentifier("https://gym.leap.com/checkin?systemId=105")).toBe("S105");
-    expect(parseScannedIdentifier("https://gym.leap.com/checkin?memberId=200")).toBe("M200");
+    expect(parseScannedIdentifier("https://gym.forma.app/members/S105")).toBe("S105");
+    expect(parseScannedIdentifier("https://gym.forma.app/checkin?id=S105")).toBe("S105");
+    expect(parseScannedIdentifier("https://gym.forma.app/checkin?systemId=105")).toBe("S105");
+    expect(parseScannedIdentifier("https://gym.forma.app/checkin?memberId=200")).toBe("M200");
   });
 
   it("extracts labeled text formats", () => {

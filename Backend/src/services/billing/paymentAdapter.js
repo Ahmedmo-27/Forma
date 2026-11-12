@@ -76,7 +76,7 @@ class OnlinePaymentAdapterStub extends BasePaymentAdapter {
         const randomHex = crypto.randomBytes(6).toString("hex");
         const paymentRef = `ONLINE-${Date.now()}-${randomHex}`;
 
-        const providerBaseUrl = process.env.PAYMENT_GATEWAY_URL || "https://checkout.leapgym.com/pay";
+        const providerBaseUrl = process.env.PAYMENT_GATEWAY_URL || "https://checkout.forma.app/pay";
         const checkoutUrl = `${providerBaseUrl}/${paymentRef}`;
 
         return {

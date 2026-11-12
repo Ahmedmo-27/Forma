@@ -20,7 +20,7 @@ import { getNextInvoiceNumber } from "../services/invoiceService";
 describe("Phase 4: Billing & Payments Operations", () => {
     const adminUser = {
         id: new mongoose.Types.ObjectId().toString(),
-        email: "billing@leapplatform.com",
+        email: "billing@forma.app",
         name: "Platform Billing Specialist",
         role: "billing",
     };

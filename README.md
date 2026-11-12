@@ -4,8 +4,12 @@ Sales-assisted multi-tenant gym platform. Platform operators onboard a gym, the 
 
 ## Applications
 
-- `Frontend` — gym app and platform console (`/platform`). Deployed on Vercel.
-- `Backend` — Express API. Deployed on Render. Bind address is `0.0.0.0` and the port comes from `PORT`.
+- `Frontend` — gym app and platform console (`/platform`). Production on Vercel (`app` / `www` on `forma-official.com`).
+- `Backend` — Express API. Bind `0.0.0.0` and use `PORT`.
+  - **Production:** Railway (`api.forma-official.com`)
+  - **Testing:** Render (`render.yaml` / default `*.onrender.com` — no custom domain)
+
+Domain, DNS, CORS, and cutover details: [docs/DOMAIN_NETWORKING.md](docs/DOMAIN_NETWORKING.md).
 
 ## Local setup
 
@@ -55,13 +59,14 @@ Set `R2_ACCOUNT_ID=f7cd61e729b00936ed5f88b6833f5aa8` and `R2_BUCKET_NAME=forma`.
 
 Objects are stored as `{tenantId}/{filename}`. Profile photos, national IDs, invitation ID scans, and tenant logos are written only to that bucket. The API still authorizes `GET /uploads/:filename` and streams the object. Logos redirect to `R2_PUBLIC_URL` only when that variable is a public bucket domain. Excel imports are parsed in memory and are not stored.
 
-On the Render service `leap-backend`, set `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` in the dashboard. Do not commit the key pair. Leave `R2_PUBLIC_URL` unset.
+On Railway (production) and Render (testing), set `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` in each service dashboard. Do not commit the key pair. Leave `R2_PUBLIC_URL` unset. Use separate secrets per environment.
 
 ## Production
 
-- Frontend: Vercel project whose build is defined in `vercel.json`. Set `BACKEND_ORIGIN` to the Render URL before building.
-- Backend: Render web service from `render.yaml` (`rootDir: Backend`, `npm install`, `npm start`). Put secrets in the Render dashboard. Do not commit them.
-- Set `FRONTEND_ORIGIN` on the API to the Vercel origin so invite and reset links point at the app.
+- **Domain:** `forma-official.com` — see [docs/DOMAIN_NETWORKING.md](docs/DOMAIN_NETWORKING.md).
+- **Frontend (Vercel):** build from `vercel.json`. Set `BACKEND_ORIGIN=https://api.forma-official.com` before building. Attach `app`, `www`, and optional `platform` / apex.
+- **API (Railway):** custom domain `api.forma-official.com`. Set `FRONTEND_ORIGIN` with `https://app.forma-official.com` listed first (then `www` / `platform`) so invite and reset links hit the gym app. Set `BASE_DOMAIN=forma-official.com`, production `PAYMENT_*`, and production secrets. Do not commit secrets.
+- **Testing API (Render):** keep the default `*.onrender.com` URL from `render.yaml`. Do not attach `forma-official.com`. Point local/preview `BACKEND_ORIGIN` at Render only for test work.
 - Health check path is `/`.
 
 ## Tests

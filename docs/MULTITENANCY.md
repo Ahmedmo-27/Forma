@@ -1,7 +1,7 @@
 # Forma Multi-Tenant SaaS Architecture Documentation
 
 ## 1. Executive Summary & Overview
-The **Forma** platform (formerly single-tenant Flame Factory) has been transformed into a **shared-database multi-tenant SaaS**. 
+The **Forma** platform has been transformed into a **shared-database multi-tenant SaaS**. 
 In this architecture, each gym operates as an isolated subscriber ("tenant") with its own:
 - Subscription Plan (`basic`, `gold`, `platinum`) and quota limits (`maxMembers`, `maxStaff`, `maxBranches`).
 - Feature flags controlling access to backend routes and UI navigation modules.
@@ -17,7 +17,7 @@ In this architecture, each gym operates as an isolated subscriber ("tenant") wit
 ### 2.1 Context Isolation via `AsyncLocalStorage`
 - Every request entering the system resolves the tenant identity from:
   1. The cryptographically verified JWT payload (`user.tenantId`, `user.tenantSlug`).
-  2. The subdomain (optional fallback: e.g. `leap.leapgym.com` → slug `leap`).
+  2. The subdomain (optional fallback: e.g. `spartan.forma.app` → slug `spartan`).
   3. During login, user identity resolves their tenant directly, embedding tenant context into the token.
 - **Rule of Engagement:** The system **never** trusts `tenantId` passed in request bodies, query strings, or URL parameters for queries. It is established exclusively by the authentication middleware and stored in Node.js `AsyncLocalStorage` (`tenantContext.js`).
 
@@ -54,7 +54,7 @@ All tenant-owned models apply `tenantPlugin`:
 | Field | Type | Description |
 |---|---|---|
 | `name` | String | Gym official legal name |
-| `slug` | String (unique) | Subdomain identifier (e.g. `leap`) |
+| `slug` | String (unique) | Subdomain identifier (e.g. `spartan`) |
 | `status` | String | `trial` \| `active` \| `past_due` \| `suspended` \| `cancelled` |
 | `planId` | ObjectId (ref Plan) | Subscribed tier |
 | `featureOverrides` | Object | `{ add: [String], remove: [String] }` |
@@ -218,7 +218,7 @@ createOwner();
 ### Step 4: Login to the Gym Workspace
 Staff and owners can log in via:
 1. Entering gym code `spartan` in the Login page form.
-2. Navigating to the subdomain `spartan.leapgym.com`.
+2. Navigating to the subdomain `spartan.forma.app`.
 3. Client automatically resolves the tenant, applies the dynamic Red palette, renders the Spartan logo, and displays enabled features.
 
 ---

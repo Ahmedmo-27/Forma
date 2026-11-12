@@ -99,10 +99,10 @@ function SidebarFrame({ collapsed, showMobileClose, onToggleCollapse, onCloseMob
           {!collapsed && (
             <div className="truncate">
               <div className="text-sm font-semibold tracking-tight text-[var(--platform-text-primary)]">
-                Platform Console
+                Forma
               </div>
               <div className="text-[11px] text-[var(--platform-text-muted)]">
-                {formatRole(user?.role)}
+                {formatRole(user?.role)} · Platform
               </div>
             </div>
           )}

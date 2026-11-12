@@ -45,7 +45,7 @@ export default function useHardwareScanner({ onScan, enabled = true }) {
           const averageGap = count > 1 ? totalTime / (count - 1) : 0;
           const isKnownFormat = /^(?:FF\d+|[SM]\d+|\d{3,})$/i.test(chars);
 
-          // Fast burst (< 65ms avg gap) or known Leap code format typed under 100ms avg gap
+          // Fast burst (< 65ms avg gap) or known member code format typed under 100ms avg gap
           if (averageGap < 65 || (isKnownFormat && averageGap < 100)) {
             e.preventDefault();
             e.stopPropagation();

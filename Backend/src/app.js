@@ -58,7 +58,7 @@ app.use(cors({
         if (
             configuredOrigins.includes("*") ||
             configuredOrigins.includes(cleanOrigin) ||
-            /^https:\/\/leap[a-z0-9-]*\.vercel\.app$/.test(cleanOrigin) ||
+            /^https:\/\/(leap|forma)[a-z0-9-]*\.vercel\.app$/.test(cleanOrigin) ||
             /^http:\/\/localhost(:\d+)?$/.test(cleanOrigin) ||
             /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(cleanOrigin)
         ) {
@@ -115,7 +115,7 @@ const globalLimiter = rateLimit({
 app.use("/api", globalLimiter);
 
 app.get("/", (req, res) => {
-    res.send("Flame Factory API is running");
+    res.send("Forma API is running");
 });
 
 // Public probe for Render / load balancers — outside /api so it bypasses rate limits

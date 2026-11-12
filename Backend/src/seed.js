@@ -37,7 +37,7 @@ const USERS = [
     },
   },
   {
-    name: "Flame Factory Accountant",
+    name: "Forma Accountant",
     email: "accountant@test.com",
     role: "Accountant",
   },

@@ -638,7 +638,7 @@ async function runScenario8() {
         }
 
         // Render template with placeholders
-        const template = "Hi {{name}}! Welcome to Flame Factory. Special offer available today.";
+        const template = "Hi {{name}}! Welcome to our gym. Special offer available today.";
         const rendered = template.replace("{{name}}", member.name);
 
         await manager.sendText({
