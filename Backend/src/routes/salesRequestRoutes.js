@@ -6,6 +6,7 @@ const validate = require("../middleware/validate");
 const { requireFeature } = require("../middleware/featureGating");
 const { cacheResponse } = require("../middleware/apiCache");
 const { autoInvalidate } = require("../utils/cacheInvalidator");
+const { locationScopeOptional } = require("../middleware/locationScope");
 const {
     salesRequestSchema,
     salesRequestStatusSchema,
@@ -20,6 +21,7 @@ const {
 router.use(protect);
 router.use(requireFeature("sales_crm"));
 router.use(requireAccess("sales"));
+router.use(locationScopeOptional);
 
 router.get("/",           allowRoles("approve_requests", "Sales", "Sales Manager", "Owner"), cacheResponse({ ttlSeconds: 45, tags: ["requests"] }), getRequests);
 router.post("/",          allowAnyFeature(["request_assignment", "request_takeover"], "Sales"), validate(salesRequestSchema), autoInvalidate(["requests", "members"]), createRequest);

@@ -21,6 +21,12 @@ const createRequest = async (req, res) => {
             return res.status(404).json({ message: "Member not found" });
         }
 
+        const { forbidIfOutOfLocationScope } = require("../utils/locationScope");
+        const forbidden = forbidIfOutOfLocationScope(req, member);
+        if (forbidden) {
+            return res.status(forbidden.status).json({ code: forbidden.code, message: forbidden.message });
+        }
+
         const resolvedMemberId = member._id;
 
         const isTakeover = Boolean(member.current_couch);
@@ -113,6 +119,12 @@ const getRequests = async (req, res) => {
         // If the user is a Coach rep, only show their own requests
         if (req.user.role === "Coach") {
             filter.requestedBy = req.user.id;
+        }
+
+        const { memberIdsMatchingLocationFilter } = require("../utils/locationScope");
+        const scopedMemberIds = await memberIdsMatchingLocationFilter(req.locationFilter, Member);
+        if (scopedMemberIds) {
+            filter.member = { $in: scopedMemberIds };
         }
 
         const requests = await CoachRepRequest.find(filter)

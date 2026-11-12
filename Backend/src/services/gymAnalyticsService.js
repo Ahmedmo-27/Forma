@@ -502,61 +502,78 @@ async function loadMembers(locationFilter = {}) {
     return memberModel().find(locationFilter || {}).select(MEMBER_FIELDS).lean();
 }
 
-async function countCheckIns(from, to, locationFilter = {}) {
-    const pipeline = [];
-    if (locationFilter && Object.keys(locationFilter).length) {
-        pipeline.push({ $match: locationFilter });
-    }
-    pipeline.push(
+/**
+ * Prefer stamped check-in locationId; legacy logs without a stamp match member home branch.
+ */
+function checkInLocationMatchStages(locationFilter = {}) {
+    if (!locationFilter || !Object.keys(locationFilter).length) return [];
+    const clause = locationFilter.locationId;
+    if (!clause) return [{ $match: locationFilter }];
+
+    const stamped = clause.$in
+        ? { "userlog.locationId": { $in: clause.$in } }
+        : { "userlog.locationId": clause };
+    const home = clause.$in
+        ? { locationId: { $in: clause.$in } }
+        : { locationId: clause };
+
+    return [
         {
-            $project: {
-                checkIns: {
-                    $filter: {
-                        input: { $ifNull: ["$userlog", []] },
-                        as: "log",
-                        cond: {
-                            $and: [
-                                { $eq: ["$$log.type", "check-in"] },
-                                { $gte: ["$$log.createdAt", from] },
-                                { $lte: ["$$log.createdAt", to] },
-                            ],
-                        },
+            $match: {
+                $or: [
+                    stamped,
+                    {
+                        $and: [
+                            home,
+                            {
+                                $or: [
+                                    { "userlog.locationId": null },
+                                    { "userlog.locationId": { $exists: false } },
+                                ],
+                            },
+                        ],
                     },
-                },
+                ],
             },
         },
-        { $project: { n: { $size: "$checkIns" } } },
-        { $group: { _id: null, total: { $sum: "$n" } } },
-    );
+    ];
+}
+
+async function countCheckIns(from, to, locationFilter = {}) {
+    const pipeline = [
+        { $unwind: "$userlog" },
+        {
+            $match: {
+                "userlog.type": "check-in",
+                "userlog.createdAt": { $gte: from, $lte: to },
+            },
+        },
+        ...checkInLocationMatchStages(locationFilter),
+        { $count: "total" },
+    ];
     const rows = await memberModel().aggregate(pipeline);
     return rows[0]?.total || 0;
 }
 
 async function loadAttendanceBuckets(from, to, timeZone, locationFilter = {}) {
     const timezone = serverTimezone(timeZone);
-    const pipeline = [];
-    if (locationFilter && Object.keys(locationFilter).length) {
-        pipeline.push({ $match: locationFilter });
-    }
-    pipeline.push(
+    const pipeline = [
+        { $unwind: "$userlog" },
         {
-            $project: {
-                checkIns: {
-                    $filter: {
-                        input: { $ifNull: ["$userlog", []] },
-                        as: "log",
-                        cond: {
-                            $and: [
-                                { $eq: ["$$log.type", "check-in"] },
-                                { $gte: ["$$log.createdAt", from] },
-                                { $lte: ["$$log.createdAt", to] },
-                            ],
-                        },
-                    },
-                },
+            $match: {
+                "userlog.type": "check-in",
+                "userlog.createdAt": { $gte: from, $lte: to },
             },
         },
-        { $unwind: "$checkIns" },
+        ...checkInLocationMatchStages(locationFilter),
+        {
+            $project: {
+                checkIns: "$userlog",
+            },
+        },
+    ];
+    // Continue with existing facet grouping on checkIns.createdAt
+    pipeline.push(
         {
             $facet: {
                 cells: [

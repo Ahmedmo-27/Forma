@@ -8,6 +8,28 @@ const ProfileView = require("../models/ProfileView");
 const { hasAccess, hasExplicitGrant } = require("../utils/accessControl");
 const { attachCurrentPackage, cairoDayBounds } = require("../utils/revenueUtils");
 const { findMemberByIdentifier, buildMemberFilter } = require("../utils/memberLookup");
+const { userCanAccessLocation, forbidIfOutOfLocationScope } = require("../utils/locationScope");
+
+/**
+ * Load member by id/systemId/memberId and enforce navbar/grant location scope.
+ * Returns { member } or { error: { status, code, message } }.
+ */
+async function findScopedMember(req, identifier) {
+    const member = await findMemberByIdentifier(identifier);
+    if (!member) {
+        return { error: { status: 404, message: "Member not found" } };
+    }
+    const forbidden = forbidIfOutOfLocationScope(req, member);
+    if (forbidden) return { error: forbidden };
+    return { member };
+}
+
+function sendMemberScopeError(res, error) {
+    return res.status(error.status || 500).json({
+        code: error.code,
+        message: error.message || "Member not found",
+    });
+}
 const { notifyMemberAssigned, notifyTaskAssigned } = require("../utils/notificationService");
 const Task = require("../models/Task");
 const { parsePagination, buildPagination } = require("../utils/pagination");
@@ -164,15 +186,17 @@ const calcEndDate = (startDate, duration) => {
 };
 
 // ─── Helper: find by systemId, memberId, or MongoDB _id ──────────────────────
-const findMember = async (id) => {
+const findMember = async (id, req = null) => {
     const query = buildMemberFilter(id);
     if (!query) return null;
-    return Member.findOne(query).populate("subscriptions.package");
+    const member = await Member.findOne(query).populate("subscriptions.package");
+    if (!member || !req) return member;
+    if (forbidIfOutOfLocationScope(req, member)) return null;
+    return member;
 };
 
 // ─── 1. Add Person (guest or member) ─────────────────────────────────────────
 const Location = require("../models/Location");
-const { userCanAccessLocation } = require("../utils/locationScope");
 
 async function resolveMemberLocationId(req, explicitLocationId) {
     const raw = explicitLocationId || req.locationScope?.locationId || null;
@@ -475,6 +499,11 @@ const getMemberProfile = async (req, res) => {
             return res.status(404).json({ message: "Member not found" });
         }
 
+        const profileForbidden = forbidIfOutOfLocationScope(req, member);
+        if (profileForbidden) {
+            return sendMemberScopeError(res, profileForbidden);
+        }
+
         const checkInCount = member._checkInCount || 0;
         const ptCount = member._ptCount || 0;
         const monthCheckIns = member._monthCheckIns || 0;
@@ -559,6 +588,7 @@ const checkInMember = async (req, res) => {
         const updated = await Member.findOneAndUpdate(
             {
                 ...query,
+                ...(req.locationFilter || {}),
                 isBlocked: { $ne: true },
                 isMember: true,
                 status: "active",
@@ -590,10 +620,13 @@ const checkInMember = async (req, res) => {
         }
 
         // Fast-path did not match. Inspect the member to return the exact reason or handle frozen members.
-        const member = await findMember(memberId);
-        if (!member) {
+        const memberDoc = await findMember(memberId);
+        if (!memberDoc) {
             return res.status(404).json({ message: "Member not found" });
         }
+        const memberForbidden = forbidIfOutOfLocationScope(req, memberDoc);
+        if (memberForbidden) return sendMemberScopeError(res, memberForbidden);
+        const member = memberDoc;
 
         if (member.isBlocked) {
             return res.status(403).json({ message: "Cannot check in — member is blocked" });
@@ -706,10 +739,13 @@ const assignSalesman = async (req, res) => {
             });
         }
 
-        const member = await findMember(memberId);
-        if (!member) {
+        const memberDoc = await findMember(memberId);
+        if (!memberDoc) {
             return res.status(404).json({ message: "Member not found" });
         }
+        const memberForbidden = forbidIfOutOfLocationScope(req, memberDoc);
+        if (memberForbidden) return sendMemberScopeError(res, memberForbidden);
+        const member = memberDoc;
 
         // Receptionist can only assign if member has no sales rep yet
         if (req.user.role === "Receptionist" && member.assignedSales) {
@@ -754,10 +790,13 @@ const freezeMember = async (req, res) => {
             return res.status(400).json({ message: "endDate must be after startDate" });
         }
 
-        const member = await findMember(memberId);
-        if (!member) {
+        const memberDoc = await findMember(memberId);
+        if (!memberDoc) {
             return res.status(404).json({ message: "Member not found" });
         }
+        const memberForbidden = forbidIfOutOfLocationScope(req, memberDoc);
+        if (memberForbidden) return sendMemberScopeError(res, memberForbidden);
+        const member = memberDoc;
 
         if (member.status !== "active") {
             return res.status(400).json({
@@ -932,6 +971,11 @@ const getMemberById = async (req, res) => {
             return res.status(404).json({ message: "Member not found" });
         }
 
+        const byIdForbidden = forbidIfOutOfLocationScope(req, member);
+        if (byIdForbidden) {
+            return sendMemberScopeError(res, byIdForbidden);
+        }
+
         await hydrateMemberRefs(member, { summary: true });
 
         const memberObj = redactMemberForViewer(member, req.user);
@@ -958,10 +1002,9 @@ const addNote = async (req, res) => {
         }
 
         const identifier = req.params.memberId || req.params.id;
-        const member = await findMemberByIdentifier(identifier);
-        if (!member) {
-            return res.status(404).json({ message: "Member not found" });
-        }
+        const scoped = await findScopedMember(req, identifier);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
 
         member.notes.push({ text: sanitizePlainText(text), createdBy: req.user.id });
         await member.save();
@@ -985,13 +1028,9 @@ const addAlert = async (req, res) => {
 
         const identifier = req.params.memberId || req.params.id;
 
-        const member = await findMemberByIdentifier(identifier);
-
-        if (!member) {
-            return res.status(404).json({
-                message: "Member not found"
-            });
-        }
+        const scoped = await findScopedMember(req, identifier);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
 
         member.alert.push({
             text: sanitizePlainText(text),
@@ -1031,10 +1070,9 @@ const switchSalesRep = async (req, res) => {
         }
 
         const identifier = req.params.memberId || req.params.id;
-        const member = await findMemberByIdentifier(identifier);
-        if (!member) {
-            return res.status(404).json({ message: "Member not found" });
-        }
+        const scoped = await findScopedMember(req, identifier);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
 
         member.assignedSales = newSalesRepId;
         member.userlog.push({
@@ -1216,11 +1254,17 @@ const addInvitation = async (req, res) => {
             return res.status(400).json({ message: "Invited person name is required" });
         }
 
-        const member = await findMember(memberId);
-        if (!member) {
+        const memberDoc = await findMember(memberId);
+        if (!memberDoc) {
             if (req.file?.path) fs.unlink(req.file.path, () => {});
             return res.status(404).json({ message: "Member not found" });
         }
+        const inviteForbidden = forbidIfOutOfLocationScope(req, memberDoc);
+        if (inviteForbidden) {
+            if (req.file?.path) fs.unlink(req.file.path, () => {});
+            return sendMemberScopeError(res, inviteForbidden);
+        }
+        const member = memberDoc;
 
         // Must have an active subscription with invitation slots
         const currentPkg = getCurrentPackage(member);
@@ -1402,7 +1446,10 @@ const getTodayCheckIns = async (req, res) => {
 const getAllNotes = async (req, res) => {
     try {
         const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 10 });
-        const match = { "notes.0": { $exists: true } };
+        const match = {
+            "notes.0": { $exists: true },
+            ...(req.locationFilter || {}),
+        };
 
         // Sales reps are always scoped to their own notes — ignore any createdBy param they pass
         const createdBy = req.user.role === "Sales"
@@ -1604,10 +1651,13 @@ const assignPackage = async (req, res) => {
             return res.status(400).json({ message: "Price paid must be greater than zero" });
         }
 
-        const member = await findMember(req.params.memberId);
-        if (!member) {
+        const memberDoc = await findMember(req.params.memberId);
+        if (!memberDoc) {
             return res.status(404).json({ message: "Member not found" });
         }
+        const memberForbidden = forbidIfOutOfLocationScope(req, memberDoc);
+        if (memberForbidden) return sendMemberScopeError(res, memberForbidden);
+        const member = memberDoc;
 
         if (member.isBlocked) {
             return res.status(403).json({ message: "Cannot assign package — member is blocked" });
@@ -1801,10 +1851,9 @@ const uploadNationalId = async (req, res) => {
         }
 
         const identifier = req.params.memberId;
-        const member = await findMemberByIdentifier(identifier);
-        if (!member) {
-            return res.status(404).json({ message: "Member not found" });
-        }
+        const scoped = await findScopedMember(req, identifier);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
 
         if (!req.file) {
             return res.status(400).json({ message: "National ID file is required" });
@@ -1840,10 +1889,9 @@ const uploadProfilePhoto = async (req, res) => {
         }
 
         const identifier = req.params.memberId;
-        const member = await findMemberByIdentifier(identifier);
-        if (!member) {
-            return res.status(404).json({ message: "Member not found" });
-        }
+        const scoped = await findScopedMember(req, identifier);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
 
         if (!req.file) {
             return res.status(400).json({ message: "Profile photo is required" });
@@ -1890,10 +1938,9 @@ const deleteProfilePhoto = async (req, res) => {
             return res.status(403).json({ message: "Only receptionists, accountants, general managers, and owners can delete profile photos" });
         }
 
-        const member = await findMemberByIdentifier(req.params.memberId);
-        if (!member) {
-            return res.status(404).json({ message: "Member not found" });
-        }
+        const scoped = await findScopedMember(req, req.params.memberId);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
         if (!member.photo) {
             return res.status(404).json({ message: "Member does not have a profile photo" });
         }
@@ -1924,10 +1971,9 @@ const deactivateAlert = async (req, res) => {
         const identifier = req.params.memberId;
         const alertId = req.params.alertId;
 
-        const member = await findMemberByIdentifier(identifier);
-        if (!member) {
-            return res.status(404).json({ message: "Member not found" });
-        }
+        const scoped = await findScopedMember(req, identifier);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
 
         const alert = member.alert.id(alertId);
         if (!alert) {
@@ -1949,10 +1995,9 @@ const blockMember = async (req, res) => {
         const identifier = req.params.memberId;
         const { reason } = req.body;
 
-        const member = await findMemberByIdentifier(identifier);
-        if (!member) {
-            return res.status(404).json({ message: "Member not found" });
-        }
+        const scoped = await findScopedMember(req, identifier);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
 
         if (member.isBlocked) {
             return res.status(400).json({ message: "Member is already blocked" });
@@ -1988,10 +2033,9 @@ const unblockMember = async (req, res) => {
     try {
         const identifier = req.params.memberId;
 
-        const member = await findMemberByIdentifier(identifier);
-        if (!member) {
-            return res.status(404).json({ message: "Member not found" });
-        }
+        const scoped = await findScopedMember(req, identifier);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
 
         if (!member.isBlocked) {
             return res.status(400).json({ message: "Member is not blocked" });
@@ -2026,10 +2070,9 @@ const sessionCheckIn_for_couch = async (req, res) => {
     try {
         if(req.user.role==="Coach"){
             const { memberId } = req.body;
-            const member = await findMemberByIdentifier(memberId);
-            if (!member) {
-                return res.status(404).json({ message: "Member not found" });
-            }
+            const scoped = await findScopedMember(req, memberId);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
             if (member.couch_subscription_status !== "active") {
                 return res.status(400).json({ message: "Member is not active" });
             }
@@ -2059,10 +2102,9 @@ const sessionCheckIn_for_couch = async (req, res) => {
 
         }else if (req.user.role==="Coach Manager"){
             const { memberId ,numberOfSessions} = req.body;
-            const member = await findMemberByIdentifier(memberId);
-            if (!member) {
-                return res.status(404).json({ message: "Member not found" });
-            }
+            const scoped = await findScopedMember(req, memberId);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
             if (member.couch_subscription_status !== "active") {
                 return res.status(400).json({ message: "Member is not active" });
             }
@@ -2096,10 +2138,13 @@ const assignCoach = async (req, res) => {
             return res.status(404).json({ message: "Invalid Coach — user not found or not a Coach role" });
         }
 
-        const member = await findMember(memberId);
-        if (!member) {
+        const memberDoc = await findMember(memberId);
+        if (!memberDoc) {
             return res.status(404).json({ message: "Member not found" });
         }
+        const memberForbidden = forbidIfOutOfLocationScope(req, memberDoc);
+        if (memberForbidden) return sendMemberScopeError(res, memberForbidden);
+        const member = memberDoc;
 
         member.current_couch = coachId;
         member.userlog.push({
@@ -2137,10 +2182,9 @@ const addCouch_notes = async (req, res) => {
         }
 
         const identifier = req.params.memberId || req.params.id;
-        const member = await findMemberByIdentifier(identifier);
-        if (!member) {
-            return res.status(404).json({ message: "Member not found" });
-        }
+        const scoped = await findScopedMember(req, identifier);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
 
         member.couch_notes.push({ text: sanitizePlainText(text), createdBy: req.user.id });
         await member.save();
@@ -2165,10 +2209,9 @@ const switchCoach = async (req, res) => {
         }
 
         const identifier = req.params.memberId || req.params.id;
-        const member = await findMemberByIdentifier(identifier);
-        if (!member) {
-            return res.status(404).json({ message: "Member not found" });
-        }
+        const scoped = await findScopedMember(req, identifier);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
 
         member.current_couch = newCoachId;
         member.userlog.push({
@@ -2225,10 +2268,13 @@ const addPT_sessions = async (req, res) => {
         const { memberId } = req.params;
         const { numberOfSessions, startDate, durationMonths, pricePaid } = req.body;
 
-        const member = await findMember(memberId);
-        if (!member) {
+        const memberDoc = await findMember(memberId);
+        if (!memberDoc) {
             return res.status(404).json({ message: "Member not found" });
         }
+        const memberForbidden = forbidIfOutOfLocationScope(req, memberDoc);
+        if (memberForbidden) return sendMemberScopeError(res, memberForbidden);
+        const member = memberDoc;
 
         const sessions = Number(numberOfSessions);
         if (sessions <= 0 || Number.isNaN(sessions)) {
@@ -2374,6 +2420,7 @@ const getTodayCoachTransfers = async (req, res) => {
                     createdAt: { $gte: today, $lte: tomorrow },
                 },
             },
+            ...(req.locationFilter || {}),
         };
 
         // Coach only sees members currently assigned to them
@@ -2442,6 +2489,9 @@ const refund = async (req, res) => {
                 message: "Invalid member ID"
             });
         }
+
+        const refundForbidden = forbidIfOutOfLocationScope(req, member);
+        if (refundForbidden) return sendMemberScopeError(res, refundForbidden);
 
         if (member.subscriptions.length === 0) {
             return res.status(400).json({
@@ -2534,6 +2584,9 @@ const refundPT_Sessions = async (req, res) => {
             return res.status(404).json({ message: "Invalid member ID" });
         }
 
+        const ptRefundForbidden = forbidIfOutOfLocationScope(req, member);
+        if (ptRefundForbidden) return sendMemberScopeError(res, ptRefundForbidden);
+
         if (member.pt_subscriptions.length === 0) {
             return res.status(400).json({ message: "Member has no PT subscriptions" });
         }
@@ -2603,10 +2656,13 @@ const bulkImportMembers = async (req, res) => {
 
 const updateMember = async (req, res) => {
     try {
-        const member = await findMember(req.params.memberId);
-        if (!member) {
+        const memberDoc = await findMember(req.params.memberId);
+        if (!memberDoc) {
             return res.status(404).json({ message: "Member not found" });
         }
+        const memberForbidden = forbidIfOutOfLocationScope(req, memberDoc);
+        if (memberForbidden) return sendMemberScopeError(res, memberForbidden);
+        const member = memberDoc;
 
         const visible = redactMemberForViewer(member.toObject(), req.user);
         const canEditPhone = Boolean(visible.phones && visible.phones !== "hidden");

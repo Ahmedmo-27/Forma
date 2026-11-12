@@ -1,6 +1,18 @@
 const Task = require("../models/Task");
 const Member = require("../models/Member");
 const { parsePagination, buildPagination } = require("../utils/pagination");
+const {
+    memberIdsMatchingLocationFilter,
+    memberMatchesLocationFilter,
+} = require("../utils/locationScope");
+
+async function applyTaskMemberLocationScope(filter, req) {
+    const scopedMemberIds = await memberIdsMatchingLocationFilter(req.locationFilter, Member);
+    if (scopedMemberIds) {
+        filter["members.member"] = { $in: scopedMemberIds };
+    }
+    return filter;
+}
 
 // 1. Get tasks created by the current user (or all created tasks for Owner / GM)
 const getCreatedTasks = async (req, res) => {
@@ -41,6 +53,8 @@ const getCreatedTasks = async (req, res) => {
             }
         }
 
+        await applyTaskMemberLocationScope(filter, req);
+
         const tasks = await Task.find(filter)
             .populate("createdBy", "name role")
             .populate("assignedTo", "name role")
@@ -67,6 +81,8 @@ const getAssignedTasks = async (req, res) => {
             filter.status = req.query.status;
         }
 
+        await applyTaskMemberLocationScope(filter, req);
+
         const tasks = await Task.find(filter)
             .populate("createdBy", "name role")
             .populate("assignedTo", "name role")
@@ -91,13 +107,16 @@ const getAssignedHistory = async (req, res) => {
             ? req.query.personId
             : req.user.id;
 
-        const tasks = await Task.find({ assignedTo: targetUserId })
+        const filter = { assignedTo: targetUserId };
+        await applyTaskMemberLocationScope(filter, req);
+
+        const tasks = await Task.find(filter)
             .populate("createdBy", "name role")
             .populate("assignedTo", "name role")
             .populate("members.completedBy", "name role")
             .populate({
                 path: "members.member",
-                select: "name systemId memberId phones status subscriptions",
+                select: "name systemId memberId phones status subscriptions locationId",
                 populate: { path: "subscriptions.package", select: "name" },
             })
             .sort({ createdAt: -1 });
@@ -106,6 +125,9 @@ const getAssignedHistory = async (req, res) => {
         tasks.forEach((task) => {
             (task.members || []).forEach((item) => {
                 const memberRef = item.member && typeof item.member === "object" ? item.member : null;
+                if (memberRef && !memberMatchesLocationFilter(memberRef, req.locationFilter)) {
+                    return;
+                }
                 const sub = memberRef?.subscriptions && memberRef.subscriptions.length
                     ? memberRef.subscriptions[memberRef.subscriptions.length - 1]
                     : null;
@@ -174,6 +196,8 @@ const getAssigningOverview = async (req, res) => {
         if (!isSuper || req.query.onlyMine === "true") {
             filter.createdBy = req.user.id;
         }
+
+        await applyTaskMemberLocationScope(filter, req);
 
         const tasks = await Task.find(filter)
             .select("status totalCount completedCount assignedTo targetRole createdAt");

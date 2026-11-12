@@ -20,7 +20,7 @@ const {
 const logger = require("../../utils/logger");
 
 const MEMBER_FIELDS = [
-    "name", "systemId", "status", "source", "createdAt", "phones",
+    "name", "systemId", "status", "source", "createdAt", "phones", "locationId",
     "subscriptions", "freeze", "userlog", "notes", "assignedSales",
     "pt_subscriptions", "PT_sessions", "used_PT_sessions", "PT_sessions_expDate",
 ].join(" ");
@@ -58,14 +58,15 @@ async function loadFacts(now) {
     return { members, targetsSumPiasters, pending };
 }
 
-async function saveDay(day, timeZone, now) {
+async function saveDay(day, timeZone, now, locationId = null) {
     const warnings = Object.values(day.quality || {}).some((value) => Number(value) > 0);
     await TenantMetricSnapshot.findOneAndUpdate(
-        { grain: "day", localDate: day.localDate },
+        { grain: "day", localDate: day.localDate, locationId: locationId || null },
         {
             $set: {
                 grain: "day",
                 localDate: day.localDate,
+                locationId: locationId || null,
                 timezone: timeZone,
                 metrics: day.metrics,
                 segments: day.segments,
@@ -173,17 +174,42 @@ async function snapshotTenant(tenant, { dateKeys, now = new Date(), dryRun = fal
     if (dryRun) {
         return { timeZone, days: computed.days, dryRun: true };
     }
+    // Tenant-wide rollup (locationId null)
     for (const day of computed.days) {
-        await saveDay(day, timeZone, now);
+        await saveDay(day, timeZone, now, null);
     }
+
+    // Per-branch snapshots so restricted staff can view "all" as a sum of grants
+    const Location = require("../../models/Location");
+    const locations = await Location.find({}).select("_id").lean();
+    for (const loc of locations) {
+        const locId = String(loc._id);
+        const branchMembers = facts.members.filter(
+            (m) => m.locationId && String(m.locationId._id || m.locationId) === locId
+        );
+        const branchComputed = computeDays({
+            members: branchMembers,
+            dateKeys: keys,
+            timeZone,
+            now,
+            focusDate,
+            pending: facts.pending,
+            targetsSumPiasters: facts.targetsSumPiasters,
+        });
+        for (const day of branchComputed.days) {
+            await saveDay(day, timeZone, now, loc._id);
+        }
+    }
+
     if (focusDate === today) {
         const cohorts = buildCohorts(facts.members, now, timeZone, 12);
         await TenantMetricSnapshot.findOneAndUpdate(
-            { grain: "cohort", localDate: "cohort" },
+            { grain: "cohort", localDate: "cohort", locationId: null },
             {
                 $set: {
                     grain: "cohort",
                     localDate: "cohort",
+                    locationId: null,
                     timezone: timeZone,
                     cohorts,
                     metrics: {},
@@ -194,7 +220,10 @@ async function snapshotTenant(tenant, { dateKeys, now = new Date(), dryRun = fal
             { upsert: true }
         );
     }
-    const stored = await TenantMetricSnapshot.find({ grain: "day" }).sort({ localDate: 1 }).limit(400).lean();
+    const stored = await TenantMetricSnapshot.find({
+        grain: "day",
+        $or: [{ locationId: null }, { locationId: { $exists: false } }],
+    }).sort({ localDate: 1 }).limit(400).lean();
     await refreshObjectives(stored, now);
     await refreshInsights(stored);
     return { timeZone, days: computed.days, dryRun: false };

@@ -23,6 +23,12 @@ const createRequest = async (req, res) => {
             return res.status(404).json({ message: "Member not found" });
         }
 
+        const { forbidIfOutOfLocationScope } = require("../utils/locationScope");
+        const forbidden = forbidIfOutOfLocationScope(req, member);
+        if (forbidden) {
+            return res.status(forbidden.status).json({ code: forbidden.code, message: forbidden.message });
+        }
+
         const resolvedMemberId = member._id;
 
         const isTakeover = Boolean(member.assignedSales);
@@ -141,6 +147,12 @@ const getRequests = async (req, res) => {
 
         if (req.query.requestedBy) {
             filter.requestedBy = req.query.requestedBy;
+        }
+
+        const { memberIdsMatchingLocationFilter } = require("../utils/locationScope");
+        const scopedMemberIds = await memberIdsMatchingLocationFilter(req.locationFilter, Member);
+        if (scopedMemberIds) {
+            filter.member = { $in: scopedMemberIds };
         }
 
         const [total, requests] = await Promise.all([

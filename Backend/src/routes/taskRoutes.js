@@ -10,8 +10,10 @@ const {
 const { protect } = require("../middleware/authMiddleware");
 const { allowRoles, allowAnyFeature } = require("../middleware/accessMiddleware");
 const { autoInvalidate } = require("../utils/cacheInvalidator");
+const { locationScopeOptional } = require("../middleware/locationScope");
 
 router.use(protect);
+router.use(locationScopeOptional);
 
 // ============================================================================
 // 1. ASSIGNING PLAYER ROUTES (Player Type: Assigning)

@@ -39,14 +39,65 @@ function privateCache(res) {
     res.set("Cache-Control", "private, max-age=60");
 }
 
+function mergeBranchSnapshotDays(rows, limit) {
+    const byDate = new Map();
+    for (const row of rows) {
+        const key = row.localDate;
+        const existing = byDate.get(key);
+        if (!existing) {
+            byDate.set(key, {
+                ...row,
+                locationId: null,
+                metrics: { ...(row.metrics || {}) },
+                hours: Array.isArray(row.hours) ? [...row.hours] : row.hours,
+            });
+            continue;
+        }
+        const metrics = existing.metrics || {};
+        for (const [k, v] of Object.entries(row.metrics || {})) {
+            if (typeof v === "number") {
+                metrics[k] = (Number(metrics[k]) || 0) + v;
+            } else if (metrics[k] == null) {
+                metrics[k] = v;
+            }
+        }
+        existing.metrics = metrics;
+        if (Array.isArray(existing.hours) && Array.isArray(row.hours)) {
+            const len = Math.max(existing.hours.length, row.hours.length);
+            existing.hours = Array.from({ length: len }, (_, i) =>
+                (Number(existing.hours[i]) || 0) + (Number(row.hours[i]) || 0)
+            );
+        }
+    }
+    return [...byDate.values()]
+        .sort((a, b) => String(a.localDate).localeCompare(String(b.localDate)))
+        .slice(-limit);
+}
+
 async function loadDays(limit = 120, locationScope = null) {
     const filter = { grain: "day" };
-    // Per-branch snapshots when a single location is selected; otherwise tenant-wide (null locationId)
+    // Single branch → that branch's snapshots
     if (locationScope?.mode === "one" && locationScope.locationId) {
         filter.locationId = locationScope.locationId;
-    } else {
-        filter.$or = [{ locationId: null }, { locationId: { $exists: false } }];
+        return TenantMetricSnapshot.find(filter).sort({ localDate: 1 }).limit(limit).lean();
     }
+    // Restricted staff viewing "all" → sum per-branch snapshots for granted locations
+    if (locationScope?.mode === "subset" && Array.isArray(locationScope.locationIds) && locationScope.locationIds.length) {
+        const rows = await TenantMetricSnapshot.find({
+            grain: "day",
+            locationId: { $in: locationScope.locationIds },
+        }).sort({ localDate: 1 }).lean();
+        if (rows.length) {
+            return mergeBranchSnapshotDays(rows, limit);
+        }
+        // Fallback until per-branch snapshots exist
+        return TenantMetricSnapshot.find({
+            grain: "day",
+            $or: [{ locationId: null }, { locationId: { $exists: false } }],
+        }).sort({ localDate: 1 }).limit(limit).lean();
+    }
+    // Unrestricted / all → tenant-wide rollup
+    filter.$or = [{ locationId: null }, { locationId: { $exists: false } }];
     return TenantMetricSnapshot.find(filter).sort({ localDate: 1 }).limit(limit).lean();
 }
 
