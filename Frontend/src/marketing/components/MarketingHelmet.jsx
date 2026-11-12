@@ -3,14 +3,17 @@ import {
   SITE_NAME,
   DEFAULT_TITLE,
   DEFAULT_DESCRIPTION,
-  OG_IMAGE_PATH,
+  OG_IMAGE_ABSOLUTE,
+  OG_IMAGE_WIDTH,
+  OG_IMAGE_HEIGHT,
+  OG_IMAGE_ALT,
   absoluteMarketingUrl,
-  absoluteAssetUrl,
 } from "../seo";
 
 /**
  * Per-route title, description, canonical, and Open Graph / Twitter cards.
  * Pass `jsonLd` (object) for structured data on home (or other) pages.
+ * Note: WhatsApp/Facebook scrapers read static tags in index.html, not these.
  */
 export default function MarketingHelmet({
   title,
@@ -22,7 +25,7 @@ export default function MarketingHelmet({
 }) {
   const fullTitle = title || DEFAULT_TITLE;
   const canonical = absoluteMarketingUrl(path);
-  const image = absoluteAssetUrl(OG_IMAGE_PATH);
+  const image = OG_IMAGE_ABSOLUTE;
   const robots = noIndex ? "noindex, nofollow" : "index, follow";
 
   return (
@@ -38,6 +41,11 @@ export default function MarketingHelmet({
       <meta property="og:description" content={description} />
       <meta property="og:url" content={canonical} />
       <meta property="og:image" content={image} />
+      <meta property="og:image:secure_url" content={image} />
+      <meta property="og:image:type" content="image/jpeg" />
+      <meta property="og:image:width" content={String(OG_IMAGE_WIDTH)} />
+      <meta property="og:image:height" content={String(OG_IMAGE_HEIGHT)} />
+      <meta property="og:image:alt" content={OG_IMAGE_ALT} />
       <meta property="og:locale" content="en_US" />
 
       <meta name="twitter:card" content="summary_large_image" />

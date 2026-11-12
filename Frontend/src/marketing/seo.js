@@ -4,7 +4,12 @@ export const SITE_NAME = "Forma";
 export const DEFAULT_TITLE = "Forma — Gym & Fitness Management";
 export const DEFAULT_DESCRIPTION =
   "Forma is the gym operating system for members, check-ins, sales CRM, coaching, and billing — sales-assisted onboarding with bank transfer.";
-export const OG_IMAGE_PATH = "/forma-horizontal.jpeg";
+export const OG_IMAGE_PATH = "/og-share.jpg";
+export const OG_IMAGE_WIDTH = 1200;
+export const OG_IMAGE_HEIGHT = 630;
+export const OG_IMAGE_ALT = "Forma — gym & fitness management";
+/** Always absolute for crawlers / share scrapers that ignore relative URLs. */
+export const OG_IMAGE_ABSOLUTE = "https://www.forma-official.com/og-share.jpg";
 
 /** Absolute marketing origin (www in production; current origin locally). */
 export function marketingOrigin() {
@@ -39,7 +44,8 @@ export function homeJsonLd() {
         name: SITE_NAME,
         url: origin,
         email: "sales@forma-official.com",
-        logo: absoluteAssetUrl(OG_IMAGE_PATH),
+        logo: absoluteAssetUrl("/forma-horizontal.jpeg"),
+        image: OG_IMAGE_ABSOLUTE,
       },
       {
         "@type": "SoftwareApplication",
