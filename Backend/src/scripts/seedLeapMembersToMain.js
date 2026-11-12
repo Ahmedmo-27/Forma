@@ -15,6 +15,7 @@ const dotenv = require("dotenv");
 
 dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
+const connectMongo = require("../config/connectMongo");
 const { runAsPlatform, runWithTenant } = require("../context/tenantContext");
 
 const TENANT_SLUG = "leap";
@@ -112,12 +113,7 @@ async function seedLeapMembersToMain(options = {}) {
 }
 
 async function main() {
-    const uri = process.env.MONGO_URI;
-    if (!uri) {
-        console.error("MONGO_URI is required");
-        process.exit(1);
-    }
-    await mongoose.connect(uri);
+    await connectMongo();
     try {
         await seedLeapMembersToMain();
     } finally {
