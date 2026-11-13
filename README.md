@@ -66,10 +66,15 @@ On Railway (production) and Render (testing), set `R2_ACCOUNT_ID`, `R2_BUCKET_NA
 ## Production
 
 - **Domain:** `forma-official.com` — see [docs/DOMAIN_NETWORKING.md](docs/DOMAIN_NETWORKING.md).
-- **Frontend (Vercel):** build from `vercel.json`. Set `BACKEND_ORIGIN=https://api.forma-official.com` (include `https://`) before building. Attach `app`, `www`, and optional `platform` / apex.
-- **API (Railway):** custom domain `api.forma-official.com`. Set `FRONTEND_ORIGIN` with `https://app.forma-official.com` listed first (then `www` / `platform`) so invite and reset links hit the gym app. Set `BASE_DOMAIN=forma-official.com`, production `PAYMENT_*`, and production secrets. Do not commit secrets.
-- **Testing API (Render):** keep the default `*.onrender.com` URL from `render.yaml`. Do not attach `forma-official.com`. Point local/preview `BACKEND_ORIGIN` at Render only for test work.
-- Health check path is `/`.
+- **Frontend (Vercel):** build from `vercel.json`. Set `BACKEND_ORIGIN=https://api.forma-official.com` (include `https://`) before building. Attach `app`, `www`, and optional `platform` / apex. Vercel skips a production build when the commit does not change `Frontend/`, `vercel.json`, or the root `package.json`.
+- **API (Railway):** custom domain `api.forma-official.com`. Set `FRONTEND_ORIGIN` with `https://app.forma-official.com` listed first (then `www` / `platform`) so invite and reset links hit the gym app. Set `BASE_DOMAIN=forma-official.com`, production `PAYMENT_*`, and production secrets. Do not commit secrets. Health check path is `/health`.
+- **Testing API (Render):** keep the default `*.onrender.com` URL from `render.yaml`. Do not attach `forma-official.com`. Point local/preview `BACKEND_ORIGIN` at Render only for test work. Render is not a production deploy target.
+
+GitHub Actions does not deploy. [`.github/workflows/ci.yml`](.github/workflows/ci.yml) is the release gate: on pull requests and on pushes to `main` it lints and builds the frontend with `BACKEND_ORIGIN=https://api.forma-official.com`, and runs the backend test suites. Vercel and Railway keep their Git auto-deploys. After the workflow is on `main`:
+
+- **GitHub:** require the `Frontend` and `Backend` checks before merging to `main`.
+- **Vercel:** in Settings → Build and Deployment → Deployment Checks, require those GitHub checks. Leave production domain auto-assignment on.
+- **Railway:** enable Wait for CI on the API service so a failed check does not replace `api.forma-official.com`. Optionally set watch paths to `Backend/**` so frontend-only commits do not redeploy the API.
 
 ## Tests
 
