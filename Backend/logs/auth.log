@@ -2798,3 +2798,9 @@
 {"ts":"2026-11-13T00:11:11.626Z","level":"info","category":"auth","message":"Password compare completed","env":"test","match":true,"needsRehash":false}
 {"ts":"2026-11-13T00:11:11.978Z","level":"warn","category":"auth","message":"Auth middleware: no token","env":"test","path":"/uploads/photo-private.png","method":"GET","ip":"127.0.0.1"}
 {"ts":"2026-11-13T00:11:12.251Z","level":"warn","category":"auth","message":"Auth middleware: no token","env":"test","path":"/uploads/guessed.jpg","method":"GET","ip":"127.0.0.1"}
+{"ts":"2026-11-13T01:10:11.492Z","level":"info","category":"auth","message":"Login attempt","env":"test","requestId":"1794532211491-z64qeu","ip":"127.0.0.1","userAgent":null,"hasEmail":true,"hasJwtSecret":true,"apiBaseHint":null}
+{"ts":"2026-11-13T01:10:11.670Z","level":"info","category":"auth","message":"Password compare completed","env":"test","requestId":"1794532211491-z64qeu","userId":"6af66373bef32b623ed23db3","match":true,"needsRehash":false}
+{"ts":"2026-11-13T01:10:11.672Z","level":"info","category":"auth","message":"Login success","env":"test","requestId":"1794532211491-z64qeu","userId":"6af66373bef32b623ed23db3","role":"Sales","tenantSlug":"power-gym"}
+{"ts":"2026-11-13T01:12:16.521Z","level":"info","category":"auth","message":"Login attempt","env":"test","requestId":"1794532336521-z6k62f","ip":"127.0.0.1","userAgent":null,"hasEmail":true,"hasJwtSecret":true,"apiBaseHint":null}
+{"ts":"2026-11-13T01:12:16.704Z","level":"info","category":"auth","message":"Password compare completed","env":"test","requestId":"1794532336521-z6k62f","userId":"6af663f0ad4500796e4beaec","match":true,"needsRehash":false}
+{"ts":"2026-11-13T01:12:16.707Z","level":"info","category":"auth","message":"Login success","env":"test","requestId":"1794532336521-z6k62f","userId":"6af663f0ad4500796e4beaec","role":"Sales","tenantSlug":"power-gym"}
