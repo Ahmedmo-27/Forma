@@ -373,8 +373,23 @@ const getSalesUsers = async (req, res) => {
 
 const getReceptionists = async (req, res) => {
     try {
+        // Staff directory for Contacts — scoped by navbar branch (access grants).
+        // Owner / GM included so managers appear under All and on branches they can access.
         const staff = await User.find(
-            { role: { $in: ["Receptionist", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant"] } },
+            {
+                role: {
+                    $in: [
+                        "Receptionist",
+                        "Sales",
+                        "Sales Manager",
+                        "Coach",
+                        "Coach Manager",
+                        "Accountant",
+                        "General Manager",
+                        "Owner",
+                    ],
+                },
+            },
             "name mobile_number role _id email createdAt allowedLocationIds canAccessAllLocations"
         ).sort({ role: 1, name: 1 }).lean();
 

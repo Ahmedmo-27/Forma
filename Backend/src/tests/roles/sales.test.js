@@ -37,12 +37,18 @@ describe("Sales", () => {
         expectAllowed("comments", ["Owner", "Sales", "Sales Manager", "Coach", "Coach Manager"], user);
         expectAllowed("check_in", ["Receptionist", "Owner", "Sales Manager", "Sales"], user);
         expectAllowed("sales_members", ["Sales", "Sales Manager", "Owner"], user);
+        expectAllowed(
+            "member_profile",
+            ["Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant", "General Manager"],
+            user
+        );
     });
 
     it("cannot refund, edit packages, or open gym settings", () => {
         const user = rep();
         expectDenied("refunds", ["Owner", "Accountant"], user);
         expectDenied("packages", ["Owner", "Sales Manager"], user);
+        expectDenied("package_approvals", ["Accountant", "Owner"], user);
         expectDenied("settings", ["Owner"], user);
         expectDenied("change_role", ["Owner", "General Manager", "Sales Manager"], user);
         expectDenied("transfer", ["Sales Manager", "Owner"], user);

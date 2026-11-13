@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
+import useLocationEffect from '../hooks/useLocationEffect';
 import Layout from '../components/Layout';
 import { PageHeader, Spinner, EmptyState, Avatar, SearchInput, Pagination } from '../components/ui';
 import { getReceptionists } from '../api/endpoints';
 import { WhatsAppBtn } from '../utils/whatsapp';
 import useDebounce from '../hooks/useDebounce';
+import { ALL_LOCATIONS, useLocationScope } from '../context/LocationContext';
 import {
   Briefcase, Building2, Crown, Dumbbell, Medal, Monitor, Phone, Receipt, Shirt, UserRound, X,
 } from 'lucide-react';
@@ -182,6 +184,11 @@ const PAGE_SIZE_OPTIONS = [12, 24, 48];
 
 export default function ReceptionContacts() {
   usePageTitle('Contacts');
+  const {
+    multiEnabled,
+    selectedLocationId,
+    selectedLocation,
+  } = useLocationScope();
 
   const [staff,   setStaff]   = useState([]);
   const [loading, setLoading] = useState(true);
@@ -200,6 +207,10 @@ export default function ReceptionContacts() {
   const [page, setPage] = useState(1);
 
   const debouncedSearch = useDebounce(search, 200);
+  const viewingAllBranches = !multiEnabled || selectedLocationId === ALL_LOCATIONS;
+  const branchLabel = viewingAllBranches
+    ? 'All locations'
+    : (selectedLocation?.name || 'Selected branch');
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -211,7 +222,8 @@ export default function ReceptionContacts() {
     } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { setPage(1); }, []);
 
   // Reset page to 1 whenever search or filter changes
   useEffect(() => {
@@ -290,7 +302,12 @@ export default function ReceptionContacts() {
   return (
     <Layout>
       <PageHeader walkthrough="contacts-header" title="Contacts">
-        <SearchInput value={search} onChange={setSearch} placeholder="Search name or number…" width={220} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+          {multiEnabled && (
+            <span style={{ fontSize: 12, color: 'var(--t2)', fontWeight: 600 }}>{branchLabel}</span>
+          )}
+          <SearchInput value={search} onChange={setSearch} placeholder="Search name or number…" width={220} />
+        </div>
       </PageHeader>
 
       <div className="page-wrap" data-walkthrough="contacts-board" style={{ paddingTop: 20, paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -316,7 +333,13 @@ export default function ReceptionContacts() {
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
         ) : sorted.length === 0 ? (
-          <EmptyState icon={Phone} message="No contacts found" sub="Try adjusting your search or filter." />
+          <EmptyState
+            icon={Phone}
+            message="No contacts found"
+            sub={multiEnabled && !viewingAllBranches
+              ? 'No staff are assigned to this branch. Try All locations or another branch.'
+              : 'Try adjusting your search or filter.'}
+          />
         ) : (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: 14 }}>

@@ -164,7 +164,7 @@ export const addPTSessions       = (id, data) =>
 // ── Package Exceptions ────────────────────────────────────────────────────────
 export const getPackageExceptions         = (params) => api.get('/package-exceptions', { params });
 export const getMemberPendingException    = (memberId) =>
-  api.get(`/package-exceptions/member/${memberId}`);
+  api.get(`/package-exceptions/member/${memberId}`, { skipGlobalError: true });
 export const createPackageException       = (data) => api.post('/package-exceptions', data);
 export const updatePackageExceptionStatus = (id, status, reviewNote) =>
   api.put(`/package-exceptions/${id}/status`, { status, reviewNote });
