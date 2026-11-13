@@ -17,6 +17,11 @@ const userSchema = new mongoose.Schema({
         lowercase: true,
     },
     mobile_number: String,
+    // Canonical phone used for global uniqueness. Display stays on mobile_number.
+    phoneKey: {
+        type: String,
+        trim: true,
+    },
     password: String,
     // Bumped when the password changes so older login tokens stop working.
     tokenVersion: {
@@ -72,10 +77,15 @@ const userSchema = new mongoose.Schema({
 }, { timestamps: true });
 
 userSchema.plugin(tenantPlugin);
-userSchema.index({ tenantId: 1, email: 1 }, { unique: true });
+// Unique across every gym, not per tenant.
+userSchema.index({ email: 1 }, { unique: true });
 userSchema.index(
-    { tenantId: 1, username: 1 },
+    { username: 1 },
     { unique: true, partialFilterExpression: { username: { $type: "string" } } }
+);
+userSchema.index(
+    { phoneKey: 1 },
+    { unique: true, partialFilterExpression: { phoneKey: { $gt: "" } } }
 );
 
 module.exports = mongoose.models.User || mongoose.model("User", userSchema);

@@ -241,6 +241,12 @@ const memberSchema = new mongoose.Schema({
         required: true
     },
 
+    // Canonical phone used for global uniqueness. Display stays on phones.
+    phoneKey: {
+        type: String,
+        trim: true,
+    },
+
     nationalId: {
         type: String,   
         default: null
@@ -431,6 +437,10 @@ memberSchema.index({ tenantId: 1, current_couch: 1 });
 memberSchema.index({ tenantId: 1, isBlocked: 1 });
 memberSchema.index({ tenantId: 1, name: 1 });
 memberSchema.index({ tenantId: 1, phones: 1 });
+memberSchema.index(
+    { phoneKey: 1 },
+    { unique: true, partialFilterExpression: { phoneKey: { $gt: "" } } }
+);
 memberSchema.index({ tenantId: 1, locationId: 1 });
 memberSchema.index({ tenantId: 1, locationId: 1, status: 1 });
 
