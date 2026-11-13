@@ -8,6 +8,7 @@ import { createStaffUser, listLocations } from '../../api/endpoints';
 import { isValidEmail, isValidPhone } from '../../lib/validation';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
+import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
 
 const ALL_STAFF_ROLES = [
   ['General Manager', 'General Manager'],
@@ -45,14 +46,20 @@ export default function ManageStaff() {
   usePageTitle('Manage Staff');
   const { user } = useAuth();
   const { hasFeature } = useTenant() || {};
+  const { selectedLocationId } = useLocationScope();
   const roleOptions = CREATABLE_ROLES[user?.role] || [];
   const canSetLocations = ['Owner', 'General Manager'].includes(user?.role)
     && Boolean(hasFeature?.('multi_branches'));
+  const deskBranch =
+    selectedLocationId && selectedLocationId !== ALL_LOCATIONS
+      ? String(selectedLocationId)
+      : '';
 
   const [form, setForm] = useState(() => ({
     ...INIT,
     role: roleOptions[0]?.[0] || 'Sales',
     canAccessAllLocations: roleOptions[0]?.[0] === 'General Manager',
+    allowedLocationIds: deskBranch ? [deskBranch] : [],
   }));
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
@@ -72,6 +79,17 @@ export default function ManageStaff() {
       });
     return () => { cancelled = true; };
   }, [canSetLocations]);
+
+  // Prefill branch grants from the navbar selection (without wiping a manual multi-select)
+  useEffect(() => {
+    if (!canSetLocations || !deskBranch) return;
+    setForm((f) => {
+      if (f.canAccessAllLocations || f.role === 'General Manager') return f;
+      if ((f.allowedLocationIds || []).length > 1) return f;
+      if ((f.allowedLocationIds || [])[0] === deskBranch) return f;
+      return { ...f, allowedLocationIds: [deskBranch] };
+    });
+  }, [canSetLocations, deskBranch]);
 
   const validate = () => {
     const e = {};
@@ -145,6 +163,7 @@ export default function ManageStaff() {
         ...INIT,
         role: roleOptions[0]?.[0] || 'Sales',
         canAccessAllLocations: roleOptions[0]?.[0] === 'General Manager',
+        allowedLocationIds: deskBranch ? [deskBranch] : [],
       });
       setErrors({});
     } catch (err) {

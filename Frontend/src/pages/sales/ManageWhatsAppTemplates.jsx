@@ -330,6 +330,7 @@ function TemplateForm({ form, onChange, errors, packages }) {
                 <label key={id} style={{ display: 'flex', gap: 8, fontSize: 13, padding: '4px 0', cursor: 'pointer' }}>
                   <input
                     type="radio"
+                    className="tenant-radio"
                     name="defaultDiscountPkg"
                     checked={form.defaultPackageIds[0] === id}
                     onChange={() => togglePackage(id)}

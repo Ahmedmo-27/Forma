@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, SearchInput, EmptyState, Avatar, Badge, Spinner, fmtDateTime, Pagination } from '../../components/ui';
+import { PageHeader, Card, Btn, SearchInput, EmptyState, Avatar, Badge, fmtDateTime, Pagination, CardListSkeleton } from '../../components/ui';
 import { getAllNotes, getSalesUsers } from '../../api/endpoints';
 import { Check, X } from 'lucide-react';
 
@@ -65,8 +66,9 @@ export default function CallCenter() {
     }
   }, [page, pageSize, debouncedSearch, salesFilter, dateFrom, dateTo]);
 
-  useEffect(() => { fetchSalesUsers(); }, [fetchSalesUsers]);
-  useEffect(() => { fetchNotes(); }, [fetchNotes]);
+  useLocationEffect(() => { fetchSalesUsers(); }, [fetchSalesUsers]);
+  useLocationEffect(() => { fetchNotes(); }, [fetchNotes]);
+  useLocationEffect(() => { setPage(1); setSalesFilter('all'); }, []);
   useEffect(() => { setPage(1); }, [debouncedSearch, salesFilter, dateFrom, dateTo, pageSize]);
 
   const handlePageSizeChange = (newSize) => {
@@ -278,8 +280,8 @@ export default function CallCenter() {
 
           <div>
             {loading ? (
-              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, display: 'flex', justifyContent: 'center', padding: 60 }}>
-                <Spinner size="lg" />
+              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, padding: 16 }}>
+                <CardListSkeleton rows={6} />
               </div>
             ) : !notes.length ? (
               <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8 }}>

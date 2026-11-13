@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, CardHeader, Spinner, EmptyState, Badge, Avatar, fmtDate, Select, toLocalDateString } from '../../components/ui';
+import { PageHeader, Card, CardHeader, EmptyState, Badge, Avatar, fmtDate, toLocalDateString, DashboardSkeleton, StatCardSkeleton, Table, Skeleton, MenuSelect } from '../../components/ui';
 import { getSalesManagerRevenue, getSubscriptionsByDate, getSalesUsers, getCoachTeam, getAllMembers, getPackages } from '../../api/endpoints';
 import {
   buildPackageOptions, filterByPackage, sharePercent, summarizePackages,
@@ -70,20 +70,29 @@ function TodayTab({ data, selectedDate, setSelectedDate, loading }) {
 
       {/* Today KPI */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-        <Stat
-          label="Today's Revenue"
-          value={`${fmt(data?.todayRevenue)} EGP`}
-          sub={data?.today}
-          accent="var(--blue)"
-          color="var(--blue)"
-        />
-        <Stat
-          label="This Year's Revenue"
-          value={`${fmt(data?.currentYearRevenue)} EGP`}
-          sub={String(data?.currentYear ?? '')}
-          accent="var(--green)"
-          color="var(--green)"
-        />
+        {loading && !data ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          <>
+            <Stat
+              label="Today's Revenue"
+              value={`${fmt(data?.todayRevenue)} EGP`}
+              sub={data?.today}
+              accent="var(--blue)"
+              color="var(--blue)"
+            />
+            <Stat
+              label="This Year's Revenue"
+              value={`${fmt(data?.currentYearRevenue)} EGP`}
+              sub={String(data?.currentYear ?? '')}
+              accent="var(--green)"
+              color="var(--green)"
+            />
+          </>
+        )}
       </div>
 
       {/* Date picker */}
@@ -107,6 +116,12 @@ function TodayTab({ data, selectedDate, setSelectedDate, loading }) {
           )}
         </div>
 
+        {selectedDate && loading && (
+          <div style={{ marginTop: 16, padding: '14px 16px', background: 'var(--bg)', borderRadius: 7, border: '1px solid var(--border)' }} aria-busy="true">
+            <Skeleton h="11px" w="40%" />
+            <div style={{ marginTop: 10 }}><Skeleton h="28px" w="35%" /></div>
+          </div>
+        )}
         {selectedDate && !loading && (
           <div style={{ marginTop: 16, padding: '14px 16px', background: 'var(--bg)', borderRadius: 7, border: '1px solid var(--border)' }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 6 }}>
@@ -136,13 +151,23 @@ function MonthlyTab({ data, loading }) {
 
       {/* Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
-        <Stat label="12-Month Total"   value={`${fmt(total)} EGP`}             accent="var(--navy)"  color="var(--navy)" />
-        <Stat label="Year-to-Date"     value={`${fmt(data?.currentYearRevenue)} EGP`} accent="var(--green)" color="var(--green)" />
-        <Stat label="Months Tracked"   value={months.length}                   accent="var(--sky)"   color="var(--sky)" />
+        {loading ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          <>
+            <Stat label="12-Month Total"   value={`${fmt(total)} EGP`}             accent="var(--navy)"  color="var(--navy)" />
+            <Stat label="Year-to-Date"     value={`${fmt(data?.currentYearRevenue)} EGP`} accent="var(--green)" color="var(--green)" />
+            <Stat label="Months Tracked"   value={months.length}                   accent="var(--sky)"   color="var(--sky)" />
+          </>
+        )}
       </div>
 
       {/* Bar chart */}
-      {months.length > 0 && (
+      {!loading && months.length > 0 && (
         <Card>
           <CardHeader title="Monthly Revenue — Last 12 Months" />
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, marginBottom: 8 }}>
@@ -178,7 +203,7 @@ function MonthlyTab({ data, loading }) {
       <Card noPad>
         <CardHeader title="Month-by-Month Breakdown" />
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
+          <Table loading skeletonRows={6} headers={['Month', 'Revenue (EGP)', 'Subscriptions', 'Share']} />
         ) : months.length === 0 ? (
           <EmptyState message="No data available" />
         ) : (
@@ -250,16 +275,27 @@ function AnnualTab({ data, loading }) {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
-        <Stat label={`${data?.currentYear} Revenue`} value={`${fmt(yearTotal)} EGP`} accent="var(--navy)" color="var(--navy)" />
-        <Stat label="Subscriptions This Year" value={yearSales} accent="var(--blue)" color="var(--blue)" />
-        <Stat label="Best Month" value={bestMonth ? `${bestMonth.month}` : '—'} sub={bestMonth ? `${fmt(bestMonth.revenue)} EGP` : ''} accent="var(--green)" color="var(--green)" />
-        <Stat label="Monthly Average" value={yearMonths.length > 0 ? `${fmt(Math.round(yearTotal / yearMonths.length))} EGP` : '—'} accent="var(--amber)" color="var(--amber)" />
+        {loading ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          <>
+            <Stat label={`${data?.currentYear} Revenue`} value={`${fmt(yearTotal)} EGP`} accent="var(--navy)" color="var(--navy)" />
+            <Stat label="Subscriptions This Year" value={yearSales} accent="var(--blue)" color="var(--blue)" />
+            <Stat label="Best Month" value={bestMonth ? `${bestMonth.month}` : '—'} sub={bestMonth ? `${fmt(bestMonth.revenue)} EGP` : ''} accent="var(--green)" color="var(--green)" />
+            <Stat label="Monthly Average" value={yearMonths.length > 0 ? `${fmt(Math.round(yearTotal / yearMonths.length))} EGP` : '—'} accent="var(--amber)" color="var(--amber)" />
+          </>
+        )}
       </div>
 
       <Card noPad>
         <CardHeader title={`${data?.currentYear ?? ''} Monthly Breakdown`} />
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
+          <Table loading skeletonRows={6} headers={['Month', 'Revenue (EGP)', 'Subscriptions']} />
         ) : yearMonths.length === 0 ? (
           <EmptyState message="No data for this year" />
         ) : (
@@ -423,14 +459,15 @@ function SalesSubscriptionsContent() {
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
               Sales Rep
             </label>
-            <select
+            <MenuSelect
               value={salesRepId}
               onChange={e => setSalesRepId(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer' }}
+              style={{ width: '100%' }}
+              aria-label="Sales Rep"
             >
               <option value="">All Sales Reps</option>
               {salesReps.map(r => <option key={r._id} value={r._id}>{r.name} ({r.role})</option>)}
-            </select>
+            </MenuSelect>
           </div>
 
           {/* Package filter */}
@@ -438,14 +475,15 @@ function SalesSubscriptionsContent() {
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
               Package
             </label>
-            <select
+            <MenuSelect
               value={packageId}
               onChange={e => setPackageId(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer' }}
+              style={{ width: '100%' }}
+              aria-label="Package"
             >
               <option value="">All Packages</option>
               {packageOptions.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-            </select>
+            </MenuSelect>
           </div>
 
           <button
@@ -479,7 +517,7 @@ function SalesSubscriptionsContent() {
           </CardHeader>
         </div>
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 28 }}><Spinner /></div>
+          <Table loading skeletonRows={5} headers={['Package', 'Sold', 'Revenue (EGP)', 'Share']} />
         ) : packageStats.length === 0 ? (
           <EmptyState icon={Package} message="No packages sold in this range" sub="Try This month or widen the dates" />
         ) : (
@@ -531,23 +569,32 @@ function SalesSubscriptionsContent() {
 
       {/* ── Summary cards ────────────────────────────────────────── */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-        {[
-          { label: 'Subscriptions', value: entries.length,              color: 'var(--blue)',  accent: 'var(--blue)' },
-          { label: 'Revenue',       value: `${fmt(totalRevenue)} EGP`, color: 'var(--green)', accent: 'var(--green)' },
-          { label: 'New Members',   value: newCount,                       color: 'var(--navy)',  accent: 'var(--navy)' },
-          { label: 'Renewals',      value: renewalCount,                   color: 'var(--amber)', accent: 'var(--amber)' },
-        ].map(s => (
-          <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderLeft: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{s.label}</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
-          </div>
-        ))}
+        {loading ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          [
+            { label: 'Subscriptions', value: entries.length,              color: 'var(--blue)',  accent: 'var(--blue)' },
+            { label: 'Revenue',       value: `${fmt(totalRevenue)} EGP`, color: 'var(--green)', accent: 'var(--green)' },
+            { label: 'New Members',   value: newCount,                       color: 'var(--navy)',  accent: 'var(--navy)' },
+            { label: 'Renewals',      value: renewalCount,                   color: 'var(--amber)', accent: 'var(--amber)' },
+          ].map(s => (
+            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderLeft: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{s.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* ── Table ────────────────────────────────────────────────── */}
       <Card noPad>
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
+          <Table loading skeletonRows={6} headers={['Member', 'Package', 'Price Paid', 'Start Date', 'Expires', 'Sales Rep', 'Type']} />
         ) : entries.length === 0 ? (
           <EmptyState icon={ClipboardList} message="No subscriptions found" sub="Try adjusting the date range, package, or sales rep filter" />
         ) : (
@@ -671,37 +718,47 @@ function CoachSessionsContent() {
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
               Coach
             </label>
-            <select
+            <MenuSelect
               value={coachId}
               onChange={e => setCoachId(e.target.value)}
-              style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer' }}
+              style={{ width: '100%' }}
+              aria-label="Coach"
             >
               <option value="">All Coaches</option>
               {coaches.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-            </select>
+            </MenuSelect>
           </div>
         </div>
       </Card>
 
       {/* Summary */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
-        {[
-          { label: 'Members with PT', value: ptMembers.length, color: 'var(--blue)', accent: 'var(--blue)' },
-          { label: 'Total Sessions', value: totalSessions, color: 'var(--navy)', accent: 'var(--navy)' },
-          { label: 'Used', value: usedSessions, color: 'var(--amber)', accent: 'var(--amber)' },
-          { label: 'Remaining', value: remainingSessions, color: 'var(--green)', accent: 'var(--green)' },
-        ].map(s => (
-          <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderLeft: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
-            <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{s.label}</div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
-          </div>
-        ))}
+        {loading ? (
+          <>
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+            <StatCardSkeleton />
+          </>
+        ) : (
+          [
+            { label: 'Members with PT', value: ptMembers.length, color: 'var(--blue)', accent: 'var(--blue)' },
+            { label: 'Total Sessions', value: totalSessions, color: 'var(--navy)', accent: 'var(--navy)' },
+            { label: 'Used', value: usedSessions, color: 'var(--amber)', accent: 'var(--amber)' },
+            { label: 'Remaining', value: remainingSessions, color: 'var(--green)', accent: 'var(--green)' },
+          ].map(s => (
+            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderLeft: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{s.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* Table */}
       <Card noPad>
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
+          <Table loading skeletonRows={6} headers={['Member', 'Coach', 'Total Sessions', 'Used', 'Remaining', 'Price Paid', 'Status']} />
         ) : ptMembers.length === 0 ? (
           <EmptyState icon={Dumbbell} message="No members with private sessions" sub="Adjust the coach filter or add PT sessions to members" />
         ) : (
@@ -793,7 +850,10 @@ export default function TargetDashboard() {
     }
   }, [selectedDate]);
 
-  useLocationEffect(() => { load(); }, [load]);
+  useLocationEffect(() => {
+    setData(null);
+    load();
+  }, [load]);
 
   const TABS = [
     { id: 'today',         label: 'Today / Date' },
@@ -802,6 +862,8 @@ export default function TargetDashboard() {
     { id: 'subscriptions', label: 'Subscriptions' },
   ];
 
+  const showBoardSkeleton = loading && !data && tab !== 'subscriptions' && tab !== 'today';
+
   return (
     <Layout>
       <PageHeader walkthrough="targets-header" title="Targets" />
@@ -809,16 +871,15 @@ export default function TargetDashboard() {
       <div className="page-wrap" data-walkthrough="targets-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <TabBar tabs={TABS} active={tab} onChange={setTab} />
 
-        {loading && !data ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-            <Spinner size="lg" />
-          </div>
+        {tab === 'subscriptions' ? (
+          <SubscriptionsTab />
+        ) : showBoardSkeleton ? (
+          <DashboardSkeleton stats={4} listRows={6} />
         ) : (
           <>
             {tab === 'today'         && <TodayTab         data={data} selectedDate={selectedDate} setSelectedDate={setSelectedDate} loading={loading} />}
-            {tab === 'monthly'       && <MonthlyTab       data={data} loading={loading} />}
-            {tab === 'annual'        && <AnnualTab        data={data} loading={loading} />}
-            {tab === 'subscriptions' && <SubscriptionsTab />}
+            {tab === 'monthly'       && <MonthlyTab       data={data} loading={loading || !data} />}
+            {tab === 'annual'        && <AnnualTab        data={data} loading={loading || !data} />}
           </>
         )}
       </div>

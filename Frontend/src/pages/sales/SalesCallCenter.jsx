@@ -4,8 +4,9 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, EmptyState, Avatar, Badge, Spinner, SearchInput, Btn, Pagination, fmtDateTime, toLocalDateString } from '../../components/ui';
+import { PageHeader, Card, EmptyState, Avatar, Badge, SearchInput, Btn, Pagination, fmtDateTime, toLocalDateString, CardListSkeleton } from '../../components/ui';
 import { getAllNotes } from '../../api/endpoints';
 import { MessageCircle, X } from 'lucide-react';
 
@@ -64,7 +65,8 @@ export default function SalesCallCenter() {
     }
   }, [user?._id, page, pageSize, debouncedSearch, dateFrom, dateTo]);
 
-  useEffect(() => { fetchNotes(); }, [fetchNotes]);
+  useLocationEffect(() => { fetchNotes(); }, [fetchNotes]);
+  useLocationEffect(() => { setPage(1); }, []);
   useEffect(() => { setPage(1); }, [debouncedSearch, dateFrom, dateTo, pageSize]);
 
   const handlePageSizeChange = (newSize) => {
@@ -132,8 +134,8 @@ export default function SalesCallCenter() {
           </div>
 
           {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
-              <Spinner size="lg" />
+            <div style={{ padding: 16 }}>
+              <CardListSkeleton rows={6} />
             </div>
           ) : notes.length === 0 ? (
             <EmptyState

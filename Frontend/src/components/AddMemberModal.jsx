@@ -140,38 +140,16 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
         </div>
       )}
       <div className="grid-2-form" style={{ marginTop: 12 }}>
-        <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 5 }}>
-            Assign Sales Rep
-          </label>
-          <select 
-            value={form.assignedSales} 
-            onChange={e => set('assignedSales', e.target.value)}
-            style={{ 
-              width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid var(--border)', 
-              borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer' 
-            }}>
-            <option value="">— None —</option>
-            {sales.map(s => <option key={s._id} value={s._id}>{s.name} ({s.role})</option>)}
-          </select>
-        </div>
-        <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 5 }}>
-            Assign Coach
-          </label>
-          <select 
-            value={form.coachId} 
-            onChange={e => set('coachId', e.target.value)}
-            style={{ 
-              width: '100%', padding: '8px 10px', fontSize: 13, border: '1px solid var(--border)', 
-              borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer' 
-            }}>
-            <option value="">— None —</option>
-            {coaches.filter(c => ['Coach', 'Coach Manager'].includes(c.role)).map(c => 
-              <option key={c._id} value={c._id}>{c.name}</option>
-            )}
-          </select>
-        </div>
+        <Select label="Assign Sales Rep" value={form.assignedSales} onChange={e => set('assignedSales', e.target.value)}>
+          <option value="">— None —</option>
+          {sales.map(s => <option key={s._id} value={s._id}>{s.name} ({s.role})</option>)}
+        </Select>
+        <Select label="Assign Coach" value={form.coachId} onChange={e => set('coachId', e.target.value)}>
+          <option value="">— None —</option>
+          {coaches.filter(c => ['Coach', 'Coach Manager'].includes(c.role)).map(c =>
+            <option key={c._id} value={c._id}>{c.name}</option>
+          )}
+        </Select>
       </div>
     </Modal>
   );

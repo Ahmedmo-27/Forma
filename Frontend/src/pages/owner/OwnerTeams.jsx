@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import { PageHeader, Spinner, EmptyState, Avatar, Pagination } from '../../components/ui';
 import { getSalesTeam, getCoachTeam } from '../../api/endpoints';
@@ -67,7 +68,8 @@ export default function OwnerTeams() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { load(); }, [load]);
+  useLocationEffect(() => { setPage(1); }, []);
 
   const currentList = {
     sales:        salesTeam,

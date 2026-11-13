@@ -5,11 +5,12 @@ import {
   Card,
   EmptyState,
   PageHeader,
-  Skeleton,
   Avatar,
   Badge,
   Modal,
   Btn,
+  DashboardSkeleton,
+  StatCardSkeleton,
 } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
@@ -600,6 +601,9 @@ export default function AnalyticsHome() {
   async function load() {
     setLoading(true);
     setError('');
+    setData(null);
+    setInsights([]);
+    setSuggestions([]);
     try {
       const dash = await getBiDashboard();
       setData(dash.data);
@@ -678,11 +682,18 @@ export default function AnalyticsHome() {
       </PageHeader>
 
       <div className="page-wrap" data-walkthrough="analytics-board" style={{ paddingTop: 20, paddingBottom: 48, display: 'flex', flexDirection: 'column', gap: 20 }}>
-        {loading && <Skeleton h="140px" />}
-        {error && <EmptyState message={error} />}
-        {data?.empty && <EmptyState message={data.message} />}
+        {loading && (
+          <div aria-busy="true">
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 160px), 1fr))', gap: 12, marginBottom: 20 }}>
+              {Array.from({ length: 6 }).map((_, i) => <StatCardSkeleton key={i} />)}
+            </div>
+            <DashboardSkeleton stats={0} listRows={4} showList />
+          </div>
+        )}
+        {!loading && error && <EmptyState message={error} />}
+        {!loading && data?.empty && <EmptyState message={data.message} />}
 
-        {data?.stale && !data.empty && (
+        {!loading && data?.stale && !data.empty && (
           <div
             style={{
               background: 'var(--amber-bg)',
@@ -701,7 +712,7 @@ export default function AnalyticsHome() {
           </div>
         )}
 
-        {data && !data.empty && (
+        {!loading && data && !data.empty && (
           <>
             {/* ── METRICS SECTION ── */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

@@ -6,7 +6,7 @@ import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, CardHeader, StatCard, Spinner, Avatar, Badge, EmptyState, fmtDate, fmtTimeWithSeconds, toLocalDateString } from '../../components/ui';
+import { PageHeader, Card, CardHeader, StatCard, Avatar, Badge, EmptyState, fmtDate, fmtTimeWithSeconds, toLocalDateString, DashboardSkeleton } from '../../components/ui';
 import { getAllMembers, getSalesTeam, getRequests, getTodayCheckIns, getSalesManagerRevenue } from '../../api/endpoints';
 import {
   BarChart3,
@@ -253,7 +253,7 @@ export default function SalesDashboard() {
 
       <div className="page-wrap" data-walkthrough="sales-dash-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><Spinner size="lg" /></div>
+          <DashboardSkeleton stats={6} listRows={5} />
         ) : (
           <>
             {/* KPI Row */}

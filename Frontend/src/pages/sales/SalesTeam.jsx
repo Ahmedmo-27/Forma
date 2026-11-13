@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Spinner, EmptyState, Avatar, Badge, Pagination } from '../../components/ui';
 import { getSalesTeam, getReceptionistTeam } from '../../api/endpoints';
@@ -52,8 +53,9 @@ export default function SalesTeam() {
     finally { setLoadingRecp(false); }
   }, []);
 
-  useEffect(() => { fetchSales(); }, [fetchSales]);
-  useEffect(() => { fetchReceptionists(); }, [fetchReceptionists]);
+  useLocationEffect(() => { fetchSales(); }, [fetchSales]);
+  useLocationEffect(() => { fetchReceptionists(); }, [fetchReceptionists]);
+  useLocationEffect(() => { setPage(1); }, []);
 
   const currentTotal = tab === 'sales' ? salesTeam.length : receptionists.length;
   const totalPages = Math.max(1, Math.ceil(currentTotal / pageSize));

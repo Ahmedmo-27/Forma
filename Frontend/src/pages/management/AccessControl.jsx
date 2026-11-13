@@ -3,8 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { Shield, User } from 'lucide-react';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, Avatar, Badge } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, Avatar, Badge, ChecklistSkeleton, MenuSelect } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import {
   listAccessUsersByRole,
   getUserAccess,
@@ -191,13 +192,14 @@ export default function AccessControl({ defaultTab = 'staff' }) {
     return () => { cancelled = true; };
   }, [canManageLocations]);
 
-  useEffect(() => {
+  useLocationEffect(() => {
     if (!staffRole) {
       setPeople([]);
       return undefined;
     }
     let cancelled = false;
     setLoadingPeople(true);
+    setSelectedPerson(null);
     listAccessUsersByRole(staffRole)
       .then((res) => {
         if (!cancelled) setPeople(res.data.users || []);
@@ -506,7 +508,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 200px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
                   Current Role
-                  <select
+                  <MenuSelect
                     value={staffRole}
                     aria-label="Filter role"
                     onChange={(event) => {
@@ -515,20 +517,16 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                       setGroups([]);
                       setStaffDraft({});
                     }}
-                    style={{
-                      padding: '10px 12px', borderRadius: 8,
-                      border: '1px solid var(--border)', background: 'var(--card)',
-                      color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
-                    }}
+                    style={{ width: '100%' }}
                   >
                     <option value="">Choose a role</option>
                     {staffFilterRoles.map((item) => <option key={item} value={item}>{item}</option>)}
-                  </select>
+                  </MenuSelect>
                 </label>
 
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 240px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
                   Staff Member
-                  <select
+                  <MenuSelect
                     value={selectedPerson?._id || ''}
                     aria-label="Staff member"
                     disabled={!staffRole || loadingPeople}
@@ -536,17 +534,13 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                       const person = people.find((item) => item._id === event.target.value);
                       if (person) chooseUser(person);
                     }}
-                    style={{
-                      padding: '10px 12px', borderRadius: 8,
-                      border: '1px solid var(--border)', background: 'var(--card)',
-                      color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
-                    }}
+                    style={{ width: '100%' }}
                   >
                     <option value="">{loadingPeople ? 'Loading staff…' : 'Choose a person'}</option>
                     {people.map((person) => (
                       <option key={person._id} value={person._id}>{person.name}</option>
                     ))}
-                  </select>
+                  </MenuSelect>
                 </label>
               </div>
             </Card>
@@ -612,7 +606,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
             )}
 
             {loadingAccess && (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
+              <ChecklistSkeleton rows={4} />
             )}
 
             {!loadingAccess && selectedPerson && groups.length === 0 && !hasStaff && user?.role === 'Sales Manager' && canChangeUserRole(user, selectedPerson.role) && (
@@ -782,26 +776,23 @@ export default function AccessControl({ defaultTab = 'staff' }) {
         {activeTab === 'roles' && canViewRoleDefaults && (
           <div data-walkthrough="access-roles" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             {tenantLoading && !accessCatalog.length ? (
-              <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size="lg" /></div>
+              <ChecklistSkeleton rows={5} />
             ) : (
               <Card>
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t3)', marginBottom: 6 }}>
                     Select Role to Configure
                   </label>
-                  <select
+                  <MenuSelect
                     value={defaultRoleChoice}
                     onChange={(event) => setDefaultRoleChoice(event.target.value)}
-                    style={{
-                      width: '100%', maxWidth: 320,
-                      padding: '9px 12px', borderRadius: 8, border: '1px solid var(--border)',
-                      background: 'var(--card)', color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
-                    }}
+                    style={{ width: '100%', maxWidth: 320 }}
+                    aria-label="Select role to configure"
                   >
                     {editableChecklistRoles.map((name) => (
                       <option key={name} value={name}>{name}</option>
                     ))}
-                  </select>
+                  </MenuSelect>
                 </div>
 
                 <div style={{

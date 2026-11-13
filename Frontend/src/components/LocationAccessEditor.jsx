@@ -32,6 +32,7 @@ export default function LocationAccessEditor({
       }}>
         <input
           type="checkbox"
+          className="tenant-checkbox"
           checked={Boolean(canAccessAll)}
           disabled={disabled}
           onChange={(e) => onCanAccessAllChange?.(e.target.checked)}
@@ -63,6 +64,7 @@ export default function LocationAccessEditor({
               >
                 <input
                   type="checkbox"
+                  className="tenant-checkbox"
                   checked={checked}
                   disabled={disabled}
                   onChange={(e) => onToggleId?.(String(loc._id), e.target.checked)}

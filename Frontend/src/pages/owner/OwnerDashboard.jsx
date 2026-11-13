@@ -8,8 +8,9 @@ import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import {
-  PageHeader, Card, CardHeader, StatCard, Spinner,
+  PageHeader, Card, CardHeader, StatCard,
   Avatar, Badge, EmptyState, fmtDate, Table, fmtDateTime, fmtTimeWithSeconds, toLocalDateString,
+  DashboardSkeleton,
 } from '../../components/ui';
 import {
   getAllMembers,
@@ -139,9 +140,7 @@ export default function OwnerDashboard() {
 
       <div className="page-wrap" data-walkthrough="owner-dash-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}>
-            <Spinner size="lg" />
-          </div>
+          <DashboardSkeleton stats={6} listRows={5} />
         ) : (
           <>
             {/* Welcome banner */}

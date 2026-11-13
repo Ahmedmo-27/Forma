@@ -22,6 +22,7 @@ import NotificationBell from './NotificationBell';
 import { updateMyProfile } from '../api/endpoints';
 import { hasAccess } from '../lib/access';
 import HelpButton from './tutorials/HelpButton';
+import { MenuSelect } from './ui';
 
 function LocationSwitcher({ compact = false }) {
   const {
@@ -34,37 +35,27 @@ function LocationSwitcher({ compact = false }) {
 
   if (!showSwitcher) return null;
 
+  const options = [
+    ...((canAccessAllLocations || locations.length > 1)
+      ? [{ value: ALL_LOCATIONS, label: 'All locations' }]
+      : []),
+    ...locations.map((loc) => ({ value: loc._id, label: loc.name })),
+  ];
+
   return (
-    <select
+    <MenuSelect
       aria-label="Select location"
+      tone="nav"
       value={selectedLocationId}
       onChange={(e) => setSelectedLocationId(e.target.value)}
+      options={options}
       style={{
         flexShrink: 0,
         maxWidth: compact ? '100%' : 180,
-        width: compact ? '100%' : undefined,
+        width: compact ? '100%' : 180,
         height: compact ? 40 : 36,
-        padding: '0 10px',
-        borderRadius: 8,
-        border: '1px solid rgba(255,255,255,0.18)',
-        background: 'rgba(0,0,0,0.28)',
-        color: '#fff',
-        fontSize: 13,
-        fontWeight: 600,
-        fontFamily: 'inherit',
-        cursor: 'pointer',
-        outline: 'none',
       }}
-    >
-      {(canAccessAllLocations || locations.length > 1) && (
-        <option value={ALL_LOCATIONS} style={{ color: '#111' }}>All locations</option>
-      )}
-      {locations.map((loc) => (
-        <option key={loc._id} value={loc._id} style={{ color: '#111' }}>
-          {loc.name}
-        </option>
-      ))}
-    </select>
+    />
   );
 }
 

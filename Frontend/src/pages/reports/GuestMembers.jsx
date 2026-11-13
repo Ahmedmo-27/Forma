@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, Pagination, fmtDate, Avatar, toLocalDateString, parseDateBoundary } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, Pagination, fmtDate, Avatar, toLocalDateString, parseDateBoundary, Table, MenuSelect } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAllMembers, getSalesUsers, getCoachTeam } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
@@ -28,16 +28,6 @@ function FilterRow({ label, required, children }) {
     </div>
   );
 }
-
-const selectStyle = {
-  width: '100%', padding: '9px 32px 9px 12px', fontSize: 13,
-  border: '1px solid var(--border)', borderRadius: 8,
-  background: 'var(--card)', color: 'var(--t1)',
-  outline: 'none', cursor: 'pointer', fontFamily: 'inherit',
-  appearance: 'none', WebkitAppearance: 'none',
-  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center',
-};
 
 const inputStyle = {
   width: '100%', padding: '9px 12px', fontSize: 13,
@@ -177,14 +167,12 @@ export default function GuestMembers() {
           <div style={{ maxWidth: 520 }}>
             {/* Sales Man */}
             <FilterRow label="Sales Man">
-              <div style={{ position: 'relative' }}>
-                <select value={salesMan} onChange={e => setSalesMan(e.target.value)} style={selectStyle}>
-                  <option value="All">All</option>
-                  {salesUsers.map(u => (
-                    <option key={u._id} value={u._id}>{u.name}</option>
-                  ))}
-                </select>
-              </div>
+              <MenuSelect value={salesMan} onChange={e => setSalesMan(e.target.value)} style={{ width: '100%' }} aria-label="Sales Man">
+                <option value="All">All</option>
+                {salesUsers.map(u => (
+                  <option key={u._id} value={u._id}>{u.name}</option>
+                ))}
+              </MenuSelect>
             </FilterRow>
 
             {/* From Date */}
@@ -201,23 +189,19 @@ export default function GuestMembers() {
 
             {/* Trainer Name */}
             <FilterRow label="Trainer Name">
-              <div style={{ position: 'relative' }}>
-                <select value={trainerName} onChange={e => setTrainerName(e.target.value)} style={selectStyle}>
-                  <option value="All">All</option>
-                  {coaches.map(c => (
-                    <option key={c._id} value={c._id}>{c.name}</option>
-                  ))}
-                </select>
-              </div>
+              <MenuSelect value={trainerName} onChange={e => setTrainerName(e.target.value)} style={{ width: '100%' }} aria-label="Trainer Name">
+                <option value="All">All</option>
+                {coaches.map(c => (
+                  <option key={c._id} value={c._id}>{c.name}</option>
+                ))}
+              </MenuSelect>
             </FilterRow>
 
             {/* Source */}
             <FilterRow label="Source">
-              <div style={{ position: 'relative' }}>
-                <select value={source} onChange={e => setSource(e.target.value)} style={selectStyle}>
-                  {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </div>
+              <MenuSelect value={source} onChange={e => setSource(e.target.value)} style={{ width: '100%' }} aria-label="Source">
+                {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+              </MenuSelect>
             </FilterRow>
           </div>
 
@@ -242,9 +226,7 @@ export default function GuestMembers() {
             </div>
 
             {loading ? (
-              <div style={{ padding: 40, display: 'flex', justifyContent: 'center' }}>
-                <Spinner size="lg" />
-              </div>
+              <Table loading skeletonRows={8} headers={['#', 'Name', 'Phone', 'Source', 'Sales Rep', 'Coach', 'Date Added']} />
             ) : results.length === 0 ? (
               <EmptyState icon={Users} message="No guests found" sub="Try adjusting your filters." />
             ) : (

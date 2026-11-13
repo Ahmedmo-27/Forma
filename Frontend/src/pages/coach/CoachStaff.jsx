@@ -8,6 +8,7 @@ import { createStaffUser, listLocations } from '../../api/endpoints';
 import { isValidEmail, isValidPhone } from '../../lib/validation';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
+import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
 
 const INIT = {
   name: '',
@@ -23,10 +24,18 @@ export default function CoachStaff() {
   usePageTitle('Manage Coaches');
   const { user } = useAuth();
   const { hasFeature } = useTenant() || {};
+  const { selectedLocationId } = useLocationScope();
   const canSetLocations = ['Owner', 'General Manager'].includes(user?.role)
     && Boolean(hasFeature?.('multi_branches'));
+  const deskBranch =
+    selectedLocationId && selectedLocationId !== ALL_LOCATIONS
+      ? String(selectedLocationId)
+      : '';
 
-  const [form, setForm] = useState(INIT);
+  const [form, setForm] = useState(() => ({
+    ...INIT,
+    allowedLocationIds: deskBranch ? [deskBranch] : [],
+  }));
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [locations, setLocations] = useState([]);
@@ -45,6 +54,16 @@ export default function CoachStaff() {
       });
     return () => { cancelled = true; };
   }, [canSetLocations]);
+
+  useEffect(() => {
+    if (!canSetLocations || !deskBranch) return;
+    setForm((f) => {
+      if (f.canAccessAllLocations) return f;
+      if ((f.allowedLocationIds || []).length > 1) return f;
+      if ((f.allowedLocationIds || [])[0] === deskBranch) return f;
+      return { ...f, allowedLocationIds: [deskBranch] };
+    });
+  }, [canSetLocations, deskBranch]);
 
   const validate = () => {
     const e = {};
@@ -110,7 +129,10 @@ export default function CoachStaff() {
       }
       await createStaffUser(payload);
       toast.success('Coach account created!');
-      setForm(INIT);
+      setForm({
+        ...INIT,
+        allowedLocationIds: deskBranch ? [deskBranch] : [],
+      });
       setErrors({});
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create account.');

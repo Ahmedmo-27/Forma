@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Spinner, EmptyState, Avatar, fmtDate, toLocalDateString } from '../../components/ui';
+import { PageHeader, Card, EmptyState, Avatar, fmtDate, toLocalDateString, StatCardSkeleton, Table } from '../../components/ui';
 import { getSalesMySubscriptions } from '../../api/endpoints';
 import { ClipboardList } from 'lucide-react';
 
@@ -73,23 +73,32 @@ export default function SalesSubscriptions() {
 
         {/* ── Summary cards ────────────────────────────────────────── */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
-          {[
-            { label: 'Subscriptions', value: data?.count ?? 0,                  color: 'var(--blue)',  accent: 'var(--blue)' },
-            { label: 'Revenue',       value: `${fmt(data?.totalRevenue)} EGP`,  color: 'var(--green)', accent: 'var(--green)' },
-            { label: 'New Members',   value: newCount,                           color: 'var(--navy)',  accent: 'var(--navy)' },
-            { label: 'Renewals',      value: renewalCount,                       color: 'var(--amber)', accent: 'var(--amber)' },
-          ].map(s => (
-            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderLeft: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{s.label}</div>
-              <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
-            </div>
-          ))}
+          {loading ? (
+            <>
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </>
+          ) : (
+            [
+              { label: 'Subscriptions', value: data?.count ?? 0,                  color: 'var(--blue)',  accent: 'var(--blue)' },
+              { label: 'Revenue',       value: `${fmt(data?.totalRevenue)} EGP`,  color: 'var(--green)', accent: 'var(--green)' },
+              { label: 'New Members',   value: newCount,                           color: 'var(--navy)',  accent: 'var(--navy)' },
+              { label: 'Renewals',      value: renewalCount,                       color: 'var(--amber)', accent: 'var(--amber)' },
+            ].map(s => (
+              <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderLeft: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{s.label}</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
+              </div>
+            ))
+          )}
         </div>
 
         {/* ── Table ────────────────────────────────────────────────── */}
         <Card noPad>
           {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
+            <Table loading skeletonRows={6} headers={['Member', 'Package', 'Price Paid', 'Start Date', 'Expires', 'Type']} />
           ) : entries.length === 0 ? (
             <EmptyState icon={ClipboardList} message="No subscriptions in this period" sub="Try adjusting the date range" />
           ) : (

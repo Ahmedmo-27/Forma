@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { getBillingPrices, checkoutLifetimeBilling, confirmLifetimeBilling } from '../../api/endpoints';
-import { Btn, Spinner } from '../ui';
+import { Btn, Spinner, MenuSelect } from '../ui';
 import { Check, X } from 'lucide-react';
 
 export default function LifetimeCheckoutModal({ isOpen, onClose, defaultPlanKey = 'gold', onSuccess }) {
@@ -210,20 +210,15 @@ export default function LifetimeCheckoutModal({ isOpen, onClose, defaultPlanKey 
               <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
                 Payment Method
               </label>
-              <select
+              <MenuSelect
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
-                style={{
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: 8,
-                  border: '1px solid #D1D5DB',
-                  fontSize: 14,
-                }}
+                style={{ width: '100%' }}
+                aria-label="Payment method"
               >
                 <option value="manual_transfer">Bank Transfer / Cash Deposit (Manual Approval)</option>
                 <option value="online">Online Credit / Debit Card (Instant)</option>
-              </select>
+              </MenuSelect>
             </div>
 
             {/* Legal Terms Disclosure */}

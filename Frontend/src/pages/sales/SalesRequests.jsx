@@ -4,7 +4,7 @@ import { X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Table, Badge, Btn, Modal, Input, Spinner, EmptyState, ConfirmDialog, fmtDateTime, Pagination } from '../../components/ui';
+import { PageHeader, Card, Table, Badge, Btn, Modal, Input, Spinner, EmptyState, ConfirmDialog, fmtDateTime, Pagination, MenuSelect } from '../../components/ui';
 import { getRequests, createRequest, updateRequestStatus, getSalesTeam } from '../../api/endpoints';
 
 const PAGE_SIZE = 10;
@@ -101,29 +101,17 @@ export default function SalesRequests() {
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.4px', flexShrink: 0 }}>
               Filter by Rep:
             </label>
-            <div style={{ position: 'relative', minWidth: 200 }}>
-              <select
-                value={repFilter}
-                onChange={e => setRepFilter(e.target.value)}
-                style={{
-                  width: '100%', padding: '8px 32px 8px 12px', fontSize: 13,
-                  border: '1px solid var(--border)', borderRadius: 8,
-                  background: 'var(--card)', color: 'var(--t1)',
-                  outline: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                  appearance: 'none', WebkitAppearance: 'none',
-                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center',
-                  transition: 'border-color 0.15s, box-shadow 0.15s',
-                }}
-                onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
-                onBlur={e => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
-              >
-                <option value="all">All Reps</option>
-                {salesReps.map(rep => (
-                  <option key={rep._id} value={rep._id}>{rep.name}</option>
-                ))}
-              </select>
-            </div>
+            <MenuSelect
+              value={repFilter}
+              onChange={e => setRepFilter(e.target.value)}
+              style={{ minWidth: 200 }}
+              aria-label="Filter by sales rep"
+            >
+              <option value="all">All Reps</option>
+              {salesReps.map(rep => (
+                <option key={rep._id} value={rep._id}>{rep.name}</option>
+              ))}
+            </MenuSelect>
             {repFilter !== 'all' && (
               <button
                 onClick={() => setRepFilter('all')}

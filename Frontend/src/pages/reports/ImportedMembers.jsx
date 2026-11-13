@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Spinner, EmptyState, Badge, Avatar, fmtDate, Btn, SearchInput, toLocalDateString, parseDateBoundary, formatSystemId } from '../../components/ui';
+import { PageHeader, Card, EmptyState, Badge, Avatar, fmtDate, Btn, SearchInput, toLocalDateString, parseDateBoundary, formatSystemId, Table, MenuSelect } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import useLocationEffect from '../../hooks/useLocationEffect';
@@ -11,16 +11,6 @@ import { Download, X } from 'lucide-react';
 
 const PAGE_SIZE = 25;
 const TODAY = toLocalDateString();
-
-const selectStyle = {
-  padding: '8px 32px 8px 12px', fontSize: 13,
-  border: '1px solid var(--border)', borderRadius: 8,
-  background: 'var(--card)', color: 'var(--t1)',
-  outline: 'none', cursor: 'pointer', fontFamily: 'inherit',
-  appearance: 'none', WebkitAppearance: 'none',
-  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236B7280' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center',
-};
 
 const inputStyle = {
   padding: '8px 12px', fontSize: 13,
@@ -150,22 +140,22 @@ export default function ImportedMembers() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: '1 1 160px' }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Sales Rep</label>
-              <select value={salesMan} onChange={e => setSalesMan(e.target.value)} style={{ ...selectStyle, width: '100%' }}>
+              <MenuSelect value={salesMan} onChange={e => setSalesMan(e.target.value)} style={{ width: '100%' }} aria-label="Sales Rep">
                 <option value="all">All Reps</option>
                 {salesUsers.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
-              </select>
+              </MenuSelect>
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Status</label>
-              <select value={status} onChange={e => setStatus(e.target.value)} style={{ ...selectStyle, width: 140 }}>
+              <MenuSelect value={status} onChange={e => setStatus(e.target.value)} style={{ width: 140 }} aria-label="Status">
                 <option value="all">All</option>
                 <option value="guest">Guest</option>
                 <option value="active">Active</option>
                 <option value="expired">Expired</option>
                 <option value="frozen">Frozen</option>
                 <option value="blocked">Blocked</option>
-              </select>
+              </MenuSelect>
             </div>
 
             {hasFilters && (
@@ -197,7 +187,7 @@ export default function ImportedMembers() {
           </div>
 
           {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
+            <Table loading skeletonRows={8} headers={['#', 'Name', 'Phone', 'Status', 'Sales Rep', 'Imported On']} />
           ) : filtered.length === 0 ? (
             <EmptyState icon={Download} message="No imported members found"
               sub={hasFilters ? 'Try adjusting your filters.' : 'Import an Excel file to add members.'} />

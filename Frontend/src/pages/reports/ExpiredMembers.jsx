@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, Pagination, fmtDate, Avatar, toLocalDateString, parseDateBoundary } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, Pagination, fmtDate, Avatar, toLocalDateString, parseDateBoundary, Table, MenuSelect } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAllMembers, getSalesUsers, getCoachTeam, getPackages } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
@@ -23,16 +23,6 @@ function FilterRow({ label, required, children }) {
     </div>
   );
 }
-
-const selectStyle = {
-  width: '100%', padding: '9px 32px 9px 12px', fontSize: 13,
-  border: '1px solid var(--border)', borderRadius: 8,
-  background: 'var(--card)', color: 'var(--t1)',
-  outline: 'none', cursor: 'pointer', fontFamily: 'inherit',
-  appearance: 'none', WebkitAppearance: 'none',
-  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
-  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 10px center',
-};
 
 const inputStyle = {
   width: '100%', padding: '9px 12px', fontSize: 13,
@@ -215,62 +205,62 @@ export default function ExpiredMembers() {
 
             {/* Sales Man */}
             <FilterRow label="Sales Man">
-              <select value={salesMan} onChange={e => setSalesMan(e.target.value)} style={selectStyle}>
+              <MenuSelect value={salesMan} onChange={e => setSalesMan(e.target.value)} style={{ width: '100%' }} aria-label="Sales Man">
                 <option value="All">All</option>
                 {salesUsers.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
-              </select>
+              </MenuSelect>
             </FilterRow>
 
             {/* Trainer Name */}
             <FilterRow label="Trainer Name">
-              <select value={trainerName} onChange={e => setTrainerName(e.target.value)} style={selectStyle}>
+              <MenuSelect value={trainerName} onChange={e => setTrainerName(e.target.value)} style={{ width: '100%' }} aria-label="Trainer Name">
                 <option value="All">All</option>
                 {coaches.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
-              </select>
+              </MenuSelect>
             </FilterRow>
 
             {/* Package */}
             <FilterRow label="Package">
-              <select value={packageId} onChange={e => setPackageId(e.target.value)} style={selectStyle}>
+              <MenuSelect value={packageId} onChange={e => setPackageId(e.target.value)} style={{ width: '100%' }} aria-label="Package">
                 <option value="All">All</option>
                 {packages.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
-              </select>
+              </MenuSelect>
             </FilterRow>
 
             {/* Type (activity type) */}
             <FilterRow label="Type">
-              <select value={type} onChange={e => setType(e.target.value)} style={selectStyle}>
+              <MenuSelect value={type} onChange={e => setType(e.target.value)} style={{ width: '100%' }} aria-label="Type">
                 <option value="All">All</option>
                 {ACTIVITY_TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
-              </select>
+              </MenuSelect>
             </FilterRow>
 
             {/* Status */}
             <FilterRow label="Status">
-              <select value={status} onChange={e => setStatus(e.target.value)} style={selectStyle}>
+              <MenuSelect value={status} onChange={e => setStatus(e.target.value)} style={{ width: '100%' }} aria-label="Status">
                 <option value="All">All</option>
                 <option value="expired">Expired</option>
                 <option value="active">Active</option>
                 <option value="frozen">Frozen</option>
-              </select>
+              </MenuSelect>
             </FilterRow>
 
             {/* Categories */}
             <FilterRow label="Categories">
-              <select value={categories} onChange={e => setCategories(e.target.value)} style={selectStyle}>
+              <MenuSelect value={categories} onChange={e => setCategories(e.target.value)} style={{ width: '100%' }} aria-label="Categories">
                 <option value="All">All</option>
                 <option value="Primary Membership">Primary Membership</option>
                 <option value="PT">PT Sessions</option>
-              </select>
+              </MenuSelect>
             </FilterRow>
 
             {/* Male / Female */}
             <FilterRow label="Male / Female">
-              <select value={gender} onChange={e => setGender(e.target.value)} style={selectStyle}>
+              <MenuSelect value={gender} onChange={e => setGender(e.target.value)} style={{ width: '100%' }} aria-label="Male or Female">
                 <option value="All">All</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
-              </select>
+              </MenuSelect>
             </FilterRow>
 
           </div>
@@ -294,9 +284,7 @@ export default function ExpiredMembers() {
             </div>
 
             {loading ? (
-              <div style={{ padding: 40, display: 'flex', justifyContent: 'center' }}>
-                <Spinner size="lg" />
-              </div>
+              <Table loading skeletonRows={8} headers={['#', 'Name', 'Phone', 'Package', 'Expired', 'Sales Rep', 'Trainer', 'Renewal', 'Gender']} />
             ) : results.length === 0 ? (
               <EmptyState icon={Calendar} message="No members found" sub="Try adjusting your filters." />
             ) : (

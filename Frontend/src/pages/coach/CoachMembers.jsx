@@ -6,7 +6,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Table, Badge, StatCard, Spinner, EmptyState, SearchInput, Avatar, formatSystemId } from '../../components/ui';
+import { PageHeader, Card, Table, Badge, StatCard, EmptyState, SearchInput, Avatar, formatSystemId } from '../../components/ui';
 import { getAllMembers } from '../../api/endpoints';
 import { Dumbbell } from 'lucide-react';
 
@@ -107,12 +107,14 @@ export default function CoachMembers() {
         </div>
 
         <Card noPad>
-          {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
-          ) : filtered.length === 0 ? (
+          {!loading && filtered.length === 0 ? (
             <EmptyState icon={Dumbbell} message="No members match" />
           ) : (
-            <Table headers={['ID', 'Name', ...(isManager ? ['Coach'] : []), 'Status', 'Sessions', 'Used', 'Remaining']}>
+            <Table
+              loading={loading}
+              skeletonRows={8}
+              headers={['ID', 'Name', ...(isManager ? ['Coach'] : []), 'Status', 'Sessions', 'Used', 'Remaining']}
+            >
               {filtered.map(m => (
                 <tr key={m._id} onClick={() => navigate(`/members/${m.systemId}`)}
                   style={{ cursor: 'pointer', borderBottom: '1px solid var(--border)' }}

@@ -6,7 +6,7 @@ import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, CardHeader, StatCard, Spinner, Avatar, Badge, EmptyState } from '../../components/ui';
+import { PageHeader, Card, CardHeader, StatCard, Avatar, Badge, EmptyState, DashboardSkeleton } from '../../components/ui';
 import { getAllMembers } from '../../api/endpoints';
 import { Check, Dumbbell, Users } from 'lucide-react';
 
@@ -61,7 +61,7 @@ export default function CoachDashboard() {
 
       <div className="page-wrap" data-walkthrough="coach-dash-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', padding: 80 }}><Spinner size="lg" /></div>
+          <DashboardSkeleton stats={4} listRows={5} />
         ) : (
           <>
             {/* KPIs */}
