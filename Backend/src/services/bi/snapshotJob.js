@@ -50,12 +50,46 @@ async function loadPending(now) {
     return buckets;
 }
 
+const EMPTY_PENDING = { total: 0, under1: 0, d1to3: 0, over3: 0 };
+
 async function loadFacts(now) {
     const members = await Member.find({}).select(MEMBER_FIELDS).lean();
-    const reps = await User.find({ role: "Sales" }).select("monthlyTarget").lean();
+    const reps = await User.find({ role: "Sales" })
+        .select("monthlyTarget allowedLocationIds canAccessAllLocations role")
+        .lean();
     const targetsSumPiasters = reps.reduce((sum, rep) => sum + toPiasters(rep.monthlyTarget), 0);
     const pending = await loadPending(now);
-    return { members, targetsSumPiasters, pending };
+    return { members, reps, targetsSumPiasters, pending };
+}
+
+/** Branch quotas: only reps explicitly granted that location (not all-access / Owner). */
+function targetsForBranch(reps, locId) {
+    const id = String(locId);
+    return (reps || []).reduce((sum, rep) => {
+        if (rep.canAccessAllLocations === true || rep.role === "Owner") return sum;
+        const allowed = (rep.allowedLocationIds || []).map((x) => String(x._id || x));
+        if (!allowed.includes(id)) return sum;
+        return sum + toPiasters(rep.monthlyTarget);
+    }, 0);
+}
+
+async function saveCohort(cohorts, timeZone, now, locationId = null) {
+    await TenantMetricSnapshot.findOneAndUpdate(
+        { grain: "cohort", localDate: "cohort", locationId: locationId || null },
+        {
+            $set: {
+                grain: "cohort",
+                localDate: "cohort",
+                locationId: locationId || null,
+                timezone: timeZone,
+                cohorts,
+                metrics: {},
+                jobStatus: "ok",
+                computedAt: now,
+            },
+        },
+        { upsert: true }
+    );
 }
 
 async function saveDay(day, timeZone, now, locationId = null) {
@@ -187,14 +221,18 @@ async function snapshotTenant(tenant, { dateKeys, now = new Date(), dryRun = fal
         const branchMembers = facts.members.filter(
             (m) => m.locationId && String(m.locationId._id || m.locationId) === locId
         );
+        const branchMemberIds = new Set(branchMembers.map((m) => String(m._id)));
+        const attendanceExtras = facts.members.filter((m) => !branchMemberIds.has(String(m._id)));
         const branchComputed = computeDays({
             members: branchMembers,
             dateKeys: keys,
             timeZone,
             now,
             focusDate,
-            pending: facts.pending,
-            targetsSumPiasters: facts.targetsSumPiasters,
+            pending: EMPTY_PENDING,
+            targetsSumPiasters: targetsForBranch(facts.reps, locId),
+            deskLocationId: locId,
+            attendanceExtras,
         });
         for (const day of branchComputed.days) {
             await saveDay(day, timeZone, now, loc._id);
@@ -202,23 +240,14 @@ async function snapshotTenant(tenant, { dateKeys, now = new Date(), dryRun = fal
     }
 
     if (focusDate === today) {
-        const cohorts = buildCohorts(facts.members, now, timeZone, 12);
-        await TenantMetricSnapshot.findOneAndUpdate(
-            { grain: "cohort", localDate: "cohort", locationId: null },
-            {
-                $set: {
-                    grain: "cohort",
-                    localDate: "cohort",
-                    locationId: null,
-                    timezone: timeZone,
-                    cohorts,
-                    metrics: {},
-                    jobStatus: "ok",
-                    computedAt: now,
-                },
-            },
-            { upsert: true }
-        );
+        await saveCohort(buildCohorts(facts.members, now, timeZone, 12), timeZone, now, null);
+        for (const loc of locations) {
+            const locId = String(loc._id);
+            const branchMembers = facts.members.filter(
+                (m) => m.locationId && String(m.locationId._id || m.locationId) === locId
+            );
+            await saveCohort(buildCohorts(branchMembers, now, timeZone, 12), timeZone, now, loc._id);
+        }
     }
     const stored = await TenantMetricSnapshot.find({
         grain: "day",

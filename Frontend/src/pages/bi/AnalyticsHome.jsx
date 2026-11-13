@@ -16,6 +16,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import { useTenant } from '../../context/TenantContext';
 import { useAuth } from '../../context/AuthContext';
+import { ALL_LOCATIONS, useLocationScope } from '../../context/LocationContext';
 import {
   createBiObjective,
   dismissBiInsight,
@@ -585,6 +586,12 @@ export default function AnalyticsHome() {
   usePageTitle('Analytics');
   const { user } = useAuth();
   const { hasFeature, currency = 'EGP' } = useTenant() || {};
+  const {
+    multiEnabled,
+    selectedLocationId,
+    selectedLocation,
+    ALL_LOCATIONS: allKey = ALL_LOCATIONS,
+  } = useLocationScope();
   const [data, setData] = useState(null);
   const [insights, setInsights] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
@@ -597,6 +604,10 @@ export default function AnalyticsHome() {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState('membershipSalesPiasters');
 
   const canSeeInsights = ['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Coach Manager'].includes(user?.role);
+  const viewingAllBranches = !multiEnabled || selectedLocationId === allKey || selectedLocationId === ALL_LOCATIONS;
+  const branchLabel = viewingAllBranches
+    ? 'All locations'
+    : (selectedLocation?.name || 'Selected branch');
 
   async function load() {
     setLoading(true);
@@ -607,7 +618,11 @@ export default function AnalyticsHome() {
     try {
       const dash = await getBiDashboard();
       setData(dash.data);
-      if (hasFeature('business_intelligence') && canSeeInsights) {
+      // Insights / goals are tenant-wide — only show when viewing All
+      const scopeIsAll = !multiEnabled
+        || selectedLocationId === ALL_LOCATIONS
+        || selectedLocationId === allKey;
+      if (hasFeature('business_intelligence') && canSeeInsights && scopeIsAll) {
         const [insightRes, suggestRes] = await Promise.all([getBiInsights(), suggestBiObjectives()]);
         setInsights(insightRes.data.insights || []);
         setSuggestions(suggestRes.data.suggestions || []);
@@ -672,12 +687,17 @@ export default function AnalyticsHome() {
   return (
     <Layout>
       <PageHeader walkthrough="analytics-header" title="Analytics">
-        <span style={{ fontSize: 12, color: 'var(--t4)' }}>
-          {data?.asOf
-            ? `Updated ${new Date(data.asOf).toLocaleString('en-EG', {
-                timeZone: data.timezone || 'Africa/Cairo',
-              })}`
-            : 'Waiting for the first snapshot'}
+        <span style={{ fontSize: 12, color: 'var(--t4)', display: 'inline-flex', flexWrap: 'wrap', gap: '6px 12px', alignItems: 'center' }}>
+          {multiEnabled && (
+            <span style={{ color: 'var(--t2)', fontWeight: 600 }}>{branchLabel}</span>
+          )}
+          <span>
+            {data?.asOf
+              ? `Updated ${new Date(data.asOf).toLocaleString('en-EG', {
+                  timeZone: data.timezone || 'Africa/Cairo',
+                })}`
+              : 'Waiting for the first snapshot'}
+          </span>
         </span>
       </PageHeader>
 
@@ -1108,8 +1128,8 @@ export default function AnalyticsHome() {
           </>
         )}
 
-        {/* ── BUSINESS INTELLIGENCE (PLATINUM) ── */}
-        {hasFeature('business_intelligence') && canSeeInsights && (
+        {/* ── BUSINESS INTELLIGENCE (PLATINUM) — tenant-wide only ── */}
+        {hasFeature('business_intelligence') && canSeeInsights && viewingAllBranches && (
           <Card>
             <h2 style={{ marginTop: 0, fontSize: 16 }}>What to do next</h2>
             {!insights.length && <p>No insight met its minimum sample. That is expected on a new or small gym.</p>}
@@ -1151,6 +1171,14 @@ export default function AnalyticsHome() {
                 )}
               </div>
             ))}
+          </Card>
+        )}
+
+        {hasFeature('business_intelligence') && canSeeInsights && !viewingAllBranches && (
+          <Card>
+            <p style={{ margin: 0, color: 'var(--t3)', fontSize: 13 }}>
+              Insights and suggested goals are gym-wide. Switch the navbar to All locations to view them.
+            </p>
           </Card>
         )}
 

@@ -328,11 +328,64 @@ function median(values) {
     return Math.round((sorted[mid - 1] + sorted[mid]) / 2);
 }
 
+function memberHomeId(member) {
+    if (!member?.locationId) return "";
+    return String(member.locationId._id || member.locationId);
+}
+
+/**
+ * Desk filter for attendance: stamped userlog.locationId wins;
+ * legacy unstamped logs attribute to the member's home branch.
+ * When deskLocationId is null/undefined, all logs match (tenant rollup).
+ */
+function logBelongsToDesk(log, member, deskLocationId) {
+    if (!deskLocationId) return true;
+    const desk = String(deskLocationId);
+    const stamped = log.locationId != null ? String(log.locationId._id || log.locationId) : "";
+    if (stamped) return stamped === desk;
+    return memberHomeId(member) === desk;
+}
+
+function applyAttendanceLogs(member, buckets, timeZone, deskLocationId, firstInterval) {
+    for (const log of member.userlog || []) {
+        if (!log.createdAt) continue;
+        if (!logBelongsToDesk(log, member, deskLocationId)) continue;
+        const keyDate = localDateKey(log.createdAt, timeZone);
+        const bucket = buckets.get(keyDate);
+        if (!bucket) continue;
+        if (log.type === "check-in") {
+            bucket.metrics.checkIns += 1;
+            bucket.visitors.add(String(member._id || member.systemId || member.name));
+            const hour = zonedParts(new Date(log.createdAt), timeZone).hour;
+            bucket.hours[hour] += 1;
+            if (!firstInterval || new Date(log.createdAt) < firstInterval.start) {
+                bucket.metrics.guestCheckIns += 1;
+            }
+        } else if (log.type === "pt-session") {
+            bucket.metrics.ptSessionsUsed += 1;
+            const coach = log.createdBy ? String(log.createdBy._id || log.createdBy) : "unknown";
+            bump(bucket.segments.byCoach, coach, "sessions", 1);
+        }
+    }
+}
+
 /**
  * Scan members once and fill one bucket per local date.
  * Lists (at-risk, expiring, PT) are attached only to focusDate.
+ * deskLocationId: when set, only desk-matching check-in/PT logs count.
+ * attendanceExtras: visitors (other home branches) whose desk logs still count.
  */
-function computeDays({ members, dateKeys, timeZone, now, focusDate, pending, targetsSumPiasters }) {
+function computeDays({
+    members,
+    dateKeys,
+    timeZone,
+    now,
+    focusDate,
+    pending,
+    targetsSumPiasters,
+    deskLocationId = null,
+    attendanceExtras = null,
+}) {
     const keys = [...dateKeys].sort();
     const buckets = new Map(keys.map((key) => [key, emptyBucket(key, timeZone)]));
     const ranges = new Map(keys.map((key) => [key, dayRange(key, timeZone)]));
@@ -351,6 +404,7 @@ function computeDays({ members, dateKeys, timeZone, now, focusDate, pending, tar
     let ptRemainingSessions = 0;
     let ptExpiringSessions = 0;
     let ptExpiringPiasters = 0;
+    const desk = deskLocationId ? String(deskLocationId) : null;
 
     for (const member of members || []) {
         const key = phoneKey(member.phones);
@@ -461,23 +515,7 @@ function computeDays({ members, dateKeys, timeZone, now, focusDate, pending, tar
             }
         }
 
-        for (const log of member.userlog || []) {
-            if (!log.createdAt) continue;
-            const keyDate = localDateKey(log.createdAt, timeZone);
-            const bucket = buckets.get(keyDate);
-            if (!bucket) continue;
-            if (log.type === "check-in") {
-                bucket.metrics.checkIns += 1;
-                bucket.visitors.add(String(member._id || member.systemId || member.name));
-                const hour = zonedParts(new Date(log.createdAt), timeZone).hour;
-                bucket.hours[hour] += 1;
-                if (!first || new Date(log.createdAt) < first.start) bucket.metrics.guestCheckIns += 1;
-            } else if (log.type === "pt-session") {
-                bucket.metrics.ptSessionsUsed += 1;
-                const coach = log.createdBy ? String(log.createdBy._id || log.createdBy) : "unknown";
-                bump(bucket.segments.byCoach, coach, "sessions", 1);
-            }
-        }
+        applyAttendanceLogs(member, buckets, timeZone, desk, first);
 
         if (!focus) continue;
         const remaining = Math.max(0, (Number(member.PT_sessions) || 0) - (Number(member.used_PT_sessions) || 0));
@@ -503,7 +541,7 @@ function computeDays({ members, dateKeys, timeZone, now, focusDate, pending, tar
         }
 
         const checkTimes = (member.userlog || [])
-            .filter((log) => log.type === "check-in" && log.createdAt)
+            .filter((log) => log.type === "check-in" && log.createdAt && logBelongsToDesk(log, member, desk))
             .map((log) => new Date(log.createdAt).getTime());
         const inWindow = (ms, days) => checkTimes.filter((t) => t >= focusEnd.getTime() - days * DAY_MS && t < focusEnd.getTime());
         const last14 = inWindow(focusEnd, 14).length;
@@ -529,6 +567,14 @@ function computeDays({ members, dateKeys, timeZone, now, focusDate, pending, tar
         if (member.status === "frozen") {
             const due = (member.freeze || []).some((freeze) => freeze.endDate && inRange(freeze.endDate, focusRange.start, focusRange.end));
             if (due) lists.frozenDue.push(publicMember(member, {}));
+        }
+    }
+
+    // Visitors whose home is another branch but who checked in / trained at this desk
+    if (desk && Array.isArray(attendanceExtras) && attendanceExtras.length) {
+        for (const visitor of attendanceExtras) {
+            const first = subscriptionIntervals(visitor)[0];
+            applyAttendanceLogs(visitor, buckets, timeZone, desk, first);
         }
     }
 

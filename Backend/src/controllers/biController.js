@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const TenantMetricSnapshot = require("../models/TenantMetricSnapshot");
 const Objective = require("../models/Objective");
 const ObjectiveProgress = require("../models/ObjectiveProgress");
@@ -16,6 +17,19 @@ const {
     MIN_RATE_SAMPLE,
 } = require("../services/bi/metrics");
 const { snapshotTenant } = require("../services/bi/snapshotJob");
+
+function toObjectId(id) {
+    if (id == null || id === "") return null;
+    if (id instanceof mongoose.Types.ObjectId) return id;
+    const s = String(id);
+    if (!mongoose.Types.ObjectId.isValid(s)) return null;
+    return new mongoose.Types.ObjectId(s);
+}
+
+function toObjectIdList(ids) {
+    if (!Array.isArray(ids)) return [];
+    return ids.map(toObjectId).filter(Boolean);
+}
 
 const ROLE_OK = {
     members: ["Owner", "General Manager", "Accountant", "Sales Manager", "Sales", "Receptionist", "Coach", "Coach Manager"],
@@ -78,14 +92,17 @@ async function loadDays(limit = 120, locationScope = null) {
     const filter = { grain: "day" };
     // Single branch → that branch's snapshots
     if (locationScope?.mode === "one" && locationScope.locationId) {
-        filter.locationId = locationScope.locationId;
+        const oid = toObjectId(locationScope.locationId);
+        if (!oid) return [];
+        filter.locationId = oid;
         return TenantMetricSnapshot.find(filter).sort({ localDate: 1 }).limit(limit).lean();
     }
     // Restricted staff viewing "all" → sum per-branch snapshots for granted locations
     if (locationScope?.mode === "subset" && Array.isArray(locationScope.locationIds) && locationScope.locationIds.length) {
+        const oids = toObjectIdList(locationScope.locationIds);
         const rows = await TenantMetricSnapshot.find({
             grain: "day",
-            locationId: { $in: locationScope.locationIds },
+            locationId: { $in: oids },
         }).sort({ localDate: 1 }).lean();
         if (rows.length) {
             return mergeBranchSnapshotDays(rows, limit);
@@ -99,6 +116,68 @@ async function loadDays(limit = 120, locationScope = null) {
     // Unrestricted / all → tenant-wide rollup
     filter.$or = [{ locationId: null }, { locationId: { $exists: false } }];
     return TenantMetricSnapshot.find(filter).sort({ localDate: 1 }).limit(limit).lean();
+}
+
+/** Merge per-branch cohort docs: sum sizes, weighted-average retention cells. */
+function mergeCohorts(cohortLists) {
+    const byKey = new Map();
+    for (const list of cohortLists) {
+        for (const row of list || []) {
+            if (!row?.cohort) continue;
+            const cur = byKey.get(row.cohort) || { cohort: row.cohort, size: 0, weighted: [] };
+            const size = Number(row.size) || 0;
+            cur.size += size;
+            (row.cells || []).forEach((cell, i) => {
+                if (!cur.weighted[i]) cur.weighted[i] = { num: 0, den: 0 };
+                if (cell != null && size > 0) {
+                    cur.weighted[i].num += cell * size;
+                    cur.weighted[i].den += size;
+                }
+            });
+            byKey.set(row.cohort, cur);
+        }
+    }
+    return [...byKey.values()]
+        .sort((a, b) => String(a.cohort).localeCompare(String(b.cohort)))
+        .map((row) => ({
+            cohort: row.cohort,
+            size: row.size,
+            cells: row.weighted.map((w) => (w && w.den ? w.num / w.den : null)),
+        }));
+}
+
+async function loadCohortDoc(locationScope) {
+    if (locationScope?.mode === "one" && locationScope.locationId) {
+        const oid = toObjectId(locationScope.locationId);
+        if (!oid) return null;
+        return TenantMetricSnapshot.findOne({
+            grain: "cohort",
+            localDate: "cohort",
+            locationId: oid,
+        }).lean();
+    }
+    if (locationScope?.mode === "subset" && Array.isArray(locationScope.locationIds) && locationScope.locationIds.length) {
+        const oids = toObjectIdList(locationScope.locationIds);
+        const rows = await TenantMetricSnapshot.find({
+            grain: "cohort",
+            localDate: "cohort",
+            locationId: { $in: oids },
+        }).lean();
+        if (!rows.length) return null;
+        const asOf = rows.reduce((latest, row) => {
+            const t = row.computedAt ? new Date(row.computedAt).getTime() : 0;
+            return t > latest ? t : latest;
+        }, 0);
+        return {
+            computedAt: asOf ? new Date(asOf) : null,
+            cohorts: mergeCohorts(rows.map((r) => r.cohorts || [])),
+        };
+    }
+    return TenantMetricSnapshot.findOne({
+        grain: "cohort",
+        localDate: "cohort",
+        $or: [{ locationId: null }, { locationId: { $exists: false } }],
+    }).lean();
 }
 
 function sum(days, key) {
@@ -229,7 +308,7 @@ async function getDashboard(req, res, next) {
 async function getCohorts(req, res, next) {
     try {
         privateCache(res);
-        const doc = await TenantMetricSnapshot.findOne({ grain: "cohort", localDate: "cohort" }).lean();
+        const doc = await loadCohortDoc(req.locationScope);
         if (!doc) {
             return res.json({ empty: true, message: "No cohort snapshot yet.", cohorts: [], definition: METRICS.renewalRate });
         }
