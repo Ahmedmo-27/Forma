@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
+import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Tabs, Badge, Btn, Spinner, Skeleton, Modal, Input, fmtDateTime } from '../../components/ui';
@@ -51,6 +52,7 @@ export default function MemberProfile() {
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { currency = 'EGP' } = useTenant() || {};
+  const { multiEnabled, selectedLocationId, locations } = useLocationScope();
   const navigate = useNavigate();
   const [data, setData]         = useState(null);
   const [loading, setLoading]   = useState(true);
@@ -118,7 +120,20 @@ export default function MemberProfile() {
       return;
     }
     setChecking(true);
-    try { const res = await checkInMember(id); toast.success(res.data.message); fetchProfile(); }
+    try {
+      const payload = {};
+      if (multiEnabled) {
+        const desk =
+          (selectedLocationId && selectedLocationId !== ALL_LOCATIONS && selectedLocationId)
+          || member?.locationId
+          || (locations[0] && locations[0]._id)
+          || '';
+        if (desk) payload.locationId = String(desk);
+      }
+      const res = await checkInMember(id, payload);
+      toast.success(res.data.message);
+      fetchProfile();
+    }
     catch (e) { toast.error(e.response?.data?.message ?? 'Check-in failed.'); }
     finally { setChecking(false); }
   };

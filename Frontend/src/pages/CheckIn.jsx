@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
 import Layout from '../components/Layout';
-import { Badge, Avatar, Spinner, fmtDate, fmtTime, EmptyState, Pagination } from '../components/ui';
+import { Badge, Avatar, Spinner, fmtDate, fmtTime, EmptyState, Pagination, CardListSkeleton, MenuSelect } from '../components/ui';
 import { formatSystemId } from '../lib/systemId';
 import { checkInByBarcode, checkInMember, getMemberProfile, getTodayCheckIns } from '../api/endpoints';
 import { subscribeLiveEvents } from '../api/live';
@@ -12,6 +12,7 @@ import CheckInScanner from '../components/CheckInScanner';
 import { parseScannedIdentifier } from '../lib/scannerParser';
 import useHardwareScanner from '../hooks/useHardwareScanner';
 import useLocationEffect from '../hooks/useLocationEffect';
+import { useLocationScope, ALL_LOCATIONS } from '../context/LocationContext';
 import { playCheckInSound } from '../lib/audioFeedback';
 import {
   AlertTriangle,
@@ -20,6 +21,7 @@ import {
   Camera,
   Check,
   CheckCircle2,
+  MapPin,
   Package,
   Phone,
   RefreshCw,
@@ -30,6 +32,8 @@ import {
   X,
   XCircle,
 } from 'lucide-react';
+
+const CHECKIN_DESK_KEY = 'ff_checkin_location_id';
 
 // ── small stat pill ───────────────────────────────────────────────────────────
 function StatPill({ label, value, color = 'var(--t1)' }) {
@@ -58,6 +62,14 @@ export default function CheckIn() {
   const [searchParams] = useSearchParams();
   const inputRef  = useRef(null);
   const checkInMode = searchParams.get('mode');
+  const {
+    multiEnabled,
+    locations,
+    canAccessAllLocations,
+    selectedLocationId,
+  } = useLocationScope();
+
+  const needsDeskPicker = multiEnabled && (canAccessAllLocations || locations.length > 1);
 
   const [query,      setQuery]      = useState('');
   const [member,     setMember]     = useState(null);
@@ -74,6 +86,13 @@ export default function CheckIn() {
     checkInMode === 'lookup' || checkInMode === 'scanner' ? checkInMode : 'scanner'
   ));
   const [lastScannedResult, setLastScannedResult] = useState(null);
+  const [deskLocationId, setDeskLocationId] = useState(() => {
+    try {
+      return localStorage.getItem(CHECKIN_DESK_KEY) || '';
+    } catch {
+      return '';
+    }
+  });
 
   // Pagination for Today's Activity
   const [pageSize, setPageSize] = useState(() => {
@@ -93,6 +112,48 @@ export default function CheckIn() {
   const seenRef    = useRef(new Set());
   const readyRef   = useRef(false);
   const liveRef    = useRef('connecting');
+
+  // Resolve / persist which desk branch stamps each check-in
+  useEffect(() => {
+    if (!multiEnabled || !locations.length) return;
+
+    const allowed = new Set(locations.map((loc) => String(loc._id)));
+    const navbarOne =
+      selectedLocationId && selectedLocationId !== ALL_LOCATIONS
+        ? String(selectedLocationId)
+        : '';
+
+    let next = deskLocationId && allowed.has(String(deskLocationId))
+      ? String(deskLocationId)
+      : '';
+    if (!next && navbarOne && allowed.has(navbarOne)) next = navbarOne;
+    if (!next) next = String(locations[0]._id);
+
+    if (next !== deskLocationId) {
+      setDeskLocationId(next);
+      try { localStorage.setItem(CHECKIN_DESK_KEY, next); } catch { /* ignore */ }
+    }
+  }, [multiEnabled, locations, selectedLocationId, deskLocationId]);
+
+  const setDeskBranch = useCallback((id) => {
+    const next = String(id || '');
+    setDeskLocationId(next);
+    try { localStorage.setItem(CHECKIN_DESK_KEY, next); } catch { /* ignore */ }
+  }, []);
+
+  const checkInPayload = useCallback(() => {
+    if (!multiEnabled) return {};
+    const id = deskLocationId
+      || (selectedLocationId !== ALL_LOCATIONS ? selectedLocationId : '')
+      || (locations[0] && String(locations[0]._id))
+      || '';
+    return id ? { locationId: id } : {};
+  }, [multiEnabled, deskLocationId, selectedLocationId, locations]);
+
+  const deskLocationName = useMemo(() => {
+    if (!deskLocationId) return '';
+    return locations.find((loc) => String(loc._id) === String(deskLocationId))?.name || '';
+  }, [locations, deskLocationId]);
 
   const totalPages = Math.max(1, Math.ceil(history.length / pageSize));
   const paginatedHistory = useMemo(() => {
@@ -254,7 +315,12 @@ export default function CheckIn() {
     queryRef.current = identifier;
     setQuery(identifier);
     try {
-      const r = await checkInByBarcode(identifier);
+      if (needsDeskPicker && !checkInPayload().locationId) {
+        toast.error('Select which branch this check-in is for');
+        setSearching(false);
+        return;
+      }
+      const r = await checkInByBarcode(identifier, checkInPayload());
       const okMsg = r.data.message || 'Check-in recorded';
       setResult({ ok: true, msg: okMsg });
       toast.success(okMsg);
@@ -300,7 +366,7 @@ export default function CheckIn() {
         inputRef.current?.focus();
       }
     }
-  }, [activeTab, refreshBoard]);
+  }, [activeTab, refreshBoard, needsDeskPicker, checkInPayload]);
 
   // Global hardware scanner listener: automatically detects scans from any USB / Bluetooth barcode & QR scanner
   useHardwareScanner({
@@ -355,9 +421,13 @@ export default function CheckIn() {
 
   const handleCheckIn = async () => {
     if (!member || !canCheckIn) return;
+    if (needsDeskPicker && !checkInPayload().locationId) {
+      toast.error('Select which branch this check-in is for');
+      return;
+    }
     setChecking(true); setResult(null);
     try {
-      const r = await checkInMember(member.systemId);
+      const r = await checkInMember(member.systemId, checkInPayload());
       setResult({ ok: true, msg: r.data.message });
       const u = await getMemberProfile(member.systemId);
       setMember(u.data.member);
@@ -379,16 +449,51 @@ export default function CheckIn() {
             {/* Check In on the left, Scanner / Search centered, stats on the right */}
             <div className="checkin-top">
               <div className="checkin-side" style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: 6 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{
-                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                    background: 'color-mix(in srgb, var(--navy) 10%, transparent)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
-                  }}><CheckCircle2 size={20} color="var(--navy)" aria-hidden /></div>
-                  <div>
-                    <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--t1)', margin: 0, letterSpacing: '-0.3px' }}>Check In</h1>
-                    <p style={{ fontSize: 12, color: 'var(--t4)', margin: '2px 0 0' }}>{today}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <div style={{
+                      width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                      background: 'color-mix(in srgb, var(--navy) 10%, transparent)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
+                    }}><CheckCircle2 size={20} color="var(--navy)" aria-hidden /></div>
+                    <div>
+                      <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--t1)', margin: 0, letterSpacing: '-0.3px' }}>Check In</h1>
+                      <p style={{ fontSize: 12, color: 'var(--t4)', margin: '2px 0 0' }}>{today}</p>
+                    </div>
                   </div>
+                  {needsDeskPicker && (
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-end',
+                      gap: 6,
+                    }}>
+                      <label style={{
+                        display: 'flex', alignItems: 'center', gap: 6,
+                        fontSize: 11, fontWeight: 700, color: 'var(--t3)',
+                        textTransform: 'uppercase', letterSpacing: '0.4px',
+                      }}>
+                        <MapPin size={12} aria-hidden />
+                        Checking in at
+                      </label>
+                      <MenuSelect
+                        aria-label="Check-in branch"
+                        value={deskLocationId}
+                        onChange={(e) => setDeskBranch(e.target.value)}
+                        style={{ minWidth: 180 }}
+                        size="sm"
+                      >
+                        {locations.map((loc) => (
+                          <option key={loc._id} value={loc._id}>{loc.name}</option>
+                        ))}
+                      </MenuSelect>
+                      {deskLocationName && (
+                        <span style={{ fontSize: 11, color: 'var(--t4)' }}>
+                          Scans stamp <strong style={{ color: 'var(--t2)' }}>{deskLocationName}</strong>
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -760,7 +865,9 @@ export default function CheckIn() {
               {/* List */}
               <div style={{ maxHeight: 560, overflowY: 'auto' }}>
                 {histLoad ? (
-                  <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
+                  <div style={{ padding: 16 }}>
+                    <CardListSkeleton rows={6} />
+                  </div>
                 ) : history.length === 0 ? (
                   <EmptyState icon={CheckCircle2} message="No check-ins yet today" sub="Search for a member above to check them in" />
                 ) : (
