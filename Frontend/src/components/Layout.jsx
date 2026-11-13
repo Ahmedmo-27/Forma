@@ -387,6 +387,11 @@ export default function Layout({ children }) {
 
   const showNotif = ['Sales', 'Sales Manager', 'Accountant'].includes(user?.role);
 
+  const homeTo = useMemo(
+    () => items.find((item) => item.label === 'Dashboard')?.to || items[0]?.to || '/',
+    [items],
+  );
+
   const logoKey = branding?.logoKey;
   const logoFile = logoKey ? String(logoKey).split(/[\/\\]/).pop() : null;
   const logoUrl = logoFile ? `${apiOrigin}/uploads/${encodeURIComponent(logoFile)}` : '/forma-favicon.png';
@@ -469,7 +474,7 @@ export default function Layout({ children }) {
         }}>
 
           {/* Logo */}
-          <div onClick={() => navigate('/')} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexShrink: 0 }}>
+          <div onClick={() => navigate(homeTo)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexShrink: 0 }} role="link" aria-label="Go to dashboard">
             <div className="nav-logo-box" style={{
               width: 44, height: 44, borderRadius: 12,
               flexShrink: 0,

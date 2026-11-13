@@ -1,7 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, Btn, Spinner, EmptyState, Badge, Avatar,
@@ -52,9 +53,7 @@ export default function AssignedTasksPage({ embedded = false }) {
     }
   }, []);
 
-  useEffect(() => {
-    fetchAssignedHistory();
-  }, [fetchAssignedHistory]);
+  useLocationEffect(() => { fetchAssignedHistory(); }, [fetchAssignedHistory]);
 
   const handleCompleteMember = async (taskId, memberId) => {
     setCompletingId(memberId);

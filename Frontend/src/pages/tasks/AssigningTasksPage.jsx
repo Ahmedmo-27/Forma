@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, Btn, Spinner, EmptyState, Badge, Avatar,
@@ -173,7 +174,7 @@ export default function AssigningTasksPage() {
     }
   }, []);
 
-  useEffect(() => {
+  useLocationEffect(() => {
     fetchOverview();
     getSalesUsers().then((res) => setSalesUsers(res.data.salesUsers ?? [])).catch(() => {});
     getCoachTeam()
@@ -228,7 +229,7 @@ export default function AssigningTasksPage() {
     }
   }, []);
 
-  useEffect(() => {
+  useLocationEffect(() => {
     if (activeTab === 'schedule') {
       if (kind === 'sales' || kind === 'coach') {
         if (personId) showMembers(kind, personId);
@@ -238,6 +239,8 @@ export default function AssigningTasksPage() {
       }
     }
   }, [activeTab, kind, personId, showMembers]);
+
+  useLocationEffect(() => { setPage(1); setSelected(new Set()); }, []);
 
   const filtered = useMemo(() => {
     return filterMembersAdvanced(members, {

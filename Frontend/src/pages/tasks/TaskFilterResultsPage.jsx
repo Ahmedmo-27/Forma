@@ -4,6 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, Btn, Spinner, EmptyState, Badge, Avatar,
@@ -116,8 +117,8 @@ export default function TaskFilterResultsPage() {
   // ── WhatsApp Modal ──
   const [waOpen, setWaOpen] = useState(false);
 
-  // ── Load reference data ──
-  useEffect(() => {
+  // ── Load reference data (re-fetch when branch changes) ──
+  useLocationEffect(() => {
     getSalesUsers()
       .then((res) => setSalesUsers(res.data.salesUsers ?? []))
       .catch(() => {});
@@ -143,9 +144,12 @@ export default function TaskFilterResultsPage() {
     }
   }, []);
 
-  useEffect(() => {
-    fetchMembers();
-  }, [fetchMembers]);
+  useLocationEffect(() => { fetchMembers(); }, [fetchMembers]);
+  useLocationEffect(() => {
+    setPage(1);
+    setSelected(new Set());
+    setInitialSelectApplied(false);
+  }, []);
 
   // ── Filtered members ──
   const filtered = useMemo(() => {

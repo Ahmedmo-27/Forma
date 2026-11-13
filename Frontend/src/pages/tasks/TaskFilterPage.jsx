@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import usePageTitle from '../../hooks/usePageTitle';
+import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, Btn, Spinner, FilterTabs, MenuSelect,
@@ -65,8 +66,8 @@ export default function TaskFilterPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ── Load reference data ──
-  useEffect(() => {
+  // ── Load reference data (re-fetch when branch changes) ──
+  useLocationEffect(() => {
     setRefLoading(true);
     Promise.all([
       getSalesUsers().then((res) => setSalesUsers(res.data.salesUsers ?? [])).catch(() => {}),
