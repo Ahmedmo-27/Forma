@@ -334,7 +334,7 @@ export default function OwnerUserProfile() {
         footer={<>
           <Btn variant="ghost" size="sm" onClick={() => setShowResetPwd(false)} disabled={resettingPwd}>Cancel</Btn>
           <Btn size="sm" disabled={resettingPwd} onClick={async () => {
-            if (!newPwd || newPwd.length < 6) { toast.error('Password must be at least 6 characters'); return; }
+            if (!newPwd || newPwd.length < 8) { toast.error('Password must be at least 8 characters'); return; }
             if (newPwd !== confirmPwd) { toast.error('Passwords do not match'); return; }
             setResettingPwd(true);
             try {
@@ -349,11 +349,11 @@ export default function OwnerUserProfile() {
         </>}
       >
         <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16, lineHeight: 1.6 }}>
-          Set a new password for <strong>{profile?.user?.name}</strong>. They will need to use this new password on their next login.
+          Set a new password for <strong>{profile?.user?.name}</strong>. Current sessions are signed out, and they will need this password to sign in again.
         </p>
         <div style={{ marginBottom: 14 }}>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>New Password</label>
-          <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Min 6 characters"
+          <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Min 8 characters"
             style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
             onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
             onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}

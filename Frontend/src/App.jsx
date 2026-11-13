@@ -18,6 +18,8 @@ const MarketingPlansPage = lazy(() => import('./marketing/pages/PlansPage'));
 const MarketingGetStartedPage = lazy(() => import('./marketing/pages/GetStartedPage'));
 const MarketingWhyFormaPage = lazy(() => import('./marketing/pages/WhyFormaPage'));
 const MarketingSolutionPage = lazy(() => import('./marketing/pages/SolutionPage'));
+const MarketingTechnologyPage = lazy(() => import('./marketing/pages/TechnologyPage'));
+const MarketingFaqPage = lazy(() => import('./marketing/pages/FaqPage'));
 const PublicSiteGate = lazy(() => import('./marketing/PublicSiteGate'));
 const RedirectToApp = lazy(() => import('./marketing/RedirectToApp'));
 
@@ -524,6 +526,10 @@ function TenantShell() {
 // ── App root ──────────────────────────────────────────────────────────────────
 export default function App() {
   useEffect(() => {
+    document.getElementById('seo-prerender')?.setAttribute('hidden', '');
+  }, []);
+
+  useEffect(() => {
     const handleGlobalError = (event) => {
       console.error('[GlobalError]', event.error || event.message);
     };
@@ -659,6 +665,22 @@ export default function App() {
                     </Suspense>
                   }
                 />
+                <Route
+                  path="technology"
+                  element={
+                    <Suspense fallback={<MarketingFallback />}>
+                      <MarketingTechnologyPage />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="faq"
+                  element={
+                    <Suspense fallback={<MarketingFallback />}>
+                      <MarketingFaqPage />
+                    </Suspense>
+                  }
+                />
                 <Route path="checkout" element={<Navigate to="/get-started" replace />} />
 
                 {/* Arabic locale mirrors (EN stays at unprefixed paths) */}
@@ -725,6 +747,22 @@ export default function App() {
                           solutionKey="multiBranch"
                           barePath="/multi-branch-gym-software"
                         />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="technology"
+                    element={
+                      <Suspense fallback={<MarketingFallback />}>
+                        <MarketingTechnologyPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="faq"
+                    element={
+                      <Suspense fallback={<MarketingFallback />}>
+                        <MarketingFaqPage />
                       </Suspense>
                     }
                   />

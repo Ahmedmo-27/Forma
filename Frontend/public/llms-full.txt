@@ -1,0 +1,53 @@
+# Forma
+
+Forma is a web gym operating system for Egyptian operators. The public site is https://www.forma-official.com (Arabic: https://www.forma-official.com/ar). Day-to-day staff access is the web app at https://app.forma-official.com. Sales: sales@forma-official.com.
+
+## What it is
+
+Forma is gym management software built for gyms in Egypt. It is one workspace for members, check-ins, sales, coaching, and billing. It is a modern platform built for gyms, not a rebadged multi-industry ERP template. Onboarding is sales-assisted. Plans are priced in EGP and paid by bank transfer.
+
+## What it covers
+
+- Members, packages, and freezes
+- QR check-in
+- Sales pipeline and CRM, including funnels and targets
+- WhatsApp-ready follow-ups
+- Coaching and personal training tracking
+- Billing, a gym-aware ledger, and exception approvals
+- Excel import and export
+- Roles for owners, reception, sales, and coaches
+- Multi-branch locations
+- Audit trail
+- Executive analytics and business intelligence on the Platinum plan
+
+Basic covers members, packages, check-in, and personal-training tracking for a single location. Gold adds sales CRM, WhatsApp follow-ups, accounting, and import tools. Platinum adds executive analytics and business intelligence for multi-location operators.
+
+## How you buy it
+
+Talk to sales about branches and roles, pick Basic, Gold, or Platinum, then pay by bank transfer with the reference Forma issues. When funds clear, the gym workspace opens and the owner invite is ready. This marketing site is for plans and signup. Staff sign in on https://app.forma-official.com with the roles the owner assigns.
+
+## Technology
+
+Forma is a web application. There is no desktop client to install. Reception, sales, coaches, and owners use one workspace in a modern browser.
+
+The staff interface uses React 19, Vite, React Router, and Tailwind. The API is Node.js and Express. Gym data is stored in MongoDB. Files are stored on Cloudflare R2. The public site is hosted on Vercel. The API runs on Railway.
+
+Details: https://www.forma-official.com/technology
+Arabic: https://www.forma-official.com/ar/technology
+
+## Pages assistants can quote
+
+- https://www.forma-official.com/
+- https://www.forma-official.com/ar
+- https://www.forma-official.com/why-forma
+- https://www.forma-official.com/plans
+- https://www.forma-official.com/technology
+- https://www.forma-official.com/faq
+- https://www.forma-official.com/gym-management-software-egypt
+- https://www.forma-official.com/whatsapp-gym-crm
+- https://www.forma-official.com/multi-branch-gym-software
+- https://www.forma-official.com/get-started
+
+## Short description
+
+Forma is gym management software for Egyptian operators — a modern web stack for members, QR check-in, sales CRM, WhatsApp-ready follow-ups, coaching, and billing, with sales-assisted onboarding and bank transfer in EGP.

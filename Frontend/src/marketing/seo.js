@@ -94,6 +94,10 @@ export function homeJsonLd(locale = DEFAULT_LOCALE) {
         operatingSystem: "Web",
         url: absoluteMarketingUrl(homePath),
         description: t.meta.defaultDescription,
+        browserRequirements: t.meta.browserRequirements,
+        featureList: (t.home.features || []).map((feature) =>
+          feature.body ? `${feature.title}: ${feature.body}` : feature.title
+        ),
         offers: {
           "@type": "Offer",
           url: absoluteMarketingUrl(plansPath),

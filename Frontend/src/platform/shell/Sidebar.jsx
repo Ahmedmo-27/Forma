@@ -9,6 +9,7 @@ import {
   Activity,
   Headphones,
   Megaphone,
+  Mail,
   ShieldCheck,
   Users,
   HeartPulse,
@@ -45,6 +46,7 @@ function SidebarFrame({ collapsed, showMobileClose, onToggleCollapse, onCloseMob
   const canViewLedger = usePermission("billing.ledger");
   const canSupport = usePermission("support.impersonate_read");
   const canAnnounce = usePermission("announcements.manage");
+  const canCampaign = usePermission("campaigns.manage");
   const canAudit = usePermission("audit.view");
   const canManageUsers = usePermission("platform_users.manage");
   const canHealth = usePermission("system.health");
@@ -77,6 +79,7 @@ function SidebarFrame({ collapsed, showMobileClose, onToggleCollapse, onCloseMob
       items: [
         { label: "Support & Impersonation", path: "/platform/support", icon: Headphones, permitted: canSupport },
         { label: "Announcements", path: "/platform/announcements", icon: Megaphone, permitted: canAnnounce },
+        { label: "Campaigns", path: "/platform/campaigns", icon: Mail, permitted: canCampaign },
         { label: "Security Audit Log", path: "/platform/audit", icon: ShieldCheck, permitted: canAudit },
       ],
     },

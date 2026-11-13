@@ -279,6 +279,8 @@ export default function MarketingLayout() {
             <Link to={path("/gym-management-software-egypt")}>
               {locale === "ar" ? "إدارة الجيم في مصر" : "Gym software Egypt"}
             </Link>
+            <Link to={path("/technology")}>{t.footer.technology}</Link>
+            <Link to={path("/faq")}>{t.footer.faq}</Link>
             <a href={SALES_MAILTO}>sales@forma-official.com</a>
             <a href={`${appOrigin()}/login`}>{t.nav.staffLogin}</a>
           </nav>

@@ -1,0 +1,25 @@
+# Forma
+
+> Forma is a web gym operating system for Egyptian operators: members, QR check-in, sales CRM, WhatsApp-ready follow-ups, coaching, and billing. Sales-assisted onboarding, plans in EGP, paid by bank transfer.
+
+Forma is gym management software at https://www.forma-official.com. Staff use the web app at https://app.forma-official.com. The full brief is [llms-full.txt](https://www.forma-official.com/llms-full.txt).
+
+## Product
+
+- [Home](https://www.forma-official.com/): Gym management software in Egypt
+- [Home (Arabic)](https://www.forma-official.com/ar): فورما — برنامج إدارة الجيم في مصر
+- [Why Forma](https://www.forma-official.com/why-forma): Gym-native platform, not a multi-industry ERP template
+- [Plans](https://www.forma-official.com/plans): Basic, Gold, and Platinum in EGP
+- [Technology](https://www.forma-official.com/technology): React, Vite, Node.js, Express, MongoDB, Cloudflare R2
+- [FAQ](https://www.forma-official.com/faq): Onboarding, payment, plans, staff login, and stack
+- [Gym management software in Egypt](https://www.forma-official.com/gym-management-software-egypt): Egypt positioning
+- [WhatsApp gym CRM](https://www.forma-official.com/whatsapp-gym-crm): Shared sales pipeline with WhatsApp-ready follow-ups
+- [Multi-branch gym software](https://www.forma-official.com/multi-branch-gym-software): More than one location
+- [Get started](https://www.forma-official.com/get-started): Open a gym workspace
+- [Technology (Arabic)](https://www.forma-official.com/ar/technology): التقنية
+- [FAQ (Arabic)](https://www.forma-official.com/ar/faq): الأسئلة الشائعة
+
+## Contact
+
+- Sales: sales@forma-official.com
+- Staff app: https://app.forma-official.com

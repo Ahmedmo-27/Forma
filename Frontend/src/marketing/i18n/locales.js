@@ -16,6 +16,8 @@ export const MARKETING_PATHS = [
   "/gym-management-software-egypt",
   "/whatsapp-gym-crm",
   "/multi-branch-gym-software",
+  "/technology",
+  "/faq",
 ];
 
 export function isLocale(value) {

@@ -20,15 +20,11 @@ services:
         sync: false
       - key: FRONTEND_ORIGIN
         sync: false
-      - key: SMTP_HOST
-        sync: false
-      - key: SMTP_PORT
-        value: "587"
-      - key: SMTP_USER
-        sync: false
-      - key: SMTP_PASS
+      - key: BREVO_API_KEY
         sync: false
       - key: MAIL_FROM
+        sync: false
+      - key: MAIL_FROM_SECURITY
         sync: false
       - key: PAYMENT_PROVIDER_NAME
         value: manual_transfer

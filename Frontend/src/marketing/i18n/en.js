@@ -6,6 +6,7 @@ export default {
     defaultTitle: "Forma — Gym management software in Egypt",
     defaultDescription:
       "Forma is the gym operating system for Egyptian operators — members, check-ins, sales CRM, coaching, and billing. Sales-assisted onboarding with bank transfer in EGP.",
+    browserRequirements: "Requires a modern web browser.",
   },
   nav: {
     homeAria: "Forma home",
@@ -29,6 +30,8 @@ export default {
   },
   footer: {
     tagline: "© {year} Forma. Gym & fitness management in Egypt.",
+    technology: "Technology",
+    faq: "FAQ",
   },
   home: {
     title: "Forma — Gym management software in Egypt",
@@ -368,6 +371,52 @@ export default {
       ctaHeading: "Plan for the next location now.",
       ctaBody: "Compare plans or email sales to size member, staff, and branch ceilings for your roadmap.",
     },
+  },
+  technology: {
+    title: "Forma technology — modern web stack for gym software",
+    description:
+      "Forma is a web gym operating system: React 19, Vite, Node.js, Express, and MongoDB. Staff work in the browser — no desktop install. Public site on Vercel, API on Railway.",
+    h1: "A modern web stack for the gym floor.",
+    intro:
+      "Forma is a web application. Reception, sales, coaches, and owners use one workspace in a modern browser. There is no desktop client to install.",
+    points: [
+      {
+        title: "Web app",
+        body: "The staff interface is React 19, built with Vite, React Router, and Tailwind. It runs in the browser.",
+      },
+      {
+        title: "API",
+        body: "The application API is Node.js and Express.",
+      },
+      {
+        title: "Data and files",
+        body: "Gym data is stored in MongoDB. Files are stored on Cloudflare R2.",
+      },
+      {
+        title: "Where it runs",
+        body: "The public site is hosted on Vercel. The API runs on Railway.",
+      },
+    ],
+    faq: [
+      {
+        q: "Do gyms install Forma on a desktop?",
+        a: "No. Forma is a web application. Staff sign in with a modern browser. There is no desktop client to install.",
+      },
+      {
+        q: "What is Forma built with?",
+        a: "The staff interface uses React 19, Vite, React Router, and Tailwind. The API is Node.js and Express. Gym data is stored in MongoDB, and files are stored on Cloudflare R2. The public site is hosted on Vercel and the API runs on Railway.",
+      },
+    ],
+    ctaHeading: "See the product, or talk to sales.",
+    ctaBody: "Compare plans in EGP, or email sales for a guided launch of the web workspace.",
+  },
+  faqPage: {
+    title: "Forma FAQ — gym management software in Egypt",
+    description:
+      "Answers on Forma onboarding, bank transfer in EGP, Basic Gold and Platinum, WhatsApp CRM, multi-branch gyms, staff login, and the web technology stack.",
+    h1: "Questions operators ask about Forma.",
+    intro:
+      "Straight answers on how Forma differs from template ERP gym tools, launch, payment, plans, staff login, and the technology the workspace runs on.",
   },
   shared: {
     contactSales: "Contact sales",

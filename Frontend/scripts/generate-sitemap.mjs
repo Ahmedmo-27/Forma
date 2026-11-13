@@ -24,6 +24,7 @@ function priorityFor(barePath) {
   if (barePath.startsWith("/gym") || barePath.includes("whatsapp") || barePath.includes("multi-branch"))
     return "0.85";
   if (barePath === "/why-forma") return "0.8";
+  if (barePath === "/technology" || barePath === "/faq") return "0.8";
   return "0.7";
 }
 

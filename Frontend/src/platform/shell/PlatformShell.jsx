@@ -80,6 +80,7 @@ function PlatformShellFrame() {
         usage: "Usage & Telemetry",
         support: "Support & Impersonation",
         announcements: "Announcements",
+        campaigns: "Campaigns",
         audit: "Audit Trail",
         users: "Operators & Roles",
         health: "System Health",

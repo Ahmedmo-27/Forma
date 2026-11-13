@@ -1,7 +1,7 @@
 /**
  * After `vite build`, write static HTML shells for marketing routes so crawlers
- * see titles, descriptions, canonical, hreflang, OG, JSON-LD, and main copy
- * without executing JS. SPA hydrate still mounts into #root.
+ * see titles, descriptions, canonical, hreflang, OG, JSON-LD, and an article
+ * of the same copy without executing JS. The app hides #seo-prerender after paint.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -14,6 +14,9 @@ const ORIGIN = "https://www.forma-official.com";
 
 const { MARKETING_PATHS, localizedPath } = await import(
   pathToFileURL(path.join(root, "src/marketing/i18n/locales.js")).href
+);
+const { faqCorpus } = await import(
+  pathToFileURL(path.join(root, "src/marketing/faqCorpus.js")).href
 );
 const { default: en } = await import(pathToFileURL(path.join(root, "src/marketing/i18n/en.js")).href);
 const { default: ar } = await import(pathToFileURL(path.join(root, "src/marketing/i18n/ar.js")).href);
@@ -38,17 +41,31 @@ function pageCopy(locale, barePath) {
     "/gym-management-software-egypt": t.solutions.egypt,
     "/whatsapp-gym-crm": t.solutions.whatsapp,
     "/multi-branch-gym-software": t.solutions.multiBranch,
+    "/technology": t.technology,
+    "/faq": t.faqPage,
   };
   return map[barePath] || t.home;
 }
 
+function introText(copy) {
+  return copy.intro || copy.heroCopy || copy.description || "";
+}
+
 function faqItems(locale, barePath) {
   const t = catalogs[locale];
-  if (barePath === "/") return t.home.faq;
-  if (barePath === "/gym-management-software-egypt") return t.solutions.egypt.faq;
-  if (barePath === "/whatsapp-gym-crm") return t.solutions.whatsapp.faq;
-  if (barePath === "/multi-branch-gym-software") return t.solutions.multiBranch.faq;
-  return [];
+  if (barePath === "/faq") return faqCorpus(t);
+  const copy = pageCopy(locale, barePath);
+  return Array.isArray(copy?.faq) ? copy.faq : [];
+}
+
+function titledList(items) {
+  if (!Array.isArray(items) || !items.length || !items[0]?.title) return "";
+  return `<ul>${items
+    .map(
+      (item) =>
+        `<li><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.body || "")}</p></li>`
+    )
+    .join("")}</ul>`;
 }
 
 function absolute(pathname) {
@@ -65,6 +82,28 @@ function buildJsonLd(locale, barePath, copy) {
       url: ORIGIN,
       email: "sales@forma-official.com",
       logo: `${ORIGIN}/forma-horizontal.jpeg`,
+      areaServed: { "@type": "Country", name: "Egypt" },
+    },
+    {
+      "@type": "SoftwareApplication",
+      "@id": `${ORIGIN}/#software`,
+      name: "Forma",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      browserRequirements: catalogs[locale].meta.browserRequirements,
+      url: absolute(localizedPath("/", locale)),
+      description: catalogs[locale].meta.defaultDescription,
+      featureList: (catalogs[locale].home.features || []).map((feature) =>
+        feature.body ? `${feature.title}: ${feature.body}` : feature.title
+      ),
+      offers: {
+        "@type": "Offer",
+        url: absolute(localizedPath("/plans", locale)),
+        priceCurrency: "EGP",
+        availability: "https://schema.org/InStock",
+      },
+      publisher: { "@id": `${ORIGIN}/#organization` },
+      inLanguage: locale === "ar" ? "ar" : "en",
     },
     {
       "@type": "WebPage",
@@ -104,7 +143,22 @@ function injectIntoTemplate(template, { locale, barePath, pathname }) {
   const lang = locale === "ar" ? "ar" : "en";
   const jsonLd = JSON.stringify(buildJsonLd(locale, barePath, copy));
   const h1 = escapeHtml(copy.h1 || copy.title);
-  const intro = escapeHtml(copy.intro || copy.heroCopy || copy.description || "");
+  const intro = escapeHtml(introText(copy));
+  const faqs = faqItems(locale, barePath);
+  const featureHtml = titledList(copy.features);
+  const pointHtml = titledList(copy.points);
+  const faqHeading = escapeHtml(t.home.faqHeading);
+  const faqHtml = faqs.length
+    ? `<h2>${faqHeading}</h2><dl>${faqs
+        .map(
+          (item) => `<dt>${escapeHtml(item.q)}</dt><dd>${escapeHtml(item.a)}</dd>`
+        )
+        .join("")}</dl>`
+    : "";
+  const plansUrl = absolute(localizedPath("/plans", locale));
+  const technologyUrl = absolute(localizedPath("/technology", locale));
+  const faqUrl = absolute(localizedPath("/faq", locale));
+  const startUrl = absolute(localizedPath("/get-started", locale));
 
   let html = template;
   html = html.replace(/<html\s+lang="[^"]*"/, `<html lang="${lang}" dir="${dir}"`);
@@ -184,15 +238,16 @@ function injectIntoTemplate(template, { locale, barePath, pathname }) {
   html = html.replace("</head>", `${headExtras}</head>`);
 
   const seoBlock = `
-    <noscript>
-      <main id="seo-prerender" lang="${lang}" dir="${dir}" style="font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#142843">
-        <p><strong>Forma</strong></p>
-        <h1>${h1}</h1>
-        <p>${intro}</p>
-        <p><a href="${escapeHtml(enUrl)}">English</a> · <a href="${escapeHtml(arUrl)}">العربية</a></p>
-        <p><a href="${ORIGIN}/plans">Plans</a> · <a href="${ORIGIN}/get-started">Get started</a> · <a href="mailto:sales@forma-official.com">Contact sales</a></p>
-      </main>
-    </noscript>
+    <article id="seo-prerender" lang="${lang}" dir="${dir}" style="font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#142843">
+      <p><strong>Forma</strong></p>
+      <h1>${h1}</h1>
+      <p>${intro}</p>
+      ${featureHtml}
+      ${pointHtml}
+      ${faqHtml}
+      <p><a href="${escapeHtml(enUrl)}">English</a> · <a href="${escapeHtml(arUrl)}">العربية</a></p>
+      <p><a href="${escapeHtml(plansUrl)}">${escapeHtml(t.nav.plans)}</a> · <a href="${escapeHtml(technologyUrl)}">${escapeHtml(t.footer.technology)}</a> · <a href="${escapeHtml(faqUrl)}">${escapeHtml(t.footer.faq)}</a> · <a href="${escapeHtml(startUrl)}">${escapeHtml(t.nav.getStarted)}</a> · <a href="mailto:sales@forma-official.com">${escapeHtml(t.nav.contactSales)}</a></p>
+    </article>
 `;
   html = html.replace('<div id="root"></div>', `<div id="root"></div>${seoBlock}`);
 

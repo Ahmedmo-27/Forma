@@ -11,6 +11,7 @@ import {
   Activity,
   Headphones,
   Megaphone,
+  Mail,
   ShieldCheck,
   Users,
   HeartPulse,
@@ -46,6 +47,7 @@ export function CommandPalette({ isOpen, onClose }) {
   const canViewLedger = usePermission("billing.ledger");
   const canSupport = usePermission("support.impersonate_read");
   const canAnnounce = usePermission("announcements.manage");
+  const canCampaign = usePermission("campaigns.manage");
   const canAudit = usePermission("audit.view");
   const canManageUsers = usePermission("platform_users.manage");
   const canHealth = usePermission("system.health");
@@ -105,6 +107,7 @@ export function CommandPalette({ isOpen, onClose }) {
     { label: "Consumption & Cost Telemetry", path: "/platform/usage", icon: Activity, permitted: canReadTenants },
     { label: "Support & Impersonation", path: "/platform/support", icon: Headphones, permitted: canSupport },
     { label: "Broadcast Announcements", path: "/platform/announcements", icon: Megaphone, permitted: canAnnounce },
+    { label: "Email Campaigns", path: "/platform/campaigns", icon: Mail, permitted: canCampaign },
     { label: "Security & Operations Audit Trail", path: "/platform/audit", icon: ShieldCheck, permitted: canAudit },
     { label: "Platform Users & Roles", path: "/platform/users", icon: Users, permitted: canManageUsers },
     { label: "System Health & Settings", path: "/platform/health", icon: HeartPulse, permitted: canHealth },

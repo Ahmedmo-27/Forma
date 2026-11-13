@@ -16,6 +16,7 @@ import LedgerPage from "../features/billing/LedgerPage";
 import UsagePage from "../features/usage/UsagePage";
 import SupportPage from "../features/support/SupportPage";
 import AnnouncementsPage from "../features/announcements/AnnouncementsPage";
+import CampaignsPage from "../features/campaigns/CampaignsPage";
 import AuditPage from "../features/audit/AuditPage";
 import UsersPage from "../features/users/UsersPage";
 import HealthSettingsPage from "../features/system/HealthSettingsPage";
@@ -66,6 +67,7 @@ export default function PlatformConsoleApp() {
                 <Route path="usage" element={<UsagePage />} />
                 <Route path="support" element={<SupportPage />} />
                 <Route path="announcements" element={<AnnouncementsPage />} />
+                <Route path="campaigns" element={<CampaignsPage />} />
                 <Route path="audit" element={<AuditPage />} />
                 <Route path="users" element={<UsersPage />} />
                 <Route path="health" element={<HealthSettingsPage />} />

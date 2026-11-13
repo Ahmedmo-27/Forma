@@ -88,7 +88,10 @@ Auth is Bearer + `localStorage` with CORS `credentials: false`, so sessions do n
 | `PORT` | Provided by Railway; bind `0.0.0.0` |
 | `BASE_DOMAIN` | `forma-official.com` |
 | `FRONTEND_ORIGIN` | `https://app.forma-official.com,https://www.forma-official.com,https://platform.forma-official.com,https://forma-official.com` — **list `app` first** so invite/reset links hit the gym app |
-| `MAIL_FROM` | `Forma <noreply@forma-official.com>` |
+| `BREVO_API_KEY` | Transactional API key. Authenticate `forma-official.com` in Brevo. DKIM is on the apex (`brevo1` / `brevo2._domainkey`). DMARC is `p=none` and reports to Brevo. |
+| `MAIL_FROM` | `Forma <noreply@forma-official.com>` — invites, invoices, reminders, and campaigns. Visible From stays on the apex. |
+| `MAIL_FROM_SECURITY` | `Forma <security@forma-official.com>` — password reset. Falls back to `MAIL_FROM` when unset. |
+| `mail.forma-official.com` | Brevo return-path only (`brand.brevosend.com`, MX `return-path.mx.brevosend.com`, SPF `include:spf.brevo.com`). Not an inbox and not a From address. Apex SPF stays on Cloudflare. |
 | `PAYMENT_*` | Full bank fields required; production checkout fails closed if bank name, account name, or IBAN is empty |
 | `PAYMENT_GATEWAY_URL` | Optional later: `https://www.forma-official.com/checkout` |
 | `MONGO_URI`, JWT secrets, R2 keys | **Separate** from the Render test service |
@@ -114,6 +117,7 @@ Auth is Bearer + `localStorage` with CORS `credentials: false`, so sessions do n
 |----------|----------------|
 | Frontend `BACKEND_ORIGIN` | `http://localhost:5000` |
 | API `FRONTEND_ORIGIN` | `http://localhost:5173` (comma-separate extra ports if needed) |
+| `BREVO_API_KEY` | Leave unset. Mail is skipped and invite links stay in the platform console. |
 
 ## 5. CORS and invite-link rules
 
@@ -159,7 +163,7 @@ sequenceDiagram
   actor Buyer
   participant Www as www.forma-official.com
   participant Api as api.forma-official.com_Railway
-  participant Mail as SMTP
+  participant Mail as Brevo
   participant App as app.forma-official.com
   participant Ops as platform_console
 
@@ -177,7 +181,7 @@ sequenceDiagram
 
 1. Attach `api.forma-official.com` on the **Railway** API service; wait for TLS.
 2. Attach `app`, `www` (and optional `platform` / apex) on the **Vercel** project; wait for TLS.
-3. Set Railway env: `FRONTEND_ORIGIN` (app first), `BASE_DOMAIN`, `MAIL_FROM`, production `PAYMENT_*`, production secrets.
+3. Set Railway env: `FRONTEND_ORIGIN` (app first), `BASE_DOMAIN`, `BREVO_API_KEY`, `MAIL_FROM`, `MAIL_FROM_SECURITY`, production `PAYMENT_*`, production secrets. Authenticate `forma-official.com` in Brevo so the visible From stays on the apex (`security@` for resets, `noreply@` for everything else). Keep `mail.forma-official.com` as the Brevo return-path only.
 4. Set Vercel `BACKEND_ORIGIN=https://api.forma-official.com` (must include `https://`) and **redeploy** (build-time inject).
 5. Confirm CSP allows `https://api.forma-official.com` (see §9). Keep `*.onrender.com` only if preview/test frontends still talk to Render.
 6. Smoke-test: CORS from `app` and `www`, gym login POST to `https://api.forma-official.com/api/users/login` (not a path under `app`), `/platform/login`, invite email link host = `app.forma-official.com`.

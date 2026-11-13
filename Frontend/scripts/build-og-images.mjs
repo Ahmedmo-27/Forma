@@ -1,6 +1,9 @@
 /**
  * Compose 1200×630 OG / Twitter cards from brand assets.
- * Uses forma-horizontal.jpeg + gym photo — not the favicon alone.
+ *
+ * WhatsApp uses a ~square crop (usually the left of the image). The left 630×630
+ * must read as a complete card by itself — logo + short lines fully inside that square.
+ * Do not use the favicon alone as og:image.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -12,14 +15,15 @@ const publicDir = path.join(__dirname, "..", "public");
 
 const WIDTH = 1200;
 const HEIGHT = 630;
+const SQUARE = 630;
 const NAVY = { r: 20, g: 40, b: 67, alpha: 1 };
 const CREAM = "#FCF3E2";
+const MUTED = "#E6DCC8";
 
 async function loadGymBackground() {
   const candidates = [
     path.join(publicDir, "marketing", "hero-gym-floor.jpg"),
     path.join(publicDir, "marketing", "band-floor.jpg"),
-    path.join(publicDir, "og-share.jpg"),
   ];
   for (const file of candidates) {
     if (fs.existsSync(file)) return file;
@@ -35,51 +39,59 @@ function escapeXml(text) {
     .replace(/"/g, "&quot;");
 }
 
-function textSvg({ headline, sub, rtl = false }) {
-  const anchor = rtl ? "end" : "start";
-  const x = rtl ? 564 : 56;
-  const fontHead = rtl ? 36 : 42;
-  const fontSub = rtl ? 20 : 22;
+/** Self-contained 630×630 brand panel (WhatsApp-safe). */
+function brandSquareSvg({ lines, rtl = false }) {
+  const anchor = "middle";
+  const x = SQUARE / 2;
   const dir = rtl ? "rtl" : "ltr";
+  const [l1, l2, l3, l4] = lines;
   return Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
-<svg width="620" height="630" viewBox="0 0 620 630" xmlns="http://www.w3.org/2000/svg">
-  <rect width="620" height="630" fill="#142843"/>
+<svg width="${SQUARE}" height="${SQUARE}" viewBox="0 0 ${SQUARE} ${SQUARE}" xmlns="http://www.w3.org/2000/svg">
+  <rect width="${SQUARE}" height="${SQUARE}" fill="#142843"/>
   <g direction="${dir}">
-    <text x="${x}" y="300" fill="${CREAM}" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="${fontHead}" font-weight="750" text-anchor="${anchor}">
-      ${escapeXml(headline[0])}
+    <text x="${x}" y="320" fill="${CREAM}" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="34" font-weight="750" text-anchor="${anchor}">
+      ${escapeXml(l1)}
     </text>
-    <text x="${x}" y="348" fill="${CREAM}" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="${fontHead}" font-weight="750" text-anchor="${anchor}">
-      ${escapeXml(headline[1] || "")}
+    <text x="${x}" y="366" fill="${CREAM}" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="34" font-weight="750" text-anchor="${anchor}">
+      ${escapeXml(l2 || "")}
     </text>
-    <text x="${x}" y="410" fill="#E6DCC8" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="${fontSub}" font-weight="500" text-anchor="${anchor}">
-      ${escapeXml(sub[0])}
+    <text x="${x}" y="430" fill="${MUTED}" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="20" font-weight="500" text-anchor="${anchor}">
+      ${escapeXml(l3 || "")}
     </text>
-    <text x="${x}" y="440" fill="#E6DCC8" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="${fontSub}" font-weight="500" text-anchor="${anchor}">
-      ${escapeXml(sub[1] || "")}
+    <text x="${x}" y="462" fill="${MUTED}" font-family="Segoe UI, Tahoma, Arial, sans-serif" font-size="20" font-weight="500" text-anchor="${anchor}">
+      ${escapeXml(l4 || "")}
     </text>
   </g>
 </svg>`);
 }
 
-async function buildCard({ outName, headline, sub, rtl = false }) {
+async function buildCard({ outName, lines, rtl = false }) {
   const logoPath = path.join(publicDir, "forma-horizontal.jpeg");
   const gymPath = await loadGymBackground();
   if (!fs.existsSync(logoPath)) {
     throw new Error(`Missing logo: ${logoPath}`);
   }
 
-  const textPanel = await sharp(textSvg({ headline, sub, rtl }))
-    .png()
-    .toBuffer();
+  const brandPanel = await sharp(brandSquareSvg({ lines, rtl })).png().toBuffer();
 
   const logoChipBg = await sharp({
-    create: { width: 320, height: 96, channels: 4, background: { r: 252, g: 243, b: 226, alpha: 1 } },
+    create: {
+      width: 360,
+      height: 108,
+      channels: 4,
+      background: { r: 252, g: 243, b: 226, alpha: 1 },
+    },
   })
     .png()
     .toBuffer();
 
   const logoResized = await sharp(logoPath)
-    .resize({ width: 280, height: 64, fit: "contain", background: { r: 252, g: 243, b: 226, alpha: 1 } })
+    .resize({
+      width: 300,
+      height: 72,
+      fit: "contain",
+      background: { r: 252, g: 243, b: 226, alpha: 1 },
+    })
     .png()
     .toBuffer();
 
@@ -88,29 +100,23 @@ async function buildCard({ outName, headline, sub, rtl = false }) {
     .png()
     .toBuffer();
 
-  // EN: text left / gym right. AR: gym left / text right (natural RTL reading).
-  const textLeft = rtl ? 580 : 0;
-  const gymLeft = rtl ? 0 : 620;
-  const logoLeft = rtl ? 580 + (620 - 56 - 320) : 56;
+  // Square brand block always on the left so WhatsApp’s crop is complete.
+  const brandLeft = 0;
+  const gymLeft = SQUARE;
+  const gymWidth = WIDTH - SQUARE;
+  const logoLeft = Math.round((SQUARE - 360) / 2);
 
   const layers = [
-    { input: textPanel, left: textLeft, top: 0 },
-    { input: logoChip, left: logoLeft, top: 72 },
+    { input: brandPanel, left: brandLeft, top: 0 },
+    { input: logoChip, left: logoLeft, top: 120 },
   ];
 
   if (gymPath) {
     const gym = await sharp(gymPath)
-      .resize(580, HEIGHT, { fit: "cover", position: "centre" })
+      .resize(gymWidth, HEIGHT, { fit: "cover", position: "centre" })
       .modulate({ brightness: 0.85, saturation: 0.9 })
       .toBuffer();
     layers.push({ input: gym, left: gymLeft, top: 0 });
-  } else {
-    const fallback = await sharp({
-      create: { width: 580, height: HEIGHT, channels: 3, background: { r: 30, g: 58, b: 95 } },
-    })
-      .jpeg()
-      .toBuffer();
-    layers.push({ input: fallback, left: gymLeft, top: 0 });
   }
 
   const outPath = path.join(publicDir, outName);
@@ -118,7 +124,7 @@ async function buildCard({ outName, headline, sub, rtl = false }) {
     create: { width: WIDTH, height: HEIGHT, channels: 3, background: NAVY },
   })
     .composite(layers)
-    .jpeg({ quality: 88, mozjpeg: true })
+    .jpeg({ quality: 90, mozjpeg: true })
     .toFile(outPath);
 
   console.log(`Wrote ${outPath}`);
@@ -140,15 +146,23 @@ async function buildAppleTouch() {
 
 await buildCard({
   outName: "og-share.jpg",
-  headline: ["The operating system", "for serious gyms."],
-  sub: ["Gym management software for Egypt —", "members, check-ins, sales & billing."],
+  lines: [
+    "The operating system",
+    "for serious gyms",
+    "Gym software in Egypt",
+    "Members · check-ins · sales · billing",
+  ],
   rtl: false,
 });
 
 await buildCard({
   outName: "og-share-ar.jpg",
-  headline: ["نظام تشغيل الجيم", "للمشغّلين الجادّين"],
-  sub: ["برنامج إدارة الجيم في مصر", "أعضاء · حضور · مبيعات · فوترة"],
+  lines: [
+    "نظام تشغيل الجيم",
+    "للمشغّلين الجادّين",
+    "برنامج إدارة الجيم في مصر",
+    "أعضاء · حضور · مبيعات · فوترة",
+  ],
   rtl: true,
 });
 

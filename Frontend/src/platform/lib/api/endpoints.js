@@ -213,6 +213,18 @@ export const apiUpdateAnnouncement = (id, data, signal) =>
 export const apiDeleteAnnouncement = (id, signal) =>
   platformClient.delete(`/announcements/${id}`, { signal });
 
+export const apiGetCampaigns = (params, signal) =>
+  platformClient.get("/campaigns", { params, signal });
+
+export const apiGetCampaignTemplates = (signal) =>
+  platformClient.get("/campaigns/templates", { signal });
+
+export const apiGetCampaignAudience = (params, signal) =>
+  platformClient.get("/campaigns/audience", { params, signal });
+
+export const apiSendCampaign = (data, signal) =>
+  platformClient.post("/campaigns", data, { signal });
+
 // ==========================================
 // 10. Audit Logs & System Health
 // ==========================================

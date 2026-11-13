@@ -43,15 +43,15 @@ npm run seed:superadmin
 
 ## Onboarding a gym
 
-1. In the platform console, create a tenant. The response includes a 72-hour invite URL, and the same link is emailed when SMTP is configured.
+1. In the platform console, create a tenant. The response includes a 72-hour invite URL, and the same link is emailed when Brevo is configured.
 2. The owner opens `/auth/setup-password`, chooses a password, then signs in at `/login`. Owners land on `/owner/dashboard`.
 3. If the invite is lost, the owner can request a new link from `/auth/forgot-password`. The API always returns the same message, whether or not the email exists.
 
-Leave `SMTP_HOST` unset in local development. Invites are skipped and the console still shows the copyable link.
+Leave `BREVO_API_KEY` unset in local development. Invites and password resets are skipped and the console still shows the copyable invite link. Production sends invites and invoices from `MAIL_FROM` (`noreply@forma-official.com`) and password resets from `MAIL_FROM_SECURITY` (`security@forma-official.com`). Authenticate `forma-official.com` in Brevo before those addresses will deliver.
 
 ## Billing
 
-Manual bank transfer is the live payment method. Set `PAYMENT_BANK_NAME`, `PAYMENT_ACCOUNT_NAME`, `PAYMENT_IBAN`, and `PAYMENT_SWIFT`. Production checkout fails closed when the bank name, account name, or IBAN is empty. Confirming a payment issues an invoice and emails it to the gym owner when SMTP is set.
+Manual bank transfer is the live payment method. Set `PAYMENT_BANK_NAME`, `PAYMENT_ACCOUNT_NAME`, `PAYMENT_IBAN`, and `PAYMENT_SWIFT`. Production checkout fails closed when the bank name, account name, or IBAN is empty. Confirming a payment issues an invoice and emails it to the gym owner when Brevo is set.
 
 ## File storage
 
