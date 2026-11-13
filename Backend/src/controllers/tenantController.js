@@ -6,7 +6,7 @@ const Tenant = require("../models/Tenant");
 const Member = require("../models/Member");
 const User = require("../models/User");
 const Announcement = require("../models/Announcement");
-const { getEffectiveFeatures, getEffectiveLimits } = require("../models/Tenant");
+const { getEffectiveFeatures, getEffectiveLimits, getEffectiveRoles } = require("../models/Tenant");
 const {
     AREAS,
     CHECKLIST_ROLES,
@@ -78,6 +78,7 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
             allowedRoles: plan.allowedRoles || [],
         } : null,
         effectiveFeatures,
+        effectiveRoles: getEffectiveRoles(tenant, plan),
         limits: resolvedLimits,
         effectiveLimits: resolvedLimits,
         usage: {

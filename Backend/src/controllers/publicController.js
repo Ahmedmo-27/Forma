@@ -7,6 +7,8 @@ const AuditLog = require("../models/AuditLog");
 const ManualPayment = require("../models/ManualPayment");
 const tenantContext = require("../context/tenantContext");
 const { normalizeEmail, hashPassword } = require("../utils/passwordUtils");
+const { uniqueUsername } = require("../utils/username");
+const { assertEmailAvailable } = require("../utils/identityUniqueness");
 const passwordSetup = require("../services/passwordSetupService");
 const mailer = require("../services/mailer");
 const billingService = require("../services/billing/billingService");
@@ -211,12 +213,7 @@ async function publicSignup(req, res) {
             }
 
             const normalizedEmail = normalizeEmail(ownerEmail);
-            const existingUser = await User.findOne({ email: normalizedEmail });
-            if (existingUser) {
-                const error = new Error(`User with email '${normalizedEmail}' already exists`);
-                error.statusCode = 400;
-                throw error;
-            }
+            await assertEmailAvailable(normalizedEmail);
 
             const now = new Date();
             const status = "trial";
@@ -249,15 +246,19 @@ async function publicSignup(req, res) {
 
             const ownerUser = await tenantContext.runWithTenant(
                 { tenantId: String(tenant._id), tenantSlug: tenant.slug },
-                async () => User.create({
-                    tenantId: tenant._id,
-                    name: String(ownerName).trim(),
-                    email: normalizedEmail,
-                    password: passwordHash,
-                    role: "Owner",
-                    canAccessAllLocations: true,
-                    allowedLocationIds: [],
-                })
+                async () => {
+                    const username = await uniqueUsername(User, normalizedEmail);
+                    return User.create({
+                        tenantId: tenant._id,
+                        name: String(ownerName).trim(),
+                        email: normalizedEmail,
+                        username,
+                        password: passwordHash,
+                        role: "Owner",
+                        canAccessAllLocations: true,
+                        allowedLocationIds: [],
+                    });
+                }
             );
 
             tenant.ownerUserId = ownerUser._id;

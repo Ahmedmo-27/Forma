@@ -1,6 +1,7 @@
 const PlatformUser = require("../models/PlatformUser");
 const AuditLog = require("../models/AuditLog");
 const { hashPassword, normalizeEmail } = require("../utils/passwordUtils");
+const { assertEmailAvailable, replyIfConflict } = require("../utils/identityUniqueness");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 
 /**
@@ -54,10 +55,7 @@ async function createPlatformUser(req, res) {
         }
 
         const normalized = normalizeEmail(email);
-        const existing = await PlatformUser.findOne({ email: normalized });
-        if (existing) {
-            return res.status(400).json({ message: "Platform user with this email already exists" });
-        }
+        await assertEmailAvailable(normalized);
 
         const passwordHash = await hashPassword(password);
         const user = await PlatformUser.create({
@@ -93,6 +91,7 @@ async function createPlatformUser(req, res) {
             },
         });
     } catch (err) {
+        if (replyIfConflict(res, err)) return;
         res.status(500).json({ message: "Server error", error: err.message });
     }
 }

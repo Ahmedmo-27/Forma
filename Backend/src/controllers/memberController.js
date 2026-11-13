@@ -39,6 +39,7 @@ const { isAssignedToRep, redactMemberForViewer } = require("../utils/memberPriva
 const { assertAllowedUpload, assertAllowedImage } = require("../utils/fileMagic");
 const { writeAudit } = require("../utils/audit");
 const { nextSystemId, nextMemberId, nextSubscriptionId, isDuplicateKeyError } = require("../utils/sequence");
+const { normalizePhone, assertPhoneAvailable, replyIfConflict } = require("../utils/identityUniqueness");
 const { startMemberImport, getMemberImport } = require("../services/memberImportRunner");
 const { resolveSalesAssignee } = require("../utils/salesAssignment");
 const { sanitizePlainText } = require("../utils/sanitizeText");
@@ -228,6 +229,8 @@ const createMember = async (req, res) => {
             packageId, assignedSales, coachId, locationId: bodyLocationId,
         } = req.body;
 
+        const phoneKey = await assertPhoneAvailable(phones);
+
         const systemId = await generateSystemId();
         const salesAssignee = await resolveSalesAssignee(assignedSales || null);
         let coachAssignee = null;
@@ -245,7 +248,8 @@ const createMember = async (req, res) => {
         const personData = {
             systemId,
             name,
-            phones,
+            phones: String(phones ?? "").trim(),
+            phoneKey,
             // photo must only be set via dedicated upload endpoint
             photo:         null,
             gender:        gender        || null,
@@ -320,6 +324,7 @@ const createMember = async (req, res) => {
 
         res.status(201).json({ message: packageId ? "Member created" : "Guest added", member });
     } catch (error) {
+        if (replyIfConflict(res, error)) return;
         if (isDuplicateKeyError(error, ["systemId", "memberId"])) {
             return res.status(409).json({ message: "Member ID conflict, please retry" });
         }
@@ -2744,7 +2749,11 @@ const updateMember = async (req, res) => {
         const { name, phones, gender, birthdate, source, locationId } = req.body;
 
         member.name = name;
-        if (canEditPhone && phones !== undefined) member.phones = phones;
+        if (canEditPhone && phones !== undefined) {
+            const phoneKey = await assertPhoneAvailable(phones, { excludeMemberId: member._id });
+            member.phones = String(phones).trim();
+            member.phoneKey = phoneKey;
+        }
         member.gender = gender || null;
         member.birthdate = birthdate || null;
         member.source = source || null;
@@ -2766,6 +2775,7 @@ const updateMember = async (req, res) => {
 
         res.json({ message: "Member updated" });
     } catch (error) {
+        if (replyIfConflict(res, error)) return;
         res.status(500).json({ message: error.message });
     }
 };

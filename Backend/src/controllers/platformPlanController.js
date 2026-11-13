@@ -80,7 +80,7 @@ const SYSTEM_ROLES = [
         key: "General Manager",
         name: "General Manager",
         description: "Runs day-to-day gym operations. The owner chooses which areas this role can use.",
-        defaultTier: "basic",
+        defaultTier: "gold",
         category: "Management",
     },
 ];

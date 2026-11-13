@@ -8,6 +8,11 @@ const { hashPassword, verifyPassword, normalizeEmail, MIN_PASSWORD_LENGTH, bumpT
 const passwordSetup = require("../services/passwordSetupService");
 const { invalidateAuthContext } = require("../middleware/authContextCache");
 const { normalizeUsername, uniqueUsername, escapeRegex } = require("../utils/username");
+const {
+    assertEmailAvailable,
+    assertPhoneAvailable,
+    replyIfConflict,
+} = require("../utils/identityUniqueness");
 const { runWithTenant, runAsPlatform } = require("../context/tenantContext");
 const {
     getLockState,
@@ -16,6 +21,7 @@ const {
 } = require("../middleware/loginLockout");
 const { writeAudit } = require("../utils/audit");
 const { setFeatureEnabled, featureKeyForAbility, canAssignRole, syncLegacyFields } = require("../utils/accessControl");
+const { respondIfRoleNotInPlan } = require("../middleware/tenantStatus");
 const {
     monthKey,
     dayKey,
@@ -103,11 +109,7 @@ const registerUser = async (req, res) => {
             return res.status(400).json({ message: "Email and password are required" });
         }
 
-        const userExists = await User.findOne({ email });
-        if (userExists) {
-            logger.auth("warn", "Register rejected: user exists", { requestId });
-            return res.status(400).json({ message: "User already exists" });
-        }
+        await assertEmailAvailable(email);
 
         const hashedPassword = await hashPassword(password);
         const username = await uniqueUsername(User, email);
@@ -125,6 +127,7 @@ const registerUser = async (req, res) => {
             user: { _id: user._id, name: user.name, email: user.email, role: user.role },
         });
     } catch (error) {
+        if (replyIfConflict(res, error)) return;
         logger.auth("error", "Register error", { requestId, error: error.message });
         res.status(500).json({ message: "Server error", error: error.message });
     }
@@ -788,12 +791,10 @@ const createStaffUser = async (req, res) => {
             return res.status(400).json({ message: "You cannot create that role" });
         }
 
-        const userExists = await User.findOne({ email: normalizeEmail(email) });
-        if (userExists) {
-            return res.status(400).json({ message: "User already exists" });
-        }
-
         const normalizedEmail = normalizeEmail(email);
+        await assertEmailAvailable(normalizedEmail);
+        const phoneKey = await assertPhoneAvailable(mobile_number);
+
         const hashedPassword = await hashPassword(password);
         const username = await uniqueUsername(User, normalizedEmail);
 
@@ -861,7 +862,8 @@ const createStaffUser = async (req, res) => {
             username,
             password: hashedPassword,
             role,
-            mobile_number,
+            mobile_number: String(mobile_number).trim(),
+            phoneKey,
             canAccessAllLocations: Boolean(locationPayload.canAccessAllLocations),
             allowedLocationIds: locationPayload.canAccessAllLocations
                 ? []
@@ -889,6 +891,7 @@ const createStaffUser = async (req, res) => {
             user: formatUserResponse(user),
         });
     } catch (error) {
+        if (replyIfConflict(res, error)) return;
         logger.auth("error", "Staff user create error", { error: error.message });
         res.status(500).json({ message: "Server error", error: error.message });
     }
@@ -1230,6 +1233,8 @@ const change_Role = async (req, res) => {
             return res.json({ message: "Role unchanged", user: formatUserResponse(user) });
         }
 
+        if (respondIfRoleNotInPlan(req, res, new_role)) return;
+
         const previousRole = user.role;
         user.role = new_role;
         user.featureAccess = { grants: [], revokes: [] };
@@ -1327,8 +1332,10 @@ const updateStaffMobile = async (req, res) => {
             return res.status(400).json({ message: "mobile_number (string) is required" });
         }
 
+        const phoneKey = await assertPhoneAvailable(mobile_number, { excludeUserId: user._id });
         const previousValue = user.mobile_number;
         user.mobile_number = mobile_number.trim();
+        user.phoneKey = phoneKey;
         await user.save();
 
         await writeAudit({
@@ -1343,6 +1350,7 @@ const updateStaffMobile = async (req, res) => {
 
         res.json({ message: "Mobile number updated", user: formatUserResponse(user) });
     } catch (error) {
+        if (replyIfConflict(res, error)) return;
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };

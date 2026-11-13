@@ -10,6 +10,8 @@ const { getEffectiveFeatures, getEffectiveLimits, getEffectiveRoles } = require(
 const { runAsPlatform, runWithTenant } = require("../context/tenantContext");
 const storageService = require("../services/storageService");
 const { normalizeEmail, hashPassword } = require("../utils/passwordUtils");
+const { uniqueUsername } = require("../utils/username");
+const { assertEmailAvailable } = require("../utils/identityUniqueness");
 const passwordSetup = require("../services/passwordSetupService");
 const mailer = require("../services/mailer");
 const { parsePagination, buildPagination } = require("../utils/pagination");
@@ -359,10 +361,7 @@ async function onboardTenant(req, res) {
         }
 
         const normalizedEmail = normalizeEmail(ownerEmail);
-        const existingUser = await User.findOne({ email: normalizedEmail });
-        if (existingUser) {
-            return res.status(400).json({ message: `User with email '${normalizedEmail}' already exists` });
-        }
+        await assertEmailAvailable(normalizedEmail);
 
         // Calculate trial or period dates
         const now = new Date();
@@ -403,15 +402,19 @@ async function onboardTenant(req, res) {
         // Create Owner User inside tenant context so tenantPlugin stamps correctly
         const ownerUser = await runWithTenant(
             { tenantId: String(tenant._id), tenantSlug: tenant.slug },
-            async () => User.create({
-                tenantId: tenant._id,
-                name: ownerName.trim(),
-                email: normalizedEmail,
-                password: passwordHash,
-                role: "Owner",
-                canAccessAllLocations: true,
-                allowedLocationIds: [],
-            })
+            async () => {
+                const username = await uniqueUsername(User, normalizedEmail);
+                return User.create({
+                    tenantId: tenant._id,
+                    name: ownerName.trim(),
+                    email: normalizedEmail,
+                    username,
+                    password: passwordHash,
+                    role: "Owner",
+                    canAccessAllLocations: true,
+                    allowedLocationIds: [],
+                });
+            }
         );
 
         // Attach owner to tenant
@@ -502,6 +505,12 @@ async function onboardTenant(req, res) {
             },
         });
     } catch (err) {
+        if (err.statusCode && err.statusCode < 500) {
+            return res.status(err.statusCode).json({
+                code: err.code,
+                message: err.message,
+            });
+        }
         logger.error("platform", "onboardTenant error", { error: err.message });
         res.status(500).json({ message: "Server error", error: err.message });
     }
