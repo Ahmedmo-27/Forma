@@ -22,9 +22,10 @@ import {
   SELECTION_TEMPLATES, applySelectionTemplate, invertSelection,
 } from './taskMembers';
 import AssignedTasksPage from './AssignedTasksPage';
+import BulkWhatsAppSendModal from '../../components/BulkWhatsAppSendModal';
 import {
   ChevronDown, ChevronUp, CircleDot, ClipboardList, Dumbbell, FolderOpen,
-  RefreshCw, Search, UserRound, Users, X, Zap,
+  MessageCircle, RefreshCw, Search, UserRound, Users, X, Zap,
 } from 'lucide-react';
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -155,7 +156,10 @@ export default function AssigningTasksPage() {
   const [transferStatus, setTransferStatus] = useState('idle');
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
-  const { canSalesman, canCoach } = taskPermissions(user, hasFeature);
+  // ── WhatsApp Bulk Send ──
+  const [waOpen, setWaOpen] = useState(false);
+
+  const { canSalesman, canCoach, canWhatsApp } = taskPermissions(user, hasFeature);
 
   const fetchOverview = useCallback(async () => {
     setLoadingOverview(true);
@@ -466,6 +470,19 @@ export default function AssigningTasksPage() {
     setTransferProgress({ current: 0, total: selectedSet.size });
     setTransferOpen(true);
   };
+
+  const openWaModal = () => {
+    if (!selectedSet.size) {
+      toast.error('Select at least one member');
+      return;
+    }
+    setWaOpen(true);
+  };
+
+  const selectedMembers = useMemo(
+    () => members.filter((m) => selectedSet.has(m._id)),
+    [members, selectedSet]
+  );
 
   const handleApplyTemplateInsideModal = (templateId) => {
     setTransferModalTemplate(templateId);
@@ -1285,7 +1302,7 @@ export default function AssigningTasksPage() {
                   )}
                 </div>
 
-                <div data-walkthrough="assign-actions" style={{ display: 'flex', gap: 8 }}>
+                <div data-walkthrough="assign-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   {canSalesman && (
                     <Btn
                       size="sm"
@@ -1304,6 +1321,16 @@ export default function AssigningTasksPage() {
                       onClick={() => openTransferModal('coach')}
                     >
                       <Dumbbell size={14} aria-hidden /> Assign Coach ({selectedSet.size})
+                    </Btn>
+                  )}
+                  {canWhatsApp && (
+                    <Btn
+                      size="sm"
+                      variant="outline"
+                      disabled={!selectedSet.size}
+                      onClick={openWaModal}
+                    >
+                      <MessageCircle size={14} aria-hidden /> WhatsApp ({selectedSet.size})
                     </Btn>
                   )}
                 </div>
@@ -1542,6 +1569,12 @@ export default function AssigningTasksPage() {
             </div>
           </Modal>
         )}
+
+      <BulkWhatsAppSendModal
+        open={waOpen}
+        onClose={() => setWaOpen(false)}
+        members={selectedMembers}
+      />
 
         {/* ── VIEW CREATED TASKS HISTORY MODAL ── */}
         {historyOpen && (

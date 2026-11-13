@@ -11,7 +11,7 @@ import {
 } from '../../components/ui';
 import {
   getAllMembers, getSalesUsers, getCoachTeam,
-  bulkTransferSalesReps, bulkTransferCoach, sendWhatsAppMessage,
+  bulkTransferSalesReps, bulkTransferCoach,
 } from '../../api/endpoints';
 import {
   CircleDot, Dumbbell, MessageCircle, RefreshCw, Search, UserRound, Users,
@@ -21,6 +21,7 @@ import {
   taskPermissions, toggleId, toggleIds,
 } from './taskMembers';
 import { formatSystemId } from '../../lib/systemId';
+import BulkWhatsAppSendModal from '../../components/BulkWhatsAppSendModal';
 
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
@@ -38,12 +39,6 @@ async function loadAllMembers() {
   }
   return members;
 }
-
-const labelStyle = {
-  display: 'block', fontSize: 11, fontWeight: 700,
-  color: 'var(--t3)', textTransform: 'uppercase',
-  letterSpacing: '0.5px', marginBottom: 6,
-};
 
 export default function TaskFilterResultsPage() {
   usePageTitle('Filter Results');
@@ -120,9 +115,6 @@ export default function TaskFilterResultsPage() {
 
   // ── WhatsApp Modal ──
   const [waOpen, setWaOpen] = useState(false);
-  const [waTemplate, setWaTemplate] = useState('Hi {{name}}, we wanted to reach out to you about your membership.');
-  const [waSending, setWaSending] = useState(false);
-  const [waSentCount, setWaSentCount] = useState(0);
 
   // ── Load reference data ──
   useEffect(() => {
@@ -305,32 +297,13 @@ export default function TaskFilterResultsPage() {
   // ── WhatsApp Bulk Send ──
   const openWaModal = () => {
     if (!selectedSet.size) { toast.error('Select at least one member'); return; }
-    setWaSentCount(0);
     setWaOpen(true);
   };
 
-  const executeWhatsApp = async () => {
-    const selectedMembers = members.filter((m) => selectedSet.has(m._id));
-    if (!selectedMembers.length) return;
-    setWaSending(true);
-    setWaSentCount(0);
-    let sent = 0;
-    for (const member of selectedMembers) {
-      const phone = member.phones;
-      if (!phone || phone === 'hidden') continue;
-      const message = waTemplate.replace(/\{\{name\}\}/g, member.name || '');
-      try {
-        await sendWhatsAppMessage({ phone, message });
-        sent += 1;
-        setWaSentCount(sent);
-      } catch {
-        // skip failed
-      }
-    }
-    toast.success(`Sent WhatsApp to ${sent} member(s)`);
-    setWaSending(false);
-    setWaOpen(false);
-  };
+  const selectedMembers = useMemo(
+    () => members.filter((m) => selectedSet.has(m._id)),
+    [members, selectedSet]
+  );
 
   return (
     <Layout>
@@ -604,44 +577,11 @@ export default function TaskFilterResultsPage() {
       )}
 
       {/* ── WHATSAPP MODAL ── */}
-      {waOpen && (
-        <Modal
-          open={waOpen}
-          title={`Send WhatsApp to ${selectedSet.size} Member(s)`}
-          onClose={() => setWaOpen(false)}
-        >
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--t2)' }}>
-              Use <code>{'{{name}}'}</code> as a placeholder for the member's name.
-            </p>
-            <div>
-              <label style={labelStyle}>Message Template</label>
-              <textarea
-                value={waTemplate}
-                onChange={(e) => setWaTemplate(e.target.value)}
-                rows={5}
-                style={{
-                  width: '100%', padding: '10px 12px', borderRadius: 8,
-                  border: '1px solid var(--border)', background: 'var(--card)',
-                  color: 'var(--t1)', fontSize: 13, fontFamily: 'inherit',
-                  outline: 'none', resize: 'vertical',
-                }}
-              />
-            </div>
-            {waSending && (
-              <div style={{ fontSize: 13, color: 'var(--t2)' }}>
-                Sending… {waSentCount} / {selectedSet.size} sent
-              </div>
-            )}
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <Btn variant="outline" onClick={() => setWaOpen(false)} disabled={waSending}>Cancel</Btn>
-              <Btn variant="primary" onClick={executeWhatsApp} disabled={waSending || !waTemplate.trim()}>
-                {waSending ? <Spinner size="sm" /> : `Send to ${selectedSet.size} Members`}
-              </Btn>
-            </div>
-          </div>
-        </Modal>
-      )}
+      <BulkWhatsAppSendModal
+        open={waOpen}
+        onClose={() => setWaOpen(false)}
+        members={selectedMembers}
+      />
     </Layout>
   );
 }

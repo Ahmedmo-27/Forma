@@ -27,14 +27,104 @@ export function toWhatsAppUrl(phone, text, countryCode = '20') {
   return `https://wa.me/${digits}`;
 }
 
-/** Replace {{name}} and {{firstName}} with the member's full name. */
-export function applyWhatsAppPlaceholders(text, memberName) {
+function personName(value) {
+  if (!value) return '';
+  if (typeof value === 'object') return value.name || '';
+  return '';
+}
+
+function latestSubscription(member) {
+  const list = member?.subscriptions;
+  if (!Array.isArray(list) || !list.length) return null;
+  return list.reduce((latest, current) => {
+    if (!latest) return current;
+    const latestTime = latest.endDate
+      ? new Date(latest.endDate).getTime()
+      : (latest.startDate ? new Date(latest.startDate).getTime() : 0);
+    const currentTime = current.endDate
+      ? new Date(current.endDate).getTime()
+      : (current.startDate ? new Date(current.startDate).getTime() : 0);
+    return currentTime >= latestTime ? current : latest;
+  }, list[list.length - 1]);
+}
+
+function formatPlaceholderDate(value) {
+  if (!value) return '';
+  const formatted = new Date(value).toLocaleDateString('en-GB', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  });
+  return formatted === '—' ? '' : formatted;
+}
+
+/** Tokens available in bulk custom WhatsApp messages. */
+export const WHATSAPP_PLACEHOLDER_TOKENS = [
+  { token: '{{name}}', label: 'Name' },
+  { token: '{{firstName}}', label: 'First name' },
+  { token: '{{package}}', label: 'Package' },
+  { token: '{{startDate}}', label: 'Start date' },
+  { token: '{{endDate}}', label: 'End date' },
+  { token: '{{coach}}', label: 'Coach' },
+  { token: '{{salesman}}', label: 'Salesman' },
+];
+
+/**
+ * Build placeholder values from a member object or a plain name string.
+ * @param {object|string|null|undefined} memberOrName
+ */
+export function buildWhatsAppPlaceholderContext(memberOrName) {
+  if (memberOrName != null && typeof memberOrName === 'object') {
+    const rawName = String(memberOrName.name || '').trim();
+    const name = rawName || 'there';
+    const firstName = rawName ? (rawName.split(/\s+/)[0] || name) : 'there';
+    const sub = latestSubscription(memberOrName);
+    const assigned = memberOrName.assignedSales;
+    const salesman = (!assigned || assigned.role === 'Sales Manager')
+      ? ''
+      : personName(assigned);
+    return {
+      name,
+      firstName,
+      package: sub?.package?.name || '',
+      startDate: formatPlaceholderDate(sub?.startDate),
+      endDate: formatPlaceholderDate(sub?.endDate),
+      coach: personName(memberOrName.current_couch),
+      salesman,
+    };
+  }
+
+  const rawName = String(memberOrName || '').trim();
+  const name = rawName || 'there';
+  const firstName = rawName ? (rawName.split(/\s+/)[0] || name) : 'there';
+  return {
+    name,
+    firstName,
+    package: '',
+    startDate: '',
+    endDate: '',
+    coach: '',
+    salesman: '',
+  };
+}
+
+/**
+ * Replace {{name}}, {{firstName}}, {{package}}, {{startDate}}, {{endDate}},
+ * {{coach}}, and {{salesman}}. Second arg may be a member object or a name string
+ * (backward compatible with older callers).
+ */
+export function applyWhatsAppPlaceholders(text, memberOrName) {
   if (!text) return '';
-  const name = String(memberName || '').trim() || 'there';
+  const ctx = buildWhatsAppPlaceholderContext(memberOrName);
   return String(text)
     .replace(/\uFFFD/g, '')
-    .replace(/\{\{\s*name\s*\}\}/gi, name)
-    .replace(/\{\{\s*firstName\s*\}\}/gi, name);
+    .replace(/\{\{\s*name\s*\}\}/gi, ctx.name)
+    .replace(/\{\{\s*firstName\s*\}\}/gi, ctx.firstName)
+    .replace(/\{\{\s*package\s*\}\}/gi, ctx.package)
+    .replace(/\{\{\s*startDate\s*\}\}/gi, ctx.startDate)
+    .replace(/\{\{\s*endDate\s*\}\}/gi, ctx.endDate)
+    .replace(/\{\{\s*coach\s*\}\}/gi, ctx.coach)
+    .replace(/\{\{\s*salesman\s*\}\}/gi, ctx.salesman);
 }
 
 function formatPackageLine(pkg, currency = 'EGP') {
@@ -81,6 +171,7 @@ function filterSelectedPackages(packages, selectedPackageIds) {
  * @param {array} packages - full catalog
  * @param {object} [options]
  * @param {string} [options.memberName]
+ * @param {object} [options.member] - full member for richer placeholders
  * @param {string[]} [options.selectedPackageIds]
  * @param {number} [options.discountPercent] - for discounts type
  * @param {'en'|'ar'} [options.language]
@@ -95,8 +186,9 @@ export function composeWhatsAppTemplateMessage(template, packages = [], options 
   const bodyRaw = lang === 'ar'
     ? ((template.bodyTextAr || '').trim() || (template.bodyText || '').trim())
     : ((template.bodyText || '').trim());
-  const intro = applyWhatsAppPlaceholders(introRaw, options.memberName);
-  const body = applyWhatsAppPlaceholders(bodyRaw, options.memberName);
+  const placeholderSource = options.member || options.memberName;
+  const intro = applyWhatsAppPlaceholders(introRaw, placeholderSource);
+  const body = applyWhatsAppPlaceholders(bodyRaw, placeholderSource);
   const includeLive = template.includeLiveData !== false;
   const selected = filterSelectedPackages(packages, options.selectedPackageIds);
 
