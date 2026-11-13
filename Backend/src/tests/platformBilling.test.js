@@ -233,6 +233,9 @@ describe("Phase 4: Billing & Payments Operations", () => {
             };
 
             vi.spyOn(ManualPayment, "findById").mockResolvedValue(mockPayment);
+            vi.spyOn(Tenant, "findById").mockReturnValue({
+                select: vi.fn().mockResolvedValue(null),
+            });
 
             const req = {
                 params: { id: mockPayment._id.toString() },
