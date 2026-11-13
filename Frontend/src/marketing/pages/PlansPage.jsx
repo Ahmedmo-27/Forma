@@ -4,6 +4,7 @@ import { fetchPublicPlans } from "../api";
 import { SALES_MAILTO } from "../host";
 import MagneticButton from "../components/MagneticButton";
 import MarketingHelmet from "../components/MarketingHelmet";
+import { MarketingPlansSkeleton } from "../components/MarketingSkeleton";
 import { labelFeature } from "../data/featureLabels";
 import {
   buildDurationOptions,
@@ -208,7 +209,7 @@ export default function PlansPage() {
             </div>
           )}
 
-          {isLoading && <p className="marketing-alert">{p.loading}</p>}
+          {isLoading && <MarketingPlansSkeleton framed={false} />}
           {isError && (
             <p className="marketing-alert marketing-alert-error" role="alert">
               {error?.response?.data?.message || error?.message || p.error}

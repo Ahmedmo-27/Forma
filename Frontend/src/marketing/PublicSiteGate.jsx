@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import { fetchSiteConfig } from "./api";
 import ComingSoonPage from "./pages/ComingSoonPage";
 import { MarketingI18nProvider } from "./i18n";
+import { MarketingBootScreen } from "./components/MarketingSkeleton";
 
 /**
  * When public_site.published is false, only platform super_admin (preview cookie / token) may view marketing.
@@ -16,16 +17,7 @@ export default function PublicSiteGate() {
   });
 
   if (isLoading) {
-    return (
-      <MarketingI18nProvider>
-        <div
-          className="min-h-screen flex items-center justify-center"
-          style={{ background: "#142843", color: "#FCF3E2", fontFamily: "Outfit, Geist, system-ui, sans-serif" }}
-        >
-          Loading Forma…
-        </div>
-      </MarketingI18nProvider>
-    );
+    return <MarketingBootScreen />;
   }
 
   if (isError) {

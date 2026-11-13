@@ -11,6 +11,7 @@ import FeatureGate from './components/FeatureGate';
 import ErrorBoundary from './components/errors/ErrorBoundary';
 import GlobalErrorContainer from './components/errors/GlobalErrorContainer';
 import { isMarketingHost, shouldHardRedirectToApp } from './marketing/host';
+import { MarketingBootScreen, MarketingPageSkeleton } from './marketing/components/MarketingSkeleton';
 import { canEnterRoute, homePath } from './lib/routeAccess';
 import { TENANT_GUARDS } from './lib/tenantGuards';
 
@@ -190,15 +191,9 @@ function TenantAppRoutes() {
   );
 }
 
-function MarketingFallback() {
-  return (
-    <div
-      className="min-h-screen flex items-center justify-center"
-      style={{ background: '#FCF3E2', color: '#142843', fontFamily: 'Outfit, Geist, system-ui, sans-serif' }}
-    >
-      Loading Forma…
-    </div>
-  );
+function MarketingFallback({ variant }) {
+  if (variant) return <MarketingPageSkeleton variant={variant} />;
+  return <MarketingBootScreen />;
 }
 
 /** Auth pages must work on www and app (local VITE_SITE=www included). */
@@ -311,7 +306,7 @@ export default function App() {
                 <Route
                   index
                   element={
-                    <Suspense fallback={<MarketingFallback />}>
+                    <Suspense fallback={<MarketingFallback variant="home" />}>
                       <MarketingHomePage />
                     </Suspense>
                   }
@@ -319,7 +314,7 @@ export default function App() {
                 <Route
                   path="plans"
                   element={
-                    <Suspense fallback={<MarketingFallback />}>
+                    <Suspense fallback={<MarketingFallback variant="plans" />}>
                       <MarketingPlansPage />
                     </Suspense>
                   }
@@ -327,7 +322,7 @@ export default function App() {
                 <Route
                   path="why-forma"
                   element={
-                    <Suspense fallback={<MarketingFallback />}>
+                    <Suspense fallback={<MarketingFallback variant="article" />}>
                       <MarketingWhyFormaPage />
                     </Suspense>
                   }
@@ -335,7 +330,7 @@ export default function App() {
                 <Route
                   path="get-started"
                   element={
-                    <Suspense fallback={<MarketingFallback />}>
+                    <Suspense fallback={<MarketingFallback variant="form" />}>
                       <MarketingGetStartedPage />
                     </Suspense>
                   }
@@ -343,7 +338,7 @@ export default function App() {
                 <Route
                   path="gym-management-software-egypt"
                   element={
-                    <Suspense fallback={<MarketingFallback />}>
+                    <Suspense fallback={<MarketingFallback variant="article" />}>
                       <MarketingSolutionPage
                         solutionKey="egypt"
                         barePath="/gym-management-software-egypt"
@@ -354,7 +349,7 @@ export default function App() {
                 <Route
                   path="whatsapp-gym-crm"
                   element={
-                    <Suspense fallback={<MarketingFallback />}>
+                    <Suspense fallback={<MarketingFallback variant="article" />}>
                       <MarketingSolutionPage solutionKey="whatsapp" barePath="/whatsapp-gym-crm" />
                     </Suspense>
                   }
@@ -362,7 +357,7 @@ export default function App() {
                 <Route
                   path="multi-branch-gym-software"
                   element={
-                    <Suspense fallback={<MarketingFallback />}>
+                    <Suspense fallback={<MarketingFallback variant="article" />}>
                       <MarketingSolutionPage
                         solutionKey="multiBranch"
                         barePath="/multi-branch-gym-software"
@@ -373,7 +368,7 @@ export default function App() {
                 <Route
                   path="technology"
                   element={
-                    <Suspense fallback={<MarketingFallback />}>
+                    <Suspense fallback={<MarketingFallback variant="article" />}>
                       <MarketingTechnologyPage />
                     </Suspense>
                   }
@@ -381,7 +376,7 @@ export default function App() {
                 <Route
                   path="faq"
                   element={
-                    <Suspense fallback={<MarketingFallback />}>
+                    <Suspense fallback={<MarketingFallback variant="article" />}>
                       <MarketingFaqPage />
                     </Suspense>
                   }
@@ -389,7 +384,7 @@ export default function App() {
                 <Route
                   path="privacy"
                   element={
-                    <Suspense fallback={<MarketingFallback />}>
+                    <Suspense fallback={<MarketingFallback variant="article" />}>
                       <MarketingPolicyPage policyKey="privacy" />
                     </Suspense>
                   }
@@ -397,7 +392,7 @@ export default function App() {
                 <Route
                   path="terms"
                   element={
-                    <Suspense fallback={<MarketingFallback />}>
+                    <Suspense fallback={<MarketingFallback variant="article" />}>
                       <MarketingPolicyPage policyKey="terms" />
                     </Suspense>
                   }
@@ -405,7 +400,7 @@ export default function App() {
                 <Route
                   path="refunds"
                   element={
-                    <Suspense fallback={<MarketingFallback />}>
+                    <Suspense fallback={<MarketingFallback variant="article" />}>
                       <MarketingPolicyPage policyKey="refunds" />
                     </Suspense>
                   }
@@ -417,7 +412,7 @@ export default function App() {
                   <Route
                     index
                     element={
-                      <Suspense fallback={<MarketingFallback />}>
+                      <Suspense fallback={<MarketingFallback variant="home" />}>
                         <MarketingHomePage />
                       </Suspense>
                     }
@@ -425,7 +420,7 @@ export default function App() {
                   <Route
                     path="plans"
                     element={
-                      <Suspense fallback={<MarketingFallback />}>
+                      <Suspense fallback={<MarketingFallback variant="plans" />}>
                         <MarketingPlansPage />
                       </Suspense>
                     }
@@ -433,7 +428,7 @@ export default function App() {
                   <Route
                     path="why-forma"
                     element={
-                      <Suspense fallback={<MarketingFallback />}>
+                      <Suspense fallback={<MarketingFallback variant="article" />}>
                         <MarketingWhyFormaPage />
                       </Suspense>
                     }
@@ -441,7 +436,7 @@ export default function App() {
                   <Route
                     path="get-started"
                     element={
-                      <Suspense fallback={<MarketingFallback />}>
+                      <Suspense fallback={<MarketingFallback variant="form" />}>
                         <MarketingGetStartedPage />
                       </Suspense>
                     }
@@ -449,7 +444,7 @@ export default function App() {
                   <Route
                     path="gym-management-software-egypt"
                     element={
-                      <Suspense fallback={<MarketingFallback />}>
+                      <Suspense fallback={<MarketingFallback variant="article" />}>
                         <MarketingSolutionPage
                           solutionKey="egypt"
                           barePath="/gym-management-software-egypt"
@@ -460,7 +455,7 @@ export default function App() {
                   <Route
                     path="whatsapp-gym-crm"
                     element={
-                      <Suspense fallback={<MarketingFallback />}>
+                      <Suspense fallback={<MarketingFallback variant="article" />}>
                         <MarketingSolutionPage
                           solutionKey="whatsapp"
                           barePath="/whatsapp-gym-crm"
@@ -471,7 +466,7 @@ export default function App() {
                   <Route
                     path="multi-branch-gym-software"
                     element={
-                      <Suspense fallback={<MarketingFallback />}>
+                      <Suspense fallback={<MarketingFallback variant="article" />}>
                         <MarketingSolutionPage
                           solutionKey="multiBranch"
                           barePath="/multi-branch-gym-software"
@@ -482,7 +477,7 @@ export default function App() {
                   <Route
                     path="technology"
                     element={
-                      <Suspense fallback={<MarketingFallback />}>
+                      <Suspense fallback={<MarketingFallback variant="article" />}>
                         <MarketingTechnologyPage />
                       </Suspense>
                     }
@@ -490,7 +485,7 @@ export default function App() {
                   <Route
                     path="faq"
                     element={
-                      <Suspense fallback={<MarketingFallback />}>
+                      <Suspense fallback={<MarketingFallback variant="article" />}>
                         <MarketingFaqPage />
                       </Suspense>
                     }
@@ -498,7 +493,7 @@ export default function App() {
                   <Route
                     path="privacy"
                     element={
-                      <Suspense fallback={<MarketingFallback />}>
+                      <Suspense fallback={<MarketingFallback variant="article" />}>
                         <MarketingPolicyPage policyKey="privacy" />
                       </Suspense>
                     }
@@ -506,7 +501,7 @@ export default function App() {
                   <Route
                     path="terms"
                     element={
-                      <Suspense fallback={<MarketingFallback />}>
+                      <Suspense fallback={<MarketingFallback variant="article" />}>
                         <MarketingPolicyPage policyKey="terms" />
                       </Suspense>
                     }
@@ -514,7 +509,7 @@ export default function App() {
                   <Route
                     path="refunds"
                     element={
-                      <Suspense fallback={<MarketingFallback />}>
+                      <Suspense fallback={<MarketingFallback variant="article" />}>
                         <MarketingPolicyPage policyKey="refunds" />
                       </Suspense>
                     }

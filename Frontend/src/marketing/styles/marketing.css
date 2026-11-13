@@ -502,6 +502,7 @@
   box-shadow:
     0 18px 40px -20px rgba(0, 0, 0, 0.55),
     inset 0 0 0 3px color-mix(in srgb, var(--mkt-cream) 35%, transparent);
+  animation: mkt-disc-pulse 1.6s ease-in-out infinite;
 }
 
 /* Soft mid-page atmosphere washes (behind cream shells) */
@@ -1690,4 +1691,117 @@
 .marketing-policy-legal {
   color: var(--mkt-muted);
   font-size: 0.95rem;
+}
+
+/* Page and section loaders */
+.mkt-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.mkt-bone {
+  display: block;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--mkt-page-fg) 16%, transparent);
+  animation: mkt-pulse 1.4s ease-in-out infinite;
+}
+
+.mkt-bone-on-panel {
+  background: color-mix(in srgb, var(--mkt-panel-fg) 12%, var(--mkt-panel-bg));
+}
+
+.mkt-bone-btn {
+  border-radius: 10px;
+}
+
+.mkt-loader,
+.mkt-loader-fields {
+  position: relative;
+  pointer-events: none;
+}
+
+.marketing-boot {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: var(--mkt-navy);
+  color: var(--mkt-cream);
+}
+
+.marketing-boot-mark {
+  display: grid;
+  place-items: center;
+}
+
+.marketing-boot-word {
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--mkt-cream) 28%, transparent);
+}
+
+.mkt-loader-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.mkt-loader-rows {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.mkt-loader-field {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.mkt-loader-fields {
+  display: grid;
+  gap: 1rem;
+}
+
+.mkt-loader-pills {
+  display: inline-flex;
+  gap: 0.35rem;
+  padding: 0.35rem;
+  margin-bottom: 1.75rem;
+  border: 1px solid var(--mkt-border);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--mkt-panel-bg) 70%, #fff);
+}
+
+@keyframes mkt-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes mkt-disc-pulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: scale(0.96);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mkt-bone,
+  .marketing-boot-word,
+  .marketing-hero-3d-disc {
+    animation: none;
+  }
 }

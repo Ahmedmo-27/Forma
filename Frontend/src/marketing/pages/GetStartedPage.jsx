@@ -5,6 +5,7 @@ import { fetchPublicPlans, submitPublicSignup } from "../api";
 import { appOrigin, SALES_MAILTO, SALES_EMAIL } from "../host";
 import MagneticButton from "../components/MagneticButton";
 import MarketingHelmet from "../components/MarketingHelmet";
+import { MarketingFormSelectsSkeleton } from "../components/MarketingSkeleton";
 import {
   durationKey,
   formatDurationLabel,
@@ -29,7 +30,7 @@ export default function GetStartedPage() {
   const g = t.getStarted;
   const [params] = useSearchParams();
   const panelRef = useRef(null);
-  const { data: catalog } = useQuery({
+  const { data: catalog, isLoading: plansLoading } = useQuery({
     queryKey: ["public-plans"],
     queryFn: fetchPublicPlans,
     staleTime: 5 * 60 * 1000,
@@ -292,55 +293,61 @@ export default function GetStartedPage() {
                 />
               </div>
 
-              <div className="marketing-field">
-                <label htmlFor="plan-key">Plan</label>
-                <select
-                  id="plan-key"
-                  name="planKey"
-                  value={form.planKey}
-                  onChange={(e) => updateField("planKey", e.target.value)}
-                >
-                  {(planOptions.length ? planOptions : [{ key: "basic", name: "Basic" }]).map((p) => (
-                    <option key={p.key} value={p.key}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {plansLoading ? (
+                <MarketingFormSelectsSkeleton />
+              ) : (
+                <>
+                  <div className="marketing-field">
+                    <label htmlFor="plan-key">Plan</label>
+                    <select
+                      id="plan-key"
+                      name="planKey"
+                      value={form.planKey}
+                      onChange={(e) => updateField("planKey", e.target.value)}
+                    >
+                      {(planOptions.length ? planOptions : [{ key: "basic", name: "Basic" }]).map((p) => (
+                        <option key={p.key} value={p.key}>
+                          {p.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              <div className="marketing-field">
-                <label htmlFor="duration">Duration</label>
-                <select
-                  id="duration"
-                  name="duration"
-                  value={selectedDurationId}
-                  onChange={(e) => onDurationChange(e.target.value)}
-                >
-                  {(durationOptions.length
-                    ? durationOptions
-                    : [
-                        {
-                          id: "monthly:1",
-                          cycle: "monthly",
-                          intervalCount: 1,
-                          label: "1 month",
-                        },
-                      ]
-                  ).map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.amount != null
-                        ? `${d.label} — ${d.amount} ${d.currency || "EGP"}`
-                        : d.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+                  <div className="marketing-field">
+                    <label htmlFor="duration">Duration</label>
+                    <select
+                      id="duration"
+                      name="duration"
+                      value={selectedDurationId}
+                      onChange={(e) => onDurationChange(e.target.value)}
+                    >
+                      {(durationOptions.length
+                        ? durationOptions
+                        : [
+                            {
+                              id: "monthly:1",
+                              cycle: "monthly",
+                              intervalCount: 1,
+                              label: "1 month",
+                            },
+                          ]
+                      ).map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.amount != null
+                            ? `${d.label} — ${d.amount} ${d.currency || "EGP"}`
+                            : d.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
 
               <div className="marketing-cta-row">
                 <button
                   type="submit"
                   className="marketing-btn marketing-btn-primary"
-                  disabled={mutation.isPending}
+                  disabled={mutation.isPending || plansLoading}
                 >
                   {mutation.isPending ? "Submitting…" : "Create workspace"}
                 </button>
