@@ -138,6 +138,7 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
 
             expect(AuditLog.create).toHaveBeenCalledWith(
                 expect.objectContaining({
+                    tenantId: mockTenant._id,
                     action: "tenant_status_updated",
                     actor: adminUser.id,
                 })
@@ -153,6 +154,66 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
             );
             const stored = PasswordSetupToken.create.mock.calls[0][0];
             expect(stored.tokenHash).not.toBe(res.json.mock.calls[0][0].invite.inviteToken);
+        });
+
+        it("still returns 201 + invite when AuditLog.create fails (QA F01)", async () => {
+            const mockPlan = {
+                _id: new mongoose.Types.ObjectId(),
+                key: "gold",
+                name: "Gold Plan",
+            };
+            const mockTenant = {
+                _id: new mongoose.Types.ObjectId(),
+                name: "Audit Fail Gym",
+                slug: "audit-fail-gym",
+                status: "trial",
+                billing: { cycle: "monthly" },
+                save: vi.fn().mockResolvedValue(true),
+            };
+            const mockOwner = {
+                _id: new mongoose.Types.ObjectId(),
+                name: "Owner",
+                email: "owner@auditfail.com",
+            };
+
+            vi.spyOn(Tenant, "findOne").mockResolvedValue(null);
+            vi.spyOn(Plan, "findOne").mockResolvedValue(mockPlan);
+            vi.spyOn(User, "findOne").mockResolvedValue(null);
+            vi.spyOn(Tenant, "create").mockResolvedValue(mockTenant);
+            vi.spyOn(User, "create").mockResolvedValue(mockOwner);
+            vi.spyOn(AuditLog, "create").mockRejectedValue(
+                new Error("AuditLog validation failed: tenantId: Path `tenantId` is required.")
+            );
+            vi.spyOn(PasswordSetupToken, "updateMany").mockResolvedValue({});
+            vi.spyOn(PasswordSetupToken, "create").mockResolvedValue({});
+            vi.spyOn(mailer, "sendInvite").mockResolvedValue({ skipped: true });
+
+            const req = {
+                body: {
+                    name: "Audit Fail Gym",
+                    slug: "audit-fail-gym",
+                    ownerName: "Owner",
+                    ownerEmail: "owner@auditfail.com",
+                    planKey: "gold",
+                },
+                platformUser: adminUser,
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await onboardTenant(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(201);
+            expect(res.json).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    invite: expect.objectContaining({
+                        inviteToken: expect.any(String),
+                        inviteUrl: expect.stringContaining("/auth/setup-password?token="),
+                    }),
+                })
+            );
         });
     });
 

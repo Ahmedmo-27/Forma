@@ -22,12 +22,15 @@ In this architecture, each gym operates as an isolated subscriber ("tenant") wit
 - **Rule of Engagement:** The system **never** trusts `tenantId` passed in request bodies, query strings, or URL parameters for queries. It is established exclusively by the authentication middleware and stored in Node.js `AsyncLocalStorage` (`tenantContext.js`).
 
 ### 2.2 Schema-Level Mongoose Plugin (`tenantPlugin.js`)
-All tenant-owned models apply `tenantPlugin`:
+All tenant-owned models apply `tenantPlugin` (including `Counter`, `Invoice`, `ManualPayment`, `TenantUsage`):
 1. **Required Schema Attribute:** Automatically injects `{ tenantId: { type: ObjectId, ref: 'Tenant', required: true, index: true } }`.
-2. **Read Scoping:** Injects `{ tenantId }` into query conditions for `find`, `findOne`, `findOneAndUpdate`, `updateOne`, `updateMany`, `deleteOne`, `deleteMany`, and `countDocuments`.
+2. **Read Scoping:** Injects `{ tenantId }` into query conditions for `find`, `findOne`, `findOneAndUpdate`, `updateOne`, `updateMany`, `deleteOne`, `deleteMany`, `countDocuments`, and `distinct`.
 3. **Aggregation Scoping:** Intercepts `aggregate()` and prepends a `$match: { tenantId }` stage to the pipeline.
 4. **Creation Stamping:** Automatically stamps `tenantId` in `pre('save')` and `insertMany` hooks.
-5. **Fail-Closed Protection:** If any tenant-scoped model query executes without an active tenant context, `tenantPlugin` **throws a `TenantContextMissingError` immediately**, preventing accidental global execution or data exposure.
+5. **bulkWrite Scoping:** Overrides `Model.bulkWrite` to inject `tenantId` into every op filter/document (Mongoose does not run query middleware on `bulkWrite`).
+6. **Fail-Closed Protection:** If any tenant-scoped model query executes without an active tenant context, `tenantPlugin` **throws a `TenantContextMissingError` immediately**, preventing accidental global execution or data exposure.
+
+**Intentional exception:** `PasswordSetupToken` has **no** `tenantPlugin` because public invite/reset redeem must look up the token by hash before a tenant ALS context exists. `passwordSetupService.issueToken` requires `tenantId` explicitly.
 
 ### 2.3 Platform Admin Escape Hatch (`runAsPlatform`)
 - Platform-level tasks (such as background cron workers, cross-tenant system metrics, and seed scripts) execute inside `runAsPlatform(fn)`.
@@ -98,6 +101,7 @@ Human-readable incremental IDs (`systemId`, `memberId`, `contractNumber`) are ge
 | `packages` | ✅ | ✅ | ✅ |
 | `pt_tracking` | ✅ | ✅ | ✅ |
 | `audit` | ✅ | ✅ | ✅ |
+| `multi_branches` | ❌ | ✅ | ✅ |
 | `accounting` | ❌ | ✅ | ✅ |
 | `exception_approvals` | ❌ | ✅ | ✅ |
 | `sales_crm` | ❌ | ✅ | ✅ |
@@ -116,6 +120,30 @@ Human-readable incremental IDs (`systemId`, `memberId`, `contractNumber`) are ge
 On plans lacking an `Accountant` role (e.g. Basic), the `Owner` is authorized to view, review, and approve `PackageExceptionRequest`s.
 
 ---
+
+## 5.1 Multi-Branch Locations (`Location` + `multi_branches`)
+
+Branches are gym **locations**, not git branches. Model: `Backend/src/models/Location.js` (tenant-scoped).
+
+| Concern | Behavior |
+|---|---|
+| Feature gate | `multi_branches` on Gold/Platinum (`ensureMultiBranches.js`). Basic = one location. |
+| Quota | `createLocation` enforces `getEffectiveLimits().maxBranches`. |
+| Request scope | Frontend sends `X-Location-Id` (`all` or ObjectId). Middleware `locationScopeOptional` sets `req.locationFilter`. |
+| Staff grants | `User.allowedLocationIds` / `canAccessAllLocations`; tenant `roleLocationAccess` defaults. |
+| Grant default | **Empty personal + role grants = all locations** (product decision). Owner always bypasses. |
+| Member home | `Member.locationId` (required in practice via create + `migrateLocations`). |
+| Tenant-wide by design | WhatsApp sessions/templates and notifications are **not** branch-scoped. |
+| Isolation style | Application-level (controllers merge `req.locationFilter`) — not a fail-closed plugin like tenants. |
+
+Shared hosting uses one SPA + one API host; the gym **slug** is a login code, not a DNS name. Per-tenant vanity subdomains are a future phase (`BASE_DOMAIN` only). See [DOMAIN_NETWORKING.md](./DOMAIN_NETWORKING.md).
+
+### Production hosting checklist
+1. Object storage (`STORAGE_DRIVER=r2` / S3) — local disk is ephemeral on Railway/Render.
+2. Run `npm --prefix Backend run migrate:locations` once per environment (Main branch + member backfill).
+3. Confirm Gold/Platinum plan documents include `multi_branches` (`ensureMultiBranchesOnPlans` also backfills).
+4. CI runs `npm run test:isolation` (tenant plugin, isolation property tests, location wiring).
+5. Platform onboard returns **201 + invite** even if audit write fails; Main location is bootstrapped on onboard.
 
 ## 6. File Storage & PII Partitioning
 - Uploaded member photos, IDs, contract files, and logos are organized into isolated directories:

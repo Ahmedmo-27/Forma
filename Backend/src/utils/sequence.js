@@ -1,6 +1,17 @@
 const mongoose = require("mongoose");
 const Counter = require("../models/Counter");
-const { getTenantId } = require("../context/tenantContext");
+const { getTenantId, isPlatformContext, runWithTenant } = require("../context/tenantContext");
+
+/**
+ * Run Counter ops under a tenant ALS store when the caller only passed an override
+ * (migrations / platform) so tenantPlugin does not throw.
+ */
+async function withSequenceTenant(tenantId, fn) {
+    if (!isPlatformContext() && String(getTenantId() || "") === String(tenantId)) {
+        return fn();
+    }
+    return runWithTenant({ tenantId: String(tenantId) }, fn);
+}
 
 /**
  * Atomically increment and return the next per-tenant sequence number.
@@ -19,24 +30,26 @@ async function nextSequence(name, startingFloor = 100, tenantIdOverride = null) 
         );
     }
 
-    const tenantObjId = new mongoose.Types.ObjectId(tenantId);
+    return withSequenceTenant(tenantId, async () => {
+        const tenantObjId = new mongoose.Types.ObjectId(tenantId);
 
-    const doc = await Counter.findOneAndUpdate(
-        { tenantId: tenantObjId, name },
-        { $inc: { seq: 1 } },
-        { new: true, upsert: true }
-    );
-
-    if (doc.seq < startingFloor) {
-        const adjusted = await Counter.findOneAndUpdate(
-            { tenantId: tenantObjId, name, seq: { $lt: startingFloor } },
-            { $set: { seq: startingFloor } },
-            { new: true }
+        const doc = await Counter.findOneAndUpdate(
+            { tenantId: tenantObjId, name },
+            { $inc: { seq: 1 } },
+            { new: true, upsert: true }
         );
-        return adjusted ? adjusted.seq : doc.seq;
-    }
 
-    return doc.seq;
+        if (doc.seq < startingFloor) {
+            const adjusted = await Counter.findOneAndUpdate(
+                { tenantId: tenantObjId, name, seq: { $lt: startingFloor } },
+                { $set: { seq: startingFloor } },
+                { new: true }
+            );
+            return adjusted ? adjusted.seq : doc.seq;
+        }
+
+        return doc.seq;
+    });
 }
 
 /**
@@ -104,23 +117,25 @@ async function reserveSystemIds(count, floor = 100, tenantIdOverride = null) {
         throw new Error("Cannot reserve an empty block of system ids");
     }
 
-    const tenantObjId = new mongoose.Types.ObjectId(tenantId);
-    const doc = await Counter.findOneAndUpdate(
-        { tenantId: tenantObjId, name: "systemId" },
-        { $inc: { seq: size } },
-        { new: true, upsert: true }
-    );
-
-    let end = doc.seq;
-    if (end - size + 1 < floor) {
-        end = floor + size - 1;
-        await Counter.updateOne(
+    return withSequenceTenant(tenantId, async () => {
+        const tenantObjId = new mongoose.Types.ObjectId(tenantId);
+        const doc = await Counter.findOneAndUpdate(
             { tenantId: tenantObjId, name: "systemId" },
-            { $set: { seq: end } }
+            { $inc: { seq: size } },
+            { new: true, upsert: true }
         );
-    }
 
-    return { start: end - size + 1, end };
+        let end = doc.seq;
+        if (end - size + 1 < floor) {
+            end = floor + size - 1;
+            await Counter.updateOne(
+                { tenantId: tenantObjId, name: "systemId" },
+                { $set: { seq: end } }
+            );
+        }
+
+        return { start: end - size + 1, end };
+    });
 }
 
 module.exports = {

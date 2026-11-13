@@ -28,10 +28,16 @@ function absoluteUrl(token, email) {
  * Returns the raw token (only available at issue time).
  */
 async function issueToken({ userId, tenantId, email, purpose, hours }) {
+    if (!userId || !tenantId || !email || !purpose) {
+        throw new Error("issueToken requires userId, tenantId, email, and purpose");
+    }
+
     const token = crypto.randomBytes(32).toString("hex");
     const ttlHours = hours || (purpose === "reset" ? RESET_HOURS : INVITE_HOURS);
     const expiresAt = new Date(Date.now() + ttlHours * 60 * 60 * 1000);
 
+    // PasswordSetupToken intentionally has no tenantPlugin (public redeem before ALS exists).
+    // Always stamp tenantId explicitly and scope invalidation by userId.
     await PasswordSetupToken.updateMany(
         { userId, purpose, usedAt: null },
         { $set: { usedAt: new Date() } }

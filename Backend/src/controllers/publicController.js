@@ -254,16 +254,34 @@ async function publicSignup(req, res) {
             const temporaryPassword = crypto.randomBytes(16).toString("hex") + "A1!";
             const passwordHash = await hashPassword(temporaryPassword);
 
-            const ownerUser = await User.create({
-                tenantId: tenant._id,
-                name: String(ownerName).trim(),
-                email: normalizedEmail,
-                password: passwordHash,
-                role: "Owner",
-            });
+            const ownerUser = await tenantContext.runWithTenant(
+                { tenantId: String(tenant._id), tenantSlug: tenant.slug },
+                async () => User.create({
+                    tenantId: tenant._id,
+                    name: String(ownerName).trim(),
+                    email: normalizedEmail,
+                    password: passwordHash,
+                    role: "Owner",
+                    canAccessAllLocations: true,
+                    allowedLocationIds: [],
+                })
+            );
 
             tenant.ownerUserId = ownerUser._id;
             await tenant.save();
+
+            try {
+                const { ensureMainLocation } = require("./locationController");
+                await tenantContext.runWithTenant(
+                    { tenantId: String(tenant._id), tenantSlug: tenant.slug },
+                    () => ensureMainLocation(tenant._id)
+                );
+            } catch (locErr) {
+                logger.warn("public", "Main location bootstrap failed during signup", {
+                    tenantId: String(tenant._id),
+                    error: locErr.message,
+                });
+            }
 
             const issued = await passwordSetup.issueToken({
                 userId: ownerUser._id,
@@ -312,23 +330,30 @@ async function publicSignup(req, res) {
                 notes: "Created via public signup",
             });
 
-            await AuditLog.create({
-                tenantId: tenant._id,
-                action: "tenant_status_updated",
-                actor: ownerUser._id.toString(),
-                actorRole: "Owner",
-                targetType: "tenant",
-                targetId: tenant._id.toString(),
-                meta: {
-                    action: "tenant_onboarded",
-                    source: "public_signup",
-                    tenantName: tenant.name,
-                    slug: tenant.slug,
-                    ownerEmail: ownerUser.email,
-                    planKey: plan.key,
-                    cycle,
-                },
-            });
+            try {
+                await AuditLog.create({
+                    tenantId: tenant._id,
+                    action: "tenant_status_updated",
+                    actor: ownerUser._id.toString(),
+                    actorRole: "Owner",
+                    targetType: "tenant",
+                    targetId: tenant._id.toString(),
+                    meta: {
+                        action: "tenant_onboarded",
+                        source: "public_signup",
+                        tenantName: tenant.name,
+                        slug: tenant.slug,
+                        ownerEmail: ownerUser.email,
+                        planKey: plan.key,
+                        cycle,
+                    },
+                });
+            } catch (auditErr) {
+                logger.error("public", "signup audit failed (response still returned)", {
+                    tenantId: String(tenant._id),
+                    error: auditErr.message,
+                });
+            }
 
             return {
                 tenant: {

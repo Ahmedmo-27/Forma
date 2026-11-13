@@ -2,6 +2,7 @@ const PlatformCounter = require("../models/PlatformCounter");
 const Invoice = require("../models/Invoice");
 const PlatformSetting = require("../models/PlatformSetting");
 const { BILLING_CURRENCY } = require("../config/currency");
+const { runAsPlatform, isPlatformContext } = require("../context/tenantContext");
 
 /**
  * Atomically generates the next sequential platform invoice number.
@@ -44,7 +45,7 @@ async function createInvoiceForPayment({
         supportEmail: storedSeller.supportEmail || storedSeller.billingEmail || "billing@forma.app",
     };
 
-    const invoice = await Invoice.create({
+    const payload = {
         invoiceNumber,
         tenantId: tenant._id,
         billingEventId,
@@ -63,7 +64,12 @@ async function createInvoiceForPayment({
         },
         status: "paid",
         issuedAt: new Date(),
-    });
+    };
+
+    // Invoice uses tenantPlugin; platform billing may call this outside ALS.
+    const invoice = isPlatformContext()
+        ? await Invoice.create(payload)
+        : await runAsPlatform(() => Invoice.create(payload), { reason: "create_invoice" });
 
     return invoice;
 }

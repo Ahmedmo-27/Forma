@@ -19,7 +19,9 @@
     "migrate:indexes": "node src/scripts/migrateIndexes.js",
     "migrate:uploads": "node src/scripts/migrateUploads.js",
     "migrate:currency": "node src/scripts/normalizeCurrencyToEgp.js",
+    "migrate:locations": "node src/scripts/migrateLocations.js",
     "migrate:assign-sales-manager": "node src/scripts/migrateAssignUnassignedMembersToSalesManager.js",
+    "test:isolation": "vitest --run src/plugins/tenantPlugin.test.js src/tests/isolationProperty.test.js src/tests/multitenancy.test.js src/tests/locationScope.test.js src/tests/locationScopeWiring.test.js src/tests/userLocationAccess.test.js",
     "clean:photos": "node src/scripts/cleanMissingPhotos.js"
   },
   "keywords": [],

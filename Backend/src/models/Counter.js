@@ -1,13 +1,9 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 
 const counterSchema = new mongoose.Schema(
     {
-        tenantId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Tenant",
-            required: true,
-            index: true,
-        },
+        // tenantId injected by tenantPlugin; also declared for clarity / indexes
         name: {
             type: String,
             required: true,
@@ -22,7 +18,9 @@ const counterSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+counterSchema.plugin(tenantPlugin);
+
 // Compound unique index ensuring per-tenant isolated sequence numbering
 counterSchema.index({ tenantId: 1, name: 1 }, { unique: true });
 
-module.exports = mongoose.model("Counter", counterSchema);
+module.exports = mongoose.models.Counter || mongoose.model("Counter", counterSchema);

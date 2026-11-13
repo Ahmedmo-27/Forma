@@ -7,7 +7,7 @@ const AuditLog = require("../models/AuditLog");
 const BillingEvent = require("../models/BillingEvent");
 const TenantNote = require("../models/TenantNote");
 const { getEffectiveFeatures, getEffectiveLimits, getEffectiveRoles } = require("../models/Tenant");
-const { runAsPlatform } = require("../context/tenantContext");
+const { runAsPlatform, runWithTenant } = require("../context/tenantContext");
 const storageService = require("../services/storageService");
 const { normalizeEmail, hashPassword } = require("../utils/passwordUtils");
 const passwordSetup = require("../services/passwordSetupService");
@@ -397,18 +397,37 @@ async function onboardTenant(req, res) {
         const temporaryPassword = crypto.randomBytes(16).toString("hex") + "A1!";
         const passwordHash = await hashPassword(temporaryPassword);
 
-        // Create Owner User
-        const ownerUser = await User.create({
-            tenantId: tenant._id,
-            name: ownerName.trim(),
-            email: normalizedEmail,
-            password: passwordHash,
-            role: "Owner",
-        });
+        // Create Owner User inside tenant context so tenantPlugin stamps correctly
+        const ownerUser = await runWithTenant(
+            { tenantId: String(tenant._id), tenantSlug: tenant.slug },
+            async () => User.create({
+                tenantId: tenant._id,
+                name: ownerName.trim(),
+                email: normalizedEmail,
+                password: passwordHash,
+                role: "Owner",
+                canAccessAllLocations: true,
+                allowedLocationIds: [],
+            })
+        );
 
         // Attach owner to tenant
         tenant.ownerUserId = ownerUser._id;
         await tenant.save();
+
+        // Bootstrap Main branch so members always have a home location
+        try {
+            const { ensureMainLocation } = require("./locationController");
+            await runWithTenant(
+                { tenantId: String(tenant._id), tenantSlug: tenant.slug },
+                () => ensureMainLocation(tenant._id)
+            );
+        } catch (locErr) {
+            logger.warn("platform", "Main location bootstrap failed during onboard", {
+                tenantId: String(tenant._id),
+                error: locErr.message,
+            });
+        }
 
         // One-time invite token (72h). Raw token is emailed and returned once; only the hash is stored.
         const issued = await passwordSetup.issueToken({
@@ -450,24 +469,31 @@ async function onboardTenant(req, res) {
             });
         }
 
-        // Write AuditLog (tenantId required by tenantPlugin even under runAsPlatform)
-        await AuditLog.create({
-            tenantId: tenant._id,
-            action: "tenant_status_updated",
-            actor: req.platformUser.id,
-            actorRole: "PlatformUser",
-            targetType: "tenant",
-            targetId: tenant._id.toString(),
-            meta: {
-                action: "tenant_onboarded",
-                tenantName: tenant.name,
-                slug: tenant.slug,
-                ownerEmail: ownerUser.email,
-                planKey: plan.key,
-                cycle: tenant.billing.cycle,
-                onboardedBy: req.platformUser.email,
-            },
-        });
+        // Audit must never drop the invite response (QA F01)
+        try {
+            await AuditLog.create({
+                tenantId: tenant._id,
+                action: "tenant_status_updated",
+                actor: req.platformUser.id,
+                actorRole: "PlatformUser",
+                targetType: "tenant",
+                targetId: tenant._id.toString(),
+                meta: {
+                    action: "tenant_onboarded",
+                    tenantName: tenant.name,
+                    slug: tenant.slug,
+                    ownerEmail: ownerUser.email,
+                    planKey: plan.key,
+                    cycle: tenant.billing.cycle,
+                    onboardedBy: req.platformUser.email,
+                },
+            });
+        } catch (auditErr) {
+            logger.error("platform", "onboardTenant audit failed (invite still returned)", {
+                tenantId: String(tenant._id),
+                error: auditErr.message,
+            });
+        }
 
         res.status(201).json({
             message: "Tenant onboarded successfully",

@@ -35,6 +35,9 @@ const auditLogSchema = new mongoose.Schema({
             "entitlement_policy_updated",
             "bi_exported",
             "platform_analytics_exported",
+            "location_created",
+            "location_updated",
+            "location_deleted",
         ],
     },
     actor: {
@@ -45,7 +48,7 @@ const auditLogSchema = new mongoose.Schema({
     actorRole: { type: String, default: null },
     targetType: {
         type: String,
-        enum: ["member", "user", "package_exception", "upload", "tenant", "plan", "other"],
+        enum: ["member", "user", "package_exception", "upload", "tenant", "plan", "location", "other"],
         default: "other",
     },
     targetId: { type: String, default: null },

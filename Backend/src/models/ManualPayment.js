@@ -1,14 +1,13 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 const { enforceEgpCurrency } = require("./forceEgp");
 
+/**
+ * Manual bank-transfer payment proofs. Created under runAsPlatform during
+ * public signup / platform review; tenantId always set explicitly.
+ */
 const manualPaymentSchema = new mongoose.Schema(
     {
-        tenantId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Tenant",
-            required: true,
-            index: true,
-        },
         paymentRef: {
             type: String,
             required: true,
@@ -69,11 +68,8 @@ const manualPaymentSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+manualPaymentSchema.plugin(tenantPlugin);
 manualPaymentSchema.index({ status: 1, createdAt: -1 });
 enforceEgpCurrency(manualPaymentSchema);
 
-try {
-    module.exports = mongoose.model("ManualPayment");
-} catch (_) {
-    module.exports = mongoose.model("ManualPayment", manualPaymentSchema);
-}
+module.exports = mongoose.models.ManualPayment || mongoose.model("ManualPayment", manualPaymentSchema);

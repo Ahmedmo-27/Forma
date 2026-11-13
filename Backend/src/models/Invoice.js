@@ -1,18 +1,17 @@
 const mongoose = require("mongoose");
+const tenantPlugin = require("../plugins/tenantPlugin");
 const { enforceEgpCurrency } = require("./forceEgp");
 
+/**
+ * Platform billing invoices. Always carry explicit tenantId.
+ * Create/list from runAsPlatform (or runWithTenant for tenant self-serve).
+ */
 const invoiceSchema = new mongoose.Schema(
     {
         invoiceNumber: {
             type: String,
             required: true,
             unique: true,
-            index: true,
-        },
-        tenantId: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: "Tenant",
-            required: true,
             index: true,
         },
         billingEventId: {
@@ -71,10 +70,7 @@ const invoiceSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
+invoiceSchema.plugin(tenantPlugin);
 enforceEgpCurrency(invoiceSchema);
 
-try {
-    module.exports = mongoose.model("Invoice");
-} catch (_) {
-    module.exports = mongoose.model("Invoice", invoiceSchema);
-}
+module.exports = mongoose.models.Invoice || mongoose.model("Invoice", invoiceSchema);

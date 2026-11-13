@@ -33,8 +33,9 @@ function resolveAllowedLocationIds(user, tenant) {
         return toIdStrings(roleDefaults);
     }
 
-    // Access Control treats empty / missing role defaults as "all locations".
-    // Returning [] here made every list use locationId:$in:[] → Sales Manager saw 0 members.
+    // PRODUCT DECISION (keep): empty personal + role grants = all locations in the tenant.
+    // Restricted-until-granted would return [] and break Sales Manager / Call Center lists
+    // until Access Control is configured. Owners still force-bypass via userHasAllLocations.
     return null;
 }
 

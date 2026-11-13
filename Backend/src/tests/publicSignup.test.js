@@ -12,10 +12,17 @@ import * as paymentAdapter from "../services/billing/paymentAdapter";
 import * as tenantContext from "../context/tenantContext";
 import { listPublicPlans, publicSignup } from "../controllers/publicController";
 
+const publicSiteService = require("../services/publicSiteService");
+
 describe("Public plans + signup", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
-        vi.spyOn(tenantContext, "runAsPlatform").mockImplementation((fn) => fn());
+        // Keep real ALS (runAsPlatform / runWithTenant) so tenantPlugin models work.
+        // Spy the same CJS export object the controller requires.
+        vi.spyOn(publicSiteService, "getPublicSiteSetting").mockResolvedValue({
+            published: true,
+            message: "",
+        });
     });
 
     function mockRes() {

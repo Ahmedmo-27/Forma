@@ -2,8 +2,9 @@ const mongoose = require("mongoose");
 
 /**
  * One-time password setup / reset tokens.
- * Not tenant-scoped: public redeem must look the token up before a tenant context exists.
- * Only the SHA-256 hash is stored.
+ * Intentionally WITHOUT tenantPlugin: public redeem must look the token up by hash
+ * before a tenant AsyncLocalStorage context exists. Always set tenantId via
+ * passwordSetupService.issueToken (required). Only the SHA-256 hash is stored.
  */
 const passwordSetupTokenSchema = new mongoose.Schema(
     {

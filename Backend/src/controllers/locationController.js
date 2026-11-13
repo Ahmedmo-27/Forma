@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Location = require("../models/Location");
 const Member = require("../models/Member");
 const TenantUsage = require("../models/TenantUsage");
@@ -20,10 +21,13 @@ async function syncBranchCount(tenantId) {
     await runAsPlatform(async () => {
         await TenantUsage.findOneAndUpdate(
             { tenantId },
-            { $set: { branchCount: count, refreshedAt: new Date() } },
+            {
+                $set: { branchCount: count, refreshedAt: new Date() },
+                $setOnInsert: { tenantId },
+            },
             { upsert: true }
         );
-    });
+    }, { reason: "sync_branch_count" });
     return count;
 }
 
@@ -218,6 +222,13 @@ const deleteLocation = async (req, res) => {
  * and as a safety net when listing.
  */
 async function ensureMainLocation(tenantId) {
+    // Unit tests / cold start without Mongo: fail fast instead of 10s buffer timeout
+    if (mongoose.connection.readyState !== 1) {
+        const err = new Error("MongoDB is not connected; cannot ensure Main location");
+        err.code = "DB_NOT_CONNECTED";
+        throw err;
+    }
+
     const existing = await Location.findOne({}).sort({ createdAt: 1 });
     if (existing) return existing;
 

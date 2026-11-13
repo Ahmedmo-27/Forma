@@ -148,4 +148,45 @@ describe("Phase 2: Tenant Context & Mongoose Plugin", () => {
             expect(docs[1].tenantId.toString()).toBe(tenantId);
         });
     });
+
+    describe("tenantPlugin distinct + bulkWrite scoping", () => {
+        const distinctHook = testSchema.s.hooks._pres.get("distinct")?.[0]?.fn;
+
+        it("registers a distinct pre-hook that injects tenantId", () => {
+            expect(typeof distinctHook).toBe("function");
+            const tenantId = new mongoose.Types.ObjectId().toString();
+            const mockQuery = { where: vi.fn() };
+            runWithTenant({ tenantId }, () => {
+                distinctHook.call(mockQuery);
+            });
+            expect(mockQuery.where).toHaveBeenCalledWith({
+                tenantId: new mongoose.Types.ObjectId(tenantId),
+            });
+        });
+
+        it("scopeBulkWriteOps injects tenantId into updateOne filters", () => {
+            const tenantId = new mongoose.Types.ObjectId().toString();
+            const scoped = tenantPlugin.scopeBulkWriteOps(
+                [{ updateOne: { filter: { _id: "abc" }, update: { $set: { name: "x" } } } }],
+                tenantId
+            );
+            expect(String(scoped[0].updateOne.filter.tenantId)).toBe(tenantId);
+            expect(String(scoped[0].updateOne.filter._id)).toBe("abc");
+        });
+
+        it("scopeBulkWriteOps stamps insertOne documents", () => {
+            const tenantId = new mongoose.Types.ObjectId().toString();
+            const scoped = tenantPlugin.scopeBulkWriteOps(
+                [{ insertOne: { document: { name: "new" } } }],
+                tenantId
+            );
+            expect(String(scoped[0].insertOne.document.tenantId)).toBe(tenantId);
+        });
+
+        it("throws TenantContextMissingError for bulkWrite without context", () => {
+            expect(() => {
+                TestModel.bulkWrite([{ updateOne: { filter: {}, update: { $set: { name: "x" } } } }]);
+            }).toThrow(/TenantContextMissingError/);
+        });
+    });
 });

@@ -2,16 +2,72 @@ const mongoose = require("mongoose");
 const { getTenantId, isPlatformContext } = require("../context/tenantContext");
 
 /**
+ * Inject tenantId into every bulkWrite operation filter/document.
+ * Throws if a document tenantId conflicts with the active context.
+ */
+function scopeBulkWriteOps(ops, tenantId) {
+    const tenantObjId = new mongoose.Types.ObjectId(tenantId);
+    if (!Array.isArray(ops)) {
+        throw new Error("TenantIsolationViolationError: bulkWrite ops must be an array.");
+    }
+
+    return ops.map((op) => {
+        if (!op || typeof op !== "object") {
+            throw new Error("TenantIsolationViolationError: invalid bulkWrite operation.");
+        }
+
+        const keyed = { ...op };
+
+        if (keyed.insertOne?.document) {
+            const doc = { ...keyed.insertOne.document };
+            if (!doc.tenantId) {
+                doc.tenantId = tenantObjId;
+            } else if (String(doc.tenantId) !== String(tenantId)) {
+                throw new Error(
+                    "TenantIsolationViolationError: bulkWrite insertOne tenantId mismatch."
+                );
+            }
+            keyed.insertOne = { ...keyed.insertOne, document: doc };
+            return keyed;
+        }
+
+        for (const key of ["updateOne", "updateMany", "replaceOne", "deleteOne", "deleteMany"]) {
+            if (!keyed[key]) continue;
+            const body = { ...keyed[key] };
+            body.filter = { ...(body.filter || {}), tenantId: tenantObjId };
+            if (key === "replaceOne" && body.replacement) {
+                const replacement = { ...body.replacement };
+                if (!replacement.tenantId) {
+                    replacement.tenantId = tenantObjId;
+                } else if (String(replacement.tenantId) !== String(tenantId)) {
+                    throw new Error(
+                        "TenantIsolationViolationError: bulkWrite replaceOne tenantId mismatch."
+                    );
+                }
+                body.replacement = replacement;
+            }
+            keyed[key] = body;
+            return keyed;
+        }
+
+        throw new Error(
+            "TenantIsolationViolationError: unsupported bulkWrite operation under tenant context."
+        );
+    });
+}
+
+/**
  * Mongoose plugin providing strict multi-tenant isolation.
  *
  * Guarantees:
  * 1. Adds tenantId: { type: ObjectId, ref: 'Tenant', required: true, index: true }
- * 2. Auto-injects tenantId into all query filters (find, findOne, update, delete, count)
+ * 2. Auto-injects tenantId into all query filters (find, findOne, update, delete, count, distinct)
  * 3. Auto-injects { $match: { tenantId } } at the beginning of all aggregation pipelines
  * 4. Auto-stamps tenantId on document save and insertMany
- * 5. THROWS TenantContextMissingError if an operation is executed without an active
+ * 5. Scopes bulkWrite filters/documents to the active tenant (Model.bulkWrite override)
+ * 6. THROWS TenantContextMissingError if an operation is executed without an active
  *    tenant context, preventing accidental cross-tenant data leakage or unscoped mutations.
- * 6. Supports explicit runAsPlatform(fn) bypass for platform administration and migrations.
+ * 7. Supports explicit runAsPlatform(fn) bypass for platform administration and migrations.
  */
 function tenantPlugin(schema) {
     // 1. Add required, indexed tenantId field if not already defined
@@ -48,7 +104,7 @@ function tenantPlugin(schema) {
         }
     });
 
-    // 3. Query middleware: auto-scope find, findOne, update, delete, count
+    // 3. Query middleware: auto-scope find, findOne, update, delete, count, distinct
     const queryMethods = [
         "find",
         "findOne",
@@ -60,6 +116,7 @@ function tenantPlugin(schema) {
         "deleteOne",
         "deleteMany",
         "countDocuments",
+        "distinct",
     ];
 
     schema.pre(queryMethods, function () {
@@ -121,6 +178,25 @@ function tenantPlugin(schema) {
             }
         }
     });
+
+    // 6. bulkWrite: Mongoose does not run query middleware on bulkWrite — override static
+    schema.statics.bulkWrite = function tenantScopedBulkWrite(ops, options) {
+        if (isPlatformContext()) {
+            return mongoose.Model.bulkWrite.call(this, ops, options);
+        }
+
+        const tenantId = getTenantId();
+        if (!tenantId) {
+            throw new Error(
+                "TenantContextMissingError: bulkWrite executed without active tenant context."
+            );
+        }
+
+        const scopedOps = scopeBulkWriteOps(ops, tenantId);
+        return mongoose.Model.bulkWrite.call(this, scopedOps, options);
+    };
 }
+
+tenantPlugin.scopeBulkWriteOps = scopeBulkWriteOps;
 
 module.exports = tenantPlugin;
