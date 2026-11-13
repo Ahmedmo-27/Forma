@@ -12,6 +12,14 @@ function heatColor(count, max) {
   return `rgba(68, 41, 140, ${alpha})`;
 }
 
+/** 0–23 → 12am, 1am, … 11am, 12pm, 1pm, … 11pm */
+function hourLabel(hour) {
+  const h = ((Number(hour) % 24) + 24) % 24;
+  const suffix = h < 12 ? 'am' : 'pm';
+  const twelve = h % 12 === 0 ? 12 : h % 12;
+  return `${twelve}${suffix}`;
+}
+
 export default function AttendanceReport() {
   const load = useCallback(() => getAttendanceHeatmap({ weeks: 8 }), []);
   const { data, loading, error } = useAnalyticsReport(load);
@@ -37,11 +45,11 @@ export default function AttendanceReport() {
           <p className="sm:hidden" style={{ fontSize: 11, color: 'var(--t4)', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 4 }}><MoveHorizontal size={12} aria-hidden /> Swipe horizontally to view all 24 hours</p>
           <div className="table-responsive-container">
           <Card style={{ overflowX: 'auto', marginBottom: 16 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(24, minmax(28px, 1fr))', gap: 3, minWidth: 760 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '52px repeat(24, minmax(36px, 1fr))', gap: 3, minWidth: 920 }}>
               <div />
               {Array.from({ length: 24 }, (_, hour) => (
-                <div key={hour} style={{ fontSize: 10, color: 'var(--t4)', textAlign: 'center' }}>
-                  {String(hour).padStart(2, '0')}
+                <div key={hour} style={{ fontSize: 9, color: 'var(--t4)', textAlign: 'center', lineHeight: 1.2 }}>
+                  {hourLabel(hour)}
                 </div>
               ))}
               {WEEKDAYS.map((label, dow) => (
@@ -50,7 +58,7 @@ export default function AttendanceReport() {
                   {data.grid.filter((cell) => cell.dow === dow).map((cell) => (
                     <div
                       key={`${cell.dow}-${cell.hour}`}
-                      title={`${label} ${String(cell.hour).padStart(2, '0')}:00 · ${cell.count}`}
+                      title={`${label} ${hourLabel(cell.hour)} · ${cell.count}`}
                       style={{
                         height: 28,
                         borderRadius: 4,

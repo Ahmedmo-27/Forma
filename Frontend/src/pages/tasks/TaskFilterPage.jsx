@@ -72,7 +72,7 @@ export default function TaskFilterPage() {
     Promise.all([
       getSalesUsers().then((res) => setSalesUsers(res.data.salesUsers ?? [])).catch(() => {}),
       getCoachTeam().then((res) => {
-        setCoaches((res.data.team ?? []).filter((p) => ['Coach', 'Head Coach'].includes(p.role)));
+        setCoaches((res.data.team ?? []).filter((p) => p.role === 'Coach'));
       }).catch(() => {}),
       getPackages({ limit: 100 }).then((res) => setAllPackages(res.data.packages ?? [])).catch(() => {}),
     ]).finally(() => setRefLoading(false));

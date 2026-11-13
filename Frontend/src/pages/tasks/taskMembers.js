@@ -286,12 +286,12 @@ export const TASK_PLAYER_TYPES = {
   ASSIGNED: 'assigned',
 };
 
-export const NON_RECEIVING_TASK_ROLES = ['Owner', 'General Manager', 'Sales Manager'];
+export const NON_RECEIVING_TASK_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Head Coach'];
 
 export function canUserReceiveTasks(user) {
   if (!user || !user.role) return false;
   if (NON_RECEIVING_TASK_ROLES.includes(user.role)) return false;
-  return ['Sales', 'Coach', 'Head Coach'].includes(user.role);
+  return ['Sales', 'Coach'].includes(user.role);
 }
 
 export function canUserAssignTasks(user) {

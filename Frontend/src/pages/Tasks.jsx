@@ -1,42 +1,36 @@
 import { useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { canUserAssignTasks, canUserReceiveTasks, getTaskPlayerType, TASK_PLAYER_TYPES } from './tasks/taskMembers';
+import { canUserAssignTasks, canUserReceiveTasks } from './tasks/taskMembers';
 import AssigningTasksPage from './tasks/AssigningTasksPage';
 import AssignedTasksPage from './tasks/AssignedTasksPage';
 
 /**
- * Tasks Page Router
- * Automatically determines and renders the appropriate page interface
- * based on the user's role and capability:
+ * Tasks router
  *
- * 1. Roles that only assign tasks (Owner, General Manager, Sales Manager):
- *    Never receive tasks; rendered exclusively with AssigningTasksPage.
- *
- * 2. Assigning Players who also can receive tasks (e.g. Head Coach):
- *    Rendered with AssigningTasksPage with switching capability.
- *
- * 3. Assigned Players (Regular Sales, Coach):
- *    Rendered with AssignedTasksPage for active tasks and history.
+ * - Coach / Sales: assigned inbox (tasks given to them)
+ * - Head Coach / Sales Manager / Owner / GM: assigner desk only (bulk/quick assign)
  */
 export default function Tasks() {
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
-  const requestedView = searchParams.get('view'); // e.g. ?view=assigned or ?view=assigning
+  const requestedView = String(searchParams.get('view') || '').toLowerCase();
 
   const canAssign = canUserAssignTasks(user);
   const canReceive = canUserReceiveTasks(user);
-  const playerType = getTaskPlayerType(user);
 
-  // If a user can receive tasks and explicitly asks to view their assigned tasks via URL param, honor it
-  if (canReceive && (requestedView === 'assigned' || requestedView === 'my_tasks')) {
+  if ((requestedView === 'assigned' || requestedView === 'my_tasks') && canReceive) {
     return <AssignedTasksPage />;
   }
 
-  // Assigning player (Sales Manager, Head Coach, Owner, General Manager)
-  if (playerType === TASK_PLAYER_TYPES.ASSIGNING) {
+  if ((requestedView === 'assigning' || requestedView === 'assign') && canAssign) {
     return <AssigningTasksPage />;
   }
 
-  // Assigned player (Regular Sales, Coach)
+  // Head Coach and other assigners land on the assigner desk (includes "My Assigned Tasks" tab).
+  if (canAssign) {
+    return <AssigningTasksPage />;
+  }
+
+  // Coach (and Sales) land on the assigned inbox.
   return <AssignedTasksPage />;
 }

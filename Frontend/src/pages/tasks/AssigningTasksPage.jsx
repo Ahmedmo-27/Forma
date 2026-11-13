@@ -76,7 +76,9 @@ export default function AssigningTasksPage() {
   const [allPackages, setAllPackages] = useState([]);
 
   // ── Assigner Schedule & Filter State ──
-  const [kind, setKind] = useState('all'); // 'all' | 'sales' | 'coach' | 'unassigned_sales' | 'unassigned_coach'
+  const [kind, setKind] = useState(() => (
+    user?.role === 'Head Coach' ? 'unassigned_coach' : 'all'
+  )); // 'all' | 'sales' | 'coach' | 'unassigned_sales' | 'unassigned_coach'
   const [personId, setPersonId] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [transferTypeFilter, setTransferTypeFilter] = useState('all');
@@ -179,7 +181,7 @@ export default function AssigningTasksPage() {
     getSalesUsers().then((res) => setSalesUsers(res.data.salesUsers ?? [])).catch(() => {});
     getCoachTeam()
       .then((res) => {
-        setCoaches((res.data.team ?? []).filter((person) => ['Coach', 'Head Coach'].includes(person.role)));
+        setCoaches((res.data.team ?? []).filter((person) => person.role === 'Coach'));
       })
       .catch(() => {});
     getPackages({ limit: 100 })
@@ -633,7 +635,7 @@ export default function AssigningTasksPage() {
           </div>
         )}
 
-        {/* Tab switcher: Only shown for users who can actually receive assigned tasks (e.g. Head Coach) */}
+        {/* Tab switcher: only when the user can both assign and receive tasks */}
         {canReceiveTasks && (
           <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
             <Btn
@@ -677,10 +679,10 @@ export default function AssigningTasksPage() {
                       aria-label="View scope"
                     >
                       <option value="all">All Gym Members</option>
-                      <option value="sales">By Sales Rep</option>
-                      <option value="coach">By Coach</option>
-                      <option value="unassigned_sales">Unassigned Sales</option>
-                      <option value="unassigned_coach">Unassigned Coach</option>
+                      {canSalesman && <option value="sales">By Sales Rep</option>}
+                      {canCoach && <option value="coach">By Coach</option>}
+                      {canSalesman && <option value="unassigned_sales">Unassigned Sales</option>}
+                      {canCoach && <option value="unassigned_coach">Unassigned Coach</option>}
                     </MenuSelect>
                   </div>
 

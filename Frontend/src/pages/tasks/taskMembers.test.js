@@ -179,15 +179,15 @@ describe("tasks member groups", () => {
   });
 
   it("checks that Owner, General Manager, and Sales Manager never receive assigned tasks", () => {
-    expect(NON_RECEIVING_TASK_ROLES).toEqual(["Owner", "General Manager", "Sales Manager"]);
+    expect(NON_RECEIVING_TASK_ROLES).toEqual(["Owner", "General Manager", "Sales Manager", "Head Coach"]);
     expect(canUserReceiveTasks({ role: "Owner" })).toBe(false);
     expect(canUserReceiveTasks({ role: "General Manager" })).toBe(false);
     expect(canUserReceiveTasks({ role: "Sales Manager" })).toBe(false);
+    expect(canUserReceiveTasks({ role: "Head Coach" })).toBe(false);
     expect(canUserReceiveTasks({ role: "Accountant" })).toBe(false);
     expect(canUserReceiveTasks({ role: "Receptionist" })).toBe(false);
     expect(canUserReceiveTasks({ role: "Sales" })).toBe(true);
     expect(canUserReceiveTasks({ role: "Coach" })).toBe(true);
-    expect(canUserReceiveTasks({ role: "Head Coach" })).toBe(true);
     expect(canUserReceiveTasks(null)).toBe(false);
   });
 

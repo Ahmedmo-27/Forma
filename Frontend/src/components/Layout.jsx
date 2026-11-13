@@ -67,7 +67,7 @@ const NAV = {
   'General Manager': [{ to: '/owner/dashboard', label: 'Dashboard', access: 'owner_dashboard' }, { to: '/members', label: 'Members', access: 'members' }, { to: '/tasks', label: 'Tasks', access: 'members' }, { to: '/checkin', label: 'Check In', access: 'check_in' }, { to: '/reports', label: 'Reports', access: 'reports' }, { to: '/management', label: 'Management', access: 'management' }, { to: '/sales/callcenter', label: 'Call Center', access: 'manager_call_center' }, { to: '/owner/access', label: 'Access', access: 'access_control' }, { to: '/contacts', label: 'Contacts' }],
   Accountant:    [{ to: '/accounting/dashboard', label: 'Dashboard', access: 'accounting_dashboard' }, { to: '/members', label: 'Members', access: 'members' }, { to: '/tasks', label: 'Tasks', access: 'members' }, { to: '/checkin', label: 'Check In', access: 'check_in' }, { to: '/accounting/contract-history', label: 'Contracts', access: 'contracts' }, { to: '/sales/targets', label: 'Targets', access: 'targets' }, { to: '/accounting/package-requests', label: 'Requests', access: 'package_approvals' }, { to: '/contacts', label: 'Contacts' }],
   Coach:           [{ to: '/coach/dashboard', label: 'Dashboard', access: 'coach_dashboard' }, { to: '/coach/members', label: 'Members', access: 'coach_members' }, { to: '/tasks', label: 'Tasks', access: 'coach_members' }, { to: '/coach/checkin', label: 'Check In', access: 'coach_checkin' }, { to: '/coach/my-transfers', label: 'Transfers', access: 'my_transfers' }, { to: '/contacts', label: 'Contacts' }],
-  'Head Coach': [{ to: '/coach/dashboard', label: 'Dashboard', access: 'coach_dashboard' }, { to: '/coach/members', label: 'Members', access: 'coach_members' }, { to: '/tasks', label: 'Tasks', access: 'members' }, { to: '/coach/checkin', label: 'Check In', access: 'coach_checkin' }, { to: '/coach/attendance', label: 'Attendance', access: 'coach_attendance' }, { to: '/reports', label: 'Reports', access: 'reports' }, { to: '/management', label: 'Management', access: 'management' }, { to: '/contacts', label: 'Contacts' }],
+  'Head Coach': [{ to: '/coach/dashboard', label: 'Dashboard', access: 'coach_dashboard' }, { to: '/coach/members', label: 'Members', access: 'coach_members' }, { to: '/tasks', label: 'Tasks', access: 'coach_transfer' }, { to: '/coach/checkin', label: 'Check In', access: 'coach_checkin' }, { to: '/coach/attendance', label: 'Attendance', access: 'coach_attendance' }, { to: '/reports', label: 'Reports', access: 'reports' }, { to: '/management', label: 'Management', access: 'management' }, { to: '/contacts', label: 'Contacts' }],
 };
 
 const BOTTOM_NAV_CONFIG = {
@@ -92,7 +92,7 @@ const BOTTOM_NAV_CONFIG = {
     { to: '/coach/dashboard', label: 'Dashboard', icon: 'dashboard' },
     { to: '/coach/members', label: 'Trainees', icon: 'members' },
     { to: '/coach/checkin', label: 'Check In', icon: 'checkin' },
-    { to: '/coach/my-transfers', label: 'Transfers', icon: 'transfer' },
+    { to: '/tasks', label: 'Tasks', icon: 'tasks' },
   ],
   'Head Coach': [
     { to: '/coach/dashboard', label: 'Dashboard', icon: 'dashboard' },
@@ -191,6 +191,7 @@ export function isNavItemActive(item, pathname, visibleItems = []) {
       '/coach/staff',
       '/coach/targets',
       '/coach/my-transfers',
+      '/coach/attendance',
       '/owner/teams',
       '/accounting/contract-history',
       '/accounting/package-requests',

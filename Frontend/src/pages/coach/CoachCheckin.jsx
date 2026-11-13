@@ -1,13 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
+import QrCheckInCamera from '../../components/QrCheckInCamera';
 import { PageHeader, Card, CardHeader, Btn, Spinner, Badge, Avatar, Input, EmptyState, fmtTimeWithSeconds } from '../../components/ui';
 import { getMemberProfile, getAllMembers, checkInMember } from '../../api/endpoints';
+import { parseScannedIdentifier } from '../../lib/scannerParser';
 import api from '../../api/axios';
-import { Check, Dumbbell, DoorOpen, XCircle } from 'lucide-react';
+import { Camera, Check, Dumbbell, DoorOpen, XCircle } from 'lucide-react';
 
 const MODE_GYM = 'gym';
 const MODE_PT = 'pt';
@@ -25,9 +27,18 @@ export default function CoachCheckin() {
   const [checking, setChecking] = useState(false);
   const [sessions, setSessions] = useState('1');
   const [result, setResult] = useState(null);
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [lastScannedResult, setLastScannedResult] = useState(null);
 
   const [todayEntries, setTodayEntries] = useState([]);
   const [historyLoad, setHistoryLoad] = useState(true);
+
+  const modeRef = useRef(mode);
+  const sessionsRef = useRef(sessions);
+  const isManagerRef = useRef(isManager);
+  modeRef.current = mode;
+  sessionsRef.current = sessions;
+  isManagerRef.current = isManager;
 
   const loadHistory = useCallback(async () => {
     setHistoryLoad(true);
@@ -71,6 +82,66 @@ export default function CoachCheckin() {
 
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
+  const runCheckInForMember = useCallback(async (foundMember) => {
+    if (!foundMember) return;
+    const currentMode = modeRef.current;
+    setChecking(true);
+    setResult(null);
+    try {
+      if (currentMode === MODE_GYM) {
+        const res = await checkInMember(String(foundMember.systemId));
+        const msg = res.data?.message || 'Member checked in';
+        setResult({ ok: true, msg });
+        toast.success(msg);
+        setLastScannedResult({
+          ok: true,
+          name: foundMember.name,
+          systemId: foundMember.systemId,
+          memberId: foundMember.memberId,
+          msg,
+          time: new Date(),
+        });
+      } else {
+        const payload = { memberId: String(foundMember.systemId) };
+        if (isManagerRef.current) {
+          const s = Number(sessionsRef.current);
+          if (!s || s <= 0 || !Number.isInteger(s)) {
+            toast.error('Number of sessions must be a positive whole number');
+            setChecking(false);
+            return;
+          }
+          payload.numberOfSessions = s;
+        }
+        const res = await api.post('/members/PTcheckin', payload);
+        setResult({ ok: true, msg: res.data.message });
+        toast.success(res.data.message);
+        setLastScannedResult({
+          ok: true,
+          name: foundMember.name,
+          systemId: foundMember.systemId,
+          memberId: foundMember.memberId,
+          msg: res.data.message,
+          time: new Date(),
+        });
+      }
+      const updated = await getMemberProfile(foundMember.systemId);
+      setMember(updated.data.member);
+      loadHistory();
+    } catch (err) {
+      const msg = err.response?.data?.message ?? 'Check-in failed.';
+      setResult({ ok: false, msg });
+      toast.error(msg);
+      setLastScannedResult({
+        ok: false,
+        name: foundMember.name,
+        msg,
+        time: new Date(),
+      });
+    } finally {
+      setChecking(false);
+    }
+  }, [loadHistory]);
+
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
@@ -83,6 +154,27 @@ export default function CoachCheckin() {
     } finally { setSearching(false); }
   };
 
+  const handleCameraScan = useCallback(async (raw, _source, scanMode = 'auto') => {
+    const identifier = parseScannedIdentifier(raw, scanMode);
+    if (!identifier) return;
+    setQuery(identifier);
+    setSearching(true);
+    setMember(null);
+    setResult(null);
+    try {
+      const res = await getMemberProfile(identifier);
+      const found = res.data.member;
+      setMember(found);
+      await runCheckInForMember(found);
+    } catch (err) {
+      const msg = err.response?.data?.message ?? 'Member not found.';
+      toast.error(msg);
+      setLastScannedResult({ ok: false, identifier, msg, time: new Date() });
+    } finally {
+      setSearching(false);
+    }
+  }, [runCheckInForMember]);
+
   const remaining = (member?.PT_sessions || 0) - (member?.used_PT_sessions || 0);
   const canPtCheckIn = member && member.couch_subscription_status === 'active' && remaining > 0;
   const canGymCheckIn = Boolean(member);
@@ -90,36 +182,7 @@ export default function CoachCheckin() {
 
   const handleCheckIn = async () => {
     if (!member) return;
-    setChecking(true); setResult(null);
-    try {
-      if (mode === MODE_GYM) {
-        const res = await checkInMember(String(member.systemId));
-        const msg = res.data?.message || 'Member checked in';
-        setResult({ ok: true, msg });
-        toast.success(msg);
-      } else {
-        const payload = { memberId: String(member.systemId) };
-        if (isManager) {
-          const s = Number(sessions);
-          if (!s || s <= 0 || !Number.isInteger(s)) {
-            toast.error('Number of sessions must be a positive whole number');
-            setChecking(false);
-            return;
-          }
-          payload.numberOfSessions = s;
-        }
-        const res = await api.post('/members/PTcheckin', payload);
-        setResult({ ok: true, msg: res.data.message });
-        toast.success(res.data.message);
-      }
-      const updated = await getMemberProfile(member.systemId);
-      setMember(updated.data.member);
-      loadHistory();
-    } catch (err) {
-      const msg = err.response?.data?.message ?? 'Check-in failed.';
-      setResult({ ok: false, msg });
-      toast.error(msg);
-    } finally { setChecking(false); }
+    await runCheckInForMember(member);
   };
 
   const modeBtnStyle = (active) => ({
@@ -184,9 +247,18 @@ export default function CoachCheckin() {
                 <Btn type="submit" disabled={searching || !query.trim()} size="md" style={{ minHeight: 44 }}>
                   {searching ? <Spinner size="sm" /> : 'Search'}
                 </Btn>
+                <Btn
+                  type="button"
+                  variant="outline"
+                  size="md"
+                  style={{ minHeight: 44 }}
+                  onClick={() => setCameraOpen(true)}
+                >
+                  <Camera size={15} aria-hidden /> Open Camera
+                </Btn>
               </form>
               <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 8 }}>
-                Accepts system ID, member ID, or phone number.
+                Accepts system ID, member ID, or phone number. Camera scan checks in using the selected type above.
               </p>
             </Card>
 
@@ -302,7 +374,7 @@ export default function CoachCheckin() {
                 <EmptyState
                   icon={mode === MODE_GYM ? DoorOpen : Dumbbell}
                   message={mode === MODE_GYM ? 'No gym check-ins today' : 'No sessions checked today'}
-                  sub="Check in a member using the search on the left"
+                  sub="Check in a member using search or Open Camera"
                 />
               ) : (
                 <div>
@@ -342,6 +414,13 @@ export default function CoachCheckin() {
 
         </div>
       </div>
+
+      <QrCheckInCamera
+        open={cameraOpen}
+        onClose={() => setCameraOpen(false)}
+        onScan={handleCameraScan}
+        lastScannedResult={lastScannedResult}
+      />
     </Layout>
   );
 }

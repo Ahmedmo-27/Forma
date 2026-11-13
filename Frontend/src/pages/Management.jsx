@@ -1,7 +1,9 @@
 import { useNavigate } from 'react-router-dom';
 import {
   Building2,
+  CalendarDays,
   ClipboardList,
+  Dumbbell,
   Mail,
   MessageCircle,
   Package,
@@ -76,6 +78,8 @@ export default function Management() {
     coachTeam: allow('coach_team'),
     coachStaff: allow('coach_staff'),
     coachTransfers: user?.role === 'Head Coach' && allow('my_transfers'),
+    coachAttendance: allow('coach_attendance'),
+    assignCoaches: allow('coach_transfer'),
     teams: allow('teams_overview'),
     accessControl: allow('access_control'),
     packageRequests: allow('package_approvals'),
@@ -88,13 +92,19 @@ export default function Management() {
       <div className="page-wrap" data-walkthrough="management-board" style={{ paddingTop: 24, paddingBottom: 40 }}>
 
         {/* ── Operations ──────────────────────────────────────── */}
-        {(show.requests || show.packages || show.whatsapp) && (
-          <Section title="Operations" sub="Requests, packages and templates">
+        {(show.requests || show.packages || show.whatsapp || show.coachAttendance || show.assignCoaches) && (
+          <Section title="Operations" sub="Requests, packages, attendance and assignments">
             {show.requests && (
               <MgmtCard icon={ClipboardList} title="Requests"    sub="Package assignment requests"      to="/sales/requests"           iconBg="#F0F9FF" />
             )}
             {show.packages && (
               <MgmtCard icon={Package} title="Packages"    sub="Manage membership packages"       to="/sales/packages"           iconBg="#F0F9FF" />
+            )}
+            {show.coachAttendance && (
+              <MgmtCard icon={CalendarDays} title="Attendance" sub="Peak check-in times by weekday and hour" to="/coach/attendance" iconBg="#F0F9FF" />
+            )}
+            {show.assignCoaches && (
+              <MgmtCard icon={Dumbbell} title="Assign Coaches" sub="Quick or bulk assign members to coaches" to="/tasks" iconBg="#F0F9FF" />
             )}
             {show.whatsapp && (
               <MgmtCard icon={MessageCircle} title="WA Messages" sub="WhatsApp message templates"

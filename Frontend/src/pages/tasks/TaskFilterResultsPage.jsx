@@ -124,7 +124,7 @@ export default function TaskFilterResultsPage() {
       .catch(() => {});
     getCoachTeam()
       .then((res) => {
-        setCoaches((res.data.team ?? []).filter((p) => ['Coach', 'Head Coach'].includes(p.role)));
+        setCoaches((res.data.team ?? []).filter((p) => p.role === 'Coach'));
       })
       .catch(() => {});
   }, []);
