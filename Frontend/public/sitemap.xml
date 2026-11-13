@@ -163,4 +163,58 @@
     <xhtml:link rel="alternate" hreflang="ar" href="https://www.forma-official.com/ar/faq" />
     <xhtml:link rel="alternate" hreflang="x-default" href="https://www.forma-official.com/faq" />
   </url>
+  <url>
+    <loc>https://www.forma-official.com/privacy</loc>
+    <lastmod>2026-11-13</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.forma-official.com/privacy" />
+    <xhtml:link rel="alternate" hreflang="ar" href="https://www.forma-official.com/ar/privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.forma-official.com/privacy" />
+  </url>
+  <url>
+    <loc>https://www.forma-official.com/ar/privacy</loc>
+    <lastmod>2026-11-13</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.forma-official.com/privacy" />
+    <xhtml:link rel="alternate" hreflang="ar" href="https://www.forma-official.com/ar/privacy" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.forma-official.com/privacy" />
+  </url>
+  <url>
+    <loc>https://www.forma-official.com/terms</loc>
+    <lastmod>2026-11-13</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.forma-official.com/terms" />
+    <xhtml:link rel="alternate" hreflang="ar" href="https://www.forma-official.com/ar/terms" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.forma-official.com/terms" />
+  </url>
+  <url>
+    <loc>https://www.forma-official.com/ar/terms</loc>
+    <lastmod>2026-11-13</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.forma-official.com/terms" />
+    <xhtml:link rel="alternate" hreflang="ar" href="https://www.forma-official.com/ar/terms" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.forma-official.com/terms" />
+  </url>
+  <url>
+    <loc>https://www.forma-official.com/refunds</loc>
+    <lastmod>2026-11-13</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.forma-official.com/refunds" />
+    <xhtml:link rel="alternate" hreflang="ar" href="https://www.forma-official.com/ar/refunds" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.forma-official.com/refunds" />
+  </url>
+  <url>
+    <loc>https://www.forma-official.com/ar/refunds</loc>
+    <lastmod>2026-11-13</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://www.forma-official.com/refunds" />
+    <xhtml:link rel="alternate" hreflang="ar" href="https://www.forma-official.com/ar/refunds" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.forma-official.com/refunds" />
+  </url>
 </urlset>

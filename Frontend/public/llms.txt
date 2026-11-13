@@ -19,6 +19,15 @@ Forma is gym management software at https://www.forma-official.com. Staff use th
 - [Technology (Arabic)](https://www.forma-official.com/ar/technology): التقنية
 - [FAQ (Arabic)](https://www.forma-official.com/ar/faq): الأسئلة الشائعة
 
+## Legal
+
+- [Privacy](https://www.forma-official.com/privacy)
+- [Terms](https://www.forma-official.com/terms)
+- [Refund and payment](https://www.forma-official.com/refunds)
+- [Privacy (Arabic)](https://www.forma-official.com/ar/privacy)
+- [Terms (Arabic)](https://www.forma-official.com/ar/terms)
+- [Refund and payment (Arabic)](https://www.forma-official.com/ar/refunds)
+
 ## Contact
 
 - Sales: sales@forma-official.com
