@@ -21,7 +21,7 @@ export default function AttendanceReport() {
   return (
     <ReportFrame
       title="Attendance"
-      definition="Check-ins over the last 8 weeks, by weekday and hour. Empty hours stay in the grid."
+      definition="Check-ins over the last 8 weeks, by weekday and hour. Use peak arrival times to coordinate coach shifts. Empty hours stay in the grid."
       windowLabel={windowLabel}
       loading={loading}
       error={error}

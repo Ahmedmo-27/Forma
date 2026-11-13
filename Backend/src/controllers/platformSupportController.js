@@ -308,7 +308,17 @@ async function createAnnouncement(req, res) {
 async function updateAnnouncement(req, res) {
     try {
         const { id } = req.params;
-        const announcement = await Announcement.findByIdAndUpdate(id, req.body, { new: true });
+        const { title, message, type, target, startDate, endDate, isActive } = req.body;
+        const updates = {};
+        if (title !== undefined) updates.title = String(title).trim();
+        if (message !== undefined) updates.message = String(message).trim();
+        if (type !== undefined) updates.type = type;
+        if (target !== undefined) updates.target = target;
+        if (startDate !== undefined) updates.startDate = startDate;
+        if (endDate !== undefined) updates.endDate = endDate;
+        if (isActive !== undefined) updates.isActive = Boolean(isActive);
+
+        const announcement = await Announcement.findByIdAndUpdate(id, updates, { new: true });
         if (!announcement) return res.status(404).json({ message: "Announcement not found" });
         res.json(announcement);
     } catch (err) {

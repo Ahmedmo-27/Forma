@@ -18,13 +18,13 @@ const ROLE_META = {
   'Coach':           { icon: Dumbbell, color: '#d97706', bg: '#fffbeb', group: 'staff' },
   'Accountant':      { icon: Receipt, color: '#7c3aed', bg: '#f5f3ff', group: 'staff' },
   'Sales Manager':   { icon: Shirt, color: 'var(--navy)', bg: 'color-mix(in srgb, var(--navy) 8%, transparent)', group: 'managers' },
-  'Coach Manager':   { icon: Medal, color: '#b45309', bg: '#fef9c3', group: 'managers' },
+  'Head Coach':   { icon: Medal, color: '#b45309', bg: '#fef9c3', group: 'managers' },
   'General Manager': { icon: Building2, color: '#0f766e', bg: '#f0fdfa', group: 'managers' },
   'Owner':           { icon: Crown, color: '#dc2626', bg: '#fef2f2', group: 'managers' },
 };
 
 const STAFF_ROLES   = ['Receptionist', 'Sales', 'Coach', 'Accountant'];
-const MANAGER_ROLES = ['General Manager', 'Sales Manager', 'Coach Manager', 'Owner'];
+const MANAGER_ROLES = ['General Manager', 'Sales Manager', 'Head Coach', 'Owner'];
 const ALL_ROLES     = [...STAFF_ROLES, ...MANAGER_ROLES];
 
 function ContactCard({ person }) {

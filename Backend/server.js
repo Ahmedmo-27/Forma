@@ -11,6 +11,17 @@ try {
     process.exit(1);
 }
 
+if (process.env.NODE_ENV !== "test") {
+    const missingSecrets = [];
+    if (!process.env.JWT_SECRET) missingSecrets.push("JWT_SECRET");
+    if (!process.env.PLATFORM_JWT_SECRET) missingSecrets.push("PLATFORM_JWT_SECRET");
+    if (!process.env.TENANT_SECRET_KEY) missingSecrets.push("TENANT_SECRET_KEY");
+    if (missingSecrets.length) {
+        logger.error("server", `Missing required secrets: ${missingSecrets.join(", ")}`);
+        process.exit(1);
+    }
+}
+
 const connectDB = require("./src/config/db");
 const app = require("./src/app");
 const { BCRYPT_ROUNDS } = require("./src/utils/passwordUtils");

@@ -13,7 +13,7 @@ describe("Frontend Role Hierarchy Utilities (roles.js)", () => {
             expect(ASSIGNABLE_ROLES["General Manager"]).not.toContain("Owner");
             expect(ASSIGNABLE_ROLES["General Manager"]).not.toContain("General Manager");
             expect(ASSIGNABLE_ROLES["Sales Manager"]).toEqual(["Sales", "Receptionist"]);
-            expect(ASSIGNABLE_ROLES["Coach Manager"]).toEqual(["Coach"]);
+            expect(ASSIGNABLE_ROLES["Head Coach"]).toEqual(["Coach"]);
         });
     });
 
@@ -22,7 +22,7 @@ describe("Frontend Role Hierarchy Utilities (roles.js)", () => {
             expect(canChangeUserRole("Owner", "Owner")).toBe(false);
             expect(canChangeUserRole("General Manager", "Owner")).toBe(false);
             expect(canChangeUserRole("Sales Manager", "Owner")).toBe(false);
-            expect(canChangeUserRole("Coach Manager", "Owner")).toBe(false);
+            expect(canChangeUserRole("Head Coach", "Owner")).toBe(false);
             expect(canChangeUserRole("Sales", "Owner")).toBe(false);
         });
 
@@ -36,15 +36,15 @@ describe("Frontend Role Hierarchy Utilities (roles.js)", () => {
             expect(canChangeUserRole("Sales Manager", "Sales")).toBe(true);
             expect(canChangeUserRole("Sales Manager", "Receptionist")).toBe(true);
             expect(canChangeUserRole("Sales Manager", "Coach")).toBe(false);
-            expect(canChangeUserRole("Sales Manager", "Coach Manager")).toBe(false);
+            expect(canChangeUserRole("Sales Manager", "Head Coach")).toBe(false);
             expect(canChangeUserRole("Sales Manager", "Accountant")).toBe(false);
         });
 
-        it("restricts Coach Manager to changing only Coach", () => {
-            expect(canChangeUserRole("Coach Manager", "Coach")).toBe(true);
-            expect(canChangeUserRole("Coach Manager", "Sales")).toBe(false);
-            expect(canChangeUserRole("Coach Manager", "Receptionist")).toBe(false);
-            expect(canChangeUserRole("Coach Manager", "Coach Manager")).toBe(false);
+        it("restricts Head Coach to changing only Coach", () => {
+            expect(canChangeUserRole("Head Coach", "Coach")).toBe(true);
+            expect(canChangeUserRole("Head Coach", "Sales")).toBe(false);
+            expect(canChangeUserRole("Head Coach", "Receptionist")).toBe(false);
+            expect(canChangeUserRole("Head Coach", "Head Coach")).toBe(false);
         });
 
         it("forbids regular staff without assignable roles from changing roles", () => {
@@ -67,8 +67,8 @@ describe("Frontend Role Hierarchy Utilities (roles.js)", () => {
             expect(roleChoicesFor("Sales Manager", "Receptionist")).toEqual(["Sales", "Receptionist"]);
         });
 
-        it("provides only coach roles for Coach Manager", () => {
-            expect(roleChoicesFor("Coach Manager", "Coach")).toEqual(["Coach"]);
+        it("provides only coach roles for Head Coach", () => {
+            expect(roleChoicesFor("Head Coach", "Coach")).toEqual(["Coach"]);
         });
 
         it("allows delegated Sales Manager with staff access to assign all non-owner staff roles", () => {

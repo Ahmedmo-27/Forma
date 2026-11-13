@@ -52,7 +52,7 @@ const taskSchema = new mongoose.Schema({
     },
     targetRole: {
         type: String,
-        enum: ["Sales", "Sales Manager", "Coach", "Coach Manager"],
+        enum: ["Sales", "Sales Manager", "Coach", "Head Coach"],
         required: true,
     },
     transferType: {

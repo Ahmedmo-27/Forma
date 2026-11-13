@@ -32,9 +32,9 @@ const readers = allowRoles(
     "Sales",
     "Receptionist",
     "Coach",
-    "Coach Manager"
+    "Head Coach"
 );
-const leadership = allowRoles("reports", "Owner", "General Manager", "Sales Manager", "Accountant", "Coach Manager");
+const leadership = allowRoles("reports", "Owner", "General Manager", "Sales Manager", "Accountant", "Head Coach");
 const sales = allowRoles("reports", "Owner", "General Manager", "Sales Manager", "Sales", "Accountant");
 const biCache = cacheResponse({ ttlSeconds: 120, tags: ["bi"] });
 const dropBi = autoInvalidate(["bi"]);

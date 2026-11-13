@@ -8,7 +8,7 @@ const SENDABLE_ROLES = [
     "Receptionist",
     "Accountant",
     "Coach",
-    "Coach Manager",
+    "Head Coach",
     "General Manager",
 ];
 

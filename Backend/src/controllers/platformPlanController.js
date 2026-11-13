@@ -49,7 +49,7 @@ const SYSTEM_ROLES = [
         category: "Coaching",
     },
     {
-        key: "Coach Manager",
+        key: "Head Coach",
         name: "Head Coach / Fitness Manager",
         description: "Oversees fitness coaches, assigns personal trainers, and manages class schedules.",
         defaultTier: "basic",
@@ -166,7 +166,16 @@ async function createFeature(req, res) {
 async function updateFeature(req, res) {
     try {
         const { id } = req.params;
-        const feature = await Feature.findByIdAndUpdate(id, req.body, { new: true });
+        const { key, name, description, category, isCore, isActive } = req.body;
+        const updates = {};
+        if (key !== undefined) updates.key = String(key).trim().toLowerCase();
+        if (name !== undefined) updates.name = String(name).trim();
+        if (description !== undefined) updates.description = description;
+        if (category !== undefined) updates.category = category;
+        if (isCore !== undefined) updates.isCore = Boolean(isCore);
+        if (isActive !== undefined) updates.isActive = Boolean(isActive);
+
+        const feature = await Feature.findByIdAndUpdate(id, updates, { new: true });
         if (!feature) return res.status(404).json({ message: "Feature not found" });
         res.json(feature);
     } catch (err) {
@@ -276,8 +285,31 @@ async function updatePlan(req, res) {
         const plan = await Plan.findById(id);
         if (!plan) return res.status(404).json({ message: "Plan not found" });
 
-        // Update plan fields
-        Object.assign(plan, req.body);
+        const {
+            name,
+            priceMonthly,
+            priceYearly,
+            features,
+            allowedRoles,
+            limits,
+            fairUseCaps,
+            visibility,
+            description,
+            sortOrder,
+            isActive,
+        } = req.body;
+
+        if (name !== undefined) plan.name = String(name).trim();
+        if (priceMonthly !== undefined) plan.priceMonthly = priceMonthly;
+        if (priceYearly !== undefined) plan.priceYearly = priceYearly;
+        if (features !== undefined) plan.features = features;
+        if (allowedRoles !== undefined) plan.allowedRoles = allowedRoles;
+        if (limits !== undefined) plan.limits = limits;
+        if (fairUseCaps !== undefined) plan.fairUseCaps = fairUseCaps;
+        if (visibility !== undefined) plan.visibility = visibility;
+        if (description !== undefined) plan.description = description;
+        if (sortOrder !== undefined) plan.sortOrder = sortOrder;
+        if (isActive !== undefined) plan.isActive = Boolean(isActive);
         plan.currency = BILLING_CURRENCY;
         await plan.save();
 
@@ -339,6 +371,13 @@ async function createPlanPrice(req, res) {
         const { planId, cycle, amount, maxLifetimeSeats, validFrom, validUntil, isActive } = req.body;
         if (!planId || !cycle || amount == null) {
             return res.status(400).json({ message: "planId, cycle, and amount are required" });
+        }
+
+        if (cycle === "lifetime") {
+            return res.status(400).json({
+                code: "LIFETIME_DISABLED",
+                message: "Lifetime prices cannot be created",
+            });
         }
 
         const price = await PlanPrice.create({
@@ -489,7 +528,19 @@ async function createCoupon(req, res) {
 async function updateCoupon(req, res) {
     try {
         const { id } = req.params;
-        const coupon = await Coupon.findByIdAndUpdate(id, { ...req.body, currency: BILLING_CURRENCY }, { new: true });
+        const { code, type, discountValue, appliesTo, maxRedemptions, expiresAt, isActive } = req.body;
+        const updates = { currency: BILLING_CURRENCY };
+        if (code !== undefined) updates.code = String(code).trim().toUpperCase();
+        if (type !== undefined) updates.type = type;
+        if (discountValue !== undefined) updates.discountValue = Number(discountValue);
+        if (appliesTo !== undefined) updates.appliesTo = appliesTo;
+        if (maxRedemptions !== undefined) {
+            updates.maxRedemptions = maxRedemptions != null ? Number(maxRedemptions) : null;
+        }
+        if (expiresAt !== undefined) updates.expiresAt = expiresAt || null;
+        if (isActive !== undefined) updates.isActive = Boolean(isActive);
+
+        const coupon = await Coupon.findByIdAndUpdate(id, updates, { new: true });
         if (!coupon) return res.status(404).json({ message: "Coupon not found" });
         res.json(coupon);
     } catch (err) {

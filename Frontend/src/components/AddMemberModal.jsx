@@ -146,7 +146,7 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
         </Select>
         <Select label="Assign Coach" value={form.coachId} onChange={e => set('coachId', e.target.value)}>
           <option value="">— None —</option>
-          {coaches.filter(c => ['Coach', 'Coach Manager'].includes(c.role)).map(c =>
+          {coaches.filter(c => ['Coach', 'Head Coach'].includes(c.role)).map(c =>
             <option key={c._id} value={c._id}>{c.name}</option>
           )}
         </Select>

@@ -67,7 +67,7 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
       setError("A documented audit reason (at least 5 chars) is mandatory");
       return;
     }
-    if (cycle !== "lifetime" && (!Number.isInteger(Number(durationMonths)) || Number(durationMonths) < 1)) {
+    if (!Number.isInteger(Number(durationMonths)) || Number(durationMonths) < 1) {
       setError("Duration in months must be a whole number of at least 1");
       return;
     }
@@ -80,7 +80,7 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
         tenantId,
         planKey,
         cycle,
-        durationMonths: cycle === "lifetime" ? null : Number(durationMonths),
+        durationMonths: Number(durationMonths),
         reason: reason.trim(),
       });
 
@@ -160,13 +160,11 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
             <Select value={cycle} onChange={(e) => setCycle(e.target.value)}>
               <option value="monthly">Monthly Recurring</option>
               <option value="yearly">Yearly Contract</option>
-              <option value="lifetime">Lifetime Pass (Perpetual)</option>
             </Select>
           </div>
         </div>
 
-        {cycle !== "lifetime" && (
-          <div>
+        <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
               Grant Duration (Months)
             </label>
@@ -179,7 +177,6 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
               required
             />
           </div>
-        )}
 
         <div className="p-3 rounded-lg border border-[var(--platform-warning-border)] bg-[var(--platform-warning-surface)] space-y-1.5">
           <label className="block text-xs font-semibold text-[var(--platform-warning)]">

@@ -6,7 +6,7 @@ const {
 } = require("./locationScope");
 
 function resolveAbilities(user, context) {
-    const commentKey = user?.role === "Coach" || user?.role === "Coach Manager"
+    const commentKey = user?.role === "Coach" || user?.role === "Head Coach"
         ? "coach_notes"
         : "comments";
     const effective = context ? resolveEffectiveKeys(user, context) : null;
@@ -33,7 +33,7 @@ function formatUserResponse(user, options = {}) {
         createdAt: user.createdAt,
     };
 
-    if (user.role === "Sales" || user.role === "Coach" || user.role === "Coach Manager") {
+    if (user.role === "Sales" || user.role === "Coach" || user.role === "Head Coach") {
         base.abilities = resolveAbilities(user, context);
     }
 

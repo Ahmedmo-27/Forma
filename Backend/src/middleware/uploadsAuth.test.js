@@ -36,7 +36,7 @@ describe("uploads auth protection", () => {
             "Sales",
             "Sales Manager",
             "Coach",
-            "Coach Manager",
+            "Head Coach",
             "Accountant"
         );
 
@@ -61,7 +61,7 @@ describe("uploads auth protection", () => {
             "Sales",
             "Sales Manager",
             "Coach",
-            "Coach Manager",
+            "Head Coach",
             "Accountant"
         );
 

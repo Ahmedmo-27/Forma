@@ -16,8 +16,6 @@ import {
 import {
   PageHeader, Card, CardHeader, Input, Select, Btn, Spinner, Badge,
 } from '../../components/ui';
-import LifetimeCheckoutModal from '../../components/billing/LifetimeCheckoutModal';
-import LifetimeUpgradeModal from '../../components/billing/LifetimeUpgradeModal';
 import {
   isValidHexColor,
   normalizeHexColor,
@@ -27,8 +25,7 @@ import {
   LOGO_ACCEPT,
   UPLOAD_INTAKE_MB,
 } from '../../lib/validation';
-import { Check, LayoutDashboard, Package, Plus, RefreshCw, Star, Users } from 'lucide-react';
-
+import { Check, LayoutDashboard, Package, Plus, RefreshCw, Users } from 'lucide-react';
 const KNOWN_ACTIVITIES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 
 const DEFAULT_PALETTE = {
@@ -66,8 +63,6 @@ export default function TenantSettings() {
   ));
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
 
   // Form states initialized from tenant
   const [displayName, setDisplayName] = useState('');
@@ -1167,50 +1162,11 @@ export default function TenantSettings() {
                     <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#111827' }}>
                       Subscription Details
                     </h3>
-                    {tenant?.billing?.isLifetime && (
-                      <span
-                        style={{
-                          background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)',
-                          color: '#FFFFFF',
-                          fontSize: 11,
-                          fontWeight: 800,
-                          padding: '3px 10px',
-                          borderRadius: 20,
-                          letterSpacing: '0.05em',
-                          boxShadow: '0 2px 4px rgba(217, 119, 6, 0.2)',
-                        }}
-                      >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                          <Star size={12} fill="currentColor" aria-hidden />
-                          LIFETIME LICENSE
-                        </span>
-                      </span>
-                    )}
                   </div>
                   <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6B7280' }}>
                     Current Plan: <strong>{plan?.name || 'Standard Plan'}</strong>
-                    {tenant?.billing?.isLifetime
-                      ? ' • Perpetual License (No renewal required)'
-                      : ` • Billing Cycle: ${tenant?.billing?.cycle || 'Monthly'}`}
+                    {` • Billing Cycle: ${tenant?.billing?.cycle || 'Monthly'}`}
                   </p>
-                </div>
-
-                <div style={{ display: 'flex', gap: 10 }}>
-                  {tenant?.billing?.isLifetime ? (
-                    plan?.key !== 'platinum' && (
-                      <Btn variant="primary" onClick={() => setIsUpgradeOpen(true)}>
-                        Upgrade Lifetime Tier
-                      </Btn>
-                    )
-                  ) : (
-                    <Btn
-                      variant="primary"
-                      onClick={() => setIsCheckoutOpen(true)}
-                      style={{ background: 'linear-gradient(135deg, var(--navy) 0%, var(--accent) 100%)' }}
-                    >
-                      Buy Lifetime License
-                    </Btn>
-                  )}
                 </div>
               </div>
 
@@ -1229,12 +1185,10 @@ export default function TenantSettings() {
                 </div>
                 <div style={{ padding: 16, background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB' }}>
                   <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>
-                    {tenant?.billing?.isLifetime ? 'ENTITLEMENT POLICY' : 'RENEWAL / EXPIRY'}
+                    RENEWAL / EXPIRY
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginTop: 4 }}>
-                    {tenant?.billing?.isLifetime
-                      ? (tenant.billing?.lifetime?.entitlementPolicy === 'snapshot' ? 'Frozen Snapshot' : 'Follow Tier Updates')
-                      : (tenant?.currentPeriodEnd ? new Date(tenant.currentPeriodEnd).toLocaleDateString() : 'Never')}
+                    {tenant?.currentPeriodEnd ? new Date(tenant.currentPeriodEnd).toLocaleDateString() : 'Never'}
                   </div>
                 </div>
               </div>
@@ -1331,27 +1285,6 @@ export default function TenantSettings() {
               </div>
             </Card>
 
-            {/* Modals */}
-            <LifetimeCheckoutModal
-              isOpen={isCheckoutOpen}
-              onClose={() => setIsCheckoutOpen(false)}
-              defaultPlanKey={plan?.key || 'gold'}
-              onSuccess={() => {
-                refreshTenant();
-                setIsCheckoutOpen(false);
-              }}
-            />
-
-            <LifetimeUpgradeModal
-              isOpen={isUpgradeOpen}
-              onClose={() => setIsUpgradeOpen(false)}
-              currentPlanKey={plan?.key || 'basic'}
-              currentAmountPaid={tenant?.billing?.lifetime?.amountPaid || 0}
-              onSuccess={() => {
-                refreshTenant();
-                setIsUpgradeOpen(false);
-              }}
-            />
           </div>
         )}
       </div>

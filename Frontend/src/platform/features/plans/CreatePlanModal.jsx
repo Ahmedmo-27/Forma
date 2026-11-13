@@ -17,7 +17,7 @@ const DEFAULT_ROLES_FALLBACK = [
   { key: "Owner", name: "Gym Owner", description: "Full operational & admin control" },
   { key: "Receptionist", name: "Receptionist", description: "Front desk & member check-ins" },
   { key: "Coach", name: "Fitness Coach", description: "Private training & session logs" },
-  { key: "Coach Manager", name: "Head Coach", description: "Trainer management & schedules" },
+  { key: "Head Coach", name: "Head Coach", description: "Trainer management & schedules" },
   { key: "Accountant", name: "Accountant", description: "Daily finances & invoices" },
   { key: "Sales", name: "Sales Rep", description: "Lead tracking & sales calls" },
   { key: "Sales Manager", name: "Sales Manager", description: "Lead assignment & sales funnels" },
@@ -62,7 +62,7 @@ export default function CreatePlanModal({
     planToEdit?.features ? [...planToEdit.features] : []
   );
   const [selectedRoles, setSelectedRoles] = useState(
-    planToEdit?.allowedRoles ? [...planToEdit.allowedRoles] : ["Owner", "Receptionist", "Coach", "Coach Manager"]
+    planToEdit?.allowedRoles ? [...planToEdit.allowedRoles] : ["Owner", "Receptionist", "Coach", "Head Coach"]
   );
 
   useEffect(() => {
@@ -82,7 +82,7 @@ export default function CreatePlanModal({
     setSelectedRoles(
       planToEdit?.allowedRoles
         ? [...planToEdit.allowedRoles]
-        : ["Owner", "Receptionist", "Coach", "Coach Manager"]
+        : ["Owner", "Receptionist", "Coach", "Head Coach"]
     );
     setError(null);
   }, [open, planToEdit]);

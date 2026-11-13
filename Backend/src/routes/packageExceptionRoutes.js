@@ -33,7 +33,7 @@ router.get(
         "Sales",
         "Sales Manager",
         "Coach",
-        "Coach Manager",
+        "Head Coach",
         "Accountant",
         "General Manager"
     ),

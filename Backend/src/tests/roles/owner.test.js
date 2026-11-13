@@ -64,14 +64,14 @@ describe("Owner", () => {
         const userController = readSource("controllers", "userController.js");
         expect(users).toContain('allowRoles("targets", "Sales Manager", "Owner", "Accountant")');
         expect(userController).toContain('const targetEditors = ["Sales Manager", "Owner", "Accountant", "General Manager"]');
-        expect(members).toContain('allowRoles("management", "Owner", "Sales Manager", "Coach Manager", "General Manager")');
+        expect(members).toContain('allowRoles("management", "Owner", "Sales Manager", "Head Coach", "General Manager")');
         expectAllowed("targets", ["Sales Manager", "Owner", "Accountant"], owner());
-        expectAllowed("management", ["Owner", "Sales Manager", "Coach Manager", "General Manager"], owner());
+        expectAllowed("management", ["Owner", "Sales Manager", "Head Coach", "General Manager"], owner());
     });
 
     it("cannot check in a personal-training session or open a rep call queue", () => {
         const user = owner();
-        expectDenied("coach_checkin", ["Coach", "Coach Manager"], user);
+        expectDenied("coach_checkin", ["Coach", "Head Coach"], user);
         expectDenied("my_call_center", ["Sales"], user);
     });
 

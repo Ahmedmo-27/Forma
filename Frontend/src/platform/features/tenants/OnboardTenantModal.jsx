@@ -4,7 +4,6 @@ import { Dialog } from "../../ui/Dialog";
 import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Input";
 import { Select } from "../../ui/Select";
-import { Checkbox } from "../../ui/Checkbox";
 import { Callout } from "../../ui/Callout";
 import { CopyChip } from "../../ui/CopyChip";
 import { apiOnboardTenant, apiGetPlans } from "../../lib/api/endpoints";
@@ -25,7 +24,6 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
     planKey: "basic",
     cycle: "monthly",
     trialDays: 14,
-    isLifetime: false,
     amountPaid: 0,
     currency: "EGP",
   });
@@ -42,7 +40,6 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
         planKey: "basic",
         cycle: "monthly",
         trialDays: 14,
-        isLifetime: false,
         amountPaid: 0,
         currency: "EGP",
       });
@@ -93,7 +90,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
     }
 
     const trial = Number(form.trialDays);
-    if (!form.isLifetime && (isNaN(trial) || !Number.isInteger(trial) || trial < 1 || trial > 365)) {
+    if (isNaN(trial) || !Number.isInteger(trial) || trial < 1 || trial > 365) {
       setError("Trial duration must be a whole number of days between 1 and 365.");
       return;
     }
@@ -114,7 +111,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
         slug: slugTrim,
         ownerEmail: emailTrim,
         ownerName: form.ownerName.trim(),
-        trialDays: form.isLifetime ? 0 : trial,
+        trialDays: trial,
         amountPaid: paid,
       });
 
@@ -281,51 +278,20 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
 
           <Select
             label="Billing Cycle"
-            disabled={form.isLifetime}
-            value={form.isLifetime ? "lifetime" : form.cycle}
+            value={form.cycle}
             onChange={(e) => setForm({ ...form, cycle: e.target.value })}
             options={[
               { value: "monthly", label: "Monthly" },
               { value: "yearly", label: "Yearly (Annual)" },
-              { value: "lifetime", label: "Lifetime Pass" },
             ]}
           />
 
           <Input
             label="Trial Period (Days)"
             type="number"
-            disabled={form.isLifetime}
-            value={form.isLifetime ? 0 : form.trialDays}
+            value={form.trialDays}
             onChange={(e) => setForm({ ...form, trialDays: e.target.value })}
           />
-        </div>
-
-        {/* Lifetime License Checkbox & Upfront Paid */}
-        <div className="p-3.5 rounded-[var(--platform-radius-md)] bg-[var(--platform-surface-subtle)] border border-[var(--platform-border-subtle)] space-y-3">
-          <Checkbox
-            label="Issue as Lifetime License"
-            description="Activates immediately without recurring renewal or expiration."
-            checked={form.isLifetime}
-            onChange={(checked) =>
-              setForm({
-                ...form,
-                isLifetime: checked,
-                cycle: checked ? "lifetime" : "monthly",
-              })
-            }
-          />
-
-          {form.isLifetime && (
-            <div className="grid grid-cols-2 gap-3 pt-2 border-t border-[var(--platform-border-subtle)]">
-              <Input
-                label="Amount Paid (EGP)"
-                type="number"
-                value={form.amountPaid}
-                onChange={(e) => setForm({ ...form, amountPaid: e.target.value })}
-              />
-              <Input label="Currency" value="EGP" readOnly />
-            </div>
-          )}
         </div>
       </form>
     </Dialog>

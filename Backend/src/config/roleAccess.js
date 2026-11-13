@@ -51,11 +51,13 @@ const FEATURE_AREA = {
     coach_dashboard: "coaching",
     coach_members: "coaching",
     coach_checkin: "coaching",
+    assign_pt: "coaching",
     my_transfers: "coaching",
     coach_notes: "coaching",
     coach_team: "coaching",
     coach_transfer: "coaching",
     coach_targets: "coaching",
+    coach_attendance: "coaching",
     management: "staff",
     staff: "staff",
     coach_staff: "staff",
@@ -69,7 +71,7 @@ const CHECKLIST_ROLES = [
     "General Manager",
     "Receptionist",
     "Coach",
-    "Coach Manager",
+    "Head Coach",
     "Accountant",
     "Sales",
     "Sales Manager",
@@ -170,7 +172,7 @@ function canEditRoleChecklist(actor, targetRole) {
     if (actorRole === "Owner") return true;
     if (actorRole === "General Manager") return targetRole !== "General Manager";
     if (actorRole === "Sales Manager") return ["Sales", "Receptionist"].includes(targetRole);
-    if (actorRole === "Coach Manager") return targetRole === "Coach";
+    if (actorRole === "Head Coach") return targetRole === "Coach";
     if (typeof actor === "object" && actor !== null) {
         const hasStaff = (Array.isArray(actor.areas) && actor.areas.includes("staff"))
             || (actor.accessOverrides?.add || []).includes("staff")

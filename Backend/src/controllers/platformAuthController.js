@@ -143,21 +143,40 @@ async function login(req, res) {
         // Reset lockout upon correct password
         user.failedLoginCount = 0;
         user.lockedUntil = null;
-        user.lastLoginAt = new Date();
         await user.save();
 
-        const tokens = generateTokens(user);
+        const secret = getPlatformSecret();
+        if (!secret) {
+            return res.status(500).json({ message: "Platform JWT configuration missing (PLATFORM_JWT_SECRET)" });
+        }
+
+        // Always require MFA: setup for first login, challenge when already enrolled.
+        const tempToken = jwt.sign(
+            {
+                id: user._id.toString(),
+                email: user.email,
+                purpose: "mfa",
+            },
+            secret,
+            {
+                audience: TEMP_MFA_AUDIENCE,
+                issuer: PLATFORM_ISSUER,
+                expiresIn: "10m",
+            }
+        );
+
+        if (user.mfa?.enabled) {
+            return res.json({
+                message: "MFA challenge required",
+                mfaRequired: true,
+                tempToken,
+            });
+        }
 
         return res.json({
-            message: "Authentication successful",
-            ...tokens,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                role: user.role,
-                permissions: getPermissionsForRole(user.role),
-            },
+            message: "MFA setup required",
+            mfaSetupRequired: true,
+            tempToken,
         });
     } catch (err) {
         logger.error("platform", "Login error", { error: err.message });

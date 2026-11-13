@@ -14,7 +14,7 @@ const ALL_STAFF_ROLES = [
   ['General Manager', 'General Manager'],
   ['Sales Manager', 'Sales Manager'],
   ['Sales', 'Sales Representative'],
-  ['Coach Manager', 'Coach Manager'],
+  ['Head Coach', 'Head Coach'],
   ['Coach', 'Coach'],
   ['Receptionist', 'Receptionist'],
   ['Accountant', 'Accountant'],
@@ -27,7 +27,7 @@ const CREATABLE_ROLES = {
     ['Sales', 'Sales Representative'],
     ['Receptionist', 'Receptionist'],
   ],
-  'Coach Manager': [
+  'Head Coach': [
     ['Coach', 'Coach'],
   ],
 };

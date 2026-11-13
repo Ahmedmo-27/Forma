@@ -1,3 +1,5 @@
+const { escapeRegex } = require("./username");
+
 function numericId(value) {
     const raw = String(value ?? "").trim().replace(/^[sS]/, "");
     if (!/^\d+$/.test(raw)) return null;
@@ -130,9 +132,10 @@ function buildMemberListFilter({
 
     if (search?.trim()) {
         const q = search.trim();
+        const safe = escapeRegex(q);
         const or = [
-            { name: { $regex: q, $options: "i" } },
-            { phones: { $regex: q, $options: "i" } },
+            { name: { $regex: safe, $options: "i" } },
+            { phones: { $regex: safe, $options: "i" } },
         ];
         const num = numericId(q);
         if (num != null) {

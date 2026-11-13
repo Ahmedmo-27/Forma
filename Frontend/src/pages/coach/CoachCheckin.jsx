@@ -5,29 +5,30 @@ import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, CardHeader, Btn, Spinner, Badge, Avatar, Input, EmptyState, fmtTimeWithSeconds } from '../../components/ui';
-import { getMemberProfile, getAllMembers } from '../../api/endpoints';
+import { getMemberProfile, getAllMembers, checkInMember } from '../../api/endpoints';
 import api from '../../api/axios';
-import { Check, Dumbbell, XCircle } from 'lucide-react';
+import { Check, Dumbbell, DoorOpen, XCircle } from 'lucide-react';
+
+const MODE_GYM = 'gym';
+const MODE_PT = 'pt';
 
 export default function CoachCheckin() {
-  usePageTitle('Session Check-In');
+  usePageTitle('Check-In');
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isManager = user?.role === 'Coach Manager';
+  const isManager = user?.role === 'Head Coach';
 
-  // Search state
-  const [query, setQuery]           = useState('');
-  const [member, setMember]         = useState(null);
-  const [searching, setSearching]   = useState(false);
-  const [checking, setChecking]     = useState(false);
-  const [sessions, setSessions]     = useState('1');
-  const [result, setResult]         = useState(null);
+  const [mode, setMode] = useState(MODE_PT);
+  const [query, setQuery] = useState('');
+  const [member, setMember] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [checking, setChecking] = useState(false);
+  const [sessions, setSessions] = useState('1');
+  const [result, setResult] = useState(null);
 
-  // Today's history
-  const [todaySessions, setTodaySessions] = useState([]);
-  const [historyLoad, setHistoryLoad]     = useState(true);
+  const [todayEntries, setTodayEntries] = useState([]);
+  const [historyLoad, setHistoryLoad] = useState(true);
 
-  // Load today's session check-ins
   const loadHistory = useCallback(async () => {
     setHistoryLoad(true);
     try {
@@ -36,37 +37,40 @@ export default function CoachCheckin() {
       const today = new Date();
       today.setHours(0, 0, 0, 0);
 
-      // Find members who had PT sessions checked today (via userlog)
-      const sessionEntries = [];
-      members.forEach(m => {
+      const entries = [];
+      members.forEach((m) => {
         const coachId = m.current_couch?._id || m.current_couch;
-        // For coach: only their members. For manager: all
         if (!isManager && String(coachId) !== String(user?._id)) return;
 
-        (m.userlog || []).forEach(log => {
-          if (log.type === 'check-in' && log.text?.includes('PT session') && new Date(log.createdAt) >= today) {
-            sessionEntries.push({
-              _id: log._id,
-              member: m,
-              text: log.text,
-              time: log.createdAt,
-              by: log.createdBy?.name,
-            });
-          }
+        (m.userlog || []).forEach((log) => {
+          const at = new Date(log.createdAt);
+          if (at < today) return;
+
+          const isPt = log.type === 'pt-session' || (log.type === 'check-in' && log.text?.includes('PT session'));
+          const isGym = log.type === 'check-in' && !log.text?.includes('PT session');
+
+          if (mode === MODE_PT && !isPt) return;
+          if (mode === MODE_GYM && !isGym) return;
+
+          entries.push({
+            _id: log._id,
+            member: m,
+            text: log.text,
+            time: log.createdAt,
+            by: log.createdBy?.name,
+            kind: isPt ? 'pt' : 'gym',
+          });
         });
       });
 
-      // Also count by used_PT_sessions changes — simpler: just show members with sessions used today
-      // Since we don't have per-session logs yet, let's show based on the check-in endpoint response
-      sessionEntries.sort((a, b) => new Date(b.time) - new Date(a.time));
-      setTodaySessions(sessionEntries);
+      entries.sort((a, b) => new Date(b.time) - new Date(a.time));
+      setTodayEntries(entries);
     } catch { /* silent */ }
     finally { setHistoryLoad(false); }
-  }, [user?._id, isManager]);
+  }, [user?._id, isManager, mode]);
 
   useEffect(() => { loadHistory(); }, [loadHistory]);
 
-  // Search
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!query.trim()) return;
@@ -79,23 +83,35 @@ export default function CoachCheckin() {
     } finally { setSearching(false); }
   };
 
-  // Check-in
+  const remaining = (member?.PT_sessions || 0) - (member?.used_PT_sessions || 0);
+  const canPtCheckIn = member && member.couch_subscription_status === 'active' && remaining > 0;
+  const canGymCheckIn = Boolean(member);
+  const canCheckIn = mode === MODE_PT ? canPtCheckIn : canGymCheckIn;
+
   const handleCheckIn = async () => {
     if (!member) return;
-    const payload = { memberId: String(member.systemId) };
-    if (isManager) {
-      const s = Number(sessions);
-      if (!s || s <= 0 || !Number.isInteger(s)) {
-        toast.error('Number of sessions must be a positive whole number');
-        return;
-      }
-      payload.numberOfSessions = s;
-    }
     setChecking(true); setResult(null);
     try {
-      const res = await api.post('/members/PTcheckin', payload);
-      setResult({ ok: true, msg: res.data.message });
-      toast.success(res.data.message);
+      if (mode === MODE_GYM) {
+        const res = await checkInMember(String(member.systemId));
+        const msg = res.data?.message || 'Member checked in';
+        setResult({ ok: true, msg });
+        toast.success(msg);
+      } else {
+        const payload = { memberId: String(member.systemId) };
+        if (isManager) {
+          const s = Number(sessions);
+          if (!s || s <= 0 || !Number.isInteger(s)) {
+            toast.error('Number of sessions must be a positive whole number');
+            setChecking(false);
+            return;
+          }
+          payload.numberOfSessions = s;
+        }
+        const res = await api.post('/members/PTcheckin', payload);
+        setResult({ ok: true, msg: res.data.message });
+        toast.success(res.data.message);
+      }
       const updated = await getMemberProfile(member.systemId);
       setMember(updated.data.member);
       loadHistory();
@@ -106,20 +122,49 @@ export default function CoachCheckin() {
     } finally { setChecking(false); }
   };
 
-  const remaining = (member?.PT_sessions || 0) - (member?.used_PT_sessions || 0);
-  const canCheckIn = member && member.couch_subscription_status === 'active' && remaining > 0;
+  const modeBtnStyle = (active) => ({
+    flex: 1,
+    minHeight: 40,
+    borderRadius: 8,
+    border: `1px solid ${active ? 'var(--blue)' : 'var(--border)'}`,
+    background: active ? 'rgba(37,99,235,0.08)' : 'var(--card)',
+    color: active ? 'var(--blue)' : 'var(--t2)',
+    fontWeight: 700,
+    fontSize: 13,
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    fontFamily: 'inherit',
+  });
 
   return (
     <Layout>
-      <PageHeader walkthrough="coach-checkin-header" title="Session Check-In" />
+      <PageHeader walkthrough="coach-checkin-header" title="Check-In" />
 
       <div className="page-wrap" data-walkthrough="coach-checkin-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <div className="grid-checkin">
 
-          {/* ── Left: Search + Member ──────────────────────────────── */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-            {/* Search */}
+            <Card>
+              <CardHeader title="Check-in type" />
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button type="button" style={modeBtnStyle(mode === MODE_GYM)} onClick={() => { setMode(MODE_GYM); setResult(null); }}>
+                  <DoorOpen size={15} aria-hidden /> Gym check-in
+                </button>
+                <button type="button" style={modeBtnStyle(mode === MODE_PT)} onClick={() => { setMode(MODE_PT); setResult(null); }}>
+                  <Dumbbell size={15} aria-hidden /> PT session
+                </button>
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 10, marginBottom: 0 }}>
+                {mode === MODE_GYM
+                  ? 'Logs a normal gym visit. Does not deduct PT sessions.'
+                  : 'Deducts from the member’s private training balance.'}
+              </p>
+            </Card>
+
             <Card>
               <CardHeader title="Find Member" />
               <form onSubmit={handleSearch} style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -145,16 +190,14 @@ export default function CoachCheckin() {
               </p>
             </Card>
 
-            {/* Member card */}
             {member && (
               <Card>
-                {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
                   <Avatar name={member.name} size="lg" />
                   <div style={{ flex: 1 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
                       <h2 style={{ fontSize: 17, fontWeight: 800, color: 'var(--t1)', margin: 0 }}>{member.name}</h2>
-                      <Badge status={member.couch_subscription_status || 'guest'} />
+                      <Badge status={mode === MODE_PT ? (member.couch_subscription_status || 'guest') : (member.status || 'guest')} />
                     </div>
                     <div style={{ fontSize: 12, color: 'var(--t3)' }}>
                       #{member.systemId} · {member.current_couch?.name ? `Coach: ${member.current_couch.name}` : 'No coach'}
@@ -162,24 +205,24 @@ export default function CoachCheckin() {
                   </div>
                 </div>
 
-                {/* Sessions strip */}
-                <div className="grid-stats-3" style={{ background: 'var(--border)', borderRadius: 8, overflow: 'hidden', marginBottom: 18 }}>
-                  <div style={{ background: 'var(--card)', padding: '12px 14px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--blue)' }}>{member.PT_sessions || 0}</div>
-                    <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.5px', marginTop: 2 }}>Total</div>
+                {mode === MODE_PT && (
+                  <div className="grid-stats-3" style={{ background: 'var(--border)', borderRadius: 8, overflow: 'hidden', marginBottom: 18 }}>
+                    <div style={{ background: 'var(--card)', padding: '12px 14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--blue)' }}>{member.PT_sessions || 0}</div>
+                      <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.5px', marginTop: 2 }}>Total</div>
+                    </div>
+                    <div style={{ background: 'var(--card)', padding: '12px 14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--t2)' }}>{member.used_PT_sessions || 0}</div>
+                      <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.5px', marginTop: 2 }}>Used</div>
+                    </div>
+                    <div style={{ background: 'var(--card)', padding: '12px 14px', textAlign: 'center' }}>
+                      <div style={{ fontSize: 22, fontWeight: 800, color: remaining > 0 ? 'var(--green)' : 'var(--red)' }}>{remaining}</div>
+                      <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.5px', marginTop: 2 }}>Remaining</div>
+                    </div>
                   </div>
-                  <div style={{ background: 'var(--card)', padding: '12px 14px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--t2)' }}>{member.used_PT_sessions || 0}</div>
-                    <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.5px', marginTop: 2 }}>Used</div>
-                  </div>
-                  <div style={{ background: 'var(--card)', padding: '12px 14px', textAlign: 'center' }}>
-                    <div style={{ fontSize: 22, fontWeight: 800, color: remaining > 0 ? 'var(--green)' : 'var(--red)' }}>{remaining}</div>
-                    <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.5px', marginTop: 2 }}>Remaining</div>
-                  </div>
-                </div>
+                )}
 
-                {/* Coach Manager: sessions input */}
-                {isManager && (
+                {mode === MODE_PT && isManager && (
                   <div style={{ marginBottom: 14 }}>
                     <Input
                       label="Number of Sessions"
@@ -190,7 +233,6 @@ export default function CoachCheckin() {
                   </div>
                 )}
 
-                {/* Result */}
                 {result && (
                   <div style={{
                     padding: '10px 14px', borderRadius: 6, marginBottom: 16, fontSize: 13, fontWeight: 600, textAlign: 'center',
@@ -205,7 +247,6 @@ export default function CoachCheckin() {
                   </div>
                 )}
 
-                {/* Actions */}
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Btn
                     variant={canCheckIn ? 'success' : 'outline'}
@@ -213,14 +254,20 @@ export default function CoachCheckin() {
                     disabled={checking || !canCheckIn}
                     fullWidth size="lg"
                   >
-                    {checking ? <><Spinner size="sm" /> Processing…</> : <><Check size={16} aria-hidden /> Check In {isManager ? `${sessions} Session(s)` : '1 Session'}</>}
+                    {checking ? (
+                      <><Spinner size="sm" /> Processing…</>
+                    ) : mode === MODE_GYM ? (
+                      <><DoorOpen size={16} aria-hidden /> Gym Check-In</>
+                    ) : (
+                      <><Check size={16} aria-hidden /> Check In {isManager ? `${sessions} Session(s)` : '1 Session'}</>
+                    )}
                   </Btn>
                   <Btn variant="outline" size="lg" onClick={() => navigate(`/members/${member.systemId}`)}>
                     Profile
                   </Btn>
                 </div>
 
-                {!canCheckIn && member.couch_subscription_status && (
+                {mode === MODE_PT && !canCheckIn && member.couch_subscription_status && (
                   <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--red)', marginTop: 10 }}>
                     {remaining <= 0 ? 'No sessions remaining' : `Status: ${member.couch_subscription_status}`}
                   </p>
@@ -229,11 +276,12 @@ export default function CoachCheckin() {
             )}
           </div>
 
-          {/* ── Right: Today's sessions ────────────────────────────── */}
           <Card noPad>
             <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
-                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', margin: 0 }}>Today's Sessions</h3>
+                <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', margin: 0 }}>
+                  {mode === MODE_GYM ? "Today's Gym Check-Ins" : "Today's PT Sessions"}
+                </h3>
                 <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>
                   {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'short', year: 'numeric' })}
                 </p>
@@ -243,18 +291,22 @@ export default function CoachCheckin() {
                 background: 'var(--navy)', color: '#fff',
                 fontSize: 13, fontWeight: 800,
               }}>
-                {historyLoad ? '…' : todaySessions.length}
+                {historyLoad ? '…' : todayEntries.length}
               </div>
             </div>
 
             <div style={{ maxHeight: 'calc(100svh - 220px)', overflowY: 'auto' }}>
               {historyLoad ? (
                 <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner /></div>
-              ) : todaySessions.length === 0 ? (
-                <EmptyState icon={Dumbbell} message="No sessions checked today" sub="Check in a member using the search on the left" />
+              ) : todayEntries.length === 0 ? (
+                <EmptyState
+                  icon={mode === MODE_GYM ? DoorOpen : Dumbbell}
+                  message={mode === MODE_GYM ? 'No gym check-ins today' : 'No sessions checked today'}
+                  sub="Check in a member using the search on the left"
+                />
               ) : (
                 <div>
-                  {todaySessions.map((entry, i) => (
+                  {todayEntries.map((entry, i) => (
                     <div key={entry._id ?? i}
                       onClick={() => navigate(`/members/${entry.member.systemId}`)}
                       style={{
@@ -269,7 +321,10 @@ export default function CoachCheckin() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{entry.member.name}</div>
                         <div style={{ fontSize: 11, color: 'var(--t4)' }}>
-                          #{entry.member.systemId} · {(entry.member.PT_sessions || 0) - (entry.member.used_PT_sessions || 0)} left
+                          #{entry.member.systemId}
+                          {mode === MODE_PT
+                            ? ` · ${(entry.member.PT_sessions || 0) - (entry.member.used_PT_sessions || 0)} left`
+                            : ''}
                         </div>
                       </div>
                       <div style={{ textAlign: 'right', flexShrink: 0 }}>

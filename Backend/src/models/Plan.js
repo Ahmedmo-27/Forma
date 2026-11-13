@@ -22,7 +22,7 @@ const ALL_ROLES = [
     "Owner",
     "Receptionist",
     "Coach",
-    "Coach Manager",
+    "Head Coach",
     "Accountant",
     "Sales",
     "Sales Manager",

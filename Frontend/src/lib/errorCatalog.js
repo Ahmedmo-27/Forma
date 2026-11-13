@@ -176,7 +176,7 @@ export const ERROR_MESSAGES = {
   },
   BILLING_SEATS_SOLD_OUT: {
     title: "Offer Sold Out",
-    message: "All seats for this lifetime subscription tier have been claimed. Please explore our other plans.",
+    message: "This subscription option is no longer available. Please choose a monthly or yearly plan.",
     severity: "warning",
     presentation: "modal",
     primaryAction: { label: "Choose Another Plan", action: "plans" },

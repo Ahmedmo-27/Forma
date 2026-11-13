@@ -807,7 +807,7 @@ function evaluateInsights({ focus, recentDays, priorDays }) {
     if ((focus?.metrics?.ptExpiringSessions || 0) >= 10) {
         insights.push({
             ruleKey: "pt_expiring",
-            role: "Coach Manager",
+            role: "Head Coach",
             impact: focus.metrics.ptExpiringPiasters || focus.metrics.ptExpiringSessions,
             title: `${focus.metrics.ptExpiringSessions} PT sessions expire unused within 30 days.`,
             action: "Book those members. The money figure uses their own pack price, and the session counter is gym-wide rather than per pack.",

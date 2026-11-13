@@ -1,8 +1,8 @@
 import { Card, CardHeader, Table, EmptyState, Avatar, Badge, InfoRow, fmtDateTime } from '../../../components/ui';
 
 export default function OthersTab({ profileViews = [], member, user }) {
-  const isCoachRole = ['Coach', 'Coach Manager'].includes(user?.role);
-  const coachRoles = ['Coach', 'Coach Manager'];
+  const isCoachRole = ['Coach', 'Head Coach'].includes(user?.role);
+  const coachRoles = ['Coach', 'Head Coach'];
 
   // Filter views: coaches see only coach views, others see only non-coach views
   const filteredViews = profileViews.filter(v => {

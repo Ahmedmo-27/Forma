@@ -290,12 +290,12 @@ describe("Task Controller and Completion Workflow", () => {
     });
 
     it("enforces clear player type role distinctions between assigning and assigned players", () => {
-        const assigningRoles = ["transfer", "coach_transfer", "Sales Manager", "Coach Manager", "Owner", "General Manager"];
-        const assignedRoles = ["Sales", "Coach", "Sales Manager", "Coach Manager", "Owner", "General Manager"];
+        const assigningRoles = ["transfer", "coach_transfer", "Sales Manager", "Head Coach", "Owner", "General Manager"];
+        const assignedRoles = ["Sales", "Coach", "Sales Manager", "Head Coach", "Owner", "General Manager"];
 
         // Assigning player roles
         expect(assigningRoles.includes("Sales Manager")).toBe(true);
-        expect(assigningRoles.includes("Coach Manager")).toBe(true);
+        expect(assigningRoles.includes("Head Coach")).toBe(true);
         expect(assigningRoles.includes("Owner")).toBe(true);
         expect(assigningRoles.includes("General Manager")).toBe(true);
         // Regular Sales and Coach are strictly excluded from assigning roles

@@ -17,11 +17,11 @@ router.use(locationScopeOptional);
 
 // ============================================================================
 // 1. ASSIGNING PLAYER ROUTES (Player Type: Assigning)
-// Strictly for Sales Manager, Coach Manager, Owner, General Manager,
+// Strictly for Sales Manager, Head Coach, Owner, General Manager,
 // or staff with explicit "transfer" / "coach_transfer" permissions.
 // Regular Sales and Coaches are NOT authorized on these endpoints.
 // ============================================================================
-const assigningGuard = allowAnyFeature(["transfer", "coach_transfer"], "Sales Manager", "Coach Manager", "Owner", "General Manager");
+const assigningGuard = allowAnyFeature(["transfer", "coach_transfer"], "Sales Manager", "Head Coach", "Owner", "General Manager");
 
 // History & list of tasks created by the manager
 router.get("/assigning/created", assigningGuard, getCreatedTasks);
@@ -35,7 +35,7 @@ router.get("/assigning/overview", assigningGuard, getAssigningOverview);
 // For regular Sales and Coaches (and managers with assigned tasks).
 // Zero privilege requirement beyond their core assigned role.
 // ============================================================================
-const assignedGuard = allowAnyFeature(["sales_members", "coach_members", "transfer", "coach_transfer"], "Sales", "Coach", "Sales Manager", "Coach Manager", "Owner", "General Manager");
+const assignedGuard = allowAnyFeature(["sales_members", "coach_members", "transfer", "coach_transfer"], "Sales", "Coach", "Sales Manager", "Head Coach", "Owner", "General Manager");
 
 // Active tasks assigned to the caller
 router.get("/assigned/active", assignedGuard, getAssignedTasks);

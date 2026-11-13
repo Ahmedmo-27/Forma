@@ -14,13 +14,11 @@ import {
   apiGetAnalyticsOverview,
   apiComputeSnapshotNow,
   apiGetHealthDetails,
-  apiGetPrices,
 } from "../../lib/api/endpoints";
 import { KpiCard } from "../../shell/KpiCard";
 import { Button } from "../../ui/Button";
 import { Badge, StatusPill } from "../../ui/Badge";
 import { Skeleton } from "../../ui/Skeleton";
-import { UsageMeter } from "../../ui/UsageMeter";
 import { ErrorState } from "../../ui/ErrorState";
 import { formatCurrency, formatNumber } from "../../lib/utils/formatters";
 import { platformToast } from "../../ui/Toast";
@@ -40,7 +38,6 @@ function growthTone(value) {
 export default function DashboardPage() {
   const [overview, setOverview] = useState(null);
   const [healthDetails, setHealthDetails] = useState(null);
-  const [prices, setPrices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [loadError, setLoadError] = useState("");
@@ -48,10 +45,9 @@ export default function DashboardPage() {
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [overviewRes, healthRes, pricesRes] = await Promise.allSettled([
+      const [overviewRes, healthRes] = await Promise.allSettled([
         apiGetAnalyticsOverview(),
         apiGetHealthDetails(),
-        apiGetPrices(),
       ]);
 
       if (overviewRes.status === "fulfilled") {
@@ -65,11 +61,6 @@ export default function DashboardPage() {
         setHealthDetails(healthRes.value.data);
       } else {
         setHealthDetails(null);
-      }
-      if (pricesRes.status === "fulfilled") {
-        setPrices(pricesRes.value.data || []);
-      } else {
-        setPrices([]);
       }
     } catch {
       setLoadError("Dashboard metrics could not be loaded.");
@@ -147,14 +138,10 @@ export default function DashboardPage() {
   const definitions = overview?.definitions || {};
 
   const totalSubscribers =
-    (mix.byCycle?.monthly || 0) + (mix.byCycle?.yearly || 0) + (mix.byCycle?.lifetime || 0) || 1;
+    (mix.byCycle?.monthly || 0) + (mix.byCycle?.yearly || 0) || 1;
 
   const monthlyPercent = Math.round(((mix.byCycle?.monthly || 0) / totalSubscribers) * 100);
   const yearlyPercent = Math.round(((mix.byCycle?.yearly || 0) / totalSubscribers) * 100);
-  const lifetimePercent = Math.round(((mix.byCycle?.lifetime || 0) / totalSubscribers) * 100);
-
-  // Filter lifetime prices for seat caps
-  const lifetimePrices = prices.filter((p) => p.cycle === "lifetime");
 
   const upsellCandidates = healthDetails?.upsellCandidates || [];
   const churnRisks = healthDetails?.churnRisks || [];
@@ -220,14 +207,11 @@ export default function DashboardPage() {
         />
 
         <KpiCard
-          title="Lifetime Capital"
-          value={formatCurrency(revenue.lifetimeRevenueTotal || revenue.lifetimeRecognized)}
-          subtext="One-time capital collected"
+          title="Yearly Subscribers"
+          value={formatNumber(mix.byCycle?.yearly || 0)}
+          subtext="Annual contract gyms"
           deltaType="neutral"
-          howCalculated={
-            definitions.lifetimeRevenue ||
-            "Total non-recurring upfront fees collected from lifetime pass gym purchases."
-          }
+          howCalculated="Count of active gyms billed on the yearly cycle — the highest subscription tier."
           icon={Sparkles}
         />
 
@@ -306,22 +290,6 @@ export default function DashboardPage() {
                 </div>
               </div>
 
-              {/* Lifetime */}
-              <div className="space-y-1.5">
-                <div className="flex justify-between text-xs">
-                  <span className="text-[var(--platform-text-secondary)] font-medium">Lifetime Pass Deals</span>
-                  <span className="platform-mono font-semibold text-[var(--platform-success)]">
-                    {formatNumber(mix.byCycle?.lifetime || 0)}{" "}
-                    <span className="text-[11px] text-[var(--platform-text-muted)]">({lifetimePercent}%)</span>
-                  </span>
-                </div>
-                <div className="h-1.5 w-full rounded-full bg-[var(--platform-surface-subtle)] overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-[var(--platform-success)] transition-all duration-300"
-                    style={{ width: `${lifetimePercent}%` }}
-                  />
-                </div>
-              </div>
             </div>
           </div>
 
@@ -501,62 +469,39 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* ── Card 3: Lifetime Seat Quotas & Platform Governance ── */}
+        {/* ── Card 3: Pricing & Platform Governance ── */}
         <div className="p-6 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] shadow-2xs flex flex-col justify-between space-y-6 platform-card">
           <div className="space-y-5">
-            {/* Header */}
             <div className="flex items-center justify-between pb-3.5 border-b border-[var(--platform-border-subtle)]">
               <div>
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)]">
-                  Lifetime Seat Quotas
+                  Subscription Pricing
                 </h2>
                 <p className="text-xs text-[var(--platform-text-secondary)] mt-0.5">
-                  Hard-capped commercial tiers
+                  Monthly and yearly billing only
                 </p>
               </div>
               <Badge variant="neutral" size="sm">
-                Hard Cap Rules
+                Yearly Max Tier
               </Badge>
             </div>
 
-            {/* Quota Bars */}
-            <div className="space-y-4">
-              {lifetimePrices.length > 0 ? (
-                lifetimePrices.map((price) => {
-                  const sold = price.soldLifetimeSeats || 0;
-                  const max = price.maxLifetimeSeats || 100;
-                  const tierName = price.planId?.name || price.planKey || "Lifetime Tier";
-
-                  return (
-                    <UsageMeter
-                      key={price._id}
-                      label={tierName.toUpperCase()}
-                      current={sold}
-                      max={max}
-                      unit="seats"
-                    />
-                  );
-                })
-              ) : (
-                <div className="rounded-[var(--platform-radius-md)] border border-dashed border-[var(--platform-border)] px-4 py-6 text-center space-y-2">
-                  <p className="text-xs font-medium text-[var(--platform-text-primary)]">
-                    No lifetime prices published
-                  </p>
-                  <p className="text-[11px] text-[var(--platform-text-muted)] leading-relaxed">
-                    Seat caps appear here after a lifetime tier is created. Sample tiers are not shown.
-                  </p>
-                  <Link
-                    to="/platform/pricing-coupons"
-                    className="inline-flex items-center gap-1 text-xs font-medium text-[var(--platform-accent)] hover:underline min-h-8"
-                  >
-                    Manage pricing
-                    <ChevronRight className="w-3.5 h-3.5" />
-                  </Link>
-                </div>
-              )}
+            <div className="rounded-[var(--platform-radius-md)] border border-dashed border-[var(--platform-border)] px-4 py-6 text-center space-y-2">
+              <p className="text-xs font-medium text-[var(--platform-text-primary)]">
+                Highest plan cycle is yearly
+              </p>
+              <p className="text-[11px] text-[var(--platform-text-muted)] leading-relaxed">
+                Manage monthly and yearly price matrices, coupons, and sales status from pricing.
+              </p>
+              <Link
+                to="/platform/pricing-coupons"
+                className="inline-flex items-center gap-1 text-xs font-medium text-[var(--platform-accent)] hover:underline min-h-8"
+              >
+                Manage pricing
+                <ChevronRight className="w-3.5 h-3.5" />
+              </Link>
             </div>
 
-            {/* Immutable Notice */}
             <div className="p-4 rounded-[var(--platform-radius-md)] bg-[var(--platform-surface-subtle)] border border-[var(--platform-border-subtle)] text-xs text-[var(--platform-text-secondary)] leading-relaxed flex items-start gap-2.5">
               <ShieldCheck className="w-4 h-4 text-[var(--platform-success)] shrink-0 mt-0.5" />
               <div>

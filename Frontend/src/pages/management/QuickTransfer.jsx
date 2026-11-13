@@ -50,7 +50,7 @@ export default function QuickTransfer() {
     setLoadingStaff(true);
     Promise.all([
       getSalesUsers().then((r) => r.data.salesUsers ?? []).catch(() => []),
-      getCoachTeam().then((r) => (r.data.team ?? []).filter((p) => ['Coach', 'Coach Manager'].includes(p.role))).catch(() => []),
+      getCoachTeam().then((r) => (r.data.team ?? []).filter((p) => ['Coach', 'Head Coach'].includes(p.role))).catch(() => []),
     ]).then(([sales, coachList]) => {
       setSalesUsers(sales);
       setCoaches(coachList);

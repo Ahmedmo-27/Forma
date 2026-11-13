@@ -603,7 +603,7 @@ export default function AnalyticsHome() {
   const [activeFormulaModal, setActiveFormulaModal] = useState(null);
   const [selectedSeriesKey, setSelectedSeriesKey] = useState('membershipSalesPiasters');
 
-  const canSeeInsights = ['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Coach Manager'].includes(user?.role);
+  const canSeeInsights = ['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Head Coach'].includes(user?.role);
   const viewingAllBranches = !multiEnabled || selectedLocationId === allKey || selectedLocationId === ALL_LOCATIONS;
   const branchLabel = viewingAllBranches
     ? 'All locations'

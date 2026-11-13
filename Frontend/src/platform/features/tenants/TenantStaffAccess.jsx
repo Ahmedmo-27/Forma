@@ -17,7 +17,7 @@ const ROLE_ORDER = [
   "General Manager",
   "Sales Manager",
   "Sales",
-  "Coach Manager",
+  "Head Coach",
   "Coach",
   "Receptionist",
   "Accountant",

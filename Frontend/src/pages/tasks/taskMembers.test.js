@@ -143,7 +143,7 @@ describe("tasks member groups", () => {
     expect(accountant.canWhatsApp).toBe(false);
 
     const coachManager = taskPermissions(
-      { role: "Coach Manager", access: ["coach_transfer"] },
+      { role: "Head Coach", access: ["coach_transfer"] },
       () => false,
     );
     expect(coachManager.canCoach).toBe(true);
@@ -171,7 +171,7 @@ describe("tasks member groups", () => {
   it("checks if a user has permission to assign tasks", () => {
     expect(canUserAssignTasks({ role: "Owner" })).toBe(true);
     expect(canUserAssignTasks({ role: "Sales Manager" })).toBe(true);
-    expect(canUserAssignTasks({ role: "Coach Manager" })).toBe(true);
+    expect(canUserAssignTasks({ role: "Head Coach" })).toBe(true);
     expect(canUserAssignTasks({ role: "General Manager" })).toBe(true);
     expect(canUserAssignTasks({ role: "Sales", access: ["transfer"] })).toBe(true);
     expect(canUserAssignTasks({ role: "Sales", access: [] })).toBe(false);
@@ -187,7 +187,7 @@ describe("tasks member groups", () => {
     expect(canUserReceiveTasks({ role: "Receptionist" })).toBe(false);
     expect(canUserReceiveTasks({ role: "Sales" })).toBe(true);
     expect(canUserReceiveTasks({ role: "Coach" })).toBe(true);
-    expect(canUserReceiveTasks({ role: "Coach Manager" })).toBe(true);
+    expect(canUserReceiveTasks({ role: "Head Coach" })).toBe(true);
     expect(canUserReceiveTasks(null)).toBe(false);
   });
 
@@ -676,8 +676,8 @@ describe("tasks member groups", () => {
       expect(getTaskPlayerType(user)).toBe(TASK_PLAYER_TYPES.ASSIGNING);
     });
 
-    it("identifies Coach Manager, Owner, and General Manager as assigning player type", () => {
-      expect(getTaskPlayerType({ role: "Coach Manager" })).toBe(TASK_PLAYER_TYPES.ASSIGNING);
+    it("identifies Head Coach, Owner, and General Manager as assigning player type", () => {
+      expect(getTaskPlayerType({ role: "Head Coach" })).toBe(TASK_PLAYER_TYPES.ASSIGNING);
       expect(getTaskPlayerType({ role: "Owner" })).toBe(TASK_PLAYER_TYPES.ASSIGNING);
       expect(getTaskPlayerType({ role: "General Manager" })).toBe(TASK_PLAYER_TYPES.ASSIGNING);
     });

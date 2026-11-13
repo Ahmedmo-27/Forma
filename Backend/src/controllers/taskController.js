@@ -31,7 +31,7 @@ const getCreatedTasks = async (req, res) => {
             if (req.query.targetRole === "Sales") {
                 filter.targetRole = { $in: ["Sales", "Sales Manager"] };
             } else if (req.query.targetRole === "Coach") {
-                filter.targetRole = { $in: ["Coach", "Coach Manager"] };
+                filter.targetRole = { $in: ["Coach", "Head Coach"] };
             } else {
                 filter.targetRole = req.query.targetRole;
             }
@@ -103,7 +103,7 @@ const getAssignedTasks = async (req, res) => {
 // 3. Get history of people assigned to the user
 const getAssignedHistory = async (req, res) => {
     try {
-        const targetUserId = req.query.personId && ["Owner", "General Manager", "Sales Manager", "Coach Manager"].includes(req.user.role)
+        const targetUserId = req.query.personId && ["Owner", "General Manager", "Sales Manager", "Head Coach"].includes(req.user.role)
             ? req.query.personId
             : req.user.id;
 
@@ -187,7 +187,7 @@ const getAssignedHistory = async (req, res) => {
     }
 };
 
-// 3.1 Get overview stats for the assigning player (Sales Manager, Coach Manager, Owner, GM)
+// 3.1 Get overview stats for the assigning player (Sales Manager, Head Coach, Owner, GM)
 const getAssigningOverview = async (req, res) => {
     try {
         const filter = {};
@@ -245,7 +245,7 @@ const completeMemberTask = async (req, res) => {
         }
 
         const isAssignee = task.assignedTo.toString() === req.user.id.toString();
-        const isManager = ["Owner", "General Manager", "Sales Manager", "Coach Manager"].includes(req.user.role);
+        const isManager = ["Owner", "General Manager", "Sales Manager", "Head Coach"].includes(req.user.role);
 
         if (!isAssignee && !isManager) {
             return res.status(403).json({ message: "Not authorized to update this task" });

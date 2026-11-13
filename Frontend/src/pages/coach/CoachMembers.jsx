@@ -14,7 +14,7 @@ export default function CoachMembers() {
   usePageTitle('Members');
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isManager = user?.role === 'Coach Manager';
+  const isManager = user?.role === 'Head Coach';
 
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,7 +36,7 @@ export default function CoachMembers() {
 
   useLocationEffect(() => { load(); }, [load]);
 
-  // Filter to coach's members (Coach sees only theirs, Coach Manager sees ALL)
+  // Filter to coach's members (Coach sees only theirs, Head Coach sees ALL)
   const coachMembers = isManager
     ? members
     : members.filter(m => {

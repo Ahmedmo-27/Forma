@@ -138,7 +138,7 @@ const salesRequestStatusSchema = z.object({
     status: z.enum(["accepted", "rejected"]),
 });
 
-const GYM_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"];
+const GYM_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager"];
 
 const createStaffSchema = z.object({
     name: z.string().trim().min(1).max(120),
@@ -219,7 +219,7 @@ const createWhatsAppTemplateSchema = z.object({
     defaultDiscountPercent: z.coerce.number().min(0).max(100).optional(),
     allowedRoles: z.array(z.enum([
         "Owner", "General Manager", "Sales Manager", "Sales", "Receptionist", "Accountant",
-        "Coach", "Coach Manager",
+        "Coach", "Head Coach",
     ])).optional(),
     isDefault: z.preprocess(
         (v) => {
@@ -369,54 +369,18 @@ const createTenantSchema = z.object({
 
 const updateTenantSchema = createTenantSchema.partial();
 
-const lifetimeCheckoutSchema = z.object({
-    planKey: z.enum(["basic", "gold", "platinum"]),
-    paymentMethod: z.enum(["online", "manual_transfer", "cash"]).default("manual_transfer"),
-    termsAccepted: z.literal(true, {
-        errorMap: () => ({ message: "You must accept the lifetime service terms before checkout." }),
-    }),
-    termsVersion: z.string().trim().min(1, "Terms version is required"),
-});
-
-const lifetimeUpgradeSchema = z.object({
-    targetPlanKey: z.enum(["gold", "platinum"]),
-    paymentMethod: z.enum(["online", "manual_transfer", "cash"]).default("manual_transfer"),
-    termsAccepted: z.literal(true, {
-        errorMap: () => ({ message: "You must accept the lifetime service terms before upgrading." }),
-    }),
-    termsVersion: z.string().trim().min(1, "Terms version is required"),
-});
-
-const adminLifetimeGrantSchema = z.object({
-    planKey: z.enum(["basic", "gold", "platinum"]),
-    reason: z.string().trim().min(5, "A reason of at least 5 characters is required for manual grants"),
-    entitlementPolicy: z.enum(["follow_tier", "snapshot"]).default("follow_tier"),
-    amountPaid: z.coerce.number().min(0).default(0),
-    currency: egpCurrency,
-    paymentMethod: z.enum(["online", "manual_transfer", "cash"]).default("manual_transfer"),
-    paymentRef: z.string().trim().nullable().optional(),
-    termsVersion: z.string().trim().default("2026.1"),
-});
-
-const adminLifetimeRevokeSchema = z.object({
-    reason: z.string().trim().min(5, "A reason of at least 5 characters is required for revocation"),
-    refundAmount: z.coerce.number().min(0).default(0),
-    allowGracePeriodDays: z.coerce.number().int().min(0).max(60).default(14),
-});
-
 const updateEntitlementPolicySchema = z.object({
     entitlementPolicy: z.enum(["follow_tier", "snapshot"]),
 });
 
 const planPriceSchema = z.object({
     planId: objectId,
-    cycle: z.enum(["monthly", "yearly", "lifetime"]),
+    cycle: z.enum(["monthly", "yearly"]),
     amount: z.coerce.number().min(0),
     currency: egpCurrency,
     isActive: z.boolean().default(true),
     validFrom: z.preprocess(emptyToNull, z.string().datetime().nullable().optional()),
     validUntil: z.preprocess(emptyToNull, z.string().datetime().nullable().optional()),
-    maxLifetimeSeats: z.preprocess(emptyToNull, z.coerce.number().int().min(1).nullable().optional()),
 });
 
 const publicSignupSchema = z.object({
@@ -425,7 +389,7 @@ const publicSignupSchema = z.object({
     ownerName: z.string().trim().min(2).max(120),
     ownerEmail: z.string().trim().email().toLowerCase(),
     planKey: planKeySchema.default("basic"),
-    cycle: z.enum(["monthly", "yearly", "lifetime"]).default("monthly"),
+    cycle: z.enum(["monthly", "yearly"]).default("monthly"),
     trialDays: z.coerce.number().int().min(1).max(90).optional().default(14),
 });
 
@@ -457,10 +421,6 @@ module.exports = {
     createTenantSchema,
     updateTenantSchema,
     tenantSettingsSchema,
-    lifetimeCheckoutSchema,
-    lifetimeUpgradeSchema,
-    adminLifetimeGrantSchema,
-    adminLifetimeRevokeSchema,
     updateEntitlementPolicySchema,
     planPriceSchema,
     publicSignupSchema,

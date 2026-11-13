@@ -1,5 +1,5 @@
 /**
- * Seed PlanPrices (Monthly, Yearly, Lifetime)
+ * Seed PlanPrices (monthly and yearly only).
  * Idempotent: upserts prices by { planId, cycle }.
  *
  * Usage:
@@ -14,7 +14,6 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 const Plan = require("../models/Plan");
 const PlanPrice = require("../models/PlanPrice");
-const pricingConfig = require("../config/lifetimePricing.json");
 
 async function seedPlanPrices(options = {}) {
     const isDryRun = options.isDryRun || process.argv.includes("--dry-run");
@@ -25,14 +24,8 @@ async function seedPlanPrices(options = {}) {
         throw new Error("No plans found in database. Run seedPlans first.");
     }
 
-    const planByKey = {};
-    plans.forEach((p) => {
-        planByKey[p.key] = p;
-    });
-
     const pricesToSeed = [];
 
-    // 1. Monthly & Yearly prices from Plan definitions
     for (const plan of plans) {
         pricesToSeed.push({
             planId: plan._id,
@@ -43,7 +36,6 @@ async function seedPlanPrices(options = {}) {
             isActive: true,
             validFrom: new Date(),
             validUntil: null,
-            maxLifetimeSeats: null,
         });
         pricesToSeed.push({
             planId: plan._id,
@@ -54,34 +46,12 @@ async function seedPlanPrices(options = {}) {
             isActive: true,
             validFrom: new Date(),
             validUntil: null,
-            maxLifetimeSeats: null,
-        });
-    }
-
-    // 2. Lifetime prices from configuration file placeholders
-    for (const item of pricingConfig.lifetimePricing || []) {
-        const plan = planByKey[item.planKey];
-        if (!plan) {
-            console.warn(`Warning: Plan '${item.planKey}' not found, skipping lifetime price.`);
-            continue;
-        }
-
-        pricesToSeed.push({
-            planId: plan._id,
-            planKey: item.planKey,
-            cycle: "lifetime",
-            amount: item.amount,
-            currency: item.currency || "EGP",
-            isActive: item.isActive ?? true,
-            validFrom: new Date(),
-            validUntil: null,
-            maxLifetimeSeats: item.maxLifetimeSeats ?? null,
         });
     }
 
     const results = [];
     for (const p of pricesToSeed) {
-        console.log(`PlanPrice [${p.planKey.toUpperCase()} - ${p.cycle.toUpperCase()}]: ${p.amount} ${p.currency} (Seats cap: ${p.maxLifetimeSeats ?? 'Unlimited'})`);
+        console.log(`PlanPrice [${p.planKey.toUpperCase()} - ${p.cycle.toUpperCase()}]: ${p.amount} ${p.currency}`);
         if (!isDryRun) {
             const price = await PlanPrice.findOneAndUpdate(
                 { planId: p.planId, cycle: p.cycle },
@@ -90,12 +60,12 @@ async function seedPlanPrices(options = {}) {
                         amount: p.amount,
                         currency: p.currency,
                         isActive: p.isActive,
-                        maxLifetimeSeats: p.maxLifetimeSeats,
                     },
                     $setOnInsert: {
                         validFrom: p.validFrom,
                         validUntil: p.validUntil,
                         soldLifetimeSeats: 0,
+                        maxLifetimeSeats: null,
                     },
                 },
                 { new: true, upsert: true }
@@ -103,6 +73,16 @@ async function seedPlanPrices(options = {}) {
             results.push(price);
         } else {
             results.push(p);
+        }
+    }
+
+    if (!isDryRun) {
+        const deactivated = await PlanPrice.updateMany(
+            { cycle: "lifetime", isActive: true },
+            { $set: { isActive: false } }
+        );
+        if (deactivated.modifiedCount) {
+            console.log(`Deactivated ${deactivated.modifiedCount} legacy lifetime plan price(s).`);
         }
     }
 

@@ -5,28 +5,28 @@ export const ALL_TENANT_ROLES = [
   'General Manager',
   'Sales Manager',
   'Sales',
-  'Coach Manager',
+  'Head Coach',
   'Coach',
   'Receptionist',
   'Accountant',
 ];
 
 const CHECKIN_ROLES = ['Receptionist', 'Owner', 'General Manager', 'Sales Manager', 'Sales'];
-const DIRECTORY_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Coach Manager', 'Receptionist'];
+const DIRECTORY_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Head Coach', 'Receptionist'];
 const SALES_ROLES = ['Sales', 'Sales Manager', 'Owner', 'General Manager'];
 const SALES_LEAD_ROLES = ['Sales Manager', 'Owner', 'General Manager'];
-const COACH_ROLES = ['Coach', 'Coach Manager'];
-const ASSIGN_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Coach Manager'];
-const ASSIGNED_ROLES = ['Sales', 'Coach', 'Coach Manager'];
+const COACH_ROLES = ['Coach', 'Head Coach'];
+const ASSIGN_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Head Coach'];
+const ASSIGNED_ROLES = ['Sales', 'Coach', 'Head Coach'];
 const ACCOUNTING_ROLES = ['Accountant', 'Owner', 'General Manager'];
 const CONTRACT_ROLES = ['Accountant', 'Owner', 'General Manager', 'Sales Manager'];
 const TARGET_ROLES = ['Sales Manager', 'Owner', 'General Manager', 'Accountant'];
-const REPORT_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Accountant'];
+const REPORT_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Accountant'];
 const ANALYTICS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Accountant'];
-const MANAGEMENT_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Coach Manager'];
+const MANAGEMENT_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Head Coach'];
 const OWNER_ROLES = ['Owner', 'General Manager'];
-const ACCESS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Coach Manager'];
-const WHATSAPP_ROLES = ['Sales Manager', 'Owner', 'General Manager', 'Accountant', 'Coach Manager'];
+const ACCESS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Head Coach'];
+const WHATSAPP_ROLES = ['Sales Manager', 'Owner', 'General Manager', 'Accountant', 'Head Coach'];
 const REPORT_FEATURES = ['exec_analytics', 'sales_crm', 'funnels', 'business_intelligence'];
 
 function step(title, description, target, route, fallback = 'main') {
@@ -57,11 +57,11 @@ function subjectStep(title, description, target, subject, profileTab) {
 }
 
 function whatsappTemplatesRoute(user) {
-  return user?.role === 'Coach Manager' ? '/coach/whatsapp-templates' : '/sales/whatsapp-templates';
+  return user?.role === 'Head Coach' ? '/coach/whatsapp-templates' : '/sales/whatsapp-templates';
 }
 
 function accessRoute(user, tab) {
-  const base = user?.role === 'Coach Manager' ? '/management/access' : '/owner/access';
+  const base = user?.role === 'Head Coach' ? '/management/access' : '/owner/access';
   return `${base}?tab=${tab}`;
 }
 
@@ -85,14 +85,14 @@ const ROLE_DEFAULT_ROLES = ['Owner', 'General Manager', 'Sales Manager'];
 const SALES_PROFILE_ROLES = ['Sales Manager', 'Owner', 'General Manager', 'Accountant'];
 const RECEPTION_PROFILE_ROLES = ['Sales Manager', 'Owner', 'General Manager'];
 
-const PROFILE_ROLES = ['Receptionist', 'Owner', 'Sales', 'Sales Manager', 'Coach', 'Coach Manager', 'Accountant', 'General Manager'];
+const PROFILE_ROLES = ['Receptionist', 'Owner', 'Sales', 'Sales Manager', 'Coach', 'Head Coach', 'Accountant', 'General Manager'];
 const FREEZE_ROLES = ['Receptionist', 'Owner', 'Sales', 'Sales Manager'];
 const INVITE_ROLES = ['Sales', 'Sales Manager', 'Receptionist', 'Owner'];
 const ALERT_ROLES = ['Receptionist', 'Sales', 'Sales Manager'];
 const SALES_NOTE_ROLES = ['Sales', 'Sales Manager', 'Owner'];
 const STAFF_ROLES = ['Sales Manager', 'Owner', 'General Manager'];
 const TEAM_ROLES = ['Sales Manager', 'Owner', 'General Manager', 'Accountant'];
-const GUEST_REPORT_ROLES = ['Owner', 'Sales Manager', 'Sales', 'Coach Manager'];
+const GUEST_REPORT_ROLES = ['Owner', 'Sales Manager', 'Sales', 'Head Coach'];
 const IMPORTED_ROLES = ['Owner', 'Sales Manager'];
 
 export const tutorialSections = [
@@ -565,7 +565,7 @@ export const tutorialSections = [
         steps: [
           step(
             'Find a trainee',
-            'Search by name, phone, or ID. Coaches see their own people. Coach managers see the wider roster.',
+            'Search by name, phone, or ID. Coaches see their own people. Head Coaches see the wider roster.',
             'coach-members-header',
             '/coach/members',
           ),
@@ -617,7 +617,7 @@ export const tutorialSections = [
           ),
           step(
             'Who arrived',
-            'Coaches see people transferred to them. Coach managers see every coach transfer from today.',
+            'Coaches see people transferred to them. Head Coaches see every coach transfer from today.',
             'transfers-board',
             '/coach/my-transfers',
           ),
@@ -628,13 +628,13 @@ export const tutorialSections = [
         title: 'Coach team',
         subtitle: 'See each coach’s members and remaining sessions',
         badge: 'Coaching',
-        roles: ['Coach Manager'],
+        roles: ['Head Coach'],
         access: 'coach_team',
         keywords: ['coach team', 'coaches', 'roster'],
         steps: [
           step(
             'Coaching team',
-            'This page is the coach manager’s view of the coaching staff.',
+            'This page is the Head Coach’s view of the coaching staff.',
             'coach-team-header',
             '/coach/team',
           ),
@@ -651,7 +651,7 @@ export const tutorialSections = [
         title: 'Create a coach account',
         subtitle: 'Add a coach who can sign in and take sessions',
         badge: 'Coaching',
-        roles: ['Coach Manager'],
+        roles: ['Head Coach'],
         access: 'coach_staff',
         keywords: ['create coach', 'staff', 'account'],
         steps: [
@@ -927,7 +927,7 @@ export const tutorialSections = [
           ),
           step(
             'Only your tools',
-            'A card appears only when you have that access. Sales managers, coach managers, and owners therefore do not all see the same board.',
+            'A card appears only when you have that access. Sales managers, Head Coaches, and owners therefore do not all see the same board.',
             'management-board',
             '/management',
           ),
@@ -1212,7 +1212,7 @@ export const tutorialSections = [
           ),
           memberStep(
             'Write a coaching note',
-            'Add what happened in the session. Other coaches and the coach manager can read it on this member.',
+            'Add what happened in the session. Other coaches and the Head Coach can read it on this member.',
             'member-panel',
             'callcenter',
           ),
@@ -1670,7 +1670,7 @@ export const tutorialSections = [
         title: 'Coach profile',
         subtitle: 'One coach’s trainees and the switches on that account',
         badge: 'Coaching',
-        roles: ['Coach Manager'],
+        roles: ['Head Coach'],
         access: 'coach_team',
         keywords: ['coach profile', 'trainees', 'abilities'],
         steps: [

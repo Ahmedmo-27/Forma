@@ -455,7 +455,6 @@ export default function TenantsListPage() {
             options: [
               { value: "monthly", label: "Monthly" },
               { value: "yearly", label: "Annual" },
-              { value: "lifetime", label: "Lifetime Pass" },
             ],
           },
         ]}

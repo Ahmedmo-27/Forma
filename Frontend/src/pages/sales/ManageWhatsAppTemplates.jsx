@@ -17,7 +17,7 @@ import { useTourReveal } from '../../tutorials/walkthrough-context';
 const PAGE_SIZE = 15;
 const ROLE_OPTIONS = [
   'Owner', 'General Manager', 'Sales Manager', 'Sales', 'Receptionist', 'Accountant',
-  'Coach', 'Coach Manager',
+  'Coach', 'Head Coach',
 ];
 
 const TYPE_CARDS = [

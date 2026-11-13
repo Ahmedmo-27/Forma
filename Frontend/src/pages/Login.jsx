@@ -9,7 +9,7 @@ import { goToStaffHome, staffHomeHref, shouldHardRedirectToApp } from '../market
 function roleHomePath(role) {
   if (role === 'Accountant') return '/accounting/dashboard';
   if (['Sales', 'Sales Manager'].includes(role)) return '/sales/dashboard';
-  if (['Coach', 'Coach Manager'].includes(role)) return '/coach/dashboard';
+  if (['Coach', 'Head Coach'].includes(role)) return '/coach/dashboard';
   if (['Owner', 'General Manager'].includes(role)) return '/owner/dashboard';
   return '/members';
 }

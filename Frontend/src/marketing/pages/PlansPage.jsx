@@ -13,11 +13,10 @@ registerMarketingGsap();
 const CYCLES = [
   { id: "monthly", label: "Monthly" },
   { id: "yearly", label: "Yearly" },
-  { id: "lifetime", label: "Lifetime" },
 ];
 
 const PLANS_DESCRIPTION =
-  "Compare Forma Basic, Gold, and Platinum plans in EGP — monthly, yearly, or lifetime. Sales-assisted onboarding with bank transfer.";
+  "Compare Forma Basic, Gold, and Platinum plans in EGP — monthly or yearly. Sales-assisted onboarding with bank transfer.";
 
 function formatAmount(amount, currency = "EGP") {
   if (amount == null) return "—";

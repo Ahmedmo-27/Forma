@@ -49,7 +49,7 @@ export default function CoachProfile() {
   const [searchParams] = useSearchParams();
   const profileTab = searchParams.get('tab');
   const { user: currentUser } = useAuth();
-  const isManager = currentUser?.role === 'Coach Manager';
+  const isManager = currentUser?.role === 'Head Coach';
 
   const [data, setData]       = useState(null);
   const [loading, setLoading] = useState(true);

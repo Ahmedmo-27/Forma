@@ -4,6 +4,7 @@ const Plan = require("../../models/Plan");
 const PlanPrice = require("../../models/PlanPrice");
 const BillingEvent = require("../../models/BillingEvent");
 const AuditLog = require("../../models/AuditLog");
+const ManualPayment = require("../../models/ManualPayment");
 const { getPaymentAdapter } = require("./paymentAdapter");
 const { runAsPlatform } = require("../../context/tenantContext");
 const { BILLING_CURRENCY } = require("../../config/currency");
@@ -13,6 +14,12 @@ const TIER_RANKS = {
     gold: 2,
     platinum: 3,
 };
+
+function assertLifetimeSalesEnabled() {
+    const error = new Error("Lifetime subscriptions are no longer available");
+    error.code = "LIFETIME_DISABLED";
+    throw error;
+}
 
 /**
  * Executes a callback within a MongoDB transaction if available on the current connection.
@@ -53,7 +60,7 @@ async function executeInTransaction(callback) {
  * Resolve active PlanPrice for a plan key and cycle.
  * Enforces validity date window and active flag.
  */
-async function resolveActivePlanPrice(planKey, cycle = "lifetime", now = new Date()) {
+async function resolveActivePlanPrice(planKey, cycle = "monthly", now = new Date()) {
     const plan = await Plan.findOne({ key: planKey });
     if (!plan) {
         const error = new Error(`Plan '${planKey}' not found.`);
@@ -89,6 +96,7 @@ async function checkoutLifetime({
     actorId,
     termsVersion = "2026.1",
 }) {
+    assertLifetimeSalesEnabled();
     return runAsPlatform(async () => {
         const tenant = await Tenant.findById(tenantId);
         if (!tenant) {
@@ -122,6 +130,19 @@ async function checkoutLifetime({
             },
         });
 
+        // Pending proof for platform review — tenants cannot self-activate.
+        await ManualPayment.create({
+            tenantId: tenant._id,
+            paymentRef: paymentSession.paymentRef,
+            planKey: plan.key,
+            cycle: "lifetime",
+            amount: planPrice.amount,
+            currency: BILLING_CURRENCY,
+            status: "pending",
+            submittedBy: actorId || null,
+            notes: `Lifetime checkout (terms ${termsVersion})`,
+        });
+
         return {
             paymentRef: paymentSession.paymentRef,
             amount: planPrice.amount,
@@ -130,9 +151,110 @@ async function checkoutLifetime({
             planName: plan.name,
             paymentMethod,
             termsVersion,
+            status: "pending_platform_confirmation",
             sessionDetails: paymentSession,
         };
     }, { reason: "checkout_lifetime", actorId: actorId ? actorId.toString() : "system" });
+}
+
+/**
+ * Request a lifetime tier upgrade. Creates a pending ManualPayment only —
+ * activation happens when platform confirms the payment.
+ */
+async function requestLifetimeUpgrade({
+    tenantId,
+    targetPlanKey,
+    paymentMethod = "manual_transfer",
+    actorId,
+    termsVersion = "2026.1",
+}) {
+    assertLifetimeSalesEnabled();
+    return runAsPlatform(async () => {
+        const tenant = await Tenant.findById(tenantId).populate("planId");
+        if (!tenant) {
+            const err = new Error("Tenant not found.");
+            err.code = "TENANT_NOT_FOUND";
+            throw err;
+        }
+
+        if (tenant.billing?.cycle !== "lifetime") {
+            const err = new Error("Upgrade path applies to active lifetime subscribers. Current tenant is not lifetime.");
+            err.code = "NOT_A_LIFETIME_SUBSCRIBER";
+            throw err;
+        }
+
+        const currentPlanKey = tenant.planId?.key;
+        const currentRank = TIER_RANKS[currentPlanKey] || 0;
+        const targetRank = TIER_RANKS[targetPlanKey] || 0;
+
+        if (targetRank <= currentRank) {
+            const err = new Error(
+                `Downgrade or lateral change is not permitted. Cannot move from ${currentPlanKey} (rank ${currentRank}) to ${targetPlanKey} (rank ${targetRank}).`
+            );
+            err.code = "DOWNGRADE_NOT_PERMITTED";
+            throw err;
+        }
+
+        const { plan: targetPlan, planPrice: targetPlanPrice } = await module.exports.resolveActivePlanPrice(
+            targetPlanKey,
+            "lifetime"
+        );
+
+        const amountPreviouslyPaid = tenant.billing?.lifetime?.amountPaid || 0;
+        const amountDifference = Math.max(0, targetPlanPrice.amount - amountPreviouslyPaid);
+
+        if (amountDifference <= 0) {
+            const err = new Error("Target plan price is not greater than the amount already credited.");
+            err.code = "INVALID_UPGRADE_DIFFERENCE";
+            throw err;
+        }
+
+        if (targetPlanPrice.maxLifetimeSeats != null && targetPlanPrice.soldLifetimeSeats >= targetPlanPrice.maxLifetimeSeats) {
+            const err = new Error(`Lifetime licenses for ${targetPlan.name} are completely sold out.`);
+            err.code = "LIFETIME_SEATS_SOLD_OUT";
+            throw err;
+        }
+
+        const adapter = getPaymentAdapter(paymentMethod);
+        const paymentSession = await adapter.initiatePayment({
+            tenant,
+            plan: targetPlan,
+            planPrice: targetPlanPrice,
+            amount: amountDifference,
+            currency: BILLING_CURRENCY,
+            actorId,
+            metadata: {
+                termsVersion,
+                planKey: targetPlan.key,
+                cycle: "lifetime",
+                upgradeFrom: currentPlanKey,
+            },
+        });
+
+        await ManualPayment.create({
+            tenantId: tenant._id,
+            paymentRef: paymentSession.paymentRef,
+            planKey: targetPlan.key,
+            cycle: "lifetime",
+            amount: amountDifference,
+            currency: BILLING_CURRENCY,
+            status: "pending",
+            submittedBy: actorId || null,
+            notes: `lifetime_upgrade:${currentPlanKey}`,
+        });
+
+        return {
+            paymentRef: paymentSession.paymentRef,
+            amountDifference,
+            currency: BILLING_CURRENCY,
+            currentPlanKey,
+            targetPlanKey: targetPlan.key,
+            paymentMethod,
+            termsVersion,
+            status: "pending_platform_confirmation",
+            sessionDetails: paymentSession,
+        };
+    }, { reason: "request_lifetime_upgrade", actorId: actorId ? actorId.toString() : "system" });
 }
 
 /**
@@ -152,6 +274,7 @@ async function confirmLifetimePurchase({
     amountPaid,
     refundWindowDays = 30,
 }) {
+    assertLifetimeSalesEnabled();
     return runAsPlatform(async () => {
         // 1. Idempotency check: if already processed, return existing record
         const existingEvent = await BillingEvent.findOne({ externalRef: paymentRef });
@@ -296,6 +419,7 @@ async function upgradeLifetime({
     actorType = "User",
     termsVersion = "2026.1",
 }) {
+    assertLifetimeSalesEnabled();
     return runAsPlatform(async () => {
         const tenant = await Tenant.findById(tenantId).populate("planId");
         if (!tenant) {
@@ -354,7 +478,12 @@ async function upgradeLifetime({
             throw err;
         }
 
-        const effectivePaymentRef = paymentRef || `UPGRADE-${Date.now()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
+        if (!paymentRef || !String(paymentRef).trim()) {
+            const err = new Error("paymentRef is required to upgrade a lifetime subscription.");
+            err.code = "PAYMENT_REF_REQUIRED";
+            throw err;
+        }
+        const effectivePaymentRef = String(paymentRef).trim();
 
         const result = await executeInTransaction(async (session) => {
             const opts = session ? { session } : {};
@@ -451,6 +580,7 @@ async function grantLifetimeManually({
     paymentRef,
     termsVersion = "2026.1",
 }) {
+    assertLifetimeSalesEnabled();
     if (!reason || reason.trim().length < 5) {
         throw new Error("A specific reason of at least 5 characters is required for manual lifetime grants.");
     }
@@ -647,6 +777,7 @@ async function updateEntitlementPolicy({ tenantId, entitlementPolicy, actorId })
 
 module.exports = {
     checkoutLifetime,
+    requestLifetimeUpgrade,
     confirmLifetimePurchase,
     upgradeLifetime,
     grantLifetimeManually,

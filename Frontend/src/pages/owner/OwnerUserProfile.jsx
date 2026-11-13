@@ -17,7 +17,7 @@ const ROLE_COLOUR = {
   'Sales':          { bg: '#eff6ff', color: '#2563eb', border: '#bfdbfe' },
   'Sales Manager':  { bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' },
   'Coach':          { bg: '#fff7ed', color: '#ea580c', border: '#fed7aa' },
-  'Coach Manager':  { bg: '#fdf4ff', color: '#9333ea', border: '#e9d5ff' },
+  'Head Coach':  { bg: '#fdf4ff', color: '#9333ea', border: '#e9d5ff' },
   'Accountant':     { bg: '#f0fdf4', color: '#0f766e', border: '#99f6e4' },
   'Receptionist': { bg: 'var(--slate-bg)', color: 'var(--slate)', border: 'var(--slate-bd)' },
   'General Manager': { bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' },
@@ -54,7 +54,7 @@ export default function OwnerUserProfile() {
         if (['Sales', 'Sales Manager'].includes(user.role)) {
           const r = await getSalesProfile(id);
           enriched = r.data;
-        } else if (['Coach', 'Coach Manager'].includes(user.role)) {
+        } else if (['Coach', 'Head Coach'].includes(user.role)) {
           const r = await getCoachProfile(id);
           enriched = r.data;
         }
@@ -79,7 +79,7 @@ export default function OwnerUserProfile() {
   const members = profile?.members ?? [];
 
   const isSales = ['Sales', 'Sales Manager'].includes(user?.role);
-  const isCoach = ['Coach', 'Coach Manager'].includes(user?.role);
+  const isCoach = ['Coach', 'Head Coach'].includes(user?.role);
 
   const filtered = (() => {
     if (filter === 'all') return members;

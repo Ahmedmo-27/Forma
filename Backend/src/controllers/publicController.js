@@ -89,6 +89,7 @@ async function listPublicPlans(_req, res) {
 
             const activePrices = prices
                 .filter((p) => planIds.has(String(p.planId)))
+                .filter((p) => p.cycle !== "lifetime")
                 .filter((p) => {
                     if (p.validFrom && new Date(p.validFrom) > now) return false;
                     if (p.validUntil && new Date(p.validUntil) <= now) return false;
@@ -96,11 +97,6 @@ async function listPublicPlans(_req, res) {
                 })
                 .map((p) => {
                     const plan = plans.find((pl) => String(pl._id) === String(p.planId));
-                    const remainingSeats =
-                        p.maxLifetimeSeats != null
-                            ? Math.max(0, p.maxLifetimeSeats - (p.soldLifetimeSeats || 0))
-                            : null;
-                    const isSoldOut = remainingSeats !== null && remainingSeats <= 0;
 
                     return {
                         id: p._id,
@@ -110,8 +106,6 @@ async function listPublicPlans(_req, res) {
                         amount: p.amount,
                         currency: BILLING_CURRENCY,
                         validUntil: p.validUntil,
-                        remainingSeats,
-                        isSoldOut,
                     };
                 });
 
@@ -165,8 +159,8 @@ async function publicSignup(req, res) {
             return res.status(400).json({ message: "name, slug, ownerName, and ownerEmail are required" });
         }
 
-        if (!["monthly", "yearly", "lifetime"].includes(cycle)) {
-            return res.status(400).json({ message: "cycle must be monthly, yearly, or lifetime" });
+        if (!["monthly", "yearly"].includes(cycle)) {
+            return res.status(400).json({ message: "cycle must be monthly or yearly" });
         }
 
         const result = await tenantContext.runAsPlatform(async () => {
@@ -204,19 +198,6 @@ async function publicSignup(req, res) {
                 throw error;
             }
 
-            if (cycle === "lifetime") {
-                const remaining =
-                    planPrice.maxLifetimeSeats != null
-                        ? Math.max(0, planPrice.maxLifetimeSeats - (planPrice.soldLifetimeSeats || 0))
-                        : null;
-                if (remaining !== null && remaining <= 0) {
-                    const error = new Error("Lifetime seats for this plan are sold out");
-                    error.statusCode = 409;
-                    error.code = "LIFETIME_SEATS_SOLD_OUT";
-                    throw error;
-                }
-            }
-
             const normalizedEmail = normalizeEmail(ownerEmail);
             const existingUser = await User.findOne({ email: normalizedEmail });
             if (existingUser) {
@@ -226,7 +207,6 @@ async function publicSignup(req, res) {
             }
 
             const now = new Date();
-            const isLifetime = cycle === "lifetime";
             const status = "trial";
             const trialEndsAt = new Date(now.getTime() + Number(trialDays) * 24 * 60 * 60 * 1000);
 
@@ -314,7 +294,6 @@ async function publicSignup(req, res) {
                 metadata: {
                     source: "public_signup",
                     cycle,
-                    isLifetime,
                 },
             });
 

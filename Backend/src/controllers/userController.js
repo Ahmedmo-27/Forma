@@ -32,7 +32,7 @@ const {
 } = require("../utils/locationScope");
 
 const FINANCE_ROLES = ["Sales Manager", "Owner", "General Manager", "Accountant"];
-const STAFF_CREATOR_ROLES = ["Sales Manager", "Owner", "Coach Manager", "General Manager"];
+const STAFF_CREATOR_ROLES = ["Sales Manager", "Owner", "Head Coach", "General Manager"];
 
 function accessContextFor(tenant) {
     if (!tenant) return null;
@@ -43,7 +43,7 @@ function accessContextFor(tenant) {
     };
 }
 const GENERIC_LOGIN_FAILURE = "Invalid username or password";
-const GYM_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"];
+const GYM_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager"];
 
 function respondAfterLoginFailure(res, fail, req) {
     if (fail.lockedUntil) {
@@ -383,7 +383,7 @@ const getReceptionists = async (req, res) => {
                         "Sales",
                         "Sales Manager",
                         "Coach",
-                        "Coach Manager",
+                        "Head Coach",
                         "Accountant",
                         "General Manager",
                         "Owner",
@@ -606,7 +606,7 @@ const getUserById = async (req, res) => {
         }
 
         const isSelf = req.user.id === user._id.toString();
-        const isManager = ["Sales Manager", "Owner", "Coach Manager"].includes(req.user.role);
+        const isManager = ["Sales Manager", "Owner", "Head Coach"].includes(req.user.role);
 
         if (!isSelf && !isManager) {
             return res.status(403).json({ message: "Not authorized" });
@@ -775,10 +775,10 @@ const createStaffUser = async (req, res) => {
         if (req.user.role === "Owner") {
             creatable = GYM_ROLES.filter((roleName) => roleName !== "Owner");
         } else if (req.user.role === "General Manager") {
-            creatable = ["Sales Manager", "Coach Manager", "Accountant", "Sales", "Coach", "Receptionist"];
+            creatable = ["Sales Manager", "Head Coach", "Accountant", "Sales", "Coach", "Receptionist"];
         } else if (req.user.role === "Sales Manager") {
             creatable = ["Sales", "Receptionist"];
-        } else if (req.user.role === "Coach Manager") {
+        } else if (req.user.role === "Head Coach") {
             creatable = ["Coach"];
         }
         if (!creatable.includes(role)) {
@@ -1139,13 +1139,13 @@ function buildCoachStats(members, coachId) {
     return stats;
 }
 
-// GET /api/users/coach-team  —  Coach Manager / Owner
+// GET /api/users/coach-team  —  Head Coach / Owner
 const getCoachTeam = async (req, res) => {
     try {
         const Member = require("../models/Member");
 
         const [team, members] = await Promise.all([
-            User.find({ role: { $in: ["Coach", "Coach Manager"] } })
+            User.find({ role: { $in: ["Coach", "Head Coach"] } })
                 .select("name email role abilities createdAt allowedLocationIds canAccessAllLocations")
                 .sort({ name: 1 })
                 .lean(),
@@ -1180,7 +1180,7 @@ const getCoachTeam = async (req, res) => {
     }
 };
 
-// GET /api/users/coach-team/:id  —  Coach Manager / Owner
+// GET /api/users/coach-team/:id  —  Head Coach / Owner
 const getCoachProfile = async (req, res) => {
     try {
         const Member = require("../models/Member");
@@ -1190,7 +1190,7 @@ const getCoachProfile = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
-        if (!["Coach", "Coach Manager"].includes(user.role)) {
+        if (!["Coach", "Head Coach"].includes(user.role)) {
             return res.status(400).json({ message: "Profile is only available for coach team members" });
         }
 
@@ -1254,8 +1254,8 @@ const change_Role = async (req, res) => {
 
 const updateCoachRepAbilities = async (req, res) => {
     try {
-        if (!["Coach Manager", "Owner", "General Manager"].includes(req.user.role)) {
-            return res.status(403).json({ message: "Only coach managers can update coach permissions" });
+        if (!["Head Coach", "Owner", "General Manager"].includes(req.user.role)) {
+            return res.status(403).json({ message: "Only Head Coaches can update coach permissions" });
         }
         if (req.user.role === "General Manager") {
             const targetRole = (await User.findById(req.params.id).select("role"))?.role;
@@ -1298,7 +1298,7 @@ const updateCoachRepAbilities = async (req, res) => {
 
 const updateStaffMobile = async (req, res) => {
     try {
-        if (!["Sales Manager", "Owner", "General Manager", "Coach Manager"].includes(req.user.role)) {
+        if (!["Sales Manager", "Owner", "General Manager", "Head Coach"].includes(req.user.role)) {
             return res.status(403).json({ message: "Only managers can update staff mobile numbers" });
         }
 
@@ -1315,8 +1315,8 @@ const updateStaffMobile = async (req, res) => {
         if (req.user.role === "Sales Manager" && !["Sales", "Receptionist"].includes(user.role)) {
             return res.status(403).json({ message: "Sales managers can only update mobile numbers for their own team" });
         }
-        if (req.user.role === "Coach Manager" && user.role !== "Coach") {
-            return res.status(403).json({ message: "Coach managers can only update mobile numbers for their own team" });
+        if (req.user.role === "Head Coach" && user.role !== "Coach") {
+            return res.status(403).json({ message: "Head Coaches can only update mobile numbers for their own team" });
         }
 
         const { mobile_number } = req.body;
@@ -1429,7 +1429,7 @@ const getTeamsPage = async (req, res) => {
         );
 
         const coach = formatted.filter(
-            (user) => user.role === "Coach Manager" || user.role === "Coach"
+            (user) => user.role === "Head Coach" || user.role === "Coach"
         );
 
         const acc = formatted.filter(
@@ -1485,8 +1485,8 @@ const resetUserPassword = async (req, res) => {
         if (req.user.role === "Sales Manager" && !["Sales", "Receptionist"].includes(target.role)) {
             return res.status(403).json({ message: "Sales managers can only reset passwords for their own team" });
         }
-        if (req.user.role === "Coach Manager" && target.role !== "Coach") {
-            return res.status(403).json({ message: "Coach managers can only reset passwords for their own team" });
+        if (req.user.role === "Head Coach" && target.role !== "Coach") {
+            return res.status(403).json({ message: "Head Coaches can only reset passwords for their own team" });
         }
 
         target.password = await hashPassword(newPassword);

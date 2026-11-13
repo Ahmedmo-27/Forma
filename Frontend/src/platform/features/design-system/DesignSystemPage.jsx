@@ -256,7 +256,6 @@ export default function DesignSystemPage() {
               options={[
                 { value: "monthly", label: "Monthly Recurring" },
                 { value: "yearly", label: "Annual Contract" },
-                { value: "lifetime", label: "Lifetime Pass" },
               ]}
               defaultValue="monthly"
             />

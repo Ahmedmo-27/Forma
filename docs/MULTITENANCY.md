@@ -112,7 +112,7 @@ Human-readable incremental IDs (`systemId`, `memberId`, `contractNumber`) are ge
 | `business_intelligence` | ❌ | ❌ | ✅ |
 
 ### Permitted Roles:
-- **Basic:** `Owner`, `Receptionist`, `Coach`, `Coach Manager`.
+- **Basic:** `Owner`, `Receptionist`, `Coach`, `Head Coach`.
 - **Gold:** Basic roles + `Accountant`, `Sales Manager`, `Sales Rep`.
 - **Platinum:** All roles.
 

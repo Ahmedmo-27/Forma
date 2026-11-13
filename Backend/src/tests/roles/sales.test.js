@@ -34,12 +34,12 @@ describe("Sales", () => {
         const user = rep();
         expectAllowed("sales_dashboard", ["Sales", "Sales Manager", "Owner"], user);
         expectAllowed("my_call_center", ["Sales"], user);
-        expectAllowed("comments", ["Owner", "Sales", "Sales Manager", "Coach", "Coach Manager"], user);
+        expectAllowed("comments", ["Owner", "Sales", "Sales Manager", "Coach", "Head Coach"], user);
         expectAllowed("check_in", ["Receptionist", "Owner", "Sales Manager", "Sales"], user);
         expectAllowed("sales_members", ["Sales", "Sales Manager", "Owner"], user);
         expectAllowed(
             "member_profile",
-            ["Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant", "General Manager"],
+            ["Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Head Coach", "Accountant", "General Manager"],
             user
         );
     });

@@ -232,12 +232,12 @@ function canAccessMemberUpload(user, member, type) {
         return false;
     }
 
-    const profileRoles = ["Receptionist", "Owner", "General Manager", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant"];
+    const profileRoles = ["Receptionist", "Owner", "General Manager", "Sales", "Sales Manager", "Coach", "Head Coach", "Accountant"];
     if (!profileRoles.includes(user.role)) return false;
 
     if (type === "profile_photo") return true;
 
-    const sensitiveFileRoles = ["Receptionist", "Owner", "General Manager", "Sales Manager", "Coach Manager", "Accountant"];
+    const sensitiveFileRoles = ["Receptionist", "Owner", "General Manager", "Sales Manager", "Head Coach", "Accountant"];
     if (sensitiveFileRoles.includes(user.role)) return true;
 
     return user.role === "Sales" && isAssignedSales(member, user);
@@ -278,7 +278,7 @@ app.get(
         next();
     },
     protect,
-    authorize("Receptionist", "Owner", "General Manager", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant"),
+    authorize("Receptionist", "Owner", "General Manager", "Sales", "Sales Manager", "Coach", "Head Coach", "Accountant"),
     async (req, res) => {
         const safe = path.basename(req.params.filename);
         if (safe !== req.params.filename || safe.includes("..")) {

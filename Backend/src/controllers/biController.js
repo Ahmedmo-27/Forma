@@ -32,13 +32,13 @@ function toObjectIdList(ids) {
 }
 
 const ROLE_OK = {
-    members: ["Owner", "General Manager", "Accountant", "Sales Manager", "Sales", "Receptionist", "Coach", "Coach Manager"],
+    members: ["Owner", "General Manager", "Accountant", "Sales Manager", "Sales", "Receptionist", "Coach", "Head Coach"],
     checkin: ["Owner", "General Manager", "Receptionist", "Sales Manager", "Sales"],
-    pt_tracking: ["Owner", "General Manager", "Coach", "Coach Manager", "Accountant"],
+    pt_tracking: ["Owner", "General Manager", "Coach", "Head Coach", "Accountant"],
     accounting: ["Owner", "General Manager", "Accountant", "Sales Manager"],
     funnels: ["Owner", "General Manager", "Sales Manager", "Sales", "Accountant"],
-    exec_analytics: ["Owner", "General Manager", "Accountant", "Sales Manager", "Coach Manager"],
-    business_intelligence: ["Owner", "General Manager", "Accountant", "Sales Manager", "Coach Manager"],
+    exec_analytics: ["Owner", "General Manager", "Accountant", "Sales Manager", "Head Coach"],
+    business_intelligence: ["Owner", "General Manager", "Accountant", "Sales Manager", "Head Coach"],
 };
 
 function featuresOf(req) {

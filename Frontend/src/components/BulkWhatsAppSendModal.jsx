@@ -17,7 +17,7 @@ import { hasAccess } from '../lib/access';
 import { memberPhone } from '../pages/tasks/taskMembers';
 
 const TEMPLATE_CREATE_ROLES = [
-  'Owner', 'Sales Manager', 'Accountant', 'Coach Manager', 'General Manager',
+  'Owner', 'Sales Manager', 'Accountant', 'Head Coach', 'General Manager',
 ];
 
 function typeLabel(type) {
@@ -563,7 +563,7 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
           {mode === 'campaign' ? (
             templates.length === 0 ? (
               <div style={tipBox}>
-                No ready campaigns yet. Ask an Owner, Sales Manager, Accountant, or Coach Manager
+                No ready campaigns yet. Ask an Owner, Sales Manager, Accountant, or Head Coach
                 to create templates from the <strong>WA Messages</strong> page — or switch to
                 Custom message.
               </div>

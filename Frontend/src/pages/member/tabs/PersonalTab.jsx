@@ -10,7 +10,7 @@ import { useLocationScope } from '../../../context/LocationContext';
 
 const SOURCES = ['Social media', 'Walk in', 'Word of mouth', 'referral', 'sales call', 'data entry', 'others'];
 const EDIT_ROLES = ['Owner', 'Sales Manager', 'Receptionist', 'Sales', 'Accountant', 'General Manager'];
-const ASSIGN_COACH_ROLES = ['Owner', 'Coach Manager', 'Sales Manager', 'General Manager'];
+const ASSIGN_COACH_ROLES = ['Owner', 'Head Coach', 'Sales Manager', 'General Manager'];
 
 function toDateInput(value) {
   if (!value) return '';
@@ -61,8 +61,8 @@ export default function PersonalTab({ member, user, onRefresh }) {
   const canSeePhone = !phonePrivacyRestricted && (
     isSalesManager || isAssignedSales || isAssignedCoach || user?.role === 'Receptionist'
   );
-  // Owner, Accountant, and Coach Manager always see phone directly, no button needed
-  const showPhoneDirectly = ['Owner', 'Accountant', 'Coach Manager'].includes(user?.role);
+  // Owner, Accountant, and Head Coach always see phone directly, no button needed
+  const showPhoneDirectly = ['Owner', 'Accountant', 'Head Coach'].includes(user?.role);
   const hasUsablePhone = Boolean(member.phones && member.phones !== 'hidden' && toWhatsAppUrl(member.phones));
   const canSendTemplate = user?.role !== 'Sales' || user?.abilities?.canSendWhatsAppTemplates !== false;
 
@@ -76,7 +76,7 @@ export default function PersonalTab({ member, user, onRefresh }) {
     try {
       const res = await getCoachTeam();
       const team = res.data.team ?? res.data.coaches ?? [];
-      setCoaches(team.filter((c) => ['Coach', 'Coach Manager'].includes(c.role)));
+      setCoaches(team.filter((c) => ['Coach', 'Head Coach'].includes(c.role)));
       setSelectedCoach(member.current_couch?._id ?? member.current_couch ?? '');
     } catch {
       toast.error('Failed to load coaches.');
@@ -90,8 +90,8 @@ export default function PersonalTab({ member, user, onRefresh }) {
     try {
       const memberKey = member.systemId || member._id;
       const currentCoach = member.current_couch?._id || member.current_couch;
-      // assign-coach is Owner/Coach Manager only; switchCoach covers SM/GM too
-      const canDirectAssign = ['Owner', 'Coach Manager'].includes(user?.role);
+      // assign-coach is Owner/Head Coach only; switchCoach covers SM/GM too
+      const canDirectAssign = ['Owner', 'Head Coach'].includes(user?.role);
       if (currentCoach || !canDirectAssign) {
         await switchCoach(memberKey, selectedCoach);
       } else {

@@ -34,6 +34,7 @@ const { notifyMemberAssigned, notifyTaskAssigned } = require("../utils/notificat
 const Task = require("../models/Task");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const { buildMemberListFilter, statsFilterFromListFilter, getMemberStatusStats, numericId } = require("../utils/memberFilters");
+const { escapeRegex } = require("../utils/username");
 const { isAssignedToRep, redactMemberForViewer } = require("../utils/memberPrivacy");
 const { assertAllowedUpload, assertAllowedImage } = require("../utils/fileMagic");
 const { writeAudit } = require("../utils/audit");
@@ -158,7 +159,7 @@ const validateSalesAssignee = async (salesId) => {
 
 const validateCoachAssignee = async (CoachId) => {
     const CoachUser = await User.findById(CoachId);
-    if (!CoachUser || !["Coach", "Coach Manager"].includes(CoachUser.role)) {
+    if (!CoachUser || !["Coach", "Head Coach"].includes(CoachUser.role)) {
         return null;
     }
     return CoachUser;
@@ -1554,12 +1555,13 @@ const getAllNotes = async (req, res) => {
         const search = req.query.search?.trim();
         let searchMatch = null;
         if (search) {
+            const safe = escapeRegex(search);
             const or = [
-                { name: { $regex: search, $options: "i" } },
-                { phones: { $regex: search, $options: "i" } },
-                { "notes.text": { $regex: search, $options: "i" } },
-                { "noteAuthor.name": { $regex: search, $options: "i" } },
-                { "salesRep.name": { $regex: search, $options: "i" } },
+                { name: { $regex: safe, $options: "i" } },
+                { phones: { $regex: safe, $options: "i" } },
+                { "notes.text": { $regex: safe, $options: "i" } },
+                { "noteAuthor.name": { $regex: safe, $options: "i" } },
+                { "salesRep.name": { $regex: safe, $options: "i" } },
             ];
             const num = numericId(search);
             if (num != null) {
@@ -2169,7 +2171,7 @@ const sessionCheckIn_for_couch = async (req, res) => {
                 return res.status(400).json({ message: "Member has no free PT sessions" });
             }
 
-        }else if (req.user.role==="Coach Manager"){
+        }else if (req.user.role==="Head Coach"){
             const { memberId ,numberOfSessions} = req.body;
             const scoped = await findScopedMember(req, memberId);
         if (scoped.error) return sendMemberScopeError(res, scoped.error);
@@ -2203,7 +2205,7 @@ const assignCoach = async (req, res) => {
         const { coachId } = req.body;
 
         const coachUser = await User.findById(coachId);
-        if (!coachUser || !["Coach", "Coach Manager"].includes(coachUser.role)) {
+        if (!coachUser || !["Coach", "Head Coach"].includes(coachUser.role)) {
             return res.status(404).json({ message: "Invalid Coach — user not found or not a Coach role" });
         }
 
@@ -2409,7 +2411,7 @@ const bulkTransferCoach = async (req, res) => {
         }
 
         const coachUser = await User.findById(coachId);
-        if (!coachUser || !["Coach", "Coach Manager"].includes(coachUser.role)) {
+        if (!coachUser || !["Coach", "Head Coach"].includes(coachUser.role)) {
             return res.status(400).json({ message: "Invalid coach — user not found or not a Coach role" });
         }
 
@@ -2539,7 +2541,8 @@ const getTodayCoachTransfers = async (req, res) => {
 
 const refund = async (req, res) => {
     try {
-        const { memberID, refund_amount, reason } = req.body;
+        const memberID = req.params.memberId || req.body.memberID;
+        const { refund_amount, reason } = req.body;
 
         if (!memberID) {
             return res.status(400).json({
@@ -2640,7 +2643,8 @@ const refund = async (req, res) => {
 
 const refundPT_Sessions = async (req, res) => {
     try {
-        const { memberID, refund_amount, reason } = req.body;
+        const memberID = req.params.memberId || req.body.memberID;
+        const { refund_amount, reason } = req.body;
 
         if (!memberID) {
             return res.status(400).json({ message: "Please enter the member ID" });

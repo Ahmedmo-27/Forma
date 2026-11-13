@@ -114,7 +114,7 @@ const ROLE_HOME = {
   Sales: { key: 'sales_dashboard', to: '/sales/dashboard' },
   'Sales Manager': { key: 'sales_dashboard', to: '/sales/dashboard' },
   Coach: { key: 'coach_dashboard', to: '/coach/dashboard' },
-  'Coach Manager': { key: 'coach_dashboard', to: '/coach/dashboard' },
+  'Head Coach': { key: 'coach_dashboard', to: '/coach/dashboard' },
   Accountant: { key: 'accounting_dashboard', to: '/accounting/dashboard' },
   Receptionist: { key: 'check_in', to: '/checkin' },
 };
@@ -161,13 +161,13 @@ function TenantAppRoutes() {
         </PrivateRoute>
       } />
       <Route path="/members" element={
-        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Coach Manager', 'Receptionist']} access="members">
+        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Head Coach', 'Receptionist']} access="members">
           <Members />
         </PrivateRoute>
       } />
       <Route path="/tasks" element={
         <PrivateRoute
-          roles={['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Coach Manager', 'Sales', 'Coach']}
+          roles={['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Head Coach', 'Sales', 'Coach']}
           access={['members', 'sales_members', 'coach_members', 'transfer', 'coach_transfer', 'my_transfers']}
         >
           <Tasks />
@@ -175,7 +175,7 @@ function TenantAppRoutes() {
       } />
       <Route path="/tasks/assign" element={
         <PrivateRoute
-          roles={['Owner', 'General Manager', 'Sales Manager', 'Coach Manager']}
+          roles={['Owner', 'General Manager', 'Sales Manager', 'Head Coach']}
           access={['transfer', 'coach_transfer', 'members']}
         >
           <AssigningTasksPage />
@@ -183,20 +183,20 @@ function TenantAppRoutes() {
       } />
       <Route path="/tasks/filter" element={
         <PrivateRoute
-          roles={['Owner', 'General Manager', 'Sales Manager', 'Coach Manager']}
+          roles={['Owner', 'General Manager', 'Sales Manager', 'Head Coach']}
           access={['transfer', 'coach_transfer', 'members']}
         >
           <TaskFilterPage />
         </PrivateRoute>
       } />
       <Route path="/tasks/filter/results" element={
-        <PrivateRoute roles={['Owner','General Manager','Sales Manager','Coach Manager','Sales','Coach']} access={['transfer', 'coach_transfer', 'members']}>
+        <PrivateRoute roles={['Owner','General Manager','Sales Manager','Head Coach','Sales','Coach']} access={['transfer', 'coach_transfer', 'members']}>
           <TaskFilterResultsPage />
         </PrivateRoute>
       } />
       <Route path="/tasks/assigned" element={
         <PrivateRoute
-          roles={['Sales', 'Coach', 'Coach Manager']}
+          roles={['Sales', 'Coach', 'Head Coach']}
           access={['sales_members', 'coach_members', 'my_transfers', 'members']}
         >
           <AssignedTasksPage />
@@ -205,7 +205,7 @@ function TenantAppRoutes() {
 
       {/* Member profile — roles must match Backend membersRoutes profileRoles */}
       <Route path="/members/:id" element={
-        <PrivateRoute roles={['Receptionist', 'Owner', 'Sales', 'Sales Manager', 'Coach', 'Coach Manager', 'Accountant', 'General Manager']} access="member_profile">
+        <PrivateRoute roles={['Receptionist', 'Owner', 'Sales', 'Sales Manager', 'Coach', 'Head Coach', 'Accountant', 'General Manager']} access="member_profile">
           <MemberProfile />
         </PrivateRoute>
       } />
@@ -264,12 +264,12 @@ function TenantAppRoutes() {
         </PrivateRoute>
       } />
       <Route path="/sales/whatsapp-templates" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner', 'General Manager', 'Accountant', 'Coach Manager']} feature="whatsapp" access="whatsapp_templates">
+        <PrivateRoute roles={['Sales Manager', 'Owner', 'General Manager', 'Accountant', 'Head Coach']} feature="whatsapp" access="whatsapp_templates">
           <ManageWhatsAppTemplates />
         </PrivateRoute>
       } />
       <Route path="/coach/whatsapp-templates" element={
-        <PrivateRoute roles={['Coach Manager', 'General Manager']} feature="whatsapp" access="whatsapp_templates">
+        <PrivateRoute roles={['Head Coach', 'General Manager']} feature="whatsapp" access="whatsapp_templates">
           <ManageWhatsAppTemplates />
         </PrivateRoute>
       } />
@@ -315,43 +315,48 @@ function TenantAppRoutes() {
 
       {/* Coach routes */}
       <Route path="/coach/dashboard" element={
-        <PrivateRoute roles={['Coach', 'Coach Manager']} access="coach_dashboard">
+        <PrivateRoute roles={['Coach', 'Head Coach']} access="coach_dashboard">
           <CoachDashboard />
         </PrivateRoute>
       } />
       <Route path="/coach/members" element={
-        <PrivateRoute roles={['Coach', 'Coach Manager']} access="coach_members">
+        <PrivateRoute roles={['Coach', 'Head Coach']} access="coach_members">
           <CoachMembers />
         </PrivateRoute>
       } />
       <Route path="/coach/checkin" element={
-        <PrivateRoute roles={['Coach', 'Coach Manager']} access="coach_checkin">
+        <PrivateRoute roles={['Coach', 'Head Coach']} access="coach_checkin">
           <CoachCheckin />
         </PrivateRoute>
       } />
+      <Route path="/coach/attendance" element={
+        <PrivateRoute roles={['Head Coach']} access="coach_attendance">
+          <AttendanceReport />
+        </PrivateRoute>
+      } />
       <Route path="/coach/staff" element={
-        <PrivateRoute roles={['Coach Manager']} access="coach_staff">
+        <PrivateRoute roles={['Head Coach']} access="coach_staff">
           <CoachStaff />
         </PrivateRoute>
       } />
       <Route path="/coach/targets" element={
-        <PrivateRoute roles={['Coach Manager']} access="coach_targets">
+        <PrivateRoute roles={['Head Coach']} access="coach_targets">
           <CoachTargets />
         </PrivateRoute>
       } />
       <Route path="/coach/team" element={
-        <PrivateRoute roles={['Coach Manager']} access="coach_team">
+        <PrivateRoute roles={['Head Coach']} access="coach_team">
           <CoachTargets />
         </PrivateRoute>
       } />
       <Route path="/coach/team/:id" element={
-        <PrivateRoute roles={['Coach Manager']} access="coach_team">
+        <PrivateRoute roles={['Head Coach']} access="coach_team">
           <CoachProfile />
         </PrivateRoute>
       } />
       <Route path="/coach/transfer" element={<Navigate to="/tasks" replace />} />
       <Route path="/coach/my-transfers" element={
-        <PrivateRoute roles={['Coach', 'Coach Manager']} access="my_transfers">
+        <PrivateRoute roles={['Coach', 'Head Coach']} access="my_transfers">
           <CoachTransfers />
         </PrivateRoute>
       } />
@@ -393,12 +398,12 @@ function TenantAppRoutes() {
 
       {/* Management */}
       <Route path="/management" element={
-        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager', 'Coach Manager']} access="management">
+        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager', 'Head Coach']} access="management">
           <Management />
         </PrivateRoute>
       } />
       <Route path="/management/access" element={
-        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager', 'Coach Manager']} access="access_control">
+        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager', 'Head Coach']} access="access_control">
           <AccessControl />
         </PrivateRoute>
       } />
@@ -419,7 +424,7 @@ function TenantAppRoutes() {
       {/* Reports */}
       <Route path="/reports" element={
         <PrivateRoute
-          roles={['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Accountant']}
+          roles={['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Accountant']}
           access={['reports', 'accounting_dashboard']}
         >
           <Reports />
@@ -456,12 +461,12 @@ function TenantAppRoutes() {
         </PrivateRoute>
       } />
       <Route path="/reports/guests" element={
-        <PrivateRoute roles={['Owner', 'Sales Manager', 'Sales', 'Coach Manager']} access="reports">
+        <PrivateRoute roles={['Owner', 'Sales Manager', 'Sales', 'Head Coach']} access="reports">
           <GuestMembers />
         </PrivateRoute>
       } />
       <Route path="/reports/expired" element={
-        <PrivateRoute roles={['Owner', 'Sales Manager', 'Sales', 'Coach Manager']} access="reports">
+        <PrivateRoute roles={['Owner', 'Sales Manager', 'Sales', 'Head Coach']} access="reports">
           <ExpiredMembers />
         </PrivateRoute>
       } />

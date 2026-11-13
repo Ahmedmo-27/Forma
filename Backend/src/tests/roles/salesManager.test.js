@@ -53,7 +53,7 @@ describe("Sales Manager", () => {
         expectAllowed("transfer", ["Sales Manager", "Owner"], user);
         expectAllowed("packages", ["Owner", "Sales Manager"], user);
         expectAllowed("approve_requests", ["Sales Manager", "Owner"], user);
-        expectAllowed("staff", ["Sales Manager", "Owner", "Coach Manager"], user);
+        expectAllowed("staff", ["Sales Manager", "Owner", "Head Coach"], user);
         expectAllowed("targets", ["Sales Manager", "Owner", "Accountant"], user);
         expectAllowed("manager_call_center", ["Sales Manager", "Owner"], user);
         expectAllowed("import_members", ["Sales Manager", "Owner"], user);
@@ -64,7 +64,7 @@ describe("Sales Manager", () => {
         expectDenied("refunds", ["Owner", "Accountant"], user);
         expectAllowed("change_role", ["Owner", "General Manager", "Sales Manager"], user);
         expectDenied("settings", ["Owner"], user);
-        expectDenied("coach_transfer", ["Coach Manager", "Owner"], user);
+        expectDenied("coach_transfer", ["Head Coach", "Owner"], user);
     });
 
     it("cannot transfer members after the owner removes sales tools", () => {

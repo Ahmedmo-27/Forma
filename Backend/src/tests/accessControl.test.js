@@ -70,8 +70,8 @@ describe("access control resolver", () => {
         expect(canEditTarget(owner, owner)).toBe(false);
         expect(canEditTarget({ id: "sm-1", role: "Sales Manager" }, sales)).toBe(true);
         expect(canEditTarget({ id: "sm-1", role: "Sales Manager" }, coach)).toBe(false);
-        expect(canEditTarget({ id: "cm-1", role: "Coach Manager" }, coach)).toBe(true);
-        expect(canEditTarget({ id: "cm-1", role: "Coach Manager" }, sales)).toBe(false);
+        expect(canEditTarget({ id: "cm-1", role: "Head Coach" }, coach)).toBe(true);
+        expect(canEditTarget({ id: "cm-1", role: "Head Coach" }, sales)).toBe(false);
     });
 
     it("stores only the difference and ignores features outside the actor domain", () => {
@@ -102,7 +102,7 @@ describe("access control resolver", () => {
 const owner = { id: "owner-1", role: "Owner" };
 const otherOwner = { id: "owner-2", role: "Owner" };
 const salesManager = { id: "sm-1", role: "Sales Manager" };
-const coachManager = { id: "cm-1", role: "Coach Manager" };
+const coachManager = { id: "cm-1", role: "Head Coach" };
 const generalManager = { id: "gm-1", role: "General Manager" };
 
 function defaultsFor(role) {
@@ -140,7 +140,7 @@ describe("every role can lose a default and gain an outside feature", () => {
         { role: "Sales Manager", actor: owner, revoke: "management", grant: "coach_dashboard" },
         { role: "Accountant", actor: owner, revoke: "refunds", grant: "my_call_center" },
         { role: "Coach", actor: owner, revoke: "coach_notes", grant: "check_in" },
-        { role: "Coach Manager", actor: owner, revoke: "coach_team", grant: "packages" },
+        { role: "Head Coach", actor: owner, revoke: "coach_team", grant: "packages" },
         { role: "Owner", actor: otherOwner, revoke: "owner_dashboard", grant: "coach_notes" },
     ];
 
@@ -207,7 +207,7 @@ describe("who is allowed to edit whom", () => {
         Owner: blankUser("Owner", "owner-target"),
         "General Manager": blankUser("General Manager", "gm-target"),
         "Sales Manager": blankUser("Sales Manager", "sm-target"),
-        "Coach Manager": blankUser("Coach Manager", "cm-target"),
+        "Head Coach": blankUser("Head Coach", "cm-target"),
         Accountant: blankUser("Accountant", "acc-target"),
         Sales: blankUser("Sales", "sales-target"),
         Receptionist: blankUser("Receptionist", "rec-target"),
@@ -227,14 +227,14 @@ describe("who is allowed to edit whom", () => {
     it("limits a sales manager to sales reps and receptionists", () => {
         expect(canEditTarget(salesManager, people.Sales)).toBe(true);
         expect(canEditTarget(salesManager, people.Receptionist)).toBe(true);
-        for (const role of ["Owner", "General Manager", "Sales Manager", "Coach Manager", "Accountant", "Coach"]) {
+        for (const role of ["Owner", "General Manager", "Sales Manager", "Head Coach", "Accountant", "Coach"]) {
             expect(canEditTarget(salesManager, people[role])).toBe(false);
         }
     });
 
-    it("limits a coach manager to coaches", () => {
+    it("limits a Head Coach to coaches", () => {
         expect(canEditTarget(coachManager, people.Coach)).toBe(true);
-        for (const role of ["Owner", "General Manager", "Sales Manager", "Coach Manager", "Accountant", "Sales", "Receptionist"]) {
+        for (const role of ["Owner", "General Manager", "Sales Manager", "Head Coach", "Accountant", "Sales", "Receptionist"]) {
             expect(canEditTarget(coachManager, people[role])).toBe(false);
         }
     });
@@ -261,7 +261,7 @@ describe("who is allowed to edit whom", () => {
         expect(hasAccess(user, "settings")).toBe(false);
     });
 
-    it("a coach manager can revoke a coach default but cannot grant a sales feature", () => {
+    it("a Head Coach can revoke a coach default but cannot grant a sales feature", () => {
         const user = blankUser("Coach");
         const enabled = defaultsFor("Coach").filter((key) => key !== "coach_notes");
         enabled.push("sales_dashboard");
@@ -541,7 +541,7 @@ describe("changing a staff member's role", () => {
         expect(canAssignRole(salesManager, people.Sales, "Receptionist").ok).toBe(true);
         expect(canAssignRole(salesManager, people.Receptionist, "Sales").ok).toBe(true);
         expect(canAssignRole(salesManager, people.Sales, "Coach").ok).toBe(false);
-        expect(canAssignRole(salesManager, people.Sales, "Coach Manager").ok).toBe(false);
+        expect(canAssignRole(salesManager, people.Sales, "Head Coach").ok).toBe(false);
         expect(canAssignRole(salesManager, people.Owner, "Sales").ok).toBe(false);
         expect(canAssignRole(salesManager, people["General Manager"], "Sales").ok).toBe(false);
         expect(canAssignRole(salesManager, people.Coach, "Sales").ok).toBe(false);

@@ -22,12 +22,12 @@ describe("Receptionist", () => {
         const user = desk();
         expectAllowed("check_in", ["Receptionist", "Owner", "Sales Manager", "Sales"], user);
         expectAllowed("members", ["Receptionist", "Owner", "Sales Manager", "Sales"], user);
-        expectAllowed("member_profile", ["Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant"], user);
+        expectAllowed("member_profile", ["Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Head Coach", "Accountant"], user);
     });
 
     it("cannot transfer coaches, refund, or open settings", () => {
         const user = desk();
-        expectDenied("coach_transfer", ["Coach Manager", "Owner"], user);
+        expectDenied("coach_transfer", ["Head Coach", "Owner"], user);
         expectDenied("refunds", ["Owner", "Accountant"], user);
         expectDenied("settings", ["Owner"], user);
         expectDenied("packages", ["Owner", "Sales Manager"], user);

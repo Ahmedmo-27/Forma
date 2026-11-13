@@ -75,7 +75,7 @@ export default function Management() {
     contracts: allow('contracts'),
     coachTeam: allow('coach_team'),
     coachStaff: allow('coach_staff'),
-    coachTransfers: user?.role === 'Coach Manager' && allow('my_transfers'),
+    coachTransfers: user?.role === 'Head Coach' && allow('my_transfers'),
     teams: allow('teams_overview'),
     accessControl: allow('access_control'),
     packageRequests: allow('package_approvals'),
@@ -98,7 +98,7 @@ export default function Management() {
             )}
             {show.whatsapp && (
               <MgmtCard icon={MessageCircle} title="WA Messages" sub="WhatsApp message templates"
-                to={user?.role === 'Coach Manager' ? '/coach/whatsapp-templates' : '/sales/whatsapp-templates'}
+                to={user?.role === 'Head Coach' ? '/coach/whatsapp-templates' : '/sales/whatsapp-templates'}
                 iconBg="#F0FDF4" />
             )}
           </Section>

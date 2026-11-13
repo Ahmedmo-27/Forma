@@ -26,7 +26,7 @@ function canEditFeatureAccess(actor, targetRole) {
   if (targetRole === 'Owner') return false;
   if (actorRole === 'General Manager') return targetRole !== 'Owner' && targetRole !== 'General Manager';
   if (actorRole === 'Sales Manager') return targetRole === 'Sales' || targetRole === 'Receptionist';
-  if (actorRole === 'Coach Manager') return targetRole === 'Coach';
+  if (actorRole === 'Head Coach') return targetRole === 'Coach';
   const hasStaff = Boolean(
     typeof actor === 'object' && (
       actor?.accessOverrides?.add?.includes('staff') ||
@@ -38,10 +38,10 @@ function canEditFeatureAccess(actor, targetRole) {
 }
 
 const ROLE_CHOICES = {
-  Owner: ['General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
-  'General Manager': ['Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'],
+  Owner: ['General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'],
+  'General Manager': ['Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'],
   'Sales Manager': ['Sales', 'Receptionist'],
-  'Coach Manager': ['Coach'],
+  'Head Coach': ['Coach'],
 };
 
 function Toggle({ checked, onChange, disabled }) {
@@ -141,19 +141,19 @@ export default function AccessControl({ defaultTab = 'staff' }) {
   // ══════════════════════════════════════════════════════════════════════
   const staffFilterRoles = useMemo(() => {
     if (isOwner) {
-      return ['General Manager', 'Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'];
+      return ['General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'];
     }
     if (user?.role === 'General Manager') {
-      return ['Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'];
+      return ['Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'];
     }
     if (user?.role === 'Sales Manager') {
       return ['Sales', 'Receptionist'];
     }
-    if (user?.role === 'Coach Manager') {
+    if (user?.role === 'Head Coach') {
       return ['Coach'];
     }
     if (hasStaff) {
-      return ['Sales Manager', 'Sales', 'Coach Manager', 'Coach', 'Receptionist', 'Accountant'].filter(
+      return ['Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'].filter(
         (r) => r !== user?.role && r !== 'General Manager'
       );
     }
@@ -326,12 +326,12 @@ export default function AccessControl({ defaultTab = 'staff' }) {
   const editableChecklistRoles = useMemo(() => {
     const all = checklistRoles.length
       ? checklistRoles
-      : ['General Manager', 'Receptionist', 'Coach', 'Coach Manager', 'Accountant', 'Sales', 'Sales Manager'];
+      : ['General Manager', 'Receptionist', 'Coach', 'Head Coach', 'Accountant', 'Sales', 'Sales Manager'];
     if (isOwner) return all;
     if (user?.role === 'Sales Manager') {
       return all.filter((r) => ['Sales', 'Receptionist'].includes(r));
     }
-    if (user?.role === 'Coach Manager') {
+    if (user?.role === 'Head Coach') {
       return all.filter((r) => r === 'Coach');
     }
     if (user?.role === 'General Manager') {
@@ -344,7 +344,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
   }, [checklistRoles, isOwner, user?.role, hasStaff]);
 
   const [defaultRoleChoice, setDefaultRoleChoice] = useState(() => (
-    isOwner ? 'General Manager' : user?.role === 'Sales Manager' ? 'Sales' : user?.role === 'Coach Manager' ? 'Coach' : 'Sales'
+    isOwner ? 'General Manager' : user?.role === 'Sales Manager' ? 'Sales' : user?.role === 'Head Coach' ? 'Coach' : 'Sales'
   ));
   const [roleDraft, setRoleDraft] = useState([]);
   const [roleLocationDraft, setRoleLocationDraft] = useState({
@@ -384,7 +384,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
   const isReadOnlyRole = !isOwner && (
     defaultRoleChoice === 'General Manager' ||
     (user?.role === 'Sales Manager' && !['Sales', 'Receptionist'].includes(defaultRoleChoice)) ||
-    (user?.role === 'Coach Manager' && defaultRoleChoice !== 'Coach')
+    (user?.role === 'Head Coach' && defaultRoleChoice !== 'Coach')
   );
 
   function planLocked(area) {

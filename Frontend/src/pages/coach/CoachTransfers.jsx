@@ -12,7 +12,7 @@ export default function CoachTransfers() {
   usePageTitle('Today\'s Transfers');
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isManager = user?.role === 'Coach Manager';
+  const isManager = user?.role === 'Head Coach';
 
   const [transfers, setTransfers] = useState([]);
   const [loading, setLoading]     = useState(true);

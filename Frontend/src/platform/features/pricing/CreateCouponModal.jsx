@@ -204,7 +204,7 @@ export default function CreateCouponModal({
             Eligible Billing Cycles
           </label>
           <div className="flex gap-4 p-2.5 rounded-lg border border-[var(--platform-border-subtle)] bg-[var(--platform-canvas)]">
-            {["monthly", "yearly", "lifetime"].map((c) => (
+            {["monthly", "yearly"].map((c) => (
               <label key={c} className="flex items-center gap-2 cursor-pointer text-xs">
                 <Checkbox
                   checked={selectedCycles.includes(c)}

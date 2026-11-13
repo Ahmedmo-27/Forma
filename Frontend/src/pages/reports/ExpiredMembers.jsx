@@ -100,7 +100,7 @@ export default function ExpiredMembers() {
         .catch(() => {});
     }
     getCoachTeam()
-      .then(r => setCoaches((r.data.team ?? []).filter(u => ['Coach', 'Coach Manager'].includes(u.role))))
+      .then(r => setCoaches((r.data.team ?? []).filter(u => ['Coach', 'Head Coach'].includes(u.role))))
       .catch(() => {});
     getPackages({ limit: 200 })
       .then(r => setPackages(r.data.packages ?? []))

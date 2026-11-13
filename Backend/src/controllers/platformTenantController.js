@@ -344,6 +344,17 @@ async function onboardTenant(req, res) {
             return res.status(400).json({ message: `Plan '${planKey}' not found` });
         }
 
+        if (isLifetime || cycle === "lifetime") {
+            return res.status(400).json({
+                code: "LIFETIME_DISABLED",
+                message: "Lifetime subscriptions are no longer available",
+            });
+        }
+
+        if (!["monthly", "yearly"].includes(cycle)) {
+            return res.status(400).json({ message: "cycle must be monthly or yearly" });
+        }
+
         const normalizedEmail = normalizeEmail(ownerEmail);
         const existingUser = await User.findOne({ email: normalizedEmail });
         if (existingUser) {
@@ -357,21 +368,9 @@ async function onboardTenant(req, res) {
         let currentPeriodEnd = null;
 
         const billing = {
-            cycle: isLifetime ? "lifetime" : cycle,
+            cycle,
             lifetime: {},
         };
-
-        if (isLifetime) {
-            status = "active";
-            trialEndsAt = null;
-            billing.lifetime = {
-                purchasedAt: now,
-                amountPaid: Number(amountPaid) || 0,
-                currency: BILLING_CURRENCY,
-                entitlementPolicy: "follow_tier",
-                refundWindowEndsAt: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000), // 30 days
-            };
-        }
 
         // Create Tenant
         const tenant = await Tenant.create({
@@ -449,24 +448,6 @@ async function onboardTenant(req, res) {
             });
         } catch (mailErr) {
             logger.warn("mail", "Owner invite email failed", { error: mailErr.message });
-        }
-
-        // If lifetime, record initial BillingEvent
-        if (isLifetime) {
-            await BillingEvent.create({
-                tenantId: tenant._id,
-                type: "purchase",
-                planKey: plan.key,
-                cycle: "lifetime",
-                amount: Number(amountPaid) || 0,
-                currency: BILLING_CURRENCY,
-                actorId: ownerUser._id,
-                actorType: "PlatformAdmin",
-                meta: {
-                    onboardedBy: req.platformUser.email,
-                    reason: "Initial lifetime purchase during tenant onboarding",
-                },
-            });
         }
 
         // Audit must never drop the invite response (QA F01)
@@ -607,8 +588,8 @@ async function updateTenantLifecycle(req, res) {
 
             case "change_cycle": {
                 const { newCycle } = payload;
-                if (!["monthly", "yearly", "lifetime"].includes(newCycle)) {
-                    return res.status(400).json({ message: "Invalid cycle. Must be monthly, yearly, or lifetime." });
+                if (!["monthly", "yearly"].includes(newCycle)) {
+                    return res.status(400).json({ message: "Invalid cycle. Must be monthly or yearly." });
                 }
                 tenant.billing.cycle = newCycle;
                 afterState.cycle = newCycle;

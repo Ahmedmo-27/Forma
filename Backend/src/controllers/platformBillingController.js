@@ -72,13 +72,10 @@ async function confirmPayment(req, res) {
 
             let billingEvent;
             if (payment.cycle === "lifetime") {
-                const result = await billingService.confirmLifetimePurchase({
-                    paymentRef: payment.paymentRef,
-                    actorId: req.platformUser.id,
-                    actorType: "PlatformAdmin",
-                    paymentMethod: "manual_transfer",
+                return res.status(400).json({
+                    code: "LIFETIME_DISABLED",
+                    message: "Lifetime subscriptions are no longer available. Reject or refund this payment manually.",
                 });
-                billingEvent = result.billingEvent;
             } else {
                 const now = new Date();
                 const months = payment.cycle === "yearly" ? 12 : 1;
@@ -295,13 +292,10 @@ async function issueManualGrant(req, res) {
             if (!plan) return res.status(400).json({ message: "Plan not found" });
 
             if (cycle === "lifetime") {
-                const result = await billingService.grantLifetimeManually({
-                    tenantId: tenant._id,
-                    planKey,
-                    reason,
-                    actorId: req.platformUser.id,
+                return res.status(400).json({
+                    code: "LIFETIME_DISABLED",
+                    message: "Lifetime subscriptions are no longer available",
                 });
-                return res.json({ message: "Lifetime subscription granted manually", result });
             }
 
             // Recurring complementary grant

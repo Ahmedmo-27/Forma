@@ -33,7 +33,6 @@ import {
   XCircle,
   Edit2,
   Calendar,
-  Lock,
   Layers,
 } from "lucide-react";
 import { formatCurrency, formatDate } from "../../lib/utils/formatters";
@@ -74,7 +73,7 @@ export default function PricingCouponsPage() {
     queryFn: () => apiGetCoupons({ page: couponPage, limit: 15 }).then((r) => r.data),
   });
 
-  const prices = pricesData || [];
+  const prices = (pricesData || []).filter((p) => p.cycle !== "lifetime");
   const plans = plansData || [];
   const coupons = Array.isArray(couponsData) ? couponsData : couponsData?.coupons || [];
   const couponsPagination = couponsData?.pagination || {
@@ -109,7 +108,7 @@ export default function PricingCouponsPage() {
             </Badge>
           </div>
           <p className="text-xs text-[var(--platform-text-muted)] mt-1">
-            Manage EGP billing cadences, hard lifetime caps, and checkout promotions.
+            Manage EGP billing cadences and checkout promotions.
           </p>
         </div>
 
@@ -150,17 +149,6 @@ export default function PricingCouponsPage() {
           <span className="text-[11px] text-[var(--platform-text-muted)]">
             {prices.filter((p) => p.isActive).length} currently open for sale
           </span>
-        </div>
-
-        <div className="p-4 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
-          <div className="flex items-center justify-between text-xs text-[var(--platform-text-muted)] mb-1">
-            <span>Lifetime Deal Tiers</span>
-            <Lock className="w-4 h-4 text-[var(--platform-info)]" />
-          </div>
-          <div className="text-2xl font-bold font-mono text-[var(--platform-text-primary)]">
-            {prices.filter((p) => p.cycle === "lifetime").length}
-          </div>
-          <span className="text-[11px] text-[var(--platform-text-muted)]">Capped seat quotas</span>
         </div>
 
         <div className="p-4 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
@@ -211,7 +199,7 @@ export default function PricingCouponsPage() {
             <EmptyState
               icon={DollarSign}
               title="No price matrices authored"
-              description="Define pricing for monthly, yearly, or lifetime memberships."
+              description="Define pricing for monthly or yearly memberships."
               action={
                 <Button
                   size="sm"
@@ -230,7 +218,6 @@ export default function PricingCouponsPage() {
                     <th className="py-3 px-4">Plan</th>
                     <th className="py-3 px-4">Billing Cadence</th>
                     <th className="py-3 px-4">Amount</th>
-                    <th className="py-3 px-4">Lifetime Seat Quota</th>
                     <th className="py-3 px-4">Validity</th>
                     <th className="py-3 px-4 text-center">Sales Status</th>
                     <th className="py-3 px-4 text-right">Actions</th>
@@ -257,13 +244,7 @@ export default function PricingCouponsPage() {
 
                         <td className="py-3 px-4">
                           <Badge
-                            variant={
-                              p.cycle === "lifetime"
-                                ? "info"
-                                : p.cycle === "yearly"
-                                ? "success"
-                                : "neutral"
-                            }
+                            variant={p.cycle === "yearly" ? "success" : "neutral"}
                             size="xs"
                             className="capitalize"
                           >
@@ -276,31 +257,8 @@ export default function PricingCouponsPage() {
                             {formatCurrency(p.amount)}
                           </span>
                           <span className="text-[11px] text-[var(--platform-text-muted)] block">
-                            {p.cycle === "lifetime" ? "one-time" : `/${p.cycle}`}
+                            /{p.cycle}
                           </span>
-                        </td>
-
-                        <td className="py-3 px-4">
-                          {p.cycle === "lifetime" ? (
-                            p.maxLifetimeSeats != null ? (
-                              <div className="space-y-1 max-w-[140px]">
-                                <div className="flex justify-between text-[11px] font-mono">
-                                  <span>Limit:</span>
-                                  <span className="font-semibold">{p.maxLifetimeSeats} seats</span>
-                                </div>
-                                <div className="h-1.5 rounded-full bg-[var(--platform-border-subtle)] overflow-hidden">
-                                  <div
-                                    className="h-full bg-[var(--platform-accent)] rounded-full"
-                                    style={{ width: "30%" }}
-                                  />
-                                </div>
-                              </div>
-                            ) : (
-                              <span className="text-[var(--platform-text-muted)] italic">Unlimited</span>
-                            )
-                          ) : (
-                            <span className="text-[var(--platform-text-muted)]">—</span>
-                          )}
                         </td>
 
                         <td className="py-3 px-4 text-[11px] text-[var(--platform-text-secondary)]">

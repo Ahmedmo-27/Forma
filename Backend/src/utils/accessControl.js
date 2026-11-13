@@ -199,7 +199,7 @@ function canEditTarget(actor, target) {
         return target.role !== "General Manager" && target.role !== "Owner";
     }
     if (actor.role === "Sales Manager") return ["Sales", "Receptionist"].includes(target.role);
-    if (actor.role === "Coach Manager") return target.role === "Coach";
+    if (actor.role === "Head Coach") return target.role === "Coach";
     return false;
 }
 
@@ -221,7 +221,7 @@ function canEditFeature(actor, feature) {
     if (actor.role === "Sales Manager") {
         return feature.domain === "sales";
     }
-    if (actor.role === "Coach Manager") {
+    if (actor.role === "Head Coach") {
         return feature.domain === "coach";
     }
     return false;
@@ -232,7 +232,7 @@ function lockReason(actor, target, feature) {
     if (feature.exclusive && !feature.defaultRoles.includes(target.role)) return "This role only";
     if (!canEditFeature(actor, feature)) {
         if (actor.role === "Sales Manager" && !Array.isArray(actor.areas)) return "Sales managers can only change sales features";
-        if (actor.role === "Coach Manager" && !Array.isArray(actor.areas)) return "Coach managers can only change coach features";
+        if (actor.role === "Head Coach" && !Array.isArray(actor.areas)) return "Head Coaches can only change coach features";
         return "You cannot change this feature";
     }
     return null;
@@ -301,7 +301,7 @@ function setFeatureEnabled(user, featureKey, enabled) {
 }
 
 function featureKeyForAbility(role, abilityKey) {
-    if (abilityKey === "canCommentOnMembers" && (role === "Coach" || role === "Coach Manager")) {
+    if (abilityKey === "canCommentOnMembers" && (role === "Coach" || role === "Head Coach")) {
         return "coach_notes";
     }
     const list = LEGACY_FEATURES[abilityKey];
@@ -324,17 +324,17 @@ function syncLegacyFields(user) {
     if (touchesPhones) user.canViewPhones = effective.has("view_phones");
 }
 
-const STAFF_ROLES = ["Owner", "General Manager", "Sales Manager", "Sales", "Coach Manager", "Coach", "Receptionist", "Accountant"];
+const STAFF_ROLES = ["Owner", "General Manager", "Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant"];
 
 function editableRolesFor(actor) {
     const actorRole = typeof actor === "string" ? actor : actor?.role;
     if (!actorRole) return [];
     if (actorRole === "Owner") return [...STAFF_ROLES];
     if (actorRole === "General Manager" || hasStaffDelegation(actor)) {
-        return ["Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"];
+        return ["Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager"];
     }
     if (actorRole === "Sales Manager") return ["Sales", "Receptionist"];
-    if (actorRole === "Coach Manager") return ["Coach"];
+    if (actorRole === "Head Coach") return ["Coach"];
     return [];
 }
 
@@ -344,20 +344,20 @@ function directoryRolesFor(actor) {
 }
 
 const ASSIGNABLE_ROLES = {
-    Owner: ["General Manager", "Sales Manager", "Sales", "Coach Manager", "Coach", "Receptionist", "Accountant"],
-    "General Manager": ["Sales Manager", "Sales", "Coach Manager", "Coach", "Receptionist", "Accountant"],
+    Owner: ["General Manager", "Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant"],
+    "General Manager": ["Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant"],
     "Sales Manager": ["Sales", "Receptionist"],
-    "Coach Manager": ["Coach"],
+    "Head Coach": ["Coach"],
 };
 
 function assignableRolesFor(actor) {
     const actorRole = typeof actor === "string" ? actor : actor?.role;
     if (!actorRole) return [];
     if (actorRole === "Owner") {
-        return ["General Manager", "Sales Manager", "Sales", "Coach Manager", "Coach", "Receptionist", "Accountant"];
+        return ["General Manager", "Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant"];
     }
     if (actorRole === "General Manager" || hasStaffDelegation(actor)) {
-        return ["Sales Manager", "Sales", "Coach Manager", "Coach", "Receptionist", "Accountant"];
+        return ["Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant"];
     }
     return ASSIGNABLE_ROLES[actorRole] ? [...ASSIGNABLE_ROLES[actorRole]] : [];
 }
@@ -366,9 +366,9 @@ function assignableRolesFor(actor) {
  * Strict role hierarchy:
  * 1. Owner at top: can change any role below Owner. Nobody can change an Owner's role.
  * 2. General Manager & delegated staff: can change roles below GM (cannot change Owner or GM).
- * 3. Sales Manager & Coach Manager: maintain their own teams only (unless granted staff delegation).
+ * 3. Sales Manager & Head Coach: maintain their own teams only (unless granted staff delegation).
  *    - Sales Manager can only change members of their team (Sales, Receptionist) to a role in their team.
- *    - Coach Manager can only change members of their team (Coach) to a role in their team.
+ *    - Head Coach can only change members of their team (Coach) to a role in their team.
  * 4. Nobody can change their own role, and nobody can assign the "Owner" role.
  */
 function canAssignRole(actor, target, newRole) {
@@ -401,9 +401,9 @@ function canAssignRole(actor, target, newRole) {
             return { ok: false, status: 403, message: "Sales managers can only change roles for their own team" };
         }
     }
-    if (actor.role === "Coach Manager" && !hasStaff) {
+    if (actor.role === "Head Coach" && !hasStaff) {
         if (target.role !== "Coach") {
-            return { ok: false, status: 403, message: "Coach managers can only change roles for their own team" };
+            return { ok: false, status: 403, message: "Head Coaches can only change roles for their own team" };
         }
     }
     return { ok: true };
@@ -473,7 +473,7 @@ function memberListDecision(user, context) {
         const areas = new Set(resolveEffectiveAreas(ctx));
         if (!areas.has("members")) {
             if (role === "Sales" && areas.has("sales") && !isRevoked(user, "sales_members")) return "scoped";
-            if ((role === "Coach" || role === "Coach Manager") && areas.has("coaching") && !isRevoked(user, "coach_members")) return "scoped";
+            if ((role === "Coach" || role === "Head Coach") && areas.has("coaching") && !isRevoked(user, "coach_members")) return "scoped";
             return "deny";
         }
     }
@@ -486,7 +486,7 @@ function memberListDecision(user, context) {
         if (isRevoked(user, "members")) return "deny";
         return "scoped";
     }
-    if (role === "Coach" || role === "Coach Manager") {
+    if (role === "Coach" || role === "Head Coach") {
         if (isRevoked(user, "coach_members")) return "deny";
         return "scoped";
     }

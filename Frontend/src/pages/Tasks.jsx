@@ -12,7 +12,7 @@ import AssignedTasksPage from './tasks/AssignedTasksPage';
  * 1. Roles that only assign tasks (Owner, General Manager, Sales Manager):
  *    Never receive tasks; rendered exclusively with AssigningTasksPage.
  *
- * 2. Assigning Players who also can receive tasks (e.g. Coach Manager):
+ * 2. Assigning Players who also can receive tasks (e.g. Head Coach):
  *    Rendered with AssigningTasksPage with switching capability.
  *
  * 3. Assigned Players (Regular Sales, Coach):
@@ -32,7 +32,7 @@ export default function Tasks() {
     return <AssignedTasksPage />;
   }
 
-  // Assigning player (Sales Manager, Coach Manager, Owner, General Manager)
+  // Assigning player (Sales Manager, Head Coach, Owner, General Manager)
   if (playerType === TASK_PLAYER_TYPES.ASSIGNING) {
     return <AssigningTasksPage />;
   }

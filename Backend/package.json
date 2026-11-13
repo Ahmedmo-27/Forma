@@ -16,11 +16,13 @@
     "seed:prices": "node src/scripts/seedPlanPrices.js",
     "migrate:multitenant": "node src/scripts/migrateToMultitenant.js",
     "migrate:lifetime": "node src/scripts/migrateAddLifetimeBilling.js",
+    "migrate:lifetime-to-yearly": "node src/scripts/migrateLifetimeToYearly.js",
     "migrate:indexes": "node src/scripts/migrateIndexes.js",
     "migrate:uploads": "node src/scripts/migrateUploads.js",
     "migrate:currency": "node src/scripts/normalizeCurrencyToEgp.js",
     "migrate:locations": "node src/scripts/migrateLocations.js",
     "migrate:assign-sales-manager": "node src/scripts/migrateAssignUnassignedMembersToSalesManager.js",
+    "migrate:head-coach": "node src/scripts/migrateCoachManagerToHeadCoach.js",
     "test:isolation": "vitest --run src/plugins/tenantPlugin.test.js src/tests/isolationProperty.test.js src/tests/multitenancy.test.js src/tests/locationScope.test.js src/tests/locationScopeWiring.test.js src/tests/userLocationAccess.test.js",
     "clean:photos": "node src/scripts/cleanMissingPhotos.js"
   },

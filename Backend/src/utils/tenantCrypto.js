@@ -4,7 +4,16 @@ const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // 96-bit IV recommended for GCM
 
 function getSecretKey() {
-    const raw = process.env.TENANT_SECRET_KEY || "leap_default_tenant_secret_key_32chars!";
+    const raw = process.env.TENANT_SECRET_KEY;
+    if (!raw) {
+        if (process.env.NODE_ENV === "test") {
+            return crypto
+                .createHash("sha256")
+                .update("test_tenant_secret_key_32chars!!")
+                .digest();
+        }
+        throw new Error("TENANT_SECRET_KEY is required for tenant secret encryption");
+    }
     return crypto.createHash("sha256").update(String(raw)).digest();
 }
 

@@ -202,14 +202,11 @@ export const createLocation = (data) => api.post('/locations', data);
 export const updateLocation = (id, data) => api.patch(`/locations/${id}`, data);
 export const deleteLocation = (id) => api.delete(`/locations/${id}`);
 
-// ── Multi-Tenant Billing & Lifetime ───────────────────────────────────────────
+// ── Multi-Tenant Billing ──────────────────────────────────────────────────────
 export const getBillingPrices = () => api.get('/tenant/billing/prices');
-export const checkoutLifetimeBilling = (data) => api.post('/tenant/billing/lifetime/checkout', data);
-export const confirmLifetimeBilling = (data) => api.post('/tenant/billing/lifetime/confirm', data);
-export const upgradeLifetimeBilling = (data) => api.post('/tenant/billing/lifetime/upgrade', data);
 
 // ── Tasks: Two Player Types (Assigning & Assigned) ──────────────────────────
-// Player Type 1: Assigning (Sales Manager, Coach Manager, Owner, General Manager)
+// Player Type 1: Assigning (Sales Manager, Head Coach, Owner, General Manager)
 export const getAssigningCreatedTasks = (params) => api.get('/tasks/assigning/created', { params });
 export const getAssigningOverview     = (params) => api.get('/tasks/assigning/overview', { params });
 export const getCreatedTasks          = (params) => api.get('/tasks/assigning/created', { params });

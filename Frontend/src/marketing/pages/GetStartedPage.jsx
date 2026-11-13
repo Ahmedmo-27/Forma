@@ -61,7 +61,7 @@ export default function GetStartedPage() {
         .filter((p) => p.planKey === form.planKey && !p.isSoldOut)
         .map((p) => p.cycle)
     );
-    return ["monthly", "yearly", "lifetime"].filter((c) => cycles.has(c));
+    return ["monthly", "yearly"].filter((c) => cycles.has(c));
   }, [catalog, form.planKey]);
 
   const mutation = useMutation({
@@ -261,7 +261,7 @@ export default function GetStartedPage() {
                   value={form.cycle}
                   onChange={(e) => updateField("cycle", e.target.value)}
                 >
-                  {(cycleOptions.length ? cycleOptions : ["monthly", "yearly", "lifetime"]).map((c) => (
+                  {(cycleOptions.length ? cycleOptions : ["monthly", "yearly"]).map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>

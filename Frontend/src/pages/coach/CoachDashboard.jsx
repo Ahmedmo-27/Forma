@@ -14,7 +14,7 @@ export default function CoachDashboard() {
   usePageTitle('Coach Dashboard');
   const { user } = useAuth();
   const navigate = useNavigate();
-  const isManager = user?.role === 'Coach Manager';
+  const isManager = user?.role === 'Head Coach';
 
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(true);

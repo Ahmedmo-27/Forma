@@ -28,7 +28,7 @@ const couponSchema = new mongoose.Schema(
         },
         appliesTo: {
             planKeys: [{ type: String }], // empty means all plans
-            cycles: [{ type: String, enum: ["monthly", "yearly", "lifetime"] }], // empty means all cycles
+            cycles: [{ type: String, enum: ["monthly", "yearly"] }], // empty means all cycles
         },
         maxRedemptions: {
             type: Number,

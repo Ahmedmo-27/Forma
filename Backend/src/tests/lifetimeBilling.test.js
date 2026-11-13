@@ -11,7 +11,7 @@ const { enforceSubscriptionStatus } = require("../middleware/tenantStatus");
 const { processTenantExpiryCycles } = require("../services/billing/tenantLifecycleService");
 const billingService = require("../services/billing/billingService");
 const { runWithTenant, runAsPlatform } = require("../context/tenantContext");
-const { lifetimeCheckoutSchema, lifetimeUpgradeSchema } = require("../validation/schemas");
+const { publicSignupSchema } = require("../validation/schemas");
 
 describe("Phase 6: Lifetime Billing Test Suite", () => {
     const tenantId = new mongoose.Types.ObjectId().toString();
@@ -192,7 +192,18 @@ describe("Phase 6: Lifetime Billing Test Suite", () => {
     });
 
     describe("4. Upgrade Math, Downgrade Prevention & Idempotency", () => {
-        it("calculates exact price difference between higher tier and previously credited amount", async () => {
+        it("rejects new lifetime upgrades (sales disabled)", async () => {
+            await expect(
+                billingService.upgradeLifetime({
+                    tenantId,
+                    targetPlanKey: "gold",
+                    paymentRef: "UPGRADE-REF-1",
+                    actorId: new mongoose.Types.ObjectId(actorId),
+                })
+            ).rejects.toMatchObject({ code: "LIFETIME_DISABLED" });
+        });
+
+        it.skip("calculates exact price difference between higher tier and previously credited amount", async () => {
             const basicPrice = 500;
             const goldPrice = 1300;
             const expectedDiff = goldPrice - basicPrice; // 800
@@ -246,81 +257,30 @@ describe("Phase 6: Lifetime Billing Test Suite", () => {
             expect(res.amountDifference).toBe(expectedDiff);
         });
 
-        it("strictly rejects downgrade from Gold to Basic", async () => {
-            const tenant = {
-                _id: new mongoose.Types.ObjectId(tenantId),
-                planId: { key: "gold" },
-                billing: {
-                    cycle: "lifetime",
-                    lifetime: { amountPaid: 1300 },
-                },
-            };
-
-            vi.spyOn(Tenant, "findById").mockReturnValue({
-                populate: vi.fn().mockResolvedValue(tenant),
-            });
-
+        it("strictly rejects downgrade from Gold to Basic (sales disabled before tier check)", async () => {
             await expect(
                 billingService.upgradeLifetime({
                     tenantId,
-                    targetPlanKey: "basic", // Lower tier
+                    targetPlanKey: "basic",
                     actorId: new mongoose.Types.ObjectId(actorId),
                 })
-            ).rejects.toThrow(/Downgrade or lateral change is not permitted/);
+            ).rejects.toMatchObject({ code: "LIFETIME_DISABLED" });
         });
 
-        it("payment confirmation is strictly idempotent by paymentRef (no double charge, no double event)", async () => {
-            const existingBillingEvent = {
-                _id: new mongoose.Types.ObjectId(),
-                externalRef: "PAY-12345",
-                amount: 499,
-                cycle: "lifetime",
-            };
-
-            vi.spyOn(BillingEvent, "findOne").mockResolvedValue(existingBillingEvent);
-            vi.spyOn(Tenant, "findById").mockReturnValue({
-                populate: vi.fn().mockResolvedValue({ _id: tenantId, status: "active" }),
-            });
-
-            const seatSpy = vi.spyOn(PlanPrice, "findOneAndUpdate");
-            const createEventSpy = vi.spyOn(BillingEvent, "create");
-
-            const res = await billingService.confirmLifetimePurchase({
-                tenantId,
-                planKey: "basic",
-                paymentRef: "PAY-12345",
-                actorId: new mongoose.Types.ObjectId(actorId),
-            });
-
-            expect(res.isIdempotentReplay).toBe(true);
-            expect(seatSpy).not.toHaveBeenCalled();
-            expect(createEventSpy).not.toHaveBeenCalled();
+        it("payment confirmation rejects new lifetime purchases", async () => {
+            await expect(
+                billingService.confirmLifetimePurchase({
+                    tenantId,
+                    planKey: "basic",
+                    paymentRef: "PAY-12345",
+                    actorId: new mongoose.Types.ObjectId(actorId),
+                })
+            ).rejects.toMatchObject({ code: "LIFETIME_DISABLED" });
         });
     });
 
     describe("5. Seat Cap & Race Condition Protection", () => {
-        it("conditional update atomically rejects purchase when seats are sold out", async () => {
-            vi.spyOn(BillingEvent, "findOne").mockResolvedValue(null);
-            vi.spyOn(Plan, "findOne").mockResolvedValue({
-                _id: new mongoose.Types.ObjectId(),
-                key: "platinum",
-                name: "Platinum Plan",
-            });
-            vi.spyOn(PlanPrice, "findOne").mockResolvedValue({
-                _id: new mongoose.Types.ObjectId(),
-                amount: 2499,
-                currency: "USD",
-                maxLifetimeSeats: 25,
-                soldLifetimeSeats: 25,
-            });
-            vi.spyOn(billingService, "resolveActivePlanPrice").mockResolvedValue({
-                plan: { _id: new mongoose.Types.ObjectId(), key: "platinum", name: "Platinum Plan" },
-                planPrice: { _id: new mongoose.Types.ObjectId(), amount: 2499, currency: "USD", maxLifetimeSeats: 25, soldLifetimeSeats: 25 },
-            });
-
-            // Conditional atomic update fails because soldLifetimeSeats >= maxLifetimeSeats
-            vi.spyOn(PlanPrice, "findOneAndUpdate").mockResolvedValue(null);
-
+        it("new lifetime purchases are disabled regardless of seat availability", async () => {
             await expect(
                 billingService.confirmLifetimePurchase({
                     tenantId,
@@ -328,7 +288,7 @@ describe("Phase 6: Lifetime Billing Test Suite", () => {
                     paymentRef: "LAST-SEAT-FAIL",
                     actorId: new mongoose.Types.ObjectId(actorId),
                 })
-            ).rejects.toThrow(/LIFETIME_SEATS_SOLD_OUT/);
+            ).rejects.toMatchObject({ code: "LIFETIME_DISABLED" });
         });
     });
 
@@ -393,28 +353,19 @@ describe("Phase 6: Lifetime Billing Test Suite", () => {
     });
 
     describe("7. Client Tampering Safeguards", () => {
-        it("checkout and upgrade schema validation rejects forged amounts or missing acceptance", () => {
-            // Tampered body sending client-calculated price
-            const tamperedCheckout = {
-                planKey: "gold",
-                forgedAmount: 1, // Attempted price manipulation
-                termsAccepted: false, // Must be true
-                termsVersion: "2026.1",
+        it("public signup schema rejects lifetime billing cycle", () => {
+            const withLifetime = {
+                name: "Test Gym",
+                slug: "test-gym",
+                ownerName: "Owner",
+                ownerEmail: "owner@test.com",
+                planKey: "basic",
+                cycle: "lifetime",
             };
+            expect(publicSignupSchema.safeParse(withLifetime).success).toBe(false);
 
-            const parseResult = lifetimeCheckoutSchema.safeParse(tamperedCheckout);
-            expect(parseResult.success).toBe(false);
-
-            const validCheckout = {
-                planKey: "gold",
-                paymentMethod: "manual_transfer",
-                termsAccepted: true,
-                termsVersion: "2026.1",
-            };
-            const validResult = lifetimeCheckoutSchema.safeParse(validCheckout);
-            expect(validResult.success).toBe(true);
-            // Notice: client has no parameter to specify the price; resolved server-side from PlanPrice
-            expect(validResult.data.amount).toBeUndefined();
+            const recurring = { ...withLifetime, cycle: "yearly" };
+            expect(publicSignupSchema.safeParse(recurring).success).toBe(true);
         });
     });
 

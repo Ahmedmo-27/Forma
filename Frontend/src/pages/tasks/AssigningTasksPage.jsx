@@ -179,7 +179,7 @@ export default function AssigningTasksPage() {
     getSalesUsers().then((res) => setSalesUsers(res.data.salesUsers ?? [])).catch(() => {});
     getCoachTeam()
       .then((res) => {
-        setCoaches((res.data.team ?? []).filter((person) => ['Coach', 'Coach Manager'].includes(person.role)));
+        setCoaches((res.data.team ?? []).filter((person) => ['Coach', 'Head Coach'].includes(person.role)));
       })
       .catch(() => {});
     getPackages({ limit: 100 })
@@ -633,7 +633,7 @@ export default function AssigningTasksPage() {
           </div>
         )}
 
-        {/* Tab switcher: Only shown for users who can actually receive assigned tasks (e.g. Coach Manager) */}
+        {/* Tab switcher: Only shown for users who can actually receive assigned tasks (e.g. Head Coach) */}
         {canReceiveTasks && (
           <div style={{ display: 'flex', gap: 8, borderBottom: '1px solid var(--border)', paddingBottom: 10 }}>
             <Btn

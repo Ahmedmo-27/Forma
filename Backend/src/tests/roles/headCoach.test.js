@@ -10,11 +10,11 @@ import {
     staff,
 } from "./helpers.js";
 
-const lead = () => staff("Coach Manager");
+const lead = () => staff("Head Coach");
 
-describe("Coach Manager", () => {
+describe("Head Coach", () => {
     it("defaults to the coach team, staff, and transfers", () => {
-        expectKeys("Coach Manager", [
+        expectKeys("Head Coach", [
             "members",
             "member_profile",
             "management",
@@ -23,38 +23,42 @@ describe("Coach Manager", () => {
             "coach_dashboard",
             "coach_members",
             "coach_checkin",
+            "assign_pt",
             "my_transfers",
             "coach_notes",
             "coach_team",
             "coach_staff",
             "coach_transfer",
             "coach_targets",
+            "coach_attendance",
             "access_control",
         ]);
-        expectAreas("Coach Manager", ["members", "whatsapp", "reports", "coaching", "staff"]);
-        expectList("Coach Manager", "scoped");
+        expectAreas("Head Coach", ["members", "whatsapp", "reports", "coaching", "staff"]);
+        expectList("Head Coach", "scoped");
     });
 
     it("can transfer coaches, open a member by id, and manage coach staff", () => {
         const members = readSource("routes", "membersRoutes.js");
         const pages = readSource("..", "..", "Frontend", "src", "App.jsx");
         expect(members).toContain(
-            'allowRoles("member_profile", "Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant", "General Manager")'
+            'allowRoles("member_profile", "Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Head Coach", "Accountant", "General Manager")'
         );
         expect(pages).toContain(
-            "roles={['Receptionist', 'Owner', 'Sales', 'Sales Manager', 'Coach', 'Coach Manager', 'Accountant', 'General Manager']} access=\"member_profile\""
+            "roles={['Receptionist', 'Owner', 'Sales', 'Sales Manager', 'Coach', 'Head Coach', 'Accountant', 'General Manager']} access=\"member_profile\""
         );
         const user = lead();
         expectAllowed(
             "member_profile",
-            ["Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant", "General Manager"],
+            ["Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Head Coach", "Accountant", "General Manager"],
             user
         );
-        expectAllowed("coach_transfer", ["Coach Manager", "Owner"], user);
-        expectAllowed("coach_team", ["Coach Manager"], user);
-        expectAllowed("coach_staff", ["Coach Manager"], user);
-        expectAllowed("coach_targets", ["Coach Manager"], user);
-        expectAllowed("whatsapp_templates", ["Owner", "Sales Manager", "Accountant", "Coach Manager"], user);
+        expectAllowed("coach_transfer", ["Head Coach", "Owner"], user);
+        expectAllowed("coach_team", ["Head Coach"], user);
+        expectAllowed("coach_staff", ["Head Coach"], user);
+        expectAllowed("coach_targets", ["Head Coach"], user);
+        expectAllowed("coach_attendance", ["Head Coach"], user);
+        expectAllowed("assign_pt", ["Coach", "Head Coach"], user);
+        expectAllowed("whatsapp_templates", ["Owner", "Sales Manager", "Accountant", "Head Coach"], user);
     });
 
     it("cannot refund, change roles, or edit sales packages", () => {
@@ -68,9 +72,9 @@ describe("Coach Manager", () => {
     it("cannot move members after the owner removes coaching", () => {
         expectDenied(
             "coach_transfer",
-            ["Coach Manager", "Owner"],
+            ["Head Coach", "Owner"],
             lead(),
-            checklist("Coach Manager", ["members", "staff"])
+            checklist("Head Coach", ["members", "staff"])
         );
     });
 });

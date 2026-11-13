@@ -291,12 +291,12 @@ export const NON_RECEIVING_TASK_ROLES = ['Owner', 'General Manager', 'Sales Mana
 export function canUserReceiveTasks(user) {
   if (!user || !user.role) return false;
   if (NON_RECEIVING_TASK_ROLES.includes(user.role)) return false;
-  return ['Sales', 'Coach', 'Coach Manager'].includes(user.role);
+  return ['Sales', 'Coach', 'Head Coach'].includes(user.role);
 }
 
 export function canUserAssignTasks(user) {
   if (!user) return false;
-  if (['Owner', 'General Manager', 'Sales Manager', 'Coach Manager'].includes(user.role)) return true;
+  if (['Owner', 'General Manager', 'Sales Manager', 'Head Coach'].includes(user.role)) return true;
   return hasAccessKey(user, 'transfer') || hasAccessKey(user, 'coach_transfer');
 }
 
@@ -513,8 +513,8 @@ export function filterCreatedTasks(tasks = [], filters = {}) {
       const assignedRole = String(task.assignedTo?.role || '');
       const isSales = ['sales', 'sales manager'].includes(taskRole.toLowerCase())
         || ['sales', 'sales manager'].includes(assignedRole.toLowerCase());
-      const isCoach = ['coach', 'coach manager'].includes(taskRole.toLowerCase())
-        || ['coach', 'coach manager'].includes(assignedRole.toLowerCase());
+      const isCoach = ['coach', 'Head Coach'].includes(taskRole.toLowerCase())
+        || ['coach', 'Head Coach'].includes(assignedRole.toLowerCase());
       if (role === 'Sales' && !isSales) return false;
       if (role === 'Coach' && !isCoach) return false;
     }

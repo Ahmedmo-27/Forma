@@ -134,7 +134,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
   const invitationLimit   = pkg?.invitationLimit ?? 0;
   const invitationsRemain = Math.max(0, invitationLimit - invitationsUsed);
 
-  const isCoach  = ['Coach', 'Coach Manager'].includes(user?.role);
+  const isCoach  = ['Coach', 'Head Coach'].includes(user?.role);
   const notes    = isCoach ? (member.couch_notes ?? []) : (member.notes ?? []);
   const lastNote = [...notes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
 

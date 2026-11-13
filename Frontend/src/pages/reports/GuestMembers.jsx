@@ -99,7 +99,7 @@ export default function GuestMembers() {
     }
     getCoachTeam()
       .then(r => {
-        const coaches = (r.data.team ?? []).filter(u => ['Coach', 'Coach Manager'].includes(u.role));
+        const coaches = (r.data.team ?? []).filter(u => ['Coach', 'Head Coach'].includes(u.role));
         setCoaches(coaches);
       })
       .catch(() => {});

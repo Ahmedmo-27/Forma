@@ -9,7 +9,7 @@ import {
   platformToast,
 } from "../../ui";
 import { apiCreatePlanPrice, apiUpdatePlanPrice } from "../../lib/api/endpoints";
-import { isNonNegativeNumber, isPositiveInteger } from "../../lib/utils/validation";
+import { isNonNegativeNumber } from "../../lib/utils/validation";
 
 export default function CreatePriceModal({
   open,
@@ -25,7 +25,6 @@ export default function CreatePriceModal({
   const [planId, setPlanId] = useState("");
   const [cycle, setCycle] = useState("monthly");
   const [amount, setAmount] = useState(49);
-  const [maxLifetimeSeats, setMaxLifetimeSeats] = useState("");
   const [validUntil, setValidUntil] = useState("");
   const [isActive, setIsActive] = useState(true);
   const [reason, setReason] = useState("");
@@ -38,7 +37,6 @@ export default function CreatePriceModal({
       setPlanId(priceToEdit.planId?._id || priceToEdit.planId || "");
       setCycle(priceToEdit.cycle || "monthly");
       setAmount(priceToEdit.amount || 0);
-      setMaxLifetimeSeats(priceToEdit.maxLifetimeSeats ?? "");
       setValidUntil(
         priceToEdit.validUntil
           ? new Date(priceToEdit.validUntil).toISOString().split("T")[0]
@@ -52,7 +50,6 @@ export default function CreatePriceModal({
       }
       setCycle("monthly");
       setAmount(49);
-      setMaxLifetimeSeats("");
       setValidUntil("");
       setIsActive(true);
       setReason("");
@@ -67,10 +64,6 @@ export default function CreatePriceModal({
     }
     if (!isNonNegativeNumber(amount)) {
       setError("Please provide a valid non-negative price amount");
-      return;
-    }
-    if (cycle === "lifetime" && maxLifetimeSeats !== "" && !isPositiveInteger(maxLifetimeSeats)) {
-      setError("Max lifetime seats must be a whole number greater than 0");
       return;
     }
     if (validUntil && isNaN(Date.parse(validUntil))) {
@@ -90,10 +83,6 @@ export default function CreatePriceModal({
       cycle,
       amount: Number(amount),
       currency: "EGP",
-      maxLifetimeSeats:
-        cycle === "lifetime" && maxLifetimeSeats !== ""
-          ? Number(maxLifetimeSeats)
-          : null,
       validUntil: validUntil ? new Date(validUntil).toISOString() : null,
       isActive,
     };
@@ -171,7 +160,6 @@ export default function CreatePriceModal({
             >
               <option value="monthly">Monthly Recurring</option>
               <option value="yearly">Yearly Contract</option>
-              <option value="lifetime">Lifetime Pass (One-Time)</option>
             </Select>
           </div>
         </div>
@@ -198,24 +186,6 @@ export default function CreatePriceModal({
             <Input value="EGP" readOnly />
           </div>
         </div>
-
-        {cycle === "lifetime" && (
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
-              Lifetime Hard Seat Cap
-            </label>
-            <Input
-              type="number"
-              min="1"
-              placeholder="e.g. 50 (leave empty for unlimited)"
-              value={maxLifetimeSeats}
-              onChange={(e) => setMaxLifetimeSeats(e.target.value)}
-            />
-            <span className="text-[11px] text-[var(--platform-text-muted)] mt-1 block">
-              Enforced by platform gatekeeper to guarantee exclusivity.
-            </span>
-          </div>
-        )}
 
         <div>
           <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">

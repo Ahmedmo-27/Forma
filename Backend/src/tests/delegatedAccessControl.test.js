@@ -24,7 +24,7 @@ describe("Delegated Staff Access Control", () => {
     const coach = { id: "coach-1", role: "Coach" };
     const accountant = { id: "acc-1", role: "Accountant" };
     const sales = { id: "sales-1", role: "Sales" };
-    const coachManager = { id: "cm-1", role: "Coach Manager" };
+    const coachManager = { id: "cm-1", role: "Head Coach" };
 
     describe("canEditTarget", () => {
         it("standard Sales Manager can only edit Sales and Receptionist", () => {
@@ -78,7 +78,7 @@ describe("Delegated Staff Access Control", () => {
 
         it("returns all staff roles for delegated Sales Manager", () => {
             expect(directoryRolesFor(delegatedSm)).toEqual([
-                "Receptionist", "Coach", "Coach Manager", "Accountant", "Sales", "Sales Manager"
+                "Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager"
             ]);
         });
     });

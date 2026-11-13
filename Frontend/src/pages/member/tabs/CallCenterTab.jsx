@@ -8,7 +8,7 @@ export default function CallCenterTab({ member, user, onRefresh }) {
   const [text, setText]       = useState('');
   const [loading, setLoading] = useState(false);
 
-  const isCoachRole = ['Coach', 'Coach Manager'].includes(user?.role);
+  const isCoachRole = ['Coach', 'Head Coach'].includes(user?.role);
 
   // Coach roles see couch_notes, others see regular notes
   const notes = isCoachRole
@@ -16,7 +16,7 @@ export default function CallCenterTab({ member, user, onRefresh }) {
     : [...(member.notes ?? [])].reverse();
 
   const canAdd = isCoachRole
-    ? ['Coach', 'Coach Manager'].includes(user?.role)
+    ? ['Coach', 'Head Coach'].includes(user?.role)
     : ['Sales', 'Sales Manager', 'Owner'].includes(user?.role);
 
   const handleAdd = async () => {

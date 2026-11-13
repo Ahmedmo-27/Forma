@@ -5,7 +5,7 @@ const { hasAccess, hasExplicitGrant } = require("../utils/accessControl");
 const { incrementCachedAllowance } = require("../utils/whatsappTracking");
 const { invalidateTenantCache } = require("../utils/cacheInvalidator");
 
-const MANAGER_ROLES = new Set(["Owner", "Sales Manager", "Accountant", "Coach Manager"]);
+const MANAGER_ROLES = new Set(["Owner", "Sales Manager", "Accountant", "Head Coach"]);
 
 const STARTER_TEMPLATES = [
     {
@@ -68,7 +68,7 @@ function normalizeAllowedRoles(roles) {
     if (!Array.isArray(roles)) return [];
     const allowed = new Set([
         "Owner", "Sales Manager", "Sales", "Receptionist", "Accountant",
-        "Coach", "Coach Manager",
+        "Coach", "Head Coach",
     ]);
     return roles.filter((r) => allowed.has(r));
 }
@@ -205,25 +205,38 @@ const getTemplates = async (req, res) => {
 
 const updateTemplate = async (req, res) => {
     try {
-        const updates = { ...req.body };
-        if (updates.type != null) {
-            updates.type = String(updates.type).trim().toLowerCase();
+        const {
+            type,
+            name,
+            introText,
+            bodyText,
+            introTextAr,
+            bodyTextAr,
+            includeLiveData,
+            defaultPackageIds,
+            allowedRoles,
+            defaultDiscountPercent,
+            isDefault,
+        } = req.body;
+
+        const updates = {};
+        if (type != null) updates.type = String(type).trim().toLowerCase();
+        if (name != null) updates.name = String(name).trim();
+        if (introText != null) updates.introText = String(introText).trim();
+        if (bodyText != null) updates.bodyText = String(bodyText).trim();
+        if (introTextAr != null) updates.introTextAr = String(introTextAr).trim();
+        if (bodyTextAr != null) updates.bodyTextAr = String(bodyTextAr).trim();
+        if (includeLiveData != null) updates.includeLiveData = Boolean(includeLiveData);
+        if (defaultPackageIds != null) {
+            updates.defaultPackageIds = normalizePackageIds(defaultPackageIds);
         }
-        if (updates.name != null) updates.name = String(updates.name).trim();
-        if (updates.introText != null) updates.introText = String(updates.introText).trim();
-        if (updates.bodyText != null) updates.bodyText = String(updates.bodyText).trim();
-        if (updates.introTextAr != null) updates.introTextAr = String(updates.introTextAr).trim();
-        if (updates.bodyTextAr != null) updates.bodyTextAr = String(updates.bodyTextAr).trim();
-        if (updates.defaultPackageIds != null) {
-            updates.defaultPackageIds = normalizePackageIds(updates.defaultPackageIds);
+        if (allowedRoles != null) {
+            updates.allowedRoles = normalizeAllowedRoles(allowedRoles);
         }
-        if (updates.allowedRoles != null) {
-            updates.allowedRoles = normalizeAllowedRoles(updates.allowedRoles);
-        }
-        if (updates.defaultDiscountPercent != null) {
+        if (defaultDiscountPercent != null) {
             updates.defaultDiscountPercent = Math.min(
                 100,
-                Math.max(0, Number(updates.defaultDiscountPercent) || 0)
+                Math.max(0, Number(defaultDiscountPercent) || 0)
             );
         }
 
@@ -237,12 +250,12 @@ const updateTemplate = async (req, res) => {
             }
         }
 
-        if (updates.isDefault === true || updates.isDefault === "true") {
+        if (isDefault === true || isDefault === "true") {
             updates.isDefault = true;
             const existing = await WhatsAppTemplate.findById(req.params.id).select("type");
             if (!existing) return res.status(404).json({ message: "Template not found" });
             await clearOtherDefaults(nextType || existing.type, existing._id);
-        } else if (updates.isDefault === false || updates.isDefault === "false") {
+        } else if (isDefault === false || isDefault === "false") {
             updates.isDefault = false;
         }
 

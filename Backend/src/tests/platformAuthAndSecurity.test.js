@@ -203,8 +203,8 @@ describe("Phase 1: Platform Identity, Security & RBAC", () => {
         });
     });
 
-    describe("Platform Direct Login (No Authenticator)", () => {
-        it("logs in directly with email and password without MFA or authenticator challenge", async () => {
+    describe("Platform Login MFA Gate", () => {
+        it("requires MFA setup when MFA is not enrolled", async () => {
             const hashedPassword = await passwordUtils.hashPassword("password123");
             const fakeUser = {
                 _id: "user-super-1",
@@ -216,6 +216,7 @@ describe("Phase 1: Platform Identity, Security & RBAC", () => {
                 failedLoginCount: 1,
                 lockedUntil: null,
                 tokenVersion: 0,
+                mfa: { enabled: false },
                 save: vi.fn().mockResolvedValue(true),
             };
 
@@ -235,27 +236,51 @@ describe("Phase 1: Platform Identity, Security & RBAC", () => {
             await login(req, res);
 
             expect(fakeUser.failedLoginCount).toBe(0);
-            expect(fakeUser.lastLoginAt).toBeInstanceOf(Date);
             expect(fakeUser.save).toHaveBeenCalled();
 
-            expect(res.json).toHaveBeenCalledWith(
-                expect.objectContaining({
-                    message: "Authentication successful",
-                    token: expect.any(String),
-                    refreshToken: expect.any(String),
-                    user: expect.objectContaining({
-                        id: "user-super-1",
-                        email: "admin@platform.com",
-                        role: "super_admin",
-                    }),
-                })
-            );
-
-            // Verify response has no MFA requirement flags
             const jsonArg = res.json.mock.calls[0][0];
-            expect(jsonArg.mfaRequired).toBeUndefined();
-            expect(jsonArg.mfaSetupRequired).toBeUndefined();
-            expect(jsonArg.tempToken).toBeUndefined();
+            expect(jsonArg.mfaSetupRequired).toBe(true);
+            expect(jsonArg.tempToken).toEqual(expect.any(String));
+            expect(jsonArg.token).toBeUndefined();
+            expect(jsonArg.refreshToken).toBeUndefined();
+        });
+
+        it("requires MFA challenge when MFA is already enrolled", async () => {
+            const hashedPassword = await passwordUtils.hashPassword("password123");
+            const fakeUser = {
+                _id: "user-super-2",
+                name: "Billing Admin",
+                email: "billing@platform.com",
+                password: hashedPassword,
+                role: "billing",
+                status: "active",
+                failedLoginCount: 0,
+                lockedUntil: null,
+                tokenVersion: 0,
+                mfa: { enabled: true, secretEncrypted: "enc" },
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            vi.spyOn(PlatformUser, "findOne").mockResolvedValue(fakeUser);
+
+            const req = {
+                body: {
+                    email: "billing@platform.com",
+                    password: "password123",
+                },
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await login(req, res);
+
+            const jsonArg = res.json.mock.calls[0][0];
+            expect(jsonArg.mfaRequired).toBe(true);
+            expect(jsonArg.tempToken).toEqual(expect.any(String));
+            expect(jsonArg.token).toBeUndefined();
+            expect(jsonArg.refreshToken).toBeUndefined();
         });
     });
 });

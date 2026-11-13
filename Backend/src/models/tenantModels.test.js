@@ -210,10 +210,10 @@ describe("Phase 1: Core Models & Tenant Helpers", () => {
             expect(canEditRoleChecklist("Sales Manager", "Receptionist")).toBe(true);
             expect(canEditRoleChecklist("Sales Manager", "Accountant")).toBe(false);
             expect(canEditRoleChecklist("Sales Manager", "Coach")).toBe(false);
-            expect(canEditRoleChecklist("Sales Manager", "Coach Manager")).toBe(false);
+            expect(canEditRoleChecklist("Sales Manager", "Head Coach")).toBe(false);
             expect(canEditRoleChecklist("Sales Manager", "Sales Manager")).toBe(false);
-            expect(canEditRoleChecklist("Coach Manager", "Coach")).toBe(true);
-            expect(canEditRoleChecklist("Coach Manager", "Sales")).toBe(false);
+            expect(canEditRoleChecklist("Head Coach", "Coach")).toBe(true);
+            expect(canEditRoleChecklist("Head Coach", "Sales")).toBe(false);
             expect(canEditTarget({ id: "gm-1", role: "General Manager" }, { _id: "gm-2", role: "General Manager" })).toBe(false);
             expect(canEditTarget({ id: "gm-1", role: "General Manager" }, { _id: "sales-1", role: "Sales" })).toBe(true);
             expect(canEditTarget({ id: "owner-1", role: "Owner" }, { _id: "gm-2", role: "General Manager" })).toBe(true);

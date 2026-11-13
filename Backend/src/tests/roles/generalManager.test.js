@@ -34,7 +34,7 @@ describe("General Manager", () => {
         expectAllowed("refunds", ["Owner", "Accountant"], user);
         expectAllowed("teams_overview", ["Owner"], user);
         expectAllowed("check_in", ["Receptionist", "Owner", "Sales Manager", "Sales"], user);
-        expectAllowed("coach_checkin", ["Coach", "Coach Manager"], user);
+        expectAllowed("coach_checkin", ["Coach", "Head Coach"], user);
         expectAllowed("access_control", ["Owner", "General Manager"], user);
         expectAllowed("change_role", ["Owner", "General Manager", "Sales Manager"], user);
         expect(pages).toMatch(/roles=\{.*'General Manager'.*\}\s+access="access_control"/);

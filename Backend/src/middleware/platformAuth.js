@@ -6,11 +6,14 @@ const PLATFORM_AUDIENCE = "leap-platform";
 const PLATFORM_ISSUER = "leap-platform";
 
 function getPlatformSecret() {
-    return (
-        process.env.PLATFORM_JWT_SECRET ||
-        (process.env.JWT_SECRET ? `${process.env.JWT_SECRET}_platform` : null) ||
-        (process.env.NODE_ENV === "test" ? "test_platform_secret_123" : "leap_default_platform_jwt_secret_2026")
-    );
+    if (process.env.PLATFORM_JWT_SECRET) {
+        return process.env.PLATFORM_JWT_SECRET;
+    }
+    // Tests only — never fall back to a hardcoded production secret.
+    if (process.env.NODE_ENV === "test") {
+        return "test_platform_secret_123";
+    }
+    return null;
 }
 
 /**

@@ -67,7 +67,7 @@ function PTSessionsContent({ member, user, onRefresh }) {
   const [ptRefundReason, setPTRefundReason]       = useState('');
   const [ptRefunding, setPTRefunding]             = useState(false);
 
-  const canAdd = ['Owner', 'Accountant'].includes(user?.role);
+  const canAdd = ['Owner', 'Accountant', 'Coach', 'Head Coach'].includes(user?.role);
   const canRefund = ['Owner', 'Accountant'].includes(user?.role);
 
   const ptSubs = member.pt_subscriptions ?? [];
