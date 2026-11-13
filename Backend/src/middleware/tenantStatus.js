@@ -158,28 +158,7 @@ async function enforceStaffLimit(req, res, next) {
             req.plan = tenant.planId;
         }
 
-        // 1. Role validation against allowedRoles
-        const requestedRole = req.body?.role;
-        const allowedRoles = getEffectiveRoles(req.tenant, req.plan);
-        if (requestedRole && allowedRoles.length > 0 && !allowedRoles.includes(requestedRole)) {
-            const message = `The '${requestedRole}' role is not permitted under your current ${req.plan?.name || "subscription"} plan.`;
-            return res.status(403).json({
-                error: {
-                    code: "ROLE_NOT_IN_PLAN",
-                    message,
-                    status: 403,
-                    requestId: req.requestId,
-                    details: {
-                        role: requestedRole,
-                        allowedRoles,
-                    },
-                },
-                code: "ROLE_NOT_IN_PLAN",
-                role: requestedRole,
-                allowedRoles,
-                message,
-            });
-        }
+        if (respondIfRoleNotInPlan(req, res, req.body?.role)) return;
 
         // 2. Staff count limit check
         const limits = getEffectiveLimits(req.tenant, req.plan);
@@ -213,8 +192,39 @@ async function enforceStaffLimit(req, res, next) {
     }
 }
 
+/**
+ * Sends ROLE_NOT_IN_PLAN when the role is outside the plan plus role overrides.
+ * Returns true when the response was sent.
+ */
+function respondIfRoleNotInPlan(req, res, requestedRole) {
+    const allowedRoles = getEffectiveRoles(req.tenant, req.plan);
+    if (!requestedRole || allowedRoles.length === 0 || allowedRoles.includes(requestedRole)) {
+        return false;
+    }
+
+    const message = `The '${requestedRole}' role is not permitted under your current ${req.plan?.name || "subscription"} plan.`;
+    res.status(403).json({
+        error: {
+            code: "ROLE_NOT_IN_PLAN",
+            message,
+            status: 403,
+            requestId: req.requestId,
+            details: {
+                role: requestedRole,
+                allowedRoles,
+            },
+        },
+        code: "ROLE_NOT_IN_PLAN",
+        role: requestedRole,
+        allowedRoles,
+        message,
+    });
+    return true;
+}
+
 module.exports = {
     enforceSubscriptionStatus,
     enforceMemberLimit,
     enforceStaffLimit,
+    respondIfRoleNotInPlan,
 };

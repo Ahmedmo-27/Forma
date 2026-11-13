@@ -5,6 +5,14 @@ const Tenant = require("../models/Tenant");
 const logger = require("../utils/logger");
 const { runWithTenant, runAsPlatform } = require("../context/tenantContext");
 const { getAuthContext, setAuthContext } = require("./authContextCache");
+const { getEffectiveFeatures } = require("../models/Tenant");
+
+function attachPlanFeatures(req) {
+    const plan = req.plan && Array.isArray(req.plan.features)
+        ? req.plan
+        : (req.tenant?.planId && Array.isArray(req.tenant.planId.features) ? req.tenant.planId : null);
+    req.planFeatures = req.tenant && plan ? getEffectiveFeatures(req.tenant, plan) : null;
+}
 
 /**
  * Verifies Bearer JWT, validates tenant status, reloads user from DB,
@@ -83,6 +91,7 @@ const protect = async (req, res, next) => {
                 tenantSlug = cached.tenantSlug || tenantSlug;
                 req.tenant = cached.tenant;
                 req.plan = cached.plan;
+                attachPlanFeatures(req);
                 req.user = {
                     ...cached.user,
                     tenantId: tenantId ? String(tenantId) : cached.user.tenantId || null,
@@ -144,6 +153,7 @@ const protect = async (req, res, next) => {
                 req.plan = tenant.planId && Array.isArray(tenant.planId.features)
                     ? tenant.planId
                     : null;
+                attachPlanFeatures(req);
                 if (tenant.status === "suspended" || tenant.status === "cancelled") {
                     return res.status(403).json({
                         code: "TENANT_SUSPENDED",
@@ -246,6 +256,7 @@ const authorizeRoles = (...roles) => {
 module.exports = {
     protect,
     authorizeRoles,
+    attachPlanFeatures,
     sessionIsStale,
     activityIsDue,
     claimActivityTouch,

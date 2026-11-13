@@ -26,7 +26,7 @@ async function loadTenantWithPlan(tenantId) {
  * @param {string} featureKey
  */
 function requireFeature(featureKey) {
-    return async (req, res, next) => {
+    const middleware = async (req, res, next) => {
         try {
             const tenantId = req.user?.tenantId;
             if (!tenantId) {
@@ -77,6 +77,8 @@ function requireFeature(featureKey) {
             next(error);
         }
     };
+    middleware.featureKey = featureKey;
+    return middleware;
 }
 
 module.exports = { requireFeature };
