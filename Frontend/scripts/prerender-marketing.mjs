@@ -43,6 +43,9 @@ function pageCopy(locale, barePath) {
     "/multi-branch-gym-software": t.solutions.multiBranch,
     "/technology": t.technology,
     "/faq": t.faqPage,
+    "/privacy": t.policies.privacy,
+    "/terms": t.policies.terms,
+    "/refunds": t.policies.refunds,
   };
   return map[barePath] || t.home;
 }
@@ -56,6 +59,34 @@ function faqItems(locale, barePath) {
   if (barePath === "/faq") return faqCorpus(t);
   const copy = pageCopy(locale, barePath);
   return Array.isArray(copy?.faq) ? copy.faq : [];
+}
+
+function tableHtml(table) {
+  if (!table?.headers?.length || !table.rows?.length) return "";
+  const caption = table.caption ? `<caption>${escapeHtml(table.caption)}</caption>` : "";
+  const head = `<thead><tr>${table.headers
+    .map((header) => `<th>${escapeHtml(header)}</th>`)
+    .join("")}</tr></thead>`;
+  const body = `<tbody>${table.rows
+    .map(
+      (row) =>
+        `<tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`
+    )
+    .join("")}</tbody>`;
+  return `<table>${caption}${head}${body}</table>`;
+}
+
+function policySectionsHtml(copy) {
+  if (!Array.isArray(copy.sections)) return "";
+  return copy.sections
+    .map((section) => {
+      const heading = section.heading ? `<h2>${escapeHtml(section.heading)}</h2>` : "";
+      const paragraphs = (section.paragraphs || [])
+        .map((paragraph) => `<p>${escapeHtml(paragraph)}</p>`)
+        .join("");
+      return `${heading}${paragraphs}${tableHtml(section.table)}`;
+    })
+    .join("");
 }
 
 function titledList(items) {
@@ -147,6 +178,7 @@ function injectIntoTemplate(template, { locale, barePath, pathname }) {
   const faqs = faqItems(locale, barePath);
   const featureHtml = titledList(copy.features);
   const pointHtml = titledList(copy.points);
+  const policyHtml = policySectionsHtml(copy);
   const faqHeading = escapeHtml(t.home.faqHeading);
   const faqHtml = faqs.length
     ? `<h2>${faqHeading}</h2><dl>${faqs
@@ -244,6 +276,7 @@ function injectIntoTemplate(template, { locale, barePath, pathname }) {
       <p>${intro}</p>
       ${featureHtml}
       ${pointHtml}
+      ${policyHtml}
       ${faqHtml}
       <p><a href="${escapeHtml(enUrl)}">English</a> · <a href="${escapeHtml(arUrl)}">العربية</a></p>
       <p><a href="${escapeHtml(plansUrl)}">${escapeHtml(t.nav.plans)}</a> · <a href="${escapeHtml(technologyUrl)}">${escapeHtml(t.footer.technology)}</a> · <a href="${escapeHtml(faqUrl)}">${escapeHtml(t.footer.faq)}</a> · <a href="${escapeHtml(startUrl)}">${escapeHtml(t.nav.getStarted)}</a> · <a href="mailto:sales@forma-official.com">${escapeHtml(t.nav.contactSales)}</a></p>

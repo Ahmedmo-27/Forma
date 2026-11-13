@@ -149,8 +149,8 @@ await buildCard({
   lines: [
     "The operating system",
     "for serious gyms",
-    "Gym software in Egypt",
     "Members · check-ins · sales · billing",
+    "Built for operators in Egypt",
   ],
   rtl: false,
 });

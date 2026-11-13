@@ -25,10 +25,12 @@ function priorityFor(barePath) {
     return "0.85";
   if (barePath === "/why-forma") return "0.8";
   if (barePath === "/technology" || barePath === "/faq") return "0.8";
+  if (barePath === "/privacy" || barePath === "/terms" || barePath === "/refunds") return "0.4";
   return "0.7";
 }
 
 function changefreqFor(barePath) {
+  if (barePath === "/privacy" || barePath === "/terms" || barePath === "/refunds") return "yearly";
   if (barePath === "/" || barePath === "/plans") return "weekly";
   return "monthly";
 }
