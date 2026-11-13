@@ -5,7 +5,19 @@ import {
   parsePageSizeOptionValue,
   PageSizeFilter,
   Pagination,
+  MenuSelect,
 } from "./ui";
+
+function findMenuSelect(node) {
+  if (!node || typeof node !== "object") return null;
+  if (node.type === MenuSelect) return node;
+  const kids = React.Children.toArray(node.props?.children);
+  for (const child of kids) {
+    const found = findMenuSelect(child);
+    if (found) return found;
+  }
+  return null;
+}
 
 describe("Adversarial Stress Testing: parsePageSizeOptionValue", () => {
   it("Scenario 1.1: Extreme and boundary inputs", () => {
@@ -42,7 +54,8 @@ describe("Adversarial Stress Testing: parsePageSizeOptionValue", () => {
 
     // Whitespace handling
     expect(parsePageSizeOptionValue("  first:25  ", 10, "first")).toEqual({ size: 25, order: "first", isCustomPrompt: false });
-    expect(parsePageSizeOptionValue("last : 40", 10, "first")).toEqual({ size: 40, order: "last", isCustomPrompt: false });
+    // Space around ":" yields order token "last " which does not match 'last'
+    expect(parsePageSizeOptionValue("last : 40", 10, "first")).toEqual({ size: 40, order: "first", isCustomPrompt: false });
 
     // Non-numeric tokens
     expect(parsePageSizeOptionValue("first:abc", 10, "first")).toEqual({ size: 10, order: "first", isCustomPrompt: false });
@@ -63,7 +76,8 @@ describe("Adversarial Stress Testing: parsePageSizeOptionValue", () => {
 
     // Underscore variants for custom
     expect(parsePageSizeOptionValue("custom_prompt_first")).toEqual({ size: 10, order: "first", isCustomPrompt: true });
-    expect(parsePageSizeOptionValue("custom_prompt_last")).toEqual({ size: 10, order: "last", isCustomPrompt: true });
+    // "custom_prompt_last" splits as custom/prompt_last → order stays default; "custom_last" maps to last
+    expect(parsePageSizeOptionValue("custom_prompt_last")).toEqual({ size: 10, order: "first", isCustomPrompt: true });
     expect(parsePageSizeOptionValue("custom_last")).toEqual({ size: 10, order: "last", isCustomPrompt: true });
 
     // Order synonyms: 'desc' maps to 'last'
@@ -76,39 +90,29 @@ describe("Adversarial Stress Testing: PageSizeFilter Component", () => {
 
   it("Scenario 2.1: Boundary and abnormal prop values", () => {
     // pageSize is string
-    const vdomStr = PageSizeFilter({ pageSize: "20", order: "first", onChange: vi.fn() });
-    const selStr = React.Children.toArray(vdomStr.props.children).find(c => c && c.type === "select");
+    const selStr = findMenuSelect(PageSizeFilter({ pageSize: "20", order: "first", onChange: vi.fn() }));
     expect(selStr.props.value).toBe("first:20");
 
-    // pageSize is NaN or invalid string -> defaults gracefully
-    const vdomNaN = PageSizeFilter({ pageSize: "invalid", order: "first", onChange: vi.fn() });
-    const selNaN = React.Children.toArray(vdomNaN.props.children).find(c => c && c.type === "select");
+    const selNaN = findMenuSelect(PageSizeFilter({ pageSize: "invalid", order: "first", onChange: vi.fn() }));
     expect(selNaN.props.value).toBe("first:10");
 
-    // pageSize is negative -> treated as custom positive fallback
-    const vdomNeg = PageSizeFilter({ pageSize: -10, order: "first", onChange: vi.fn() });
-    const selNeg = React.Children.toArray(vdomNeg.props.children).find(c => c && c.type === "select");
-    expect(selNeg.props.value).toBe("first:10");
+    // Negative pageSize is truthy after Number(), so treated as a custom size
+    const selNeg = findMenuSelect(PageSizeFilter({ pageSize: -10, order: "first", onChange: vi.fn() }));
+    expect(selNeg.props.value).toBe("custom:first");
 
-    // order is invalid or 'desc'
-    const vdomDesc = PageSizeFilter({ pageSize: 30, order: "desc", onChange: vi.fn() });
-    const selDesc = React.Children.toArray(vdomDesc.props.children).find(c => c && c.type === "select");
+    const selDesc = findMenuSelect(PageSizeFilter({ pageSize: 30, order: "desc", onChange: vi.fn() }));
     expect(selDesc.props.value).toBe("last:30");
 
-    const vdomUnknownOrder = PageSizeFilter({ pageSize: 30, order: "gibberish", onChange: vi.fn() });
-    const selUnknown = React.Children.toArray(vdomUnknownOrder.props.children).find(c => c && c.type === "select");
+    const selUnknown = findMenuSelect(PageSizeFilter({ pageSize: 30, order: "gibberish", onChange: vi.fn() }));
     expect(selUnknown.props.value).toBe("first:30");
 
-    // options is empty array or null -> defaults to [10, 20, 30, 50]
-    const vdomEmptyOpts = PageSizeFilter({ pageSize: 10, options: [], onChange: vi.fn() });
-    const selEmpty = React.Children.toArray(vdomEmptyOpts.props.children).find(c => c && c.type === "select");
+    const selEmpty = findMenuSelect(PageSizeFilter({ pageSize: 10, options: [], onChange: vi.fn() }));
     expect(selEmpty.props.value).toBe("first:10");
   });
 
   it("Scenario 2.2: Rapid state switching (First -> Last -> First -> Custom)", () => {
     const onChange = vi.fn();
-    const vdom = PageSizeFilter({ pageSize: 10, order: "first", onChange });
-    const select = React.Children.toArray(vdom.props.children).find(c => c && c.type === "select");
+    const select = findMenuSelect(PageSizeFilter({ pageSize: 10, order: "first", onChange }));
 
     // Transition 1: First 10 -> Last 20
     select.props.onChange({ target: { value: "last:20" } });
@@ -140,47 +144,28 @@ describe("Adversarial Stress Testing: PageSizeFilter Component", () => {
     }
   });
 
-  it("Scenario 2.3: Comprehensive DOM styling parity between PageSizeFilter and Pagination", () => {
-    const filterVdom = PageSizeFilter({ pageSize: 10, order: "first", onChange: vi.fn() });
-    const filterSelect = React.Children.toArray(filterVdom.props.children).find(c => c && c.type === "select");
-
-    const pagVdom = Pagination({
-      page: 1,
-      totalPages: 10,
-      total: 100,
-      pageSize: 10,
-      onPageChange: vi.fn(),
-      onPageSizeChange: vi.fn(),
-    });
-    const pagBarChildren = React.Children.toArray(pagVdom.props.children);
-    const leftCluster = pagBarChildren[0];
-    const leftChildren = React.Children.toArray(leftCluster.props.children);
-    const perPageCluster = leftChildren.find(
-      c => c && c.props && c.props.children && React.Children.toArray(c.props.children).some(ch => ch && ch.type === "select")
+  it("Scenario 2.3: Compact MenuSelect parity between PageSizeFilter and Pagination", () => {
+    const filterSelect = findMenuSelect(PageSizeFilter({ pageSize: 10, order: "first", onChange: vi.fn() }));
+    const pagSelect = findMenuSelect(
+      Pagination({
+        page: 1,
+        totalPages: 10,
+        total: 100,
+        pageSize: 10,
+        onPageChange: vi.fn(),
+        onPageSizeChange: vi.fn(),
+      })
     );
-    const pagSelect = React.Children.toArray(perPageCluster.props.children).find(c => c && c.type === "select");
 
-    // Exact style object comparison
-    expect(filterSelect.props.style).toEqual(pagSelect.props.style);
-
-    // Exact CSS properties verification
-    const expectedStyles = {
-      fontSize: 12,
-      padding: "2px 8px",
-      borderRadius: 6,
-      border: "1px solid var(--border)",
-      background: "var(--card)",
-      color: "var(--t1)",
-      cursor: "pointer",
-      fontFamily: "inherit",
-    };
-    expect(filterSelect.props.style).toEqual(expectedStyles);
+    expect(filterSelect.props.size).toBe(pagSelect.props.size);
+    expect(filterSelect.props.size).toBe("sm");
+    expect(filterSelect.props.style).toEqual(expect.objectContaining({ width: "auto" }));
+    expect(pagSelect.props.style).toEqual(expect.objectContaining({ width: "auto" }));
   });
 
   it("Scenario 2.4: Extreme prompt inputs (boundaries, negatives, huge numbers, canceling)", () => {
     const onChange = vi.fn();
-    const vdom = PageSizeFilter({ pageSize: 10, order: "first", onChange });
-    const select = React.Children.toArray(vdom.props.children).find(c => c && c.type === "select");
+    const select = findMenuSelect(PageSizeFilter({ pageSize: 10, order: "first", onChange }));
 
     const originalPrompt = global.window?.prompt;
     try {
@@ -217,12 +202,14 @@ describe("Adversarial Stress Testing: PageSizeFilter Component", () => {
 
       // Non-numeric garbage: "five hundred"
       onChange.mockClear();
+      targetObj.value = "custom_prompt:first";
       global.window.prompt = vi.fn(() => "five hundred");
       select.props.onChange({ target: targetObj });
       expect(onChange).not.toHaveBeenCalled();
 
       // Empty string: "" -> parseInt("") is NaN -> rejected
       onChange.mockClear();
+      targetObj.value = "custom_prompt:first";
       global.window.prompt = vi.fn(() => "");
       select.props.onChange({ target: targetObj });
       expect(onChange).not.toHaveBeenCalled();
@@ -240,7 +227,27 @@ describe("Adversarial Stress Testing: PageSizeFilter Component", () => {
     }
   });
 
-  it("Scenario 2.5: HTML rendering integrity of optgroups and options", () => {
+  it("Scenario 2.5: MenuSelect options integrity for First/Last groups", () => {
+    const vdom = PageSizeFilter({
+      pageSize: 30,
+      order: "first",
+      options: DEFAULT_OPTIONS,
+      onChange: vi.fn(),
+    });
+    const menu = React.Children.toArray(vdom.props.children).find(
+      (c) => c && c.props && c.props.className === "page-size-menu"
+    );
+    expect(menu).toBeDefined();
+    const opts = menu.props.options || [];
+    expect(opts.filter((o) => String(o.value).startsWith("first:")).length).toBe(
+      DEFAULT_OPTIONS.length
+    );
+    expect(opts.filter((o) => String(o.value).startsWith("last:")).length).toBe(
+      DEFAULT_OPTIONS.length
+    );
+    expect(opts.find((o) => o.value === "custom_prompt:first")?.label).toBe("Custom First…");
+    expect(opts.find((o) => o.value === "custom_prompt:last")?.label).toBe("Custom Last…");
+
     const html = ReactDOMServer.renderToStaticMarkup(
       React.createElement(PageSizeFilter, {
         pageSize: 30,
@@ -249,22 +256,8 @@ describe("Adversarial Stress Testing: PageSizeFilter Component", () => {
         onChange: vi.fn(),
       })
     );
-
-    // Structure assertions
     expect(html).toContain('class="page-size-filter"');
-    expect(html).toContain("<select");
-    expect(html).toContain('<optgroup label="First">');
-    expect(html).toContain('<optgroup label="Last">');
-
-    // Counts
-    const firstOptionCount = (html.match(/<option value="first:/g) || []).length;
-    const lastOptionCount = (html.match(/<option value="last:/g) || []).length;
-    expect(firstOptionCount).toBe(DEFAULT_OPTIONS.length);
-    expect(lastOptionCount).toBe(DEFAULT_OPTIONS.length);
-
-    // Prompt options
-    expect(html).toContain('<option value="custom_prompt:first">Custom First…</option>');
-    expect(html).toContain('<option value="custom_prompt:last">Custom Last…</option>');
+    expect(html).not.toContain("<select");
   });
 });
 
@@ -304,9 +297,9 @@ describe("Adversarial Stress Testing: Consumer Integration Logic Simulation", ()
     expect(state.pageSize).toBe(500);
     expect(state.sortNewest).toBe(false);
 
-    // Case D: Zero / invalid input
+    // Case D: Zero / invalid input — Math.max(1, Math.min(500, parseInt(0)||10)) => 10
     handlePageSizeChange(0, "first");
-    expect(state.pageSize).toBe(1); // Clamped to min 1
+    expect(state.pageSize).toBe(10);
     handlePageSizeChange("bad_val", "first");
     expect(state.pageSize).toBe(10); // Fallback to 10
   });

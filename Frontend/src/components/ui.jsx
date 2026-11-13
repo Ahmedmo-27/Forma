@@ -27,6 +27,129 @@ export function SkeletonRow({ cols = 6 }) {
   );
 }
 
+/** KPI / stat card placeholder — matches StatCard footprint */
+export function StatCardSkeleton() {
+  return (
+    <div
+      style={{
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: 12,
+        borderTop: '3px solid var(--border-md)',
+        padding: '14px 16px',
+        boxShadow: '0 1px 2px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.06)',
+      }}
+      aria-hidden="true"
+    >
+      <Skeleton h="11px" w="55%" />
+      <div style={{ marginTop: 10 }}>
+        <Skeleton h="26px" w="45%" />
+      </div>
+      <div style={{ marginTop: 8 }}>
+        <Skeleton h="10px" w="70%" />
+      </div>
+    </div>
+  );
+}
+
+/** Stacked note / activity card placeholders */
+export function CardListSkeleton({ rows = 5 }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }} aria-hidden="true">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            padding: '14px 16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 8,
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+            <Skeleton h="13px" w="40%" />
+            <Skeleton h="12px" w="72px" />
+          </div>
+          <Skeleton h="12px" w="90%" />
+          <Skeleton h="12px" w="65%" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Access / feature checklist group placeholders */
+export function ChecklistSkeleton({ rows = 4 }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }} aria-hidden="true">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div
+          key={i}
+          style={{
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            padding: '14px 16px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 10,
+          }}
+        >
+          <Skeleton h="13px" w="30%" />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <Skeleton h="18px" w="100%" />
+            <Skeleton h="18px" w="100%" />
+            <Skeleton h="18px" w="85%" />
+            <Skeleton h="18px" w="70%" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * Thin dashboard shell: KPI row + optional list/table area.
+ * Use when location/date selection refetches a mixed dashboard layout.
+ */
+export function DashboardSkeleton({ stats = 4, listRows = 5, showList = true }) {
+  return (
+    <div aria-busy="true" aria-live="polite">
+      {stats > 0 && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))',
+            gap: 12,
+            marginBottom: 20,
+          }}
+        >
+          {Array.from({ length: stats }).map((_, i) => (
+            <StatCardSkeleton key={i} />
+          ))}
+        </div>
+      )}
+      {showList && (
+        <div
+          style={{
+            background: 'var(--card)',
+            border: '1px solid var(--border)',
+            borderRadius: 12,
+            padding: 16,
+          }}
+        >
+          <div style={{ marginBottom: 14 }}>
+            <Skeleton h="14px" w="160px" />
+          </div>
+          <CardListSkeleton rows={listRows} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Badge ─────────────────────────────────────────────────────────────────────
 const BADGE_MAP = {
   active:   { bg: 'var(--green-bg)',  color: 'var(--green)',  border: 'var(--green-bd)',  dot: '#22c55e' },
@@ -193,31 +316,194 @@ export function Input({ label, error, hint, ...props }) {
     </Field>
   );
 }
-export function Select({ label, error, hint, children, options: optionsProp, placeholder, initialLimit, ...props }) {
-  const options = useMemo(() => {
-    if (optionsProp?.length) {
-      return optionsProp.map((o) => ({
-        value: String(o.value ?? ''),
-        label: String(o.label ?? o.value ?? ''),
-        disabled: !!o.disabled,
-      }));
-    }
-    const parsed = [];
-    Children.forEach(children, (child) => {
-      if (!child || typeof child === 'string') return;
-      const p = child.props ?? {};
-      if (p.value === undefined && child.type !== 'option') return;
-      const labelText = typeof p.children === 'string'
-        ? p.children
-        : Children.toArray(p.children).join('');
-      parsed.push({
-        value: String(p.value ?? ''),
-        label: labelText || String(p.value ?? ''),
-        disabled: !!p.disabled,
+function parseSelectOptions(children, optionsProp) {
+  if (optionsProp?.length) {
+    return optionsProp.map((o) => ({
+      value: String(o.value ?? ''),
+      label: String(o.label ?? o.value ?? ''),
+      disabled: !!o.disabled,
+      group: o.group || null,
+    }));
+  }
+  const parsed = [];
+  let currentGroup = null;
+  Children.forEach(children, (child) => {
+    if (!child || typeof child === 'string') return;
+    if (child.type === 'optgroup') {
+      currentGroup = child.props?.label || null;
+      Children.forEach(child.props?.children, (opt) => {
+        if (!opt || opt.type !== 'option') return;
+        const p = opt.props ?? {};
+        const labelText = typeof p.children === 'string'
+          ? p.children
+          : Children.toArray(p.children).join('');
+        parsed.push({
+          value: String(p.value ?? ''),
+          label: labelText || String(p.value ?? ''),
+          disabled: !!p.disabled,
+          group: currentGroup,
+        });
       });
+      currentGroup = null;
+      return;
+    }
+    const p = child.props ?? {};
+    if (p.value === undefined && child.type !== 'option') return;
+    const labelText = typeof p.children === 'string'
+      ? p.children
+      : Children.toArray(p.children).join('');
+    parsed.push({
+      value: String(p.value ?? ''),
+      label: labelText || String(p.value ?? ''),
+      disabled: !!p.disabled,
+      group: null,
     });
-    return parsed;
-  }, [children, optionsProp]);
+  });
+  return parsed;
+}
+
+function computeDropdownRect(anchorEl) {
+  if (!anchorEl) return null;
+  const rect = anchorEl.getBoundingClientRect();
+  const gap = 8;
+  const preferred = 280;
+  const vh = window.innerHeight;
+  const visibleTop = Math.min(Math.max(rect.top, 0), vh);
+  const visibleBottom = Math.min(Math.max(rect.bottom, 0), vh);
+  const spaceBelow = Math.max(0, vh - visibleBottom - gap);
+  const spaceAbove = Math.max(0, visibleTop - gap);
+  const openUp = spaceBelow < 160 && spaceAbove > spaceBelow;
+  const available = Math.max(0, (openUp ? spaceAbove : spaceBelow) - 4);
+  const maxHeight = Math.min(preferred, available || Math.min(preferred, vh - gap * 2));
+
+  if (openUp) {
+    const anchor = Math.min(rect.top, vh - gap);
+    return {
+      top: undefined,
+      bottom: Math.max(gap, vh - anchor + 4),
+      left: rect.left,
+      width: Math.max(rect.width, 120),
+      maxHeight: Math.min(maxHeight, Math.max(0, anchor - gap - 4)),
+    };
+  }
+
+  const top = Math.min(Math.max(rect.bottom + 4, gap), vh - gap - 48);
+  return {
+    top,
+    bottom: undefined,
+    left: rect.left,
+    width: Math.max(rect.width, 120),
+    maxHeight: Math.min(maxHeight, Math.max(48, vh - gap - top)),
+  };
+}
+
+function SelectChevron({ color = 'var(--t4)' }) {
+  return (
+    <svg
+      width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color}
+      strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', flexShrink: 0 }}
+      aria-hidden="true"
+    >
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+function SelectListbox({
+  listRef,
+  dropdownRect,
+  options,
+  value,
+  cursor,
+  setCursor,
+  onPick,
+  emptyLabel = 'No options available',
+  fontSize = 13,
+}) {
+  let lastGroup = null;
+  return (
+    <div
+      ref={listRef}
+      role="listbox"
+      style={{
+        position: 'fixed',
+        top: dropdownRect.top,
+        bottom: dropdownRect.bottom,
+        left: dropdownRect.left,
+        width: dropdownRect.width,
+        zIndex: 1000,
+        background: 'var(--card)',
+        border: '1px solid var(--border)',
+        borderRadius: 10,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+        maxHeight: dropdownRect.maxHeight,
+        overflowY: 'auto',
+      }}
+    >
+      {!options.length ? (
+        <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--t4)' }}>{emptyLabel}</div>
+      ) : options.map((opt, i) => {
+        const showGroup = opt.group && opt.group !== lastGroup;
+        if (opt.group) lastGroup = opt.group;
+        const active = i === cursor;
+        const isSelected = opt.value === value;
+        return (
+          <React.Fragment key={`${opt.value}-${i}`}>
+            {showGroup && (
+              <div
+                style={{
+                  padding: '8px 12px 4px',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  color: 'var(--t4)',
+                  background: 'var(--card)',
+                }}
+              >
+                {opt.group}
+              </div>
+            )}
+            <button
+              type="button"
+              role="option"
+              aria-selected={isSelected}
+              disabled={opt.disabled}
+              onMouseDown={(e) => e.preventDefault()}
+              onMouseEnter={() => setCursor(i)}
+              onClick={() => onPick(opt)}
+              style={{
+                width: '100%', textAlign: 'left', border: 'none',
+                padding: '8px 12px', fontSize, fontFamily: 'inherit',
+                cursor: opt.disabled ? 'not-allowed' : 'pointer',
+                background: active
+                  ? 'color-mix(in srgb, var(--navy) 8%, transparent)'
+                  : isSelected
+                    ? 'color-mix(in srgb, var(--navy) 6%, transparent)'
+                    : 'var(--card)',
+                color: opt.disabled ? 'var(--t4)' : isSelected ? 'var(--navy)' : 'var(--t1)',
+                fontWeight: isSelected ? 600 : 400,
+                borderBottom: i < options.length - 1 ? '1px solid var(--border)' : 'none',
+                borderLeft: isSelected ? '2px solid var(--navy)' : 'none',
+                opacity: opt.disabled ? 0.5 : 1,
+                transition: 'background 0.1s',
+              }}
+            >
+              {opt.label}
+            </button>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
+
+export function Select({ label, error, hint, children, options: optionsProp, placeholder, initialLimit, ...props }) {
+  const options = useMemo(
+    () => parseSelectOptions(children, optionsProp),
+    [children, optionsProp],
+  );
 
   const emptyOption = options.find((o) => o.value === '');
   const resolvedPlaceholder = placeholder ?? (emptyOption?.label || 'Type to search…');
@@ -288,39 +574,7 @@ function SearchableSelect({
   }, [selectableOptions, query, initialLimit, hasSelection]);
 
   const updateDropdownRect = useCallback(() => {
-    if (!inputRef.current) return;
-    const rect = inputRef.current.getBoundingClientRect();
-    const gap = 8;
-    const preferred = 280;
-    const vh = window.innerHeight;
-    const visibleTop = Math.min(Math.max(rect.top, 0), vh);
-    const visibleBottom = Math.min(Math.max(rect.bottom, 0), vh);
-    const spaceBelow = Math.max(0, vh - visibleBottom - gap);
-    const spaceAbove = Math.max(0, visibleTop - gap);
-    const openUp = spaceBelow < 160 && spaceAbove > spaceBelow;
-    const available = Math.max(0, (openUp ? spaceAbove : spaceBelow) - 4);
-    const maxHeight = Math.min(preferred, available || Math.min(preferred, vh - gap * 2));
-
-    if (openUp) {
-      const anchor = Math.min(rect.top, vh - gap);
-      setDropdownRect({
-        top: undefined,
-        bottom: Math.max(gap, vh - anchor + 4),
-        left: rect.left,
-        width: rect.width,
-        maxHeight: Math.min(maxHeight, Math.max(0, anchor - gap - 4)),
-      });
-      return;
-    }
-
-    const top = Math.min(Math.max(rect.bottom + 4, gap), vh - gap - 48);
-    setDropdownRect({
-      top,
-      bottom: undefined,
-      left: rect.left,
-      width: rect.width,
-      maxHeight: Math.min(maxHeight, Math.max(48, vh - gap - top)),
-    });
+    setDropdownRect(computeDropdownRect(inputRef.current));
   }, []);
 
   const scrolledForOpen = useRef(false);
@@ -432,59 +686,16 @@ function SearchableSelect({
   const showMuted = !open && !focused && !hasSelection;
 
   const dropdown = open && !locked && dropdownRect ? (
-    <div
-      ref={listRef}
-      role="listbox"
-      style={{
-        position: 'fixed',
-        top: dropdownRect.top,
-        bottom: dropdownRect.bottom,
-        left: dropdownRect.left,
-        width: dropdownRect.width,
-        zIndex: 1000,
-        background: 'var(--card)',
-        border: '1px solid var(--border)',
-        borderRadius: 10,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
-        maxHeight: dropdownRect.maxHeight,
-        overflowY: 'auto',
-      }}
-    >
-      {!filtered.length ? (
-        <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--t4)' }}>
-          {query.trim() ? 'No matches' : 'No options available'}
-        </div>
-      ) : filtered.map((opt, i) => {
-        const active = i === cursor;
-        const isSelected = opt.value === stringValue;
-        return (
-          <button
-            key={`${opt.value}-${i}`}
-            type="button"
-            role="option"
-            aria-selected={isSelected}
-            disabled={opt.disabled}
-            onMouseDown={(e) => e.preventDefault()}
-            onMouseEnter={() => setCursor(i)}
-            onClick={() => pick(opt)}
-            style={{
-              width: '100%', textAlign: 'left', border: 'none',
-              padding: '8px 12px', fontSize: 13, fontFamily: 'inherit',
-              cursor: opt.disabled ? 'not-allowed' : 'pointer',
-              background: active ? 'color-mix(in srgb, var(--navy) 8%, transparent)' : isSelected ? 'color-mix(in srgb, var(--navy) 6%, transparent)' : 'var(--card)',
-              color: opt.disabled ? 'var(--t4)' : isSelected ? 'var(--navy)' : 'var(--t1)',
-              fontWeight: isSelected ? 600 : 400,
-              borderBottom: i < filtered.length - 1 ? '1px solid var(--border)' : 'none',
-              borderLeft: isSelected ? '2px solid var(--navy)' : 'none',
-              opacity: opt.disabled ? 0.5 : 1,
-              transition: 'background 0.1s',
-            }}
-          >
-            {opt.label}
-          </button>
-        );
-      })}
-    </div>
+    <SelectListbox
+      listRef={listRef}
+      dropdownRect={dropdownRect}
+      options={filtered}
+      value={stringValue}
+      cursor={cursor}
+      setCursor={setCursor}
+      onPick={pick}
+      emptyLabel={query.trim() ? 'No matches' : 'No options available'}
+    />
   ) : null;
 
   return (
@@ -517,15 +728,224 @@ function SearchableSelect({
           opacity: disabled ? 0.6 : 1,
         }}
       />
-      <svg
-        width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--t4)"
-        strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-        style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}
-        aria-hidden="true"
-      >
-        <path d="m6 9 6 6 6-6" />
-      </svg>
+      <SelectChevron />
 
+      {dropdown && createPortal(dropdown, document.body)}
+    </div>
+  );
+}
+
+/** Compact themed select (button trigger + portaled list). Drop-in for native <select>. */
+export function MenuSelect({
+  value,
+  onChange,
+  onBlur,
+  options: optionsProp,
+  children,
+  disabled = false,
+  readOnly = false,
+  placeholder = 'Select…',
+  tone = 'default',
+  size = 'md',
+  style,
+  name,
+  id,
+  'aria-label': ariaLabel,
+  className,
+}) {
+  const wrapRef = useRef(null);
+  const triggerRef = useRef(null);
+  const listRef = useRef(null);
+  const [open, setOpen] = useState(false);
+  const [cursor, setCursor] = useState(-1);
+  const [dropdownRect, setDropdownRect] = useState(null);
+
+  const options = useMemo(
+    () => parseSelectOptions(children, optionsProp),
+    [children, optionsProp],
+  );
+
+  const locked = disabled || readOnly;
+  const stringValue = String(value ?? '');
+  const selected = useMemo(
+    () => options.find((o) => o.value === stringValue),
+    [options, stringValue],
+  );
+  const displayLabel = selected?.label ?? (stringValue !== '' ? stringValue : placeholder);
+  const isPlaceholder = !selected && stringValue === '';
+
+  const updateDropdownRect = useCallback(() => {
+    setDropdownRect(computeDropdownRect(triggerRef.current));
+  }, []);
+
+  const scrolledForOpen = useRef(false);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      scrolledForOpen.current = false;
+      setDropdownRect(null);
+      return;
+    }
+    updateDropdownRect();
+    window.addEventListener('resize', updateDropdownRect);
+    window.addEventListener('scroll', updateDropdownRect, true);
+    return () => {
+      window.removeEventListener('resize', updateDropdownRect);
+      window.removeEventListener('scroll', updateDropdownRect, true);
+    };
+  }, [open, updateDropdownRect, options.length]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    if (scrolledForOpen.current || !listRef.current) return;
+    const selectedEl = listRef.current.querySelector('[aria-selected="true"]');
+    if (selectedEl) {
+      const list = listRef.current;
+      const top = selectedEl.offsetTop;
+      const bottom = top + selectedEl.offsetHeight;
+      if (top < list.scrollTop) list.scrollTop = top;
+      else if (bottom > list.scrollTop + list.clientHeight) list.scrollTop = bottom - list.clientHeight;
+    }
+    scrolledForOpen.current = true;
+  }, [open, dropdownRect]);
+
+  useEffect(() => {
+    const close = (e) => {
+      const inWrap = wrapRef.current?.contains(e.target);
+      const inList = listRef.current?.contains(e.target);
+      if (!inWrap && !inList) {
+        setOpen(false);
+        setCursor(-1);
+      }
+    };
+    document.addEventListener('mousedown', close);
+    return () => document.removeEventListener('mousedown', close);
+  }, []);
+
+  const pick = (opt) => {
+    if (!opt || opt.disabled) return;
+    onChange?.({ target: { value: opt.value, name } });
+    setOpen(false);
+    setCursor(-1);
+  };
+
+  const toggle = () => {
+    if (locked) return;
+    setOpen((o) => !o);
+    setCursor(-1);
+  };
+
+  const handleKeyDown = (e) => {
+    if (locked) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!open) setOpen(true);
+      setCursor((c) => Math.min(c + 1, options.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setCursor((c) => Math.max(c - 1, 0));
+    } else if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      if (open && cursor >= 0 && options[cursor]) pick(options[cursor]);
+      else if (!open) setOpen(true);
+    } else if (e.key === 'Escape') {
+      setOpen(false);
+      setCursor(-1);
+    }
+  };
+
+  const isNav = tone === 'nav';
+  const isSm = size === 'sm';
+  const fontSize = isSm ? 12 : 13;
+  const {
+    width: styleWidth,
+    maxWidth: styleMaxWidth,
+    minWidth: styleMinWidth,
+    flexShrink: styleFlexShrink,
+    alignSelf: styleAlignSelf,
+    ...triggerExtras
+  } = style || {};
+
+  const triggerStyle = isNav
+    ? {
+        width: '100%',
+        height: 36,
+        padding: '0 28px 0 10px',
+        borderRadius: 8,
+        border: '1px solid rgba(255,255,255,0.18)',
+        background: 'rgba(0,0,0,0.28)',
+        color: isPlaceholder ? 'rgba(255,255,255,0.55)' : '#fff',
+        fontSize: 13,
+        fontWeight: 600,
+        fontFamily: 'inherit',
+        cursor: locked ? 'not-allowed' : 'pointer',
+        outline: 'none',
+        textAlign: 'left',
+        opacity: disabled ? 0.6 : 1,
+        ...triggerExtras,
+      }
+    : {
+        width: '100%',
+        padding: isSm ? '2px 28px 2px 8px' : '9px 32px 9px 12px',
+        fontSize,
+        border: '1px solid var(--border)',
+        borderRadius: isSm ? 6 : 8,
+        background: 'var(--card)',
+        color: isPlaceholder ? 'var(--t4)' : 'var(--t1)',
+        outline: 'none',
+        cursor: locked ? 'not-allowed' : 'pointer',
+        fontFamily: 'inherit',
+        textAlign: 'left',
+        opacity: disabled ? 0.6 : 1,
+        ...triggerExtras,
+      };
+
+  const dropdown = open && !locked && dropdownRect ? (
+    <SelectListbox
+      listRef={listRef}
+      dropdownRect={dropdownRect}
+      options={options}
+      value={stringValue}
+      cursor={cursor}
+      setCursor={setCursor}
+      onPick={pick}
+      fontSize={fontSize}
+    />
+  ) : null;
+
+  return (
+    <div
+      ref={wrapRef}
+      className={className}
+      style={{
+        position: 'relative',
+        display: 'inline-block',
+        minWidth: styleMinWidth ?? 0,
+        maxWidth: styleMaxWidth ?? '100%',
+        width: styleWidth ?? (isNav ? undefined : '100%'),
+        flexShrink: styleFlexShrink,
+        alignSelf: styleAlignSelf,
+      }}
+    >
+      <button
+        ref={triggerRef}
+        id={id}
+        type="button"
+        role="combobox"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+        aria-label={ariaLabel}
+        disabled={disabled}
+        onClick={toggle}
+        onBlur={onBlur}
+        onKeyDown={handleKeyDown}
+        style={triggerStyle}
+      >
+        <span style={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {displayLabel}
+        </span>
+      </button>
+      <SelectChevron color={isNav ? 'rgba(255,255,255,0.85)' : 'var(--t4)'} />
       {dropdown && createPortal(dropdown, document.body)}
     </div>
   );
@@ -569,6 +989,92 @@ export function Switch({ label, hint, checked, onChange, disabled }) {
         }} />
       </button>
     </div>
+  );
+}
+
+/** Themed checkbox using tenant --navy / --border tokens. */
+export function Checkbox({
+  label,
+  checked = false,
+  onChange,
+  disabled = false,
+  id,
+  style,
+  ...props
+}) {
+  const inputId = id || (label ? `cb-${String(label).toLowerCase().replace(/\s+/g, '-')}` : undefined);
+  return (
+    <label
+      htmlFor={inputId}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'flex-start',
+        gap: 8,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.55 : 1,
+        userSelect: 'none',
+        ...style,
+      }}
+    >
+      <span style={{ position: 'relative', width: 16, height: 16, flexShrink: 0, marginTop: 1 }}>
+        <input
+          id={inputId}
+          type="checkbox"
+          className="tenant-checkbox"
+          checked={!!checked}
+          disabled={disabled}
+          onChange={(e) => onChange?.(e)}
+          {...props}
+        />
+      </span>
+      {label && (
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', lineHeight: 1.35 }}>{label}</span>
+      )}
+    </label>
+  );
+}
+
+/** Themed radio using tenant --navy / --border tokens. */
+export function Radio({
+  label,
+  checked = false,
+  onChange,
+  disabled = false,
+  name,
+  value,
+  id,
+  style,
+  ...props
+}) {
+  const inputId = id || (label ? `radio-${String(label).toLowerCase().replace(/\s+/g, '-')}` : undefined);
+  return (
+    <label
+      htmlFor={inputId}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 8,
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.55 : 1,
+        userSelect: 'none',
+        ...style,
+      }}
+    >
+      <input
+        id={inputId}
+        type="radio"
+        className="tenant-radio"
+        name={name}
+        value={value}
+        checked={!!checked}
+        disabled={disabled}
+        onChange={(e) => onChange?.(e)}
+        {...props}
+      />
+      {label && (
+        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--t1)' }}>{label}</span>
+      )}
+    </label>
   );
 }
 
@@ -1054,57 +1560,34 @@ export function PageSizeFilter({
           {resolvedLabel}
         </span>
       )}
-      <select
-        value={selectValue}
+      <MenuSelect
+        className="page-size-menu"
+        size="sm"
+        aria-label={resolvedLabel || 'Page size'}
+        value={String(selectValue)}
         onChange={handleSelectChange}
-        style={{
-          fontSize: 12,
-          padding: '2px 8px',
-          borderRadius: 6,
-          border: '1px solid var(--border)',
-          background: 'var(--card)',
-          color: 'var(--t1)',
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-        }}
-      >
-        {showOrderOptions ? (
-          <>
-            <optgroup label="First">
-              {opts.map((n) => (
-                <option key={`first:${n}`} value={`first:${n}`}>
-                  First {n}
-                </option>
-              ))}
-              {isCustom && currentOrder === 'first' && (
-                <option value="custom:first">First {currentSize} (Custom)</option>
-              )}
-              <option value="custom_prompt:first">Custom First…</option>
-            </optgroup>
-            <optgroup label="Last">
-              {opts.map((n) => (
-                <option key={`last:${n}`} value={`last:${n}`}>
-                  Last {n}
-                </option>
-              ))}
-              {isCustom && currentOrder === 'last' && (
-                <option value="custom:last">Last {currentSize} (Custom)</option>
-              )}
-              <option value="custom_prompt:last">Custom Last…</option>
-            </optgroup>
-          </>
-        ) : (
-          <>
-            {opts.map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-            {isCustom && <option value="custom">Custom ({currentSize})</option>}
-            <option value="custom_prompt">Custom…</option>
-          </>
-        )}
-      </select>
+        style={{ width: 'auto', minWidth: 88 }}
+        options={
+          showOrderOptions
+            ? [
+                ...opts.map((n) => ({ value: `first:${n}`, label: `First ${n}`, group: 'First' })),
+                ...(isCustom && currentOrder === 'first'
+                  ? [{ value: 'custom:first', label: `First ${currentSize} (Custom)`, group: 'First' }]
+                  : []),
+                { value: 'custom_prompt:first', label: 'Custom First…', group: 'First' },
+                ...opts.map((n) => ({ value: `last:${n}`, label: `Last ${n}`, group: 'Last' })),
+                ...(isCustom && currentOrder === 'last'
+                  ? [{ value: 'custom:last', label: `Last ${currentSize} (Custom)`, group: 'Last' }]
+                  : []),
+                { value: 'custom_prompt:last', label: 'Custom Last…', group: 'Last' },
+              ]
+            : [
+                ...opts.map((n) => ({ value: String(n), label: String(n) })),
+                ...(isCustom ? [{ value: 'custom', label: `Custom (${currentSize})` }] : []),
+                { value: 'custom_prompt', label: 'Custom…' },
+              ]
+        }
+      />
     </div>
   );
 }
@@ -1134,8 +1617,11 @@ export function Pagination({
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t3)' }}>
             <span style={{ color: 'var(--t4)' }}>·</span>
             <span>Per page:</span>
-            <select
-              value={pageSizeOptions.includes(Number(size)) ? Number(size) : 'custom'}
+            <MenuSelect
+              className="pagination-page-size"
+              size="sm"
+              aria-label="Items per page"
+              value={pageSizeOptions.includes(Number(size)) ? String(size) : 'custom'}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === 'custom') {
@@ -1152,27 +1638,15 @@ export function Pagination({
                   onPageSizeChange(Number(val));
                 }
               }}
-              style={{
-                fontSize: 12,
-                padding: '2px 8px',
-                borderRadius: 6,
-                border: '1px solid var(--border)',
-                background: 'var(--card)',
-                color: 'var(--t1)',
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
-            >
-              {pageSizeOptions.map((opt) => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-              {!pageSizeOptions.includes(Number(size)) && (
-                <option value="custom">Custom ({size})</option>
-              )}
-              {pageSizeOptions.includes(Number(size)) && (
-                <option value="custom">Custom…</option>
-              )}
-            </select>
+              style={{ width: 'auto', minWidth: 64 }}
+              options={[
+                ...pageSizeOptions.map((opt) => ({ value: String(opt), label: String(opt) })),
+                {
+                  value: 'custom',
+                  label: pageSizeOptions.includes(Number(size)) ? 'Custom…' : `Custom (${size})`,
+                },
+              ]}
+            />
           </div>
         )}
       </div>

@@ -141,10 +141,26 @@
   gap: 16px;
 }
 
-/* ── Date picker ───────────────────────────────────────────── */
-input[type="date"]::-webkit-calendar-picker-indicator {
-  cursor: pointer; opacity: 0.45;
+/* ── Date picker (tenant chrome) ───────────────────────────── */
+input[type="date"],
+input[type="time"],
+input[type="datetime-local"] {
+  color-scheme: light;
+  accent-color: var(--navy);
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 0.55;
   filter: none;
+}
+
+input[type="date"]:hover::-webkit-calendar-picker-indicator,
+input[type="time"]:hover::-webkit-calendar-picker-indicator,
+input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
+  opacity: 0.85;
 }
 
 /* ── Grid layouts ──────────────────────────────────── */
@@ -197,6 +213,36 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   }
 
   select option { background: var(--card); color: var(--t1); }
+
+  /* Checkboxes & radios — tenant brand accent (closed chrome) */
+  input[type="checkbox"],
+  input[type="radio"],
+  .tenant-checkbox,
+  .tenant-radio {
+    accent-color: var(--navy);
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    flex-shrink: 0;
+    cursor: pointer;
+    color-scheme: light;
+  }
+
+  input[type="checkbox"]:disabled,
+  input[type="radio"]:disabled,
+  .tenant-checkbox:disabled,
+  .tenant-radio:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  input[type="checkbox"]:focus-visible,
+  input[type="radio"]:focus-visible,
+  .tenant-checkbox:focus-visible,
+  .tenant-radio:focus-visible {
+    outline: 2px solid var(--navy);
+    outline-offset: 2px;
+  }
 }
 
 /* ── Responsive ────────────────────────────────────────────── */
