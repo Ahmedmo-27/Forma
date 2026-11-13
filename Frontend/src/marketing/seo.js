@@ -13,7 +13,7 @@ export const OG_IMAGE_PATH = "/og-share.jpg";
 export const OG_IMAGE_PATH_AR = "/og-share-ar.jpg";
 export const OG_IMAGE_WIDTH = 1200;
 export const OG_IMAGE_HEIGHT = 630;
-export const OG_IMAGE_ALT = "Forma — gym management software for Egypt";
+export const OG_IMAGE_ALT = "Forma — gym management software in Egypt";
 export const OG_IMAGE_ALT_AR = "فورما — برنامج إدارة الجيم في مصر";
 /** Always absolute for crawlers / share scrapers that ignore relative URLs. */
 export const OG_IMAGE_ABSOLUTE = "https://www.forma-official.com/og-share.jpg";

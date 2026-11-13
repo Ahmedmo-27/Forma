@@ -8,9 +8,9 @@
     "build:og": "node scripts/build-og-images.mjs",
     "build:sitemap": "node scripts/generate-sitemap.mjs",
     "build:prerender": "node scripts/prerender-marketing.mjs",
-    "build:prerender:indexable": "node scripts/prerender-marketing.mjs --indexable",
+    "build:prerender:noindex": "node scripts/prerender-marketing.mjs --noindex",
     "build": "npm run build:sitemap && vite build && npm run build:prerender",
-    "build:indexable": "npm run build:sitemap && vite build && npm run build:prerender:indexable",
+    "build:noindex": "npm run build:sitemap && vite build && npm run build:prerender:noindex",
     "publish:site": "node scripts/publish-public-site.mjs",
     "lint": "eslint .",
     "preview": "vite preview"

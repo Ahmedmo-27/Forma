@@ -3,9 +3,9 @@
 export default {
   meta: {
     siteName: "Forma",
-    defaultTitle: "Forma — Gym management software for Egypt",
+    defaultTitle: "Forma — Gym management software in Egypt",
     defaultDescription:
-      "Forma is the gym operating system for Egypt — members, check-ins, sales CRM, coaching, and billing. Sales-assisted onboarding with bank transfer in EGP.",
+      "Forma is the gym operating system for Egyptian operators — members, check-ins, sales CRM, coaching, and billing. Sales-assisted onboarding with bank transfer in EGP.",
   },
   nav: {
     homeAria: "Forma home",
@@ -28,10 +28,10 @@ export default {
     langSwitchAria: "Switch to Arabic",
   },
   footer: {
-    tagline: "© {year} Forma. Gym & fitness management for Egypt.",
+    tagline: "© {year} Forma. Gym & fitness management in Egypt.",
   },
   home: {
-    title: "Forma — Gym management software for Egypt",
+    title: "Forma — Gym management software in Egypt",
     description:
       "Run your gym in Egypt with one workspace for members, check-ins, sales CRM, coaching, and billing — sales-assisted onboarding with bank transfer.",
     h1: "Gym management software built for serious operators in Egypt.",
@@ -187,9 +187,9 @@ export default {
       "Email sales to start, or open a workspace yourself and complete payment with the bank reference we generate.",
   },
   why: {
-    title: "Why Forma? — Gym OS for Egypt, not a template ERP",
+    title: "Why Forma? — Gym OS in Egypt, not a template ERP",
     description:
-      "Forma is modern gym management software for Egypt — not a rebadged multi-industry ERP. See how blast radius, data boundaries, downtime, and floor fit differ.",
+      "Forma is modern gym management software in Egypt — not a rebadged multi-industry ERP. See how blast radius, data boundaries, downtime, and floor fit differ.",
     h1: "Why Forma?",
     intro:
       "Most “gym management” products are skins on ready-made ERP platforms sold to many industries. Forma is a modern platform built for gyms in Egypt and the region — so your risk surface, roadmap, and day-to-day tools are not borrowed from restaurants or warehouses.",
@@ -269,8 +269,8 @@ export default {
     egypt: {
       title: "Gym management software in Egypt | Forma",
       description:
-        "Forma is gym management software for Egypt — members, QR check-in, sales CRM, WhatsApp follow-ups, coaching, and billing in EGP with sales-assisted onboarding.",
-      h1: "Gym management software for Egypt.",
+        "Forma is gym management software in Egypt — members, QR check-in, sales CRM, WhatsApp follow-ups, coaching, and billing in EGP with sales-assisted onboarding.",
+      h1: "Gym management software in Egypt.",
       intro:
         "Forma gives gym owners in Cairo, Giza, Alexandria, and across Egypt one operating system for the floor and the back office — without a multi-industry ERP template.",
       points: [

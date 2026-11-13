@@ -170,13 +170,13 @@ function injectIntoTemplate(template, { locale, barePath, pathname }) {
     `<meta name="twitter:image" content="${ogImage}" />`
   );
 
-  // Keep prerendered shells noindex until an indexable production build
-  // (set PUBLIC_SITE_INDEXABLE=1 when flipping public_site.published=true).
-  const indexable =
-    process.env.PUBLIC_SITE_INDEXABLE === "1" ||
-    process.env.PUBLIC_SITE_INDEXABLE === "true" ||
-    process.argv.includes("--indexable");
-  const robots = indexable ? "index, follow" : "noindex, nofollow";
+  // Default: indexable. Pass --noindex (or PUBLIC_SITE_INDEXABLE=0) while the
+  // public site is still gated / unpublished so Google does not cache noindex.
+  const forcedNoindex =
+    process.argv.includes("--noindex") ||
+    process.env.PUBLIC_SITE_INDEXABLE === "0" ||
+    process.env.PUBLIC_SITE_INDEXABLE === "false";
+  const robots = forcedNoindex ? "noindex, nofollow" : "index, follow";
   const headExtras = `
     <meta name="robots" content="${robots}" />
     <script type="application/ld+json">${jsonLd}</script>
