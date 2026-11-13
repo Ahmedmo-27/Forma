@@ -172,8 +172,16 @@ function startScheduledTasks() {
     // Delayed so a process that is only running tests does not need a database at import time.
     setTimeout(runAnalyticsJobs, 60 * 1000);
     setInterval(runAnalyticsJobs, 60 * 60 * 1000);
+    setInterval(runOwnerReminders, 60 * 60 * 1000);
 
-    logger.info("scheduler", "Scheduled tasks started (freeze + expiry every 30 min, analytics hourly)");
+    logger.info("scheduler", "Scheduled tasks started (freeze + expiry every 30 min, analytics and owner mail hourly)");
+}
+
+function runOwnerReminders() {
+    const { runOwnerReminders: sendDueReminders } = require("../services/ownerMail");
+    sendDueReminders().catch((error) => {
+        logger.error("mail", "Owner reminder run failed", { error: error.message });
+    });
 }
 
 function runAnalyticsJobs() {
@@ -190,4 +198,4 @@ function runAnalyticsJobs() {
     }
 }
 
-module.exports = { startScheduledTasks, processFreezeCycles, processExpiryCycles, assignOpenMembers, runAnalyticsJobs };
+module.exports = { startScheduledTasks, processFreezeCycles, processExpiryCycles, assignOpenMembers, runAnalyticsJobs, runOwnerReminders };

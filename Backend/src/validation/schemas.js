@@ -1,5 +1,6 @@
 const { z } = require("zod");
 const { sanitizePlainText } = require("../utils/sanitizeText");
+const { MIN_PASSWORD_LENGTH } = require("../utils/passwordUtils");
 
 const objectId = z.string().regex(/^[a-f\d]{24}$/i, "Invalid id");
 const emptyToNull = (v) => (v === "" || v === undefined ? null : v);
@@ -37,7 +38,7 @@ const loginSchema = z.object({
 
 const setupPasswordSchema = z.object({
     token: z.string().trim().min(20).max(200),
-    password: z.string().min(8).max(200),
+    password: z.string().min(MIN_PASSWORD_LENGTH).max(200),
 });
 
 const forgotPasswordSchema = z.object({

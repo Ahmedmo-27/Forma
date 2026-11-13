@@ -25,6 +25,12 @@ function claimActivityTouch(touches, tenantId, now = Date.now()) {
     return true;
 }
 
+function sessionIsStale(decoded, storedVersion) {
+    const claimed = decoded && Number.isFinite(decoded.version) ? decoded.version : 0;
+    const current = Number(storedVersion) || 0;
+    return claimed < current;
+}
+
 function touchTenantActivity(tenantId) {
     if (!tenantId || mongoose.connection.readyState !== 1) return;
     if (!claimActivityTouch(activityTouches, tenantId)) return;
@@ -64,6 +70,9 @@ const protect = async (req, res, next) => {
         if (!decoded.isImpersonation) {
             const cached = getAuthContext(decoded.id, tenantId);
             if (cached) {
+                if (sessionIsStale(decoded, cached.user?.tokenVersion)) {
+                    return res.status(401).json({ message: "Session revoked. Please sign in again." });
+                }
                 const cachedStatus = cached.tenant?.status;
                 if (cachedStatus === "suspended" || cachedStatus === "cancelled") {
                     return res.status(403).json({
@@ -116,6 +125,10 @@ const protect = async (req, res, next) => {
             return res.status(401).json({ message: "Not authorized, user not found" });
         }
 
+        if (sessionIsStale(decoded, user.tokenVersion)) {
+            return res.status(401).json({ message: "Session revoked. Please sign in again." });
+        }
+
         if (tenantId) {
             // Validate tenant status
             const tenant = await runAsPlatform(async () => {
@@ -156,6 +169,7 @@ const protect = async (req, res, next) => {
                 add: user.accessOverrides?.add || [],
                 remove: user.accessOverrides?.remove || [],
             },
+            tokenVersion: Number(user.tokenVersion) || 0,
             canAccessAllLocations: user.canAccessAllLocations === true,
             allowedLocationIds: Array.isArray(user.allowedLocationIds)
                 ? user.allowedLocationIds.map((id) => String(id?._id || id)).filter(Boolean)
@@ -232,6 +246,7 @@ const authorizeRoles = (...roles) => {
 module.exports = {
     protect,
     authorizeRoles,
+    sessionIsStale,
     activityIsDue,
     claimActivityTouch,
     ACTIVITY_GAP_MS,

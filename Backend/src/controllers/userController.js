@@ -4,7 +4,9 @@ const { getEffectiveFeatures } = require("../models/Tenant");
 const jwt = require("jsonwebtoken");
 const { formatUserResponse } = require("../utils/userAbilities");
 const logger = require("../utils/logger");
-const { hashPassword, verifyPassword, normalizeEmail } = require("../utils/passwordUtils");
+const { hashPassword, verifyPassword, normalizeEmail, MIN_PASSWORD_LENGTH, bumpTokenVersion } = require("../utils/passwordUtils");
+const passwordSetup = require("../services/passwordSetupService");
+const { invalidateAuthContext } = require("../middleware/authContextCache");
 const { normalizeUsername, uniqueUsername, escapeRegex } = require("../utils/username");
 const { runWithTenant, runAsPlatform } = require("../context/tenantContext");
 const {
@@ -321,6 +323,7 @@ const loginUser = async (req, res) => {
                 role: user.role,
                 tenantId: effectiveTenantId,
                 tenantSlug: effectiveTenantSlug,
+                version: user.tokenVersion || 0,
             },
             process.env.JWT_SECRET,
             { expiresIn: "8h" }
@@ -1464,33 +1467,52 @@ const getTeamsPage = async (req, res) => {
 const changeAuthorities=async (req,res)=>{
 
 };
+
+function resetPasswordDenied(actorRole, targetRole) {
+    if (actorRole === "Owner") return null;
+    if (actorRole === "General Manager") {
+        if (targetRole === "Owner" || targetRole === "General Manager") {
+            return "You cannot edit this user";
+        }
+        return null;
+    }
+    if (actorRole === "Sales Manager") {
+        if (!["Sales", "Receptionist"].includes(targetRole)) {
+            return "Sales managers can only reset passwords for their own team";
+        }
+        return null;
+    }
+    if (actorRole === "Head Coach") {
+        if (targetRole !== "Coach") {
+            return "Head Coaches can only reset passwords for their own team";
+        }
+        return null;
+    }
+    return "You cannot reset this password";
+}
+
 // ─── Reset another user's password (Sales Manager / Owner only) ──────────────
 const resetUserPassword = async (req, res) => {
     try {
         const { newPassword } = req.body;
 
-        if (!newPassword || newPassword.length < 6) {
-            return res.status(400).json({ message: "New password must be at least 6 characters" });
+        if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
+            return res.status(400).json({ message: `New password must be at least ${MIN_PASSWORD_LENGTH} characters` });
         }
 
         const target = await User.findById(req.params.id);
         if (!target) return res.status(404).json({ message: "User not found" });
 
-        if (target.role === "Owner" && req.user.role !== "Owner") {
-            return res.status(403).json({ message: "You cannot reset an Owner's password" });
-        }
-        if (req.user.role === "General Manager" && (target.role === "Owner" || target.role === "General Manager")) {
-            return res.status(403).json({ message: "You cannot edit this user" });
-        }
-        if (req.user.role === "Sales Manager" && !["Sales", "Receptionist"].includes(target.role)) {
-            return res.status(403).json({ message: "Sales managers can only reset passwords for their own team" });
-        }
-        if (req.user.role === "Head Coach" && target.role !== "Coach") {
-            return res.status(403).json({ message: "Head Coaches can only reset passwords for their own team" });
+        const denied = resetPasswordDenied(req.user.role, target.role);
+        if (denied) {
+            return res.status(403).json({ message: denied });
         }
 
         target.password = await hashPassword(newPassword);
+        bumpTokenVersion(target);
         await target.save();
+        invalidateAuthContext({ userId: target._id, tenantId: target.tenantId });
+        await passwordSetup.revokeUnusedTokens(target._id);
 
         logger.auth("info", "Password reset by manager", {
             actorId: req.user.id,
@@ -1519,26 +1541,34 @@ const updateMyProfile = async (req, res) => {
         }
 
         // Update password — require current password first
+        let passwordChanged = false;
         if (newPassword) {
             if (!currentPassword) {
                 return res.status(400).json({ message: "Current password is required to set a new password" });
+            }
+            if (newPassword.length < MIN_PASSWORD_LENGTH) {
+                return res.status(400).json({ message: `New password must be at least ${MIN_PASSWORD_LENGTH} characters` });
             }
             const { match } = await verifyPassword(currentPassword, user.password, { requestId: req.requestId });
             if (!match) {
                 return res.status(400).json({ message: "Current password is incorrect" });
             }
-            if (newPassword.length < 6) {
-                return res.status(400).json({ message: "New password must be at least 6 characters" });
-            }
             user.password = await hashPassword(newPassword);
+            bumpTokenVersion(user);
+            passwordChanged = true;
         }
 
         await user.save();
 
+        if (passwordChanged) {
+            invalidateAuthContext({ userId: user._id, tenantId: user.tenantId });
+            await passwordSetup.revokeUnusedTokens(user._id);
+        }
+
         logger.auth("info", "Profile updated", {
             userId: user._id.toString(),
             nameChanged: Boolean(name),
-            passwordChanged: Boolean(newPassword),
+            passwordChanged,
         });
 
         res.json({ message: "Profile updated successfully", user: formatUserResponse(user, { includeAccess: true }) });

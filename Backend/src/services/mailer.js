@@ -1,88 +1,150 @@
-const nodemailer = require("nodemailer");
+const fs = require("fs");
+const path = require("path");
 const logger = require("../utils/logger");
+const {
+    passwordResetEmail,
+    inviteEmail,
+    paymentRejectedEmail,
+    accountSuspendedEmail,
+    trialEndingEmail,
+    paymentReminderEmail,
+    campaignEmail,
+} = require("./emailTemplates");
 
-function isConfigured() {
-    return Boolean(process.env.SMTP_HOST && process.env.MAIL_FROM);
+const BREVO_URL = "https://api.brevo.com/v3/smtp/email";
+const LOGO_NAME = "forma-logo.png";
+const LOGO_CID = `cid:${LOGO_NAME}`;
+const LOGO_PATH = path.resolve(__dirname, "../../../Frontend/public/forma-favicon.png");
+
+let logoContent;
+
+function logoAttachment() {
+    if (!logoContent) {
+        logoContent = fs.readFileSync(LOGO_PATH).toString("base64");
+    }
+    return { name: LOGO_NAME, content: logoContent };
 }
 
-function createTransport() {
-    const port = Number(process.env.SMTP_PORT || 587);
-    return nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port,
-        secure: port === 465,
-        auth: process.env.SMTP_USER
-            ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS || "" }
-            : undefined,
-    });
+function parseAddress(raw) {
+    if (!raw) return null;
+    const value = String(raw).trim();
+    const bracketed = value.match(/^(?:"?([^"<]*)"?\s*)?<([^>]+)>$/);
+    if (bracketed) {
+        const name = bracketed[1].trim();
+        const email = bracketed[2].trim();
+        if (!email) return null;
+        return name ? { name, email } : { email };
+    }
+    if (!value.includes("@") || /\s/.test(value)) return null;
+    return { email: value };
+}
+
+function defaultFrom() {
+    return parseAddress(process.env.MAIL_FROM);
+}
+
+function securityFrom() {
+    return parseAddress(process.env.MAIL_FROM_SECURITY) || defaultFrom();
+}
+
+function isConfigured() {
+    return Boolean(process.env.BREVO_API_KEY && defaultFrom());
+}
+
+function canSend(sender) {
+    return Boolean(process.env.BREVO_API_KEY && sender?.email);
+}
+
+function brevoErrorMessage(status, body) {
+    let detail = "";
+    try {
+        const data = JSON.parse(body);
+        const message = typeof data.message === "string" ? data.message.trim() : "";
+        if (message && message.length <= 200 && !/https?:\/\//i.test(message)) {
+            detail = `: ${message}`;
+        }
+    } catch {
+        // Response was not JSON. Keep the status only so a reset URL cannot leak.
+    }
+    return `Brevo send failed (${status})${detail}`;
 }
 
 /**
- * Send mail when SMTP is configured. When it is not, log and return skipped
+ * Send mail when Brevo is configured. When it is not, log and return skipped
  * so onboarding and billing still succeed.
  */
-async function sendMail({ to, subject, text, html }) {
+async function sendMail({ to, subject, text, html, from }) {
     if (!to) return { skipped: true, reason: "missing_recipient" };
-    if (!isConfigured()) {
-        logger.info("mail", "SMTP not configured; email skipped", { to, subject });
-        return { skipped: true, reason: "smtp_unconfigured" };
+    const sender = from || defaultFrom();
+    if (!canSend(sender)) {
+        logger.info("mail", "Brevo not configured; email skipped", { to, subject });
+        return { skipped: true, reason: "brevo_unconfigured" };
     }
 
-    await createTransport().sendMail({
-        from: process.env.MAIL_FROM,
-        to,
-        subject,
-        text,
-        html,
+    const response = await fetch(BREVO_URL, {
+        method: "POST",
+        headers: {
+            "api-key": process.env.BREVO_API_KEY,
+            "content-type": "application/json",
+            accept: "application/json",
+        },
+        body: JSON.stringify({
+            sender,
+            to: [{ email: to }],
+            subject,
+            htmlContent: html,
+            textContent: text,
+            ...(html && html.includes(LOGO_CID) ? { attachment: [logoAttachment()] } : {}),
+        }),
     });
+
+    if (!response.ok) {
+        const body = await response.text();
+        throw new Error(brevoErrorMessage(response.status, body));
+    }
+
     return { skipped: false };
 }
 
 async function sendInvite({ to, name, gymName, setupUrl }) {
-    const subject = `Set your password for ${gymName}`;
-    const text = [
-        `Hello ${name || "there"},`,
-        "",
-        `Your gym workspace "${gymName}" is ready on Forma.`,
-        "Set your password using this link (valid for 72 hours):",
-        setupUrl,
-        "",
-        "If you did not expect this email, you can ignore it.",
-    ].join("\n");
-    const html = `<p>Hello ${escapeHtml(name || "there")},</p>
-<p>Your gym workspace <strong>${escapeHtml(gymName)}</strong> is ready on Forma.</p>
-<p><a href="${escapeHtml(setupUrl)}">Set your password</a>. This link is valid for 72 hours.</p>`;
-    return sendMail({ to, subject, text, html });
+    const content = inviteEmail({ name, gymName, setupUrl });
+    return sendMail({ to, ...content, from: defaultFrom() });
 }
 
 async function sendPasswordReset({ to, name, setupUrl }) {
-    const subject = "Reset your Forma password";
-    const text = [
-        `Hello ${name || "there"},`,
-        "",
-        "Use this link to set a new password (valid for 2 hours):",
-        setupUrl,
-        "",
-        "If you did not request a reset, you can ignore this email.",
-    ].join("\n");
-    const html = `<p>Hello ${escapeHtml(name || "there")},</p>
-<p><a href="${escapeHtml(setupUrl)}">Set a new password</a>. This link is valid for 2 hours.</p>
-<p>If you did not request a reset, you can ignore this email.</p>`;
-    return sendMail({ to, subject, text, html });
+    const content = passwordResetEmail({ name, setupUrl });
+    return sendMail({ to, ...content, from: securityFrom() });
+}
+
+async function sendPaymentRejected({ to, name, gymName, reason, appUrl }) {
+    const content = paymentRejectedEmail({ name, gymName, reason, appUrl });
+    return sendMail({ to, ...content, from: defaultFrom() });
+}
+
+async function sendAccountSuspended({ to, name, gymName, appUrl }) {
+    const content = accountSuspendedEmail({ name, gymName, appUrl });
+    return sendMail({ to, ...content, from: defaultFrom() });
+}
+
+async function sendTrialEnding({ to, name, gymName, daysLeft, appUrl }) {
+    const content = trialEndingEmail({ name, gymName, daysLeft, appUrl });
+    return sendMail({ to, ...content, from: defaultFrom() });
+}
+
+async function sendPaymentReminder({ to, name, gymName, daysLeft, appUrl }) {
+    const content = paymentReminderEmail({ name, gymName, daysLeft, appUrl });
+    return sendMail({ to, ...content, from: defaultFrom() });
+}
+
+async function sendCampaign({ to, name, gymName, subject, message, ctaLabel, ctaUrl }) {
+    const content = campaignEmail({ name, gymName, subject, message, ctaLabel, ctaUrl });
+    return sendMail({ to, ...content, from: defaultFrom() });
 }
 
 async function sendInvoiceEmail({ to, invoiceNumber, html }) {
     const subject = `Invoice ${invoiceNumber}`;
     const text = `Your Forma invoice ${invoiceNumber} is attached in HTML form. Open this email in a browser to view it.`;
-    return sendMail({ to, subject, text, html });
-}
-
-function escapeHtml(value) {
-    return String(value)
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;");
+    return sendMail({ to, subject, text, html, from: defaultFrom() });
 }
 
 module.exports = {
@@ -90,5 +152,10 @@ module.exports = {
     sendMail,
     sendInvite,
     sendPasswordReset,
+    sendPaymentRejected,
+    sendAccountSuspended,
+    sendTrialEnding,
+    sendPaymentReminder,
+    sendCampaign,
     sendInvoiceEmail,
 };

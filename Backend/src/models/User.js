@@ -18,6 +18,11 @@ const userSchema = new mongoose.Schema({
     },
     mobile_number: String,
     password: String,
+    // Bumped when the password changes so older login tokens stop working.
+    tokenVersion: {
+        type: Number,
+        default: 0,
+    },
 
     canViewPhones: {
         type: Boolean,

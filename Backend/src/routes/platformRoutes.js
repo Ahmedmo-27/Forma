@@ -103,6 +103,13 @@ const {
 } = require("../controllers/platformLogsController");
 
 const {
+    getCampaignTemplates,
+    getCampaignAudience,
+    getCampaigns,
+    sendCampaign,
+} = require("../controllers/platformCampaignController");
+
+const {
     createPlanSchema,
     updatePlanSchema,
     createTenantSchema,
@@ -211,6 +218,11 @@ router.get("/announcements", requirePlatformPermission(PERMISSIONS.TENANTS_READ)
 router.post("/announcements", requirePlatformPermission(PERMISSIONS.ANNOUNCEMENTS_MANAGE), createAnnouncement);
 router.patch("/announcements/:id", requirePlatformPermission(PERMISSIONS.ANNOUNCEMENTS_MANAGE), updateAnnouncement);
 router.delete("/announcements/:id", requirePlatformPermission(PERMISSIONS.ANNOUNCEMENTS_MANAGE), deleteAnnouncement);
+
+router.get("/campaigns/templates", requirePlatformPermission(PERMISSIONS.CAMPAIGNS_MANAGE), getCampaignTemplates);
+router.get("/campaigns/audience", requirePlatformPermission(PERMISSIONS.CAMPAIGNS_MANAGE), getCampaignAudience);
+router.get("/campaigns", requirePlatformPermission(PERMISSIONS.CAMPAIGNS_MANAGE), getCampaigns);
+router.post("/campaigns", requirePlatformPermission(PERMISSIONS.CAMPAIGNS_MANAGE), sendCampaign);
 
 // Platform Audit Log Viewer
 router.get("/audit", requirePlatformPermission(PERMISSIONS.AUDIT_VIEW), getPlatformAuditLogs);

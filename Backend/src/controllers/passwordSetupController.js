@@ -1,5 +1,5 @@
 const User = require("../models/User");
-const { hashPassword, normalizeEmail } = require("../utils/passwordUtils");
+const { hashPassword, normalizeEmail, bumpTokenVersion } = require("../utils/passwordUtils");
 const { runAsPlatform } = require("../context/tenantContext");
 const passwordSetup = require("../services/passwordSetupService");
 const mailer = require("../services/mailer");
@@ -9,9 +9,11 @@ const { invalidateAuthContext } = require("../middleware/authContextCache");
 const GENERIC_RESET = "If an account exists for that email, a reset link has been sent.";
 
 async function setupPassword(req, res) {
+    let record = null;
+    let passwordSaved = false;
     try {
         const { token, password } = req.body;
-        const record = await passwordSetup.findActiveToken(token);
+        record = await passwordSetup.consumeToken(token);
         if (!record) {
             return res.status(400).json({ message: "This link is invalid or has expired" });
         }
@@ -21,23 +23,31 @@ async function setupPassword(req, res) {
             const user = await User.findById(record.userId);
             if (!user) return null;
             user.password = hashed;
+            bumpTokenVersion(user);
             await user.save();
             return user;
         });
 
         if (!updated) {
+            await passwordSetup.releaseToken(record);
+            record = null;
             return res.status(400).json({ message: "This link is invalid or has expired" });
         }
 
-        record.usedAt = new Date();
-        await record.save();
+        passwordSaved = true;
         invalidateAuthContext({
             userId: updated._id,
             tenantId: updated.tenantId,
         });
+        await passwordSetup.revokeUnusedTokens(updated._id);
 
         res.json({ message: "Password set. You can sign in now." });
     } catch (error) {
+        if (record && !passwordSaved) {
+            await passwordSetup.releaseToken(record).catch((releaseError) => {
+                logger.auth("error", "setupPassword token release failed", { error: releaseError.message });
+            });
+        }
         logger.auth("error", "setupPassword error", { error: error.message });
         res.status(500).json({ message: "Server error" });
     }

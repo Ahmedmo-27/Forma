@@ -37,6 +37,7 @@ const {
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/accessMiddleware");
 const loginLimiter = require("../middleware/loginLimiter");
+const { forgotPasswordLimiter, setupPasswordLimiter } = loginLimiter;
 const validate = require("../middleware/validate");
 const { loginSchema, createStaffSchema, setupPasswordSchema, forgotPasswordSchema } = require("../validation/schemas");
 const { setupPassword, forgotPassword } = require("../controllers/passwordSetupController");
@@ -48,8 +49,8 @@ const { locationScopeOptional } = require("../middleware/locationScope");
 
 // Public auth — rate limited + validated
 router.post("/login", loginLimiter, validate(loginSchema), loginUser);
-router.post("/setup-password", loginLimiter, validate(setupPasswordSchema), setupPassword);
-router.post("/forgot-password", loginLimiter, validate(forgotPasswordSchema), forgotPassword);
+router.post("/setup-password", setupPasswordLimiter, validate(setupPasswordSchema), setupPassword);
+router.post("/forgot-password", forgotPasswordLimiter, validate(forgotPasswordSchema), forgotPassword);
 
 router.use(protect);
 router.use(enforceSubscriptionStatus);

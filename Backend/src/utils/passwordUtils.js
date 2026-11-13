@@ -4,6 +4,13 @@ const logger = require("./logger");
 /** OWASP-aligned cost for interactive staff logins (was 10). */
 const BCRYPT_ROUNDS = 12;
 
+const MIN_PASSWORD_LENGTH = 8;
+
+function bumpTokenVersion(user) {
+    user.tokenVersion = (Number(user.tokenVersion) || 0) + 1;
+    return user.tokenVersion;
+}
+
 function inspectStoredPassword(stored) {
     if (!stored || typeof stored !== "string") {
         return {
@@ -66,6 +73,8 @@ function normalizeEmail(email) {
 
 module.exports = {
     BCRYPT_ROUNDS,
+    MIN_PASSWORD_LENGTH,
+    bumpTokenVersion,
     hashPassword,
     verifyPassword,
     inspectStoredPassword,

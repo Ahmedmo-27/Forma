@@ -79,6 +79,7 @@ async function createImpersonationSession(req, res) {
                     role: targetUser.role,
                     tenantId: tenant._id.toString(),
                     tenantSlug: tenant.slug,
+                    version: targetUser.tokenVersion || 0,
                     isImpersonation: true,
                     impersonatedBy: req.platformUser.id,
                     platformAdminName: req.platformUser.name,

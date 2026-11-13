@@ -168,6 +168,9 @@ async function rejectPayment(req, res) {
         payment.reviewedAt = new Date();
         await payment.save();
 
+        const ownerMail = require("../services/ownerMail");
+        await ownerMail.notifyPaymentRejected(payment, payment.rejectReason);
+
         res.json({ message: "Payment rejected", payment });
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });

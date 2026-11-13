@@ -32,6 +32,7 @@ const PERMISSIONS = {
     SUPPORT_IMPERSONATE_WRITE: "support.impersonate_write",
     SUPPORT_EXPORT_DATA: "support.export_data",
     ANNOUNCEMENTS_MANAGE: "announcements.manage",
+    CAMPAIGNS_MANAGE: "campaigns.manage",
     AUDIT_VIEW: "audit.view",
     SYSTEM_HEALTH: "system.health",
 };

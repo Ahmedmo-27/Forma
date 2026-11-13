@@ -55,11 +55,29 @@ async function issueToken({ userId, tenantId, email, purpose, hours }) {
     return { token, expiresAt, expiresInHours: ttlHours };
 }
 
-async function findActiveToken(token) {
+/**
+ * Mark one unused, unexpired token as used. A second caller loses the race.
+ */
+async function consumeToken(token) {
     if (!token || typeof token !== "string") return null;
-    const record = await PasswordSetupToken.findOne({ tokenHash: hashToken(token) });
-    if (!record || record.usedAt || record.expiresAt.getTime() <= Date.now()) return null;
-    return record;
+    return PasswordSetupToken.findOneAndUpdate(
+        { tokenHash: hashToken(token), usedAt: null, expiresAt: { $gt: new Date() } },
+        { $set: { usedAt: new Date() } },
+        { new: true }
+    );
+}
+
+async function releaseToken(record) {
+    if (!record?._id) return;
+    await PasswordSetupToken.updateOne({ _id: record._id }, { $set: { usedAt: null } });
+}
+
+async function revokeUnusedTokens(userId) {
+    if (!userId) return;
+    await PasswordSetupToken.updateMany(
+        { userId, usedAt: null },
+        { $set: { usedAt: new Date() } }
+    );
 }
 
 module.exports = {
@@ -69,5 +87,7 @@ module.exports = {
     relativeUrl,
     absoluteUrl,
     issueToken,
-    findActiveToken,
+    consumeToken,
+    releaseToken,
+    revokeUnusedTokens,
 };

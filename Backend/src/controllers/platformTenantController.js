@@ -677,6 +677,11 @@ async function updateTenantLifecycle(req, res) {
 
         await tenant.save();
 
+        if (action === "suspend") {
+            const ownerMail = require("../services/ownerMail");
+            await ownerMail.notifySuspended(tenant);
+        }
+
         // Write append-only audit trail
         await AuditLog.create({
             tenantId: tenant._id,
@@ -804,7 +809,7 @@ async function bulkTenantActions(req, res) {
             return res.status(400).json({ message: "Mandatory 'reason' required to execute bulk action" });
         }
 
-        const tenants = await Tenant.find({ _id: { $in: tenantIds } }).select("name slug status trialEndsAt");
+        const tenants = await Tenant.find({ _id: { $in: tenantIds } }).select("name slug status trialEndsAt ownerUserId");
 
         if (previewOnly) {
             return res.json({
@@ -830,6 +835,8 @@ async function bulkTenantActions(req, res) {
                 t.status = "suspended";
                 await t.save();
                 modifiedCount++;
+                const ownerMail = require("../services/ownerMail");
+                await ownerMail.notifySuspended(t);
             }
 
             await AuditLog.create({

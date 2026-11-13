@@ -84,23 +84,26 @@ function renderInvoiceHtml(invoice) {
     <meta charset="UTF-8">
     <title>Invoice ${invoice.invoiceNumber}</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 40px; color: #1e293b; }
-        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
-        .title { font-size: 28px; font-weight: bold; color: #4338ca; }
-        .badge { display: inline-block; padding: 4px 12px; background: #dcfce7; color: #166534; font-weight: bold; border-radius: 9999px; text-transform: uppercase; font-size: 12px; }
-        .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin: 30px 0; }
-        .table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        .table th { background: #f8fafc; text-align: left; padding: 12px; border-bottom: 2px solid #cbd5e1; }
-        .table td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
-        .total-box { margin-top: 30px; text-align: right; }
-        .total-amount { font-size: 24px; font-weight: bold; color: #0f172a; }
-        .footer { margin-top: 60px; font-size: 12px; color: #64748b; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+        body { font-family: Georgia, "Times New Roman", serif; margin: 0; background: #FCF3E2; color: #142843; }
+        .sheet { max-width: 720px; margin: 32px auto; background: #ffffff; border: 1px solid #E6DCC8; border-radius: 12px; padding: 40px; }
+        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #E6DCC8; padding-bottom: 20px; }
+        .title { font-size: 28px; font-weight: bold; letter-spacing: 0.18em; color: #142843; }
+        .badge { display: inline-block; padding: 4px 12px; background: #F6EDDC; color: #142843; font-weight: bold; border-radius: 9999px; text-transform: uppercase; font-size: 12px; }
+        .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin: 30px 0; font-family: Arial, Helvetica, sans-serif; color: #3E5168; }
+        .table { width: 100%; border-collapse: collapse; margin-top: 20px; font-family: Arial, Helvetica, sans-serif; }
+        .table th { background: #F6EDDC; text-align: left; padding: 12px; border-bottom: 2px solid #E6DCC8; color: #142843; }
+        .table td { padding: 12px; border-bottom: 1px solid #E6DCC8; color: #3E5168; }
+        .total-box { margin-top: 30px; text-align: right; font-family: Arial, Helvetica, sans-serif; }
+        .total-amount { font-size: 24px; font-weight: bold; color: #142843; }
+        .footer { margin-top: 60px; font-size: 12px; color: #5C6E84; text-align: center; border-top: 1px solid #E6DCC8; padding-top: 20px; font-family: Arial, Helvetica, sans-serif; }
     </style>
 </head>
 <body>
+  <div class="sheet">
     <div class="header">
         <div>
-            <div class="title">Forma</div>
+            <img src="cid:forma-logo.png" width="40" height="40" alt="Forma" style="display:block;border:0;border-radius:10px;width:40px;height:40px;margin-bottom:12px;">
+            <div class="title">FORMA</div>
             <div>${invoice.sellerDetails.name}</div>
             <div>Tax ID: ${invoice.sellerDetails.taxId}</div>
             <div>${invoice.sellerDetails.address}</div>
@@ -110,19 +113,19 @@ function renderInvoiceHtml(invoice) {
             <h2>INVOICE</h2>
             <div style="font-size: 18px; font-weight: bold;">${invoice.invoiceNumber}</div>
             <div style="margin-top: 8px;"><span class="badge">${invoice.status}</span></div>
-            <div style="margin-top: 8px; font-size: 13px; color: #64748b;">Issued: ${new Date(invoice.issuedAt).toLocaleDateString()}</div>
+            <div style="margin-top: 8px; font-size: 13px; color: #5C6E84;">Issued: ${new Date(invoice.issuedAt).toLocaleDateString()}</div>
         </div>
     </div>
 
     <div class="meta-grid">
         <div>
-            <h4 style="margin-bottom: 8px; color: #64748b; text-transform: uppercase; font-size: 12px;">Billed To:</h4>
+            <h4 style="margin-bottom: 8px; color: #5C6E84; text-transform: uppercase; font-size: 12px;">Billed To:</h4>
             <strong>${invoice.buyerDetails.tenantName}</strong> (${invoice.buyerDetails.tenantSlug})<br>
             ${invoice.buyerDetails.ownerName ? `Attn: ${invoice.buyerDetails.ownerName}<br>` : ""}
             ${invoice.buyerDetails.ownerEmail ? `Email: ${invoice.buyerDetails.ownerEmail}<br>` : ""}
         </div>
         <div>
-            <h4 style="margin-bottom: 8px; color: #64748b; text-transform: uppercase; font-size: 12px;">Payment Details:</h4>
+            <h4 style="margin-bottom: 8px; color: #5C6E84; text-transform: uppercase; font-size: 12px;">Payment Details:</h4>
             Method: <strong>${invoice.paymentMethod.replace("_", " ").toUpperCase()}</strong><br>
             Ref: <code>${invoice.paymentRef || "N/A"}</code><br>
         </div>
@@ -146,7 +149,7 @@ function renderInvoiceHtml(invoice) {
     </table>
 
     <div class="total-box">
-        <div style="color: #64748b;">Total Paid:</div>
+        <div style="color: #5C6E84;">Total Paid:</div>
         <div class="total-amount">${invoice.amount.toLocaleString()} ${invoice.currency}</div>
     </div>
 
@@ -154,6 +157,7 @@ function renderInvoiceHtml(invoice) {
         Thank you for choosing Forma.<br>
         Questions? Contact ${invoice.sellerDetails.supportEmail}
     </div>
+  </div>
 </body>
 </html>`;
 }
