@@ -7,7 +7,7 @@
 const AREAS = [
     { key: "members", label: "Members", description: "Member directory and profiles", planFeature: "members" },
     { key: "checkin", label: "Check-in", description: "Front desk check-in", planFeature: "checkin" },
-    { key: "sales", label: "Sales", description: "Sales pipeline, call center, and rep tools", planFeature: null },
+    { key: "sales", label: "Sales", description: "Sales pipeline, call center, and rep tools", planFeature: "sales_crm" },
     { key: "coaching", label: "Coaching", description: "Coach schedules, sessions, and transfers", planFeature: null },
     { key: "accounting", label: "Accounting", description: "Ledger, contracts, targets, and refunds", planFeature: "accounting" },
     { key: "reports", label: "Reports", description: "Guest, expired, and performance reports", planFeature: null },

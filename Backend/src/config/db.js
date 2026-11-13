@@ -6,11 +6,11 @@ const connectDB = async () => {
     try {
       const Plan = require("../models/Plan");
       await Plan.updateMany(
-        { allowedRoles: { $ne: "General Manager" } },
-        { $addToSet: { allowedRoles: "General Manager" } }
+        { key: "basic", allowedRoles: "General Manager" },
+        { $pull: { allowedRoles: "General Manager" } }
       );
     } catch (error) {
-      console.warn("Could not add General Manager to plans:", error.message);
+      console.warn("Could not remove General Manager from the Basic plan:", error.message);
     }
   } catch (error) {
     console.error("MongoDB connection failed:", error.message);
