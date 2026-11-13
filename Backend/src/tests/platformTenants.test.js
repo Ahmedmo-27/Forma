@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import Tenant from "../models/Tenant";
 import Plan from "../models/Plan";
 import User from "../models/User";
+import PlatformUser from "../models/PlatformUser";
 import AuditLog from "../models/AuditLog";
 import BillingEvent from "../models/BillingEvent";
 import TenantNote from "../models/TenantNote";
@@ -101,6 +102,7 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
             vi.spyOn(Tenant, "findOne").mockResolvedValue(null);
             vi.spyOn(Plan, "findOne").mockResolvedValue(mockPlan);
             vi.spyOn(User, "findOne").mockResolvedValue(null);
+            vi.spyOn(PlatformUser, "findOne").mockResolvedValue(null);
             vi.spyOn(Tenant, "create").mockResolvedValue(mockTenant);
             vi.spyOn(User, "create").mockResolvedValue(mockOwner);
             vi.spyOn(AuditLog, "create").mockResolvedValue({});
@@ -179,6 +181,7 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
             vi.spyOn(Tenant, "findOne").mockResolvedValue(null);
             vi.spyOn(Plan, "findOne").mockResolvedValue(mockPlan);
             vi.spyOn(User, "findOne").mockResolvedValue(null);
+            vi.spyOn(PlatformUser, "findOne").mockResolvedValue(null);
             vi.spyOn(Tenant, "create").mockResolvedValue(mockTenant);
             vi.spyOn(User, "create").mockResolvedValue(mockOwner);
             vi.spyOn(AuditLog, "create").mockRejectedValue(

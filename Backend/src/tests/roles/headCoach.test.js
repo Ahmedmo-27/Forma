@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { TENANT_GUARDS } from "../../../../Frontend/src/lib/tenantGuards.js";
 import {
     checklist,
     expectAllowed,
@@ -39,13 +40,21 @@ describe("Head Coach", () => {
 
     it("can transfer coaches, open a member by id, and manage coach staff", () => {
         const members = readSource("routes", "membersRoutes.js");
-        const pages = readSource("..", "..", "Frontend", "src", "App.jsx");
         expect(members).toContain(
             'allowRoles("member_profile", "Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Head Coach", "Accountant", "General Manager")'
         );
-        expect(pages).toContain(
-            "roles={['Receptionist', 'Owner', 'Sales', 'Sales Manager', 'Coach', 'Head Coach', 'Accountant', 'General Manager']} access=\"member_profile\""
-        );
+        const profile = TENANT_GUARDS.find((guard) => guard.path === "/members/:id");
+        expect(profile.access).toBe("member_profile");
+        expect(profile.roles).toEqual([
+            "Receptionist",
+            "Owner",
+            "Sales",
+            "Sales Manager",
+            "Coach",
+            "Head Coach",
+            "Accountant",
+            "General Manager",
+        ]);
         const user = lead();
         expectAllowed(
             "member_profile",

@@ -25,25 +25,20 @@ describe("Phase 9: Multi-Tenancy System Tests", () => {
     const tenantAId = new mongoose.Types.ObjectId().toString();
     const tenantBId = new mongoose.Types.ObjectId().toString();
 
-    describe("1. Per-Tenant Compound Uniqueness", () => {
-        it("allows identical emails and barcodes in different tenants schema-wise", () => {
-            const userA = {
-                email: "coach@gym.com",
-                tenantId: new mongoose.Types.ObjectId(tenantAId),
-                name: "Coach Tenant A",
-            };
-            const userB = {
-                email: "coach@gym.com",
-                tenantId: new mongoose.Types.ObjectId(tenantBId),
-                name: "Coach Tenant B",
-            };
+    describe("1. Identity uniqueness", () => {
+        function globalUnique(indexes, field) {
+            return indexes.find(([keys, options]) => keys[field] === 1 && !keys.tenantId && options.unique);
+        }
 
-            // Compound key { tenantId, email } is unique per-tenant
-            const keyA = `${userA.tenantId.toString()}:${userA.email}`;
-            const keyB = `${userB.tenantId.toString()}:${userB.email}`;
-            expect(keyA).not.toBe(keyB);
+        it("keeps staff email, username, and phone unique across gyms", () => {
+            const indexes = User.schema.indexes();
+            expect(globalUnique(indexes, "email")).toBeTruthy();
+            expect(globalUnique(indexes, "username")).toBeTruthy();
+            expect(globalUnique(indexes, "phoneKey")).toBeTruthy();
+            expect(globalUnique(Member.schema.indexes(), "phoneKey")).toBeTruthy();
+        });
 
-            // Member barcode per tenant:
+        it("keeps member barcodes unique per gym", () => {
             const memberA = {
                 barcode: "BC-12345",
                 memberId: 101,

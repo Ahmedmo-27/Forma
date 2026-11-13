@@ -4,6 +4,7 @@ import Plan from "../models/Plan";
 import PlanPrice from "../models/PlanPrice";
 import Tenant from "../models/Tenant";
 import User from "../models/User";
+import PlatformUser from "../models/PlatformUser";
 import AuditLog from "../models/AuditLog";
 import ManualPayment from "../models/ManualPayment";
 import PasswordSetupToken from "../models/PasswordSetupToken";
@@ -132,6 +133,7 @@ describe("Public plans + signup", () => {
         vi.spyOn(PlanPrice, "findOne").mockResolvedValue(planPrice);
         vi.spyOn(Tenant, "findOne").mockResolvedValue(null);
         vi.spyOn(User, "findOne").mockResolvedValue(null);
+        vi.spyOn(PlatformUser, "findOne").mockResolvedValue(null);
         vi.spyOn(Tenant, "create").mockResolvedValue({
             _id: tenantId,
             name: "Nile Fitness",
@@ -236,6 +238,7 @@ describe("Public plans + signup", () => {
         vi.spyOn(PlanPrice, "findOne").mockResolvedValue(planPrice);
         vi.spyOn(Tenant, "findOne").mockResolvedValue(null);
         vi.spyOn(User, "findOne").mockResolvedValue(null);
+        vi.spyOn(PlatformUser, "findOne").mockResolvedValue(null);
         vi.spyOn(Tenant, "create").mockResolvedValue({
             _id: tenantId,
             name: "Quarter Gym",

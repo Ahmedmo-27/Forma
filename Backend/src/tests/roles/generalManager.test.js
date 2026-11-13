@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { TENANT_GUARDS } from "../../../../Frontend/src/lib/tenantGuards.js";
 import { ACCESS_CATALOG } from "../../config/accessCatalog.js";
 import { AREA_KEYS } from "../../config/roleAccess.js";
 import {
@@ -27,9 +28,12 @@ describe("General Manager", () => {
 
     it("can use owner areas and the owner dashboard", () => {
         const user = manager();
-        const pages = readSource("..", "..", "Frontend", "src", "App.jsx");
-        expect(pages).toContain("roles={['Owner', 'General Manager']} access=\"owner_dashboard\"");
-        expect(pages).toContain("roles={['Owner', 'General Manager']} access=\"teams_overview\"");
+        const ownerHome = TENANT_GUARDS.find((guard) => guard.path === "/owner/dashboard");
+        const teams = TENANT_GUARDS.find((guard) => guard.path === "/owner/teams");
+        expect(ownerHome.roles).toEqual(["Owner", "General Manager"]);
+        expect(ownerHome.access).toBe("owner_dashboard");
+        expect(teams.roles).toEqual(["Owner", "General Manager"]);
+        expect(teams.access).toBe("teams_overview");
         expectAllowed("packages", ["Owner", "Sales Manager"], user);
         expectAllowed("refunds", ["Owner", "Accountant"], user);
         expectAllowed("teams_overview", ["Owner"], user);
@@ -37,14 +41,17 @@ describe("General Manager", () => {
         expectAllowed("coach_checkin", ["Coach", "Head Coach"], user);
         expectAllowed("access_control", ["Owner", "General Manager"], user);
         expectAllowed("change_role", ["Owner", "General Manager", "Sales Manager"], user);
-        expect(pages).toMatch(/roles=\{.*'General Manager'.*\}\s+access="access_control"/);
+        const access = TENANT_GUARDS.find((guard) => guard.path === "/owner/access");
+        expect(access.roles).toContain("General Manager");
+        expect(access.access).toBe("access_control");
         const usersRoute = readSource("routes", "userRoutes.js");
         expect(usersRoute).toContain('allowRoles("change_role", "Owner", "General Manager", "Sales Manager")');
     });
 
     it("cannot change gym settings", () => {
-        const pages = readSource("..", "..", "Frontend", "src", "App.jsx");
-        expect(pages).toContain("roles={['Owner']} access=\"settings\"");
+        const settings = TENANT_GUARDS.find((guard) => guard.path === "/owner/settings");
+        expect(settings.roles).toEqual(["Owner"]);
+        expect(settings.access).toBe("settings");
         expectDenied("settings", ["Owner"], manager());
     });
 

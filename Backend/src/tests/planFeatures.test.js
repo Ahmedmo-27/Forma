@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_PLANS } from "../scripts/seedPlans";
 
+function plan(key) {
+    return DEFAULT_PLANS.find((entry) => entry.key === key);
+}
+
 function features(key) {
-    return DEFAULT_PLANS.find((plan) => plan.key === key).features;
+    return plan(key).features;
 }
 
 describe("plan features for analytics", () => {
@@ -22,6 +26,28 @@ describe("plan features for analytics", () => {
             "exec_analytics",
             "business_intelligence",
             "multi_branches",
+        ]));
+    });
+
+    it("keeps General Manager off Basic unless a gym is granted the role", () => {
+        expect(plan("basic").allowedRoles).not.toContain("General Manager");
+        expect(plan("basic").allowedRoles).toEqual(expect.arrayContaining([
+            "Owner",
+            "Receptionist",
+            "Coach",
+            "Head Coach",
+        ]));
+        expect(plan("gold").allowedRoles).toContain("General Manager");
+        expect(plan("platinum").allowedRoles).toContain("General Manager");
+        expect(plan("gold").allowedRoles).toEqual(expect.arrayContaining([
+            "Accountant",
+            "Sales",
+            "Sales Manager",
+        ]));
+        expect(plan("basic").allowedRoles).not.toEqual(expect.arrayContaining([
+            "Accountant",
+            "Sales",
+            "Sales Manager",
         ]));
     });
 });
