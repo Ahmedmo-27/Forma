@@ -22,12 +22,16 @@ function isLocalhostHostname(hostname = currentHostname()) {
 
 /**
  * True when this SPA instance should render the public www funnel.
- * Local preview: set VITE_SITE=www in Frontend/.env
+ * Production: only www / apex hostnames.
+ * Local preview: VITE_SITE=www on localhost only — never force marketing on app.*
+ * (A global VITE_SITE=www in the production build would make app.forma-official.com
+ * show the public site instead of /login.)
  */
 export function isMarketingHost() {
-  if (import.meta.env.VITE_SITE === "www") return true;
   if (typeof window === "undefined") return false;
-  return MARKETING_HOSTS.has(currentHostname());
+  const host = currentHostname();
+  if (MARKETING_HOSTS.has(host)) return true;
+  return import.meta.env.VITE_SITE === "www" && isLocalhostHostname(host);
 }
 
 /** Local Vite with VITE_SITE=www — marketing + staff share one origin. */

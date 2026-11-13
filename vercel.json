@@ -1,6 +1,14 @@
 {
   "buildCommand": "cd Frontend && npm install && npm run build",
   "outputDirectory": "Frontend/dist",
+  "redirects": [
+    {
+      "source": "/",
+      "has": [{ "type": "host", "value": "app.forma-official.com" }],
+      "destination": "/login",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
   ],

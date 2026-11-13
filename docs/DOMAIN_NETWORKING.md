@@ -57,6 +57,7 @@ Example — first tenant slug `leap`:
 
 | What | URL / value |
 |------|-------------|
+| Staff root | `https://app.forma-official.com/` → redirects to `/login` |
 | Staff login | `https://app.forma-official.com/login` (gym code **`leap`** when disambiguation is needed) |
 | After login | Same host, e.g. `https://app.forma-official.com/owner/dashboard` |
 | API | `https://api.forma-official.com/api/...` (tenant from JWT) |
