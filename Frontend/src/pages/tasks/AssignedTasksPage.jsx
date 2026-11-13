@@ -5,7 +5,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, Btn, Spinner, EmptyState, Badge, Avatar,
-  Select, Tabs, FilterTabs,
+  Select, Tabs, FilterTabs, Table,
 } from '../../components/ui';
 import {
   getAssignedActiveTasks, getAssignedTaskHistory, completeMemberTask,
@@ -193,7 +193,7 @@ export default function AssignedTasksPage({ embedded = false }) {
           </div>
 
           {loadingAssigned ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="lg" /></div>
+            <Table loading skeletonRows={6} headers={['Member', 'System ID', 'Phone', 'Assigned By', 'Assigned At', 'Status', '']} />
           ) : activeAssignedMembers.length === 0 ? (
             <EmptyState icon={PartyPopper} message="No pending tasks" sub="You have no members waiting to be processed." />
           ) : (
@@ -432,7 +432,7 @@ export default function AssignedTasksPage({ embedded = false }) {
           </div>
 
           {loadingAssigned ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="lg" /></div>
+            <Table loading skeletonRows={6} headers={['Member', 'System ID', 'Phone', 'Assigned By', 'Assigned At', 'Status', '']} />
           ) : filteredHistory.length === 0 ? (
             <EmptyState icon={FolderOpen} message="No matching history items" sub="Try adjusting your filters or search terms." />
           ) : (

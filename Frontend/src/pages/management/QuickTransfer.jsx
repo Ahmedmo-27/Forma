@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, Select } from '../../components/ui';
 import { getSalesUsers, getCoachTeam, switchSalesRep, switchCoach } from '../../api/endpoints';
 import { CheckCircle2, Zap } from 'lucide-react';
 
@@ -157,10 +157,9 @@ export default function QuickTransfer() {
                     <Spinner size="sm" /> Loading staff…
                   </div>
                 ) : (
-                  <select
+                  <Select
                     value={destId}
                     onChange={(e) => setDestId(e.target.value)}
-                    style={{ ...iStyle, cursor: 'pointer' }}
                   >
                     <option value="">Select destination…</option>
                     {['Sales Representatives', 'Sales Managers', 'Coaches'].map((group) => {
@@ -174,7 +173,7 @@ export default function QuickTransfer() {
                         </optgroup>
                       );
                     })}
-                  </select>
+                  </Select>
                 )}
               </Field>
 

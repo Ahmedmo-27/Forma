@@ -5,7 +5,7 @@ import { useTenant } from '../../context/TenantContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import {
-  PageHeader, Card, Btn, Spinner, FilterTabs,
+  PageHeader, Card, Btn, Spinner, FilterTabs, MenuSelect,
 } from '../../components/ui';
 import {
   getSalesUsers, getCoachTeam, getPackages,
@@ -41,6 +41,9 @@ export default function TaskFilterPage() {
   const [dateField, setDateField] = useState('endDate');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
+  const [selectCount, setSelectCount] = useState('');
+  const [selectOrder, setSelectOrder] = useState('first');
+  const [pageSize, setPageSize] = useState('20');
 
   // ── Restore filters from location state (coming back from results) ──
   useEffect(() => {
@@ -56,6 +59,9 @@ export default function TaskFilterPage() {
     if (f.dateField !== undefined) setDateField(f.dateField);
     if (f.dateFrom !== undefined) setDateFrom(f.dateFrom);
     if (f.dateTo !== undefined) setDateTo(f.dateTo);
+    if (f.selectCount !== undefined) setSelectCount(String(f.selectCount ?? ''));
+    if (f.selectOrder !== undefined) setSelectOrder(f.selectOrder === 'last' ? 'last' : 'first');
+    if (f.pageSize !== undefined) setPageSize(String(f.pageSize || '20'));
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -101,6 +107,9 @@ export default function TaskFilterPage() {
     setDateField('endDate');
     setDateFrom('');
     setDateTo('');
+    setSelectCount('');
+    setSelectOrder('first');
+    setPageSize('20');
   };
 
   const setQuickPeriod = (preset) => {
@@ -121,22 +130,29 @@ export default function TaskFilterPage() {
   };
 
   const handleFilterMembers = () => {
+    const parsedCount = parseInt(selectCount, 10);
+    const parsedPageSize = parseInt(pageSize, 10);
     navigate('/tasks/filter/results', {
       state: {
         filters: {
           search, statusFilter, kind, personId,
           packageFilter, genderFilter, transferTypeFilter,
           dateField, dateFrom, dateTo,
+          selectCount: Number.isFinite(parsedCount) && parsedCount > 0 ? parsedCount : '',
+          selectOrder: selectOrder === 'last' ? 'last' : 'first',
+          pageSize: Number.isFinite(parsedPageSize) && parsedPageSize > 0
+            ? Math.min(500, Math.max(1, parsedPageSize))
+            : 20,
         },
       },
     });
   };
 
-  const selectStyle = {
+  const inputStyle = {
     width: '100%', height: 38, padding: '0 10px',
     borderRadius: 8, border: '1px solid var(--border)',
     background: 'var(--card)', color: 'var(--t1)',
-    fontSize: 13, fontFamily: 'inherit', outline: 'none', cursor: 'pointer',
+    fontSize: 13, fontFamily: 'inherit', outline: 'none',
   };
 
   const labelStyle = {
@@ -228,27 +244,28 @@ export default function TaskFilterPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
                   <div>
                     <label style={labelStyle}>Scope</label>
-                    <select
+                    <MenuSelect
                       value={kind}
                       onChange={(e) => { setKind(e.target.value); setPersonId(''); }}
-                      style={selectStyle}
+                      style={{ width: '100%' }}
+                      aria-label="View scope"
                     >
                       <option value="all">All Gym Members</option>
                       <option value="sales">By Sales Rep</option>
                       <option value="coach">By Coach</option>
                       <option value="unassigned_sales">Unassigned Sales</option>
                       <option value="unassigned_coach">Unassigned Coach</option>
-                    </select>
+                    </MenuSelect>
                   </div>
                   {(kind === 'sales' || kind === 'coach') && (
                     <div>
                       <label style={labelStyle}>{kind === 'sales' ? 'Select Sales Rep' : 'Select Coach'}</label>
-                      <select value={personId} onChange={(e) => setPersonId(e.target.value)} style={selectStyle}>
+                      <MenuSelect value={personId} onChange={(e) => setPersonId(e.target.value)} style={{ width: '100%' }} aria-label={kind === 'sales' ? 'Select sales rep' : 'Select coach'}>
                         <option value="">All {kind === 'sales' ? 'Sales Reps' : 'Coaches'}</option>
                         {people.map((p) => (
                           <option key={p._id} value={p._id}>{p.name}</option>
                         ))}
-                      </select>
+                      </MenuSelect>
                     </div>
                   )}
                 </div>
@@ -260,29 +277,29 @@ export default function TaskFilterPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
                   <div>
                     <label style={labelStyle}>Package</label>
-                    <select value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)} style={selectStyle}>
+                    <MenuSelect value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)} style={{ width: '100%' }} aria-label="Package">
                       <option value="all">All Packages</option>
                       {allPackages.map((pkg) => (
                         <option key={pkg._id} value={pkg._id}>{pkg.name}</option>
                       ))}
-                    </select>
+                    </MenuSelect>
                   </div>
                   <div>
                     <label style={labelStyle}>Gender</label>
-                    <select value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} style={selectStyle}>
+                    <MenuSelect value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} style={{ width: '100%' }} aria-label="Gender">
                       <option value="all">All Genders</option>
                       <option value="male">Male</option>
                       <option value="female">Female</option>
-                    </select>
+                    </MenuSelect>
                   </div>
                   <div>
                     <label style={labelStyle}>Transfer Status</label>
-                    <select value={transferTypeFilter} onChange={(e) => setTransferTypeFilter(e.target.value)} style={selectStyle}>
+                    <MenuSelect value={transferTypeFilter} onChange={(e) => setTransferTypeFilter(e.target.value)} style={{ width: '100%' }} aria-label="Transfer status">
                       <option value="all">All</option>
                       <option value="transferred">Transferred</option>
                       <option value="never">Never Transferred</option>
                       <option value="bulk">Bulk Transferred</option>
-                    </select>
+                    </MenuSelect>
                   </div>
                 </div>
               </div>
@@ -293,20 +310,20 @@ export default function TaskFilterPage() {
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 14 }}>
                   <div>
                     <label style={labelStyle}>Date Field</label>
-                    <select value={dateField} onChange={(e) => setDateField(e.target.value)} style={selectStyle}>
+                    <MenuSelect value={dateField} onChange={(e) => setDateField(e.target.value)} style={{ width: '100%' }} aria-label="Date field">
                       <option value="endDate">End Date</option>
                       <option value="startDate">Start Date</option>
                       <option value="createdAt">Join Date</option>
                       <option value="transferDate">Transfer Date</option>
-                    </select>
+                    </MenuSelect>
                   </div>
                   <div>
                     <label style={labelStyle}>From Date</label>
-                    <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={{ ...selectStyle, cursor: 'default' }} />
+                    <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={inputStyle} />
                   </div>
                   <div>
                     <label style={labelStyle}>To Date</label>
-                    <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={{ ...selectStyle, cursor: 'default' }} />
+                    <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={inputStyle} />
                   </div>
                 </div>
                 {/* Quick presets */}
@@ -338,6 +355,67 @@ export default function TaskFilterPage() {
                       }}
                     >Clear Dates</button>
                   )}
+                </div>
+              </div>
+
+              {/* ── Section: Selection & Display ── */}
+              <div style={sectionDivider}>
+                <p style={{ ...labelStyle, marginBottom: 10, fontSize: 12 }}>Selection & Display</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+                  <div>
+                    <label style={labelStyle}>How many members to select</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={selectCount}
+                      onChange={(e) => setSelectCount(e.target.value)}
+                      placeholder="e.g. 25"
+                      className="no-spinners"
+                      style={{ ...inputStyle, MozAppearance: 'textfield' }}
+                    />
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 8 }}>
+                      <button
+                        type="button"
+                        onClick={() => setSelectOrder('first')}
+                        style={{
+                          height: 34, borderRadius: 8, border: `1px solid ${selectOrder === 'first' ? 'var(--navy)' : 'var(--border)'}`,
+                          background: selectOrder === 'first' ? 'var(--navy)' : 'var(--card)',
+                          color: selectOrder === 'first' ? '#fff' : 'var(--t1)',
+                          fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                      >
+                        First
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setSelectOrder('last')}
+                        style={{
+                          height: 34, borderRadius: 8, border: `1px solid ${selectOrder === 'last' ? 'var(--navy)' : 'var(--border)'}`,
+                          background: selectOrder === 'last' ? 'var(--navy)' : 'var(--card)',
+                          color: selectOrder === 'last' ? '#fff' : 'var(--t1)',
+                          fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                      >
+                        Last
+                      </button>
+                    </div>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Members per page</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="500"
+                      value={pageSize}
+                      onChange={(e) => setPageSize(e.target.value)}
+                      placeholder="e.g. 20"
+                      className="no-spinners"
+                      style={{ ...inputStyle, MozAppearance: 'textfield' }}
+                    />
+                    <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--t4)' }}>
+                      Controls how many rows show on the results table.
+                    </p>
+                  </div>
                 </div>
               </div>
 

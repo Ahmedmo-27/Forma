@@ -5,7 +5,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, Btn, Spinner, EmptyState, Badge, Avatar,
-  Select, Modal, FilterTabs, Pagination,
+  Select, Modal, FilterTabs, Pagination, Table, MenuSelect,
 } from '../../components/ui';
 import {
   getAllMembers, getSalesUsers, getCoachTeam, getPackages,
@@ -138,6 +138,7 @@ export default function AssigningTasksPage() {
   // ── Selection Templates State ──
   const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
   const [customCountInput, setCustomCountInput] = useState('10');
+  const [customCountOrder, setCustomCountOrder] = useState('first');
   const [transferModalTemplate, setTransferModalTemplate] = useState('');
   const [lastAppliedTemplate, setLastAppliedTemplate] = useState('');
   const [menuAlign, setMenuAlign] = useState('left');
@@ -428,7 +429,15 @@ export default function AssigningTasksPage() {
       toast.error('Please enter a valid positive number');
       return;
     }
-    handleApplyTemplate('custom_first', { count, customLabel: `First ${count}` });
+    const isLast = customCountOrder === 'last';
+    const templateId = isLast ? 'custom_last' : 'custom_first';
+    const label = isLast ? `Last ${count}` : `First ${count}`;
+    handleApplyTemplate(templateId, { count, customLabel: label });
+    if (isLast) {
+      setPage(Math.max(1, Math.ceil(filtered.length / pageSize)));
+    } else {
+      setPage(1);
+    }
   };
 
   const handleInvertSelection = () => {
@@ -638,32 +647,21 @@ export default function AssigningTasksPage() {
                     <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
                       View Scope
                     </label>
-                    <select
+                    <MenuSelect
                       value={kind}
                       onChange={(e) => {
                         setKind(e.target.value);
                         setPersonId('');
                       }}
-                      style={{
-                        width: '100%',
-                        height: 38,
-                        padding: '0 10px',
-                        borderRadius: 8,
-                        border: '1px solid var(--border)',
-                        background: 'var(--card)',
-                        color: 'var(--t1)',
-                        fontSize: 13,
-                        fontFamily: 'inherit',
-                        outline: 'none',
-                        cursor: 'pointer',
-                      }}
+                      style={{ width: '100%' }}
+                      aria-label="View scope"
                     >
                       <option value="all">All Gym Members</option>
                       <option value="sales">By Sales Rep</option>
                       <option value="coach">By Coach</option>
                       <option value="unassigned_sales">Unassigned Sales</option>
                       <option value="unassigned_coach">Unassigned Coach</option>
-                    </select>
+                    </MenuSelect>
                   </div>
 
                   {/* Staff Select (when scope is by sales or by coach) */}
@@ -672,28 +670,17 @@ export default function AssigningTasksPage() {
                       <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
                         {kind === 'sales' ? 'Select Sales Rep' : 'Select Coach'}
                       </label>
-                      <select
+                      <MenuSelect
                         value={personId}
                         onChange={(e) => setPersonId(e.target.value)}
-                        style={{
-                          width: '100%',
-                          height: 38,
-                          padding: '0 10px',
-                          borderRadius: 8,
-                          border: '1px solid var(--border)',
-                          background: 'var(--card)',
-                          color: 'var(--t1)',
-                          fontSize: 13,
-                          fontFamily: 'inherit',
-                          outline: 'none',
-                          cursor: 'pointer',
-                        }}
+                        style={{ width: '100%' }}
+                        aria-label={kind === 'sales' ? 'Select sales rep' : 'Select coach'}
                       >
                         <option value="">Choose staff member…</option>
                         {people.map((p) => (
                           <option key={p._id} value={p._id}>{p.name}</option>
                         ))}
-                      </select>
+                      </MenuSelect>
                     </div>
                   )}
 
@@ -947,21 +934,66 @@ export default function AssigningTasksPage() {
                           </div>
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 320, overflowY: 'auto' }}>
-                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6 }}>
-                              {[10, 20, 30, 50].map((num) => (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                              <input
+                                type="number"
+                                min="1"
+                                value={customCountInput}
+                                onChange={(e) => setCustomCountInput(e.target.value)}
+                                placeholder="How many members?"
+                                aria-label="Number of members to select"
+                                className="no-spinners"
+                                style={{
+                                  width: '100%', height: 34, padding: '0 10px', borderRadius: 6,
+                                  border: '1px solid var(--border)', background: 'var(--card)',
+                                  color: 'var(--t1)', fontSize: 12, fontFamily: 'inherit',
+                                  outline: 'none', MozAppearance: 'textfield', boxSizing: 'border-box',
+                                }}
+                              />
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                                 <button
-                                  key={`first_${num}`}
                                   type="button"
-                                  onClick={() => handleApplyTemplate(`first_${num}`)}
+                                  onClick={() => {
+                                    setCustomCountOrder('first');
+                                    const count = parseInt(customCountInput, 10);
+                                    if (!Number.isFinite(count) || count <= 0) {
+                                      toast.error('Please enter a valid positive number');
+                                      return;
+                                    }
+                                    handleApplyTemplate('custom_first', { count, customLabel: `First ${count}` });
+                                    setPage(1);
+                                  }}
                                   style={{
-                                    padding: '6px 4px', borderRadius: 6,
-                                    border: '1px solid var(--border)', background: 'var(--bg)',
-                                    color: 'var(--t1)', fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                                    height: 32, borderRadius: 6, border: '1px solid var(--border)',
+                                    background: customCountOrder === 'first' ? 'var(--navy)' : 'var(--bg)',
+                                    color: customCountOrder === 'first' ? '#fff' : 'var(--t1)',
+                                    fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                                   }}
                                 >
-                                  First {num}
+                                  First
                                 </button>
-                              ))}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setCustomCountOrder('last');
+                                    const count = parseInt(customCountInput, 10);
+                                    if (!Number.isFinite(count) || count <= 0) {
+                                      toast.error('Please enter a valid positive number');
+                                      return;
+                                    }
+                                    handleApplyTemplate('custom_last', { count, customLabel: `Last ${count}` });
+                                    setPage(Math.max(1, Math.ceil(filtered.length / pageSize)));
+                                  }}
+                                  style={{
+                                    height: 32, borderRadius: 6, border: '1px solid var(--border)',
+                                    background: customCountOrder === 'last' ? 'var(--navy)' : 'var(--bg)',
+                                    color: customCountOrder === 'last' ? '#fff' : 'var(--t1)',
+                                    fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                                  }}
+                                >
+                                  Last
+                                </button>
+                              </div>
                             </div>
 
                             <button
@@ -1028,82 +1060,49 @@ export default function AssigningTasksPage() {
                         <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
                           Package
                         </label>
-                        <select
+                        <MenuSelect
                           value={packageFilter}
                           onChange={(e) => setPackageFilter(e.target.value)}
-                          style={{
-                            width: '100%',
-                            height: 38,
-                            padding: '0 10px',
-                            borderRadius: 8,
-                            border: '1px solid var(--border)',
-                            background: 'var(--card)',
-                            color: 'var(--t1)',
-                            fontSize: 13,
-                            fontFamily: 'inherit',
-                            outline: 'none',
-                            cursor: 'pointer',
-                          }}
+                          style={{ width: '100%' }}
+                          aria-label="Package"
                         >
                           <option value="all">All Packages</option>
                           {allPackages.map((pkg) => (
                             <option key={pkg._id} value={pkg._id}>{pkg.name}</option>
                           ))}
-                        </select>
+                        </MenuSelect>
                       </div>
 
                       <div>
                         <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
                           Gender
                         </label>
-                        <select
+                        <MenuSelect
                           value={genderFilter}
                           onChange={(e) => setGenderFilter(e.target.value)}
-                          style={{
-                            width: '100%',
-                            height: 38,
-                            padding: '0 10px',
-                            borderRadius: 8,
-                            border: '1px solid var(--border)',
-                            background: 'var(--card)',
-                            color: 'var(--t1)',
-                            fontSize: 13,
-                            fontFamily: 'inherit',
-                            outline: 'none',
-                            cursor: 'pointer',
-                          }}
+                          style={{ width: '100%' }}
+                          aria-label="Gender"
                         >
                           <option value="all">All Genders</option>
                           <option value="male">Male</option>
                           <option value="female">Female</option>
-                        </select>
+                        </MenuSelect>
                       </div>
 
                       <div>
                         <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
                           Transfer Status
                         </label>
-                        <select
+                        <MenuSelect
                           value={transferTypeFilter}
                           onChange={(e) => setTransferTypeFilter(e.target.value)}
-                          style={{
-                            width: '100%',
-                            height: 38,
-                            padding: '0 10px',
-                            borderRadius: 8,
-                            border: '1px solid var(--border)',
-                            background: 'var(--card)',
-                            color: 'var(--t1)',
-                            fontSize: 13,
-                            fontFamily: 'inherit',
-                            outline: 'none',
-                            cursor: 'pointer',
-                          }}
+                          style={{ width: '100%' }}
+                          aria-label="Transfer status"
                         >
                           <option value="all">All Transfer Statuses</option>
                           <option value="transferred">Transferred Members</option>
                           <option value="never">Never Transferred</option>
-                        </select>
+                        </MenuSelect>
                       </div>
                     </div>
 
@@ -1122,27 +1121,16 @@ export default function AssigningTasksPage() {
                         <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
                           Date Field
                         </label>
-                        <select
+                        <MenuSelect
                           value={dateField}
                           onChange={(e) => setDateField(e.target.value)}
-                          style={{
-                            width: '100%',
-                            height: 38,
-                            padding: '0 10px',
-                            borderRadius: 8,
-                            border: '1px solid var(--border)',
-                            background: 'var(--card)',
-                            color: 'var(--t1)',
-                            fontSize: 13,
-                            fontFamily: 'inherit',
-                            outline: 'none',
-                            cursor: 'pointer',
-                          }}
+                          style={{ width: '100%' }}
+                          aria-label="Date field"
                         >
                           <option value="endDate">End Date</option>
                           <option value="startDate">Start Date</option>
                           <option value="createdAt">Joined Date</option>
-                        </select>
+                        </MenuSelect>
                       </div>
 
                       <div style={{ flex: '1 1 160px', minWidth: 140 }}>
@@ -1322,7 +1310,11 @@ export default function AssigningTasksPage() {
               </div>
 
               {loading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="lg" /></div>
+                <Table
+                  loading
+                  skeletonRows={8}
+                  headers={['#', 'Member', 'System ID', 'Phone', 'Sales Rep', 'Coach', 'Status', 'Package']}
+                />
               ) : filtered.length === 0 ? (
                 <EmptyState icon={Users} message="No members found" sub="Adjust your filters or scope selection." />
               ) : (
@@ -1565,7 +1557,7 @@ export default function AssigningTasksPage() {
               </div>
 
               {loadingCreatedTasks ? (
-                <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="lg" /></div>
+                <Table loading skeletonRows={5} headers={['Task', 'Scope', 'Members', 'Created', 'Status']} />
               ) : createdTasks.length === 0 ? (
                 <EmptyState icon={FolderOpen} message="No tasks created yet" sub="Create your first task by selecting members and transferring them." />
               ) : (

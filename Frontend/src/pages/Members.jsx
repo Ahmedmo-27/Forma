@@ -6,11 +6,10 @@ import usePageTitle from '../hooks/usePageTitle';
 import useDebounce from '../hooks/useDebounce';
 import useLocationEffect from '../hooks/useLocationEffect';
 import Layout from '../components/Layout';
-import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, fmtDate, Pagination, PageSizeFilter, Spinner } from '../components/ui';
-import { getAllMembers, getSalesUsers, getCoachTeam, switchSalesRep, switchCoach } from '../api/endpoints';
+import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, fmtDate, Pagination, PageSizeFilter } from '../components/ui';
+import { getAllMembers } from '../api/endpoints';
 import AddMemberModal from '../components/AddMemberModal';
 import { formatSystemId } from '../lib/systemId';
-import { Zap } from 'lucide-react';
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
@@ -38,54 +37,6 @@ export default function Members() {
   const [showAdd, setShowAdd]   = useState(false);
   const debouncedSearch = useDebounce(search, 300);
   const canAdd = ['Receptionist', 'Owner', 'Sales Manager'].includes(user?.role);
-  const canTransfer = ['Owner', 'General Manager', 'Sales Manager', 'Coach Manager'].includes(user?.role) ||
-    user?.access?.includes('transfer') || user?.access?.includes('coach_transfer');
-
-  const [salesUsers, setSalesUsers] = useState([]);
-  const [coaches, setCoaches] = useState([]);
-  const [quickId, setQuickId] = useState('');
-  const [destId, setDestId] = useState('');
-  const [quickBusy, setQuickBusy] = useState(false);
-
-  useEffect(() => {
-    if (canTransfer) {
-      getSalesUsers()
-        .then((res) => setSalesUsers(res.data.salesUsers ?? []))
-        .catch(() => {});
-      getCoachTeam()
-        .then((res) => {
-          setCoaches((res.data.team ?? []).filter((p) => ['Coach', 'Coach Manager'].includes(p.role)));
-        })
-        .catch(() => {});
-    }
-  }, [canTransfer]);
-
-  const handleQuickTransfer = async (e) => {
-    e.preventDefault();
-    const id = quickId.trim();
-    if (!id) return;
-    if (!destId) {
-      toast.error('Choose a target staff member');
-      return;
-    }
-    setQuickBusy(true);
-    try {
-      const isSales = salesUsers.some((u) => u._id === destId);
-      if (isSales) {
-        await switchSalesRep(id, destId, { reason: 'Quick transfer from Member Management' });
-      } else {
-        await switchCoach(id, destId, { reason: 'Quick transfer from Member Management' });
-      }
-      toast.success(`Member #${id} assigned successfully!`);
-      setQuickId('');
-      setDestId('');
-      fetchMembers();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Transfer failed');
-    } finally {
-      setQuickBusy(false);
-    }
-  };
 
   const fetchMembers = useCallback(async (override = {}) => {
     const status = override.status ?? filter;
@@ -185,123 +136,6 @@ export default function Members() {
             options={PAGE_SIZE_OPTIONS}
           />
         </div>
-
-        {/* Quick Single Transfer Card */}
-        {canTransfer && (
-          <Card style={{ padding: '16px 20px', marginBottom: 16 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
-                  Quick Transfer by System ID
-                </div>
-                <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
-                  Directly transfer an individual member to a sales rep or coach by their System ID.
-                </div>
-              </div>
-
-              <form onSubmit={handleQuickTransfer} style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
-                <div style={{ flex: '0 0 auto', width: 190, minWidth: 150 }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                    System ID
-                  </label>
-                  <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                    <span style={{ position: 'absolute', left: 12, color: 'var(--t4)', fontWeight: 700, fontSize: 13, pointerEvents: 'none' }}>
-                      #
-                    </span>
-                    <input
-                      value={quickId}
-                      onChange={(e) => setQuickId(e.target.value)}
-                      placeholder="e.g. 104"
-                      style={{
-                        width: '100%',
-                        height: 38,
-                        paddingLeft: 28,
-                        paddingRight: 12,
-                        borderRadius: 8,
-                        border: '1px solid var(--border)',
-                        background: 'var(--card)',
-                        color: 'var(--t1)',
-                        fontSize: 13,
-                        fontFamily: 'inherit',
-                        outline: 'none',
-                        transition: 'all 0.15s ease',
-                      }}
-                      onFocus={(e) => {
-                        e.target.style.borderColor = 'var(--navy)';
-                        e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)';
-                      }}
-                      onBlur={(e) => {
-                        e.target.style.borderColor = 'var(--border)';
-                        e.target.style.boxShadow = 'none';
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div style={{ flex: '1 1 260px', maxWidth: 420, minWidth: 220 }}>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                    Assign Destination
-                  </label>
-                  <select
-                    value={destId}
-                    onChange={(e) => setDestId(e.target.value)}
-                    style={{
-                      width: '100%',
-                      height: 38,
-                      padding: '0 12px',
-                      borderRadius: 8,
-                      border: '1px solid var(--border)',
-                      background: 'var(--card)',
-                      color: 'var(--t1)',
-                      fontSize: 13,
-                      fontFamily: 'inherit',
-                      outline: 'none',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <option value="">Select target staff member…</option>
-                    <optgroup label="Sales Representatives">
-                      {salesUsers.filter((u) => u.role === 'Sales').map((u) => (
-                        <option key={u._id} value={u._id}>{u.name} (Sales)</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="Coaches">
-                      {coaches.map((c) => (
-                        <option key={c._id} value={c._id}>{c.name} (Coach)</option>
-                      ))}
-                    </optgroup>
-                  </select>
-                </div>
-
-                <div>
-                  <button
-                    type="submit"
-                    disabled={quickBusy || !quickId.trim() || !destId}
-                    style={{
-                      height: 38,
-                      padding: '0 18px',
-                      borderRadius: 8,
-                      border: 'none',
-                      background: !quickId.trim() || !destId || quickBusy ? 'var(--border)' : 'var(--navy, var(--navy))',
-                      color: !quickId.trim() || !destId || quickBusy ? 'var(--t4)' : '#FFFFFF',
-                      fontSize: 13,
-                      fontWeight: 600,
-                      cursor: !quickId.trim() || !destId || quickBusy ? 'not-allowed' : 'pointer',
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: 6,
-                      whiteSpace: 'nowrap',
-                      fontFamily: 'inherit',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {quickBusy ? <Spinner size="sm" /> : <><Zap size={14} aria-hidden /> Quick Transfer</>}
-                  </button>
-                </div>
-              </form>
-            </div>
-          </Card>
-        )}
 
         {/* Table card */}
         <Card noPad>

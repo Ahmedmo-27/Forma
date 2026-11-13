@@ -5,7 +5,7 @@ import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, CardHeader, Table, Badge, Btn, Spinner, EmptyState,
-  SearchInput, Avatar, Select, Input, Pagination, formatSystemId,
+  SearchInput, Avatar, Select, Input, Pagination, formatSystemId, MenuSelect,
 } from '../../components/ui';
 import { getAllMembers, getSalesUsers, bulkTransferSalesReps, switchSalesRep } from '../../api/endpoints';
 
@@ -25,6 +25,8 @@ export default function Transfer() {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [transferTo, setTransferTo] = useState('');
+  const [selectCountInput, setSelectCountInput] = useState('');
+  const [selectCountOrder, setSelectCountOrder] = useState('first');
 
   const [quickId, setQuickId]       = useState('');
   const [quickTo, setQuickTo]       = useState('');
@@ -107,6 +109,31 @@ export default function Transfer() {
       else pageIds.forEach((id) => next.add(id));
       return next;
     });
+  };
+
+  const handleSelectByCount = (order = selectCountOrder) => {
+    const count = parseInt(selectCountInput, 10);
+    if (!Number.isFinite(count) || count <= 0) {
+      toast.error('Please enter a valid positive number');
+      return;
+    }
+    if (!filtered.length) {
+      toast.error('No members match your filters');
+      return;
+    }
+    const n = Math.min(count, filtered.length);
+    const isLast = order === 'last';
+    const slice = isLast
+      ? filtered.slice(Math.max(0, filtered.length - n))
+      : filtered.slice(0, n);
+    setSelectedIds(new Set(slice.map((m) => m._id)));
+    setSelectCountOrder(isLast ? 'last' : 'first');
+    if (isLast) {
+      setPage(Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)));
+    } else {
+      setPage(1);
+    }
+    toast.success(`Selected ${isLast ? 'last' : 'first'} ${slice.length} member${slice.length !== 1 ? 's' : ''}`);
   };
 
   const handleBulkTransfer = async () => {
@@ -229,38 +256,40 @@ export default function Transfer() {
             <SearchInput value={search} onChange={setSearch} placeholder="Name, phone, ID…" width={200} />
 
             {/* Rep filter dropdown */}
-            <select value={repFilter} onChange={(e) => setRepFilter(e.target.value)} style={{
-              minWidth: 220, padding: '7px 10px', fontSize: 13,
-              border: '1px solid var(--border)', borderRadius: 6,
-              fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)',
-              cursor: 'pointer',
-            }}>
+            <MenuSelect value={repFilter} onChange={(e) => setRepFilter(e.target.value)} style={{ minWidth: 220 }} aria-label="Filter by sales rep">
               <option value="all">All members</option>
               <option value="unassigned">Unassigned only</option>
               {salesUsers.map((s) => (
                 <option key={s._id} value={s._id}>{s.name} ({s.role})</option>
               ))}
-            </select>
+            </MenuSelect>
 
-            {/* Select first N */}
+            {/* Select first/last N */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <input
-                type="number" min="1" max={paginated.length}
-                placeholder="N"
+                type="number"
+                min="1"
+                value={selectCountInput}
+                onChange={(e) => setSelectCountInput(e.target.value)}
+                placeholder="How many?"
                 className="no-spinners"
-                style={{ width: 60, padding: '6px 8px', fontSize: 12, border: '1px solid var(--border)', borderRadius: 5, fontFamily: 'inherit', MozAppearance: 'textfield' }}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    const n = Math.min(Number(e.target.value) || 0, paginated.length);
-                    if (n > 0) {
-                      setSelectedIds(new Set(paginated.slice(0, n).map(m => m._id)));
-                      toast.success(`Selected first ${n} member${n !== 1 ? 's' : ''}`);
-                    }
-                  }
-                }}
+                aria-label="Number of members to select"
+                style={{ width: 90, padding: '6px 8px', fontSize: 12, border: '1px solid var(--border)', borderRadius: 5, fontFamily: 'inherit', MozAppearance: 'textfield' }}
               />
-              <span style={{ fontSize: 11, color: 'var(--t4)' }}>Select first N (press Enter)</span>
+              <Btn
+                variant={selectCountOrder === 'first' ? 'primary' : 'outline'}
+                size="xs"
+                onClick={() => handleSelectByCount('first')}
+              >
+                First
+              </Btn>
+              <Btn
+                variant={selectCountOrder === 'last' ? 'primary' : 'outline'}
+                size="xs"
+                onClick={() => handleSelectByCount('last')}
+              >
+                Last
+              </Btn>
             </div>
 
             {selectedIds.size > 0 && (
@@ -273,13 +302,11 @@ export default function Transfer() {
             )}
           </div>
 
-          {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}><Spinner size="lg" /></div>
-          ) : !paginated.length ? (
+          {!loading && !paginated.length ? (
             <EmptyState message="No members match your filters" />
           ) : (
             <>
-              <Table headers={['', 'ID', 'Name', 'Current Sales Rep', 'Status', 'Phone']}>
+              <Table loading={loading} skeletonRows={8} headers={['', 'ID', 'Name', 'Current Sales Rep', 'Status', 'Phone']}>
                 {paginated.map((m) => {
                   const selected = selectedIds.has(m._id);
                   return (
@@ -315,13 +342,15 @@ export default function Transfer() {
                 })}
               </Table>
 
-              <Pagination
-                page={page}
-                totalPages={totalPages}
-                total={filtered.length}
-                pageSize={PAGE_SIZE}
-                onPageChange={setPage}
-              />
+              {!loading && (
+                <Pagination
+                  page={page}
+                  totalPages={totalPages}
+                  total={filtered.length}
+                  pageSize={PAGE_SIZE}
+                  onPageChange={setPage}
+                />
+              )}
             </>
           )}
         </Card>

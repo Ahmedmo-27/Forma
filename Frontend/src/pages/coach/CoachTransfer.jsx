@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, CardHeader, Table, Badge, Btn, Spinner, EmptyState, SearchInput, Avatar, Modal, Select, formatSystemId } from '../../components/ui';
+import { PageHeader, Card, CardHeader, Table, Badge, Btn, Spinner, EmptyState, SearchInput, Avatar, Modal, Select, formatSystemId, MenuSelect } from '../../components/ui';
 import { getAllMembers, getCoachTeam, switchCoach, assignCoach, bulkTransferCoach } from '../../api/endpoints';
 import { RefreshCw } from 'lucide-react';
 
@@ -21,6 +21,8 @@ export default function CoachTransfer() {
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [bulkCoach, setBulkCoach]     = useState('');
   const [transferring, setTransferring] = useState(false);
+  const [selectCountInput, setSelectCountInput] = useState('');
+  const [selectCountOrder, setSelectCountOrder] = useState('first');
   const debouncedSearch = useDebounce(search, 300);
 
   // Single transfer modal
@@ -90,6 +92,31 @@ export default function CoachTransfer() {
     });
   };
 
+  const handleSelectByCount = (order = selectCountOrder) => {
+    const count = parseInt(selectCountInput, 10);
+    if (!Number.isFinite(count) || count <= 0) {
+      toast.error('Please enter a valid positive number');
+      return;
+    }
+    if (!filtered.length) {
+      toast.error('No members match your filters');
+      return;
+    }
+    const n = Math.min(count, filtered.length);
+    const isLast = order === 'last';
+    const slice = isLast
+      ? filtered.slice(Math.max(0, filtered.length - n))
+      : filtered.slice(0, n);
+    setSelectedIds(new Set(slice.map((m) => m._id)));
+    setSelectCountOrder(isLast ? 'last' : 'first');
+    if (isLast) {
+      setPage(Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)));
+    } else {
+      setPage(1);
+    }
+    toast.success(`Selected ${isLast ? 'last' : 'first'} ${slice.length} member${slice.length !== 1 ? 's' : ''}`);
+  };
+
   // Bulk assign — single API call
   const handleBulkAssign = async () => {
     if (!bulkCoach) { toast.error('Select a coach'); return; }
@@ -143,15 +170,10 @@ export default function CoachTransfer() {
           background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8,
         }}>
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)' }}>Bulk Assign:</span>
-          <select value={bulkCoach} onChange={e => setBulkCoach(e.target.value)}
-            style={{
-              minWidth: 200, padding: '7px 10px', fontSize: 13,
-              border: '1px solid var(--border)', borderRadius: 6,
-              fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer',
-            }}>
+          <MenuSelect value={bulkCoach} onChange={e => setBulkCoach(e.target.value)} style={{ minWidth: 200 }} aria-label="Bulk assign coach">
             <option value="">— Select coach —</option>
             {coaches.map(c => <option key={c._id} value={c._id}>{c.name} ({c.role})</option>)}
-          </select>
+          </MenuSelect>
           <Btn size="sm" onClick={handleBulkAssign} disabled={transferring || !bulkCoach || !selectedIds.size}>
             {transferring ? <Spinner size="sm" /> : `Assign Selected (${selectedIds.size})`}
           </Btn>
@@ -166,34 +188,38 @@ export default function CoachTransfer() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginBottom: 16, alignItems: 'center' }}>
           <SearchInput value={search} onChange={setSearch} placeholder="Name, phone, ID…" width={200} />
 
-          <select value={filter} onChange={e => setFilter(e.target.value)} style={{
-            minWidth: 200, padding: '7px 10px', fontSize: 13,
-            border: '1px solid var(--border)', borderRadius: 6,
-            fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)', cursor: 'pointer',
-          }}>
+          <MenuSelect value={filter} onChange={e => setFilter(e.target.value)} style={{ minWidth: 200 }} aria-label="Filter members by coach">
             <option value="all">All members ({members.length})</option>
             <option value="unassigned-coach">No coach assigned</option>
             {coaches.map(c => <option key={c._id} value={c._id}>Coach: {c.name}</option>)}
-          </select>
+          </MenuSelect>
 
-          {/* Select first N */}
+          {/* Select first/last N */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <input
-              type="number" min="1" placeholder="N"
+              type="number"
+              min="1"
+              value={selectCountInput}
+              onChange={(e) => setSelectCountInput(e.target.value)}
+              placeholder="How many?"
               className="no-spinners"
-              style={{ width: 60, padding: '6px 8px', fontSize: 12, border: '1px solid var(--border)', borderRadius: 5, fontFamily: 'inherit', MozAppearance: 'textfield' }}
-              onKeyDown={e => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  const n = Math.min(Number(e.target.value) || 0, paginated.length);
-                  if (n > 0) {
-                    setSelectedIds(new Set(paginated.slice(0, n).map(m => m._id)));
-                    toast.success(`Selected first ${n}`);
-                  }
-                }
-              }}
+              aria-label="Number of members to select"
+              style={{ width: 90, padding: '6px 8px', fontSize: 12, border: '1px solid var(--border)', borderRadius: 5, fontFamily: 'inherit', MozAppearance: 'textfield' }}
             />
-            <span style={{ fontSize: 11, color: 'var(--t4)' }}>Select first N</span>
+            <Btn
+              variant={selectCountOrder === 'first' ? 'primary' : 'outline'}
+              size="xs"
+              onClick={() => handleSelectByCount('first')}
+            >
+              First
+            </Btn>
+            <Btn
+              variant={selectCountOrder === 'last' ? 'primary' : 'outline'}
+              size="xs"
+              onClick={() => handleSelectByCount('last')}
+            >
+              Last
+            </Btn>
           </div>
 
           {selectedIds.size > 0 && (
@@ -206,13 +232,11 @@ export default function CoachTransfer() {
 
         {/* Table */}
         <Card noPad>
-          {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
-          ) : filtered.length === 0 ? (
+          {!loading && filtered.length === 0 ? (
             <EmptyState icon={RefreshCw} message="No members match" />
           ) : (
             <>
-              <Table headers={['', 'ID', 'Name', 'Coach', 'PT Status', 'Sessions Left', '']}>
+              <Table loading={loading} skeletonRows={8} headers={['', 'ID', 'Name', 'Coach', 'PT Status', 'Sessions Left', '']}>
                 {paginated.map(m => {
                   const coachName = m.current_couch?.name || '—';
                   const remaining = (m.PT_sessions || 0) - (m.used_PT_sessions || 0);
@@ -249,7 +273,7 @@ export default function CoachTransfer() {
               </Table>
 
               {/* Pagination */}
-              {totalPages > 1 && (
+              {!loading && totalPages > 1 && (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderTop: '1px solid var(--border)' }}>
                   <span style={{ fontSize: 12, color: 'var(--t4)' }}>{((page-1)*PAGE_SIZE)+1}–{Math.min(page*PAGE_SIZE, filtered.length)} of {filtered.length}</span>
                   <div style={{ display: 'flex', gap: 6 }}>

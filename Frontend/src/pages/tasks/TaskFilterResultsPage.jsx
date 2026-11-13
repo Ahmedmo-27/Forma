@@ -7,7 +7,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, Btn, Spinner, EmptyState, Badge, Avatar,
-  Select, Modal, Pagination,
+  Select, Modal, Pagination, Table,
 } from '../../components/ui';
 import {
   getAllMembers, getSalesUsers, getCoachTeam,
@@ -78,6 +78,9 @@ export default function TaskFilterResultsPage() {
     dateField = 'endDate',
     dateFrom = '',
     dateTo = '',
+    selectCount: filterSelectCount = '',
+    selectOrder: filterSelectOrder = 'first',
+    pageSize: filterPageSize = DEFAULT_PAGE_SIZE,
   } = filters;
 
   // ── Reference Data ──
@@ -94,10 +97,20 @@ export default function TaskFilterResultsPage() {
   const selectedSet = useMemo(() => {
     return selected instanceof Set ? selected : new Set(selected || []);
   }, [selected]);
+  const [selectCountInput, setSelectCountInput] = useState(
+    filterSelectCount ? String(filterSelectCount) : ''
+  );
+  const [selectCountOrder, setSelectCountOrder] = useState(
+    filterSelectOrder === 'last' ? 'last' : 'first'
+  );
+  const [initialSelectApplied, setInitialSelectApplied] = useState(false);
 
   // ── Pagination ──
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [pageSize, setPageSize] = useState(() => {
+    const n = parseInt(filterPageSize, 10);
+    return Number.isFinite(n) && n > 0 ? Math.min(500, Math.max(1, n)) : DEFAULT_PAGE_SIZE;
+  });
 
   // ── Bulk Transfer Modal ──
   const [transferOpen, setTransferOpen] = useState(false);
@@ -199,8 +212,61 @@ export default function TaskFilterResultsPage() {
     setSelected((prev) => toggleIds(prev, ids));
   };
 
+  const applySelectByCount = useCallback((count, order, { silent = false } = {}) => {
+    const parsed = parseInt(count, 10);
+    if (!Number.isFinite(parsed) || parsed <= 0) {
+      if (!silent) toast.error('Please enter a valid positive number');
+      return false;
+    }
+    if (!filtered.length) {
+      if (!silent) toast.error('No members match the current filters');
+      return false;
+    }
+    const n = Math.min(parsed, filtered.length);
+    const isLast = order === 'last';
+    const slice = isLast
+      ? filtered.slice(Math.max(0, filtered.length - n))
+      : filtered.slice(0, n);
+    setSelected(new Set(slice.map((m) => m._id)));
+    setSelectCountOrder(isLast ? 'last' : 'first');
+    if (isLast) {
+      setPage(Math.max(1, Math.ceil(filtered.length / pageSize)));
+    } else {
+      setPage(1);
+    }
+    if (!silent) {
+      toast.success(`Selected ${isLast ? 'last' : 'first'} ${slice.length} member${slice.length !== 1 ? 's' : ''}`);
+    }
+    return true;
+  }, [filtered, pageSize]);
+
+  const handleSelectByCount = (order = selectCountOrder) => {
+    applySelectByCount(selectCountInput, order);
+  };
+
+  // Auto-select from filter form settings once members are loaded
+  useEffect(() => {
+    if (!loaded || initialSelectApplied || !filtered.length) return;
+    const count = parseInt(filterSelectCount, 10);
+    if (!Number.isFinite(count) || count <= 0) {
+      setInitialSelectApplied(true);
+      return;
+    }
+    applySelectByCount(count, filterSelectOrder === 'last' ? 'last' : 'first', { silent: true });
+    setInitialSelectApplied(true);
+  }, [loaded, filtered, filterSelectCount, filterSelectOrder, initialSelectApplied, applySelectByCount]);
+
   const handleModifyFilters = () => {
-    navigate('/tasks/filter', { state: { filters } });
+    navigate('/tasks/filter', {
+      state: {
+        filters: {
+          ...filters,
+          selectCount: selectCountInput,
+          selectOrder: selectCountOrder,
+          pageSize,
+        },
+      },
+    });
   };
 
   // ── Bulk Transfer ──
@@ -319,7 +385,7 @@ export default function TaskFilterResultsPage() {
             padding: '12px 16px', borderBottom: '1px solid var(--border)',
             display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10,
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
               <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
                 <input
                   type="checkbox"
@@ -329,6 +395,54 @@ export default function TaskFilterResultsPage() {
                 />
                 <span>Select All Filtered ({filtered.length})</span>
               </label>
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <input
+                  type="number"
+                  min="1"
+                  value={selectCountInput}
+                  onChange={(e) => setSelectCountInput(e.target.value)}
+                  placeholder="How many?"
+                  aria-label="Number of members to select"
+                  disabled={!filtered.length || loading}
+                  className="no-spinners"
+                  style={{
+                    width: 90, height: 32, padding: '0 8px', borderRadius: 6,
+                    border: '1px solid var(--border)', background: 'var(--card)',
+                    color: 'var(--t1)', fontSize: 12, fontFamily: 'inherit',
+                    outline: 'none', MozAppearance: 'textfield',
+                  }}
+                />
+                <button
+                  type="button"
+                  disabled={!filtered.length || loading}
+                  onClick={() => handleSelectByCount('first')}
+                  style={{
+                    height: 32, padding: '0 12px', borderRadius: 6,
+                    border: `1px solid ${selectCountOrder === 'first' ? 'var(--navy)' : 'var(--border)'}`,
+                    background: selectCountOrder === 'first' ? 'var(--navy)' : 'var(--card)',
+                    color: selectCountOrder === 'first' ? '#fff' : 'var(--t1)',
+                    fontSize: 12, fontWeight: 600, cursor: filtered.length && !loading ? 'pointer' : 'default',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  First
+                </button>
+                <button
+                  type="button"
+                  disabled={!filtered.length || loading}
+                  onClick={() => handleSelectByCount('last')}
+                  style={{
+                    height: 32, padding: '0 12px', borderRadius: 6,
+                    border: `1px solid ${selectCountOrder === 'last' ? 'var(--navy)' : 'var(--border)'}`,
+                    background: selectCountOrder === 'last' ? 'var(--navy)' : 'var(--card)',
+                    color: selectCountOrder === 'last' ? '#fff' : 'var(--t1)',
+                    fontSize: 12, fontWeight: 600, cursor: filtered.length && !loading ? 'pointer' : 'default',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  Last
+                </button>
+              </div>
               {selectedSet.size > 0 && (
                 <div style={{
                   display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px',
@@ -367,12 +481,8 @@ export default function TaskFilterResultsPage() {
           </div>
 
           {/* Table Body */}
-          {loading ? (
-            <div style={{ display: 'flex', justifyContent: 'center', padding: 48 }}>
-              <Spinner size="lg" />
-            </div>
-          ) : !loaded ? (
-            <EmptyState icon={Search} message="Loading members…" sub="Please wait while we fetch the data." />
+          {loading || !loaded ? (
+            <Table loading skeletonRows={8} headers={['#', 'Member', 'System ID', 'Phone', 'Sales Rep', 'Coach', 'Status', 'Package']} />
           ) : filtered.length === 0 ? (
             <EmptyState icon={Users} message="No members found" sub="Go back and adjust your filters to see results." />
           ) : (
