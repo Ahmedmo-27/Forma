@@ -51,3 +51,4 @@ router.get("/funnel", leadership, requireFeature("funnels"), memberCache, getFun
 router.get("/executive", leadership, requireFeature("business_intelligence"), memberCache, getExecutive);
 
 module.exports = router;
+module.exports.requireAttendancePlan = requireAttendancePlan;
