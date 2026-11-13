@@ -2788,3 +2788,13 @@
 {"ts":"2026-11-12T23:30:54.449Z","level":"info","category":"auth","message":"Password compare completed","env":"test","match":true,"needsRehash":false}
 {"ts":"2026-11-12T23:30:54.815Z","level":"warn","category":"auth","message":"Auth middleware: no token","env":"test","path":"/uploads/photo-private.png","method":"GET","ip":"127.0.0.1"}
 {"ts":"2026-11-12T23:30:55.048Z","level":"warn","category":"auth","message":"Auth middleware: no token","env":"test","path":"/uploads/guessed.jpg","method":"GET","ip":"127.0.0.1"}
+{"ts":"2026-11-13T00:11:10.149Z","level":"warn","category":"auth","message":"invalid signature","env":"test","path":"/api/members","error":"JsonWebTokenError","hasJwtSecret":true}
+{"ts":"2026-11-13T00:11:10.379Z","level":"info","category":"auth","message":"Login attempt","env":"test","requestId":"1794528670379-0fto62","ip":"127.0.0.1","userAgent":null,"hasEmail":true,"hasJwtSecret":true,"apiBaseHint":null}
+{"ts":"2026-11-13T00:11:10.701Z","level":"info","category":"auth","message":"Login attempt","env":"test","requestId":"1794528670701-6fp6je","ip":"127.0.0.1","userAgent":"","hasEmail":true,"hasJwtSecret":true,"apiBaseHint":null}
+{"ts":"2026-11-13T00:11:10.707Z","level":"info","category":"auth","message":"Password compare completed","env":"test","requestId":"1794528670379-0fto62","userId":"6af6559eb62cff079c7d012b","match":true,"needsRehash":false}
+{"ts":"2026-11-13T00:11:10.718Z","level":"info","category":"auth","message":"Login success","env":"test","requestId":"1794528670379-0fto62","userId":"6af6559eb62cff079c7d012b","role":"Sales","tenantSlug":"power-gym"}
+{"ts":"2026-11-13T00:11:11.120Z","level":"info","category":"auth","message":"Password compare completed","env":"test","requestId":"1794528670701-6fp6je","userId":"6af6559eac84c91e112ba0f6","match":true,"needsRehash":false}
+{"ts":"2026-11-13T00:11:11.121Z","level":"warn","category":"auth","message":"Login rejected: user is not assigned to a gym","env":"test","requestId":"1794528670701-6fp6je","userId":"6af6559eac84c91e112ba0f6"}
+{"ts":"2026-11-13T00:11:11.626Z","level":"info","category":"auth","message":"Password compare completed","env":"test","match":true,"needsRehash":false}
+{"ts":"2026-11-13T00:11:11.978Z","level":"warn","category":"auth","message":"Auth middleware: no token","env":"test","path":"/uploads/photo-private.png","method":"GET","ip":"127.0.0.1"}
+{"ts":"2026-11-13T00:11:12.251Z","level":"warn","category":"auth","message":"Auth middleware: no token","env":"test","path":"/uploads/guessed.jpg","method":"GET","ip":"127.0.0.1"}
