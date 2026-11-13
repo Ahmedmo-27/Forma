@@ -49552,3 +49552,9 @@
 {"ts":"2026-11-13T14:12:35.153Z","level":"info","category":"auth","message":"Password reset by manager","env":"test","actorId":"actor","actorRole":"Owner","targetId":"6af71ad245ef0bcbac100e98","targetRole":"Coach"}
 {"ts":"2026-11-13T14:12:35.324Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"system","reason":"unspecified"}
 {"ts":"2026-11-13T14:12:35.325Z","level":"error","category":"auth","message":"setupPassword error","env":"test","error":"db down"}
+{"ts":"2026-11-13T14:25:52.147Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"6af71df028e35a6e2568071e","reason":"confirm_manual_payment"}
+{"ts":"2026-11-13T14:25:52.152Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"6af71df028e35a6e2568071e","reason":"confirm_manual_payment"}
+{"ts":"2026-11-13T14:25:52.153Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"6af71df028e35a6e2568071e","reason":"confirm_manual_payment"}
+{"ts":"2026-11-13T14:25:52.154Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"6af71df028e35a6e2568071e","reason":"confirm_manual_payment"}
+{"ts":"2026-11-13T14:25:52.157Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"6af71df028e35a6e2568071e","reason":"process_refund"}
+{"ts":"2026-11-13T14:25:52.158Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"test","actorId":"6af71df028e35a6e2568071e","reason":"issue_manual_grant"}
