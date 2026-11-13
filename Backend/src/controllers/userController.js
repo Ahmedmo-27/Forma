@@ -25,6 +25,11 @@ const {
     subscriptionSalePrice,
 } = require("../utils/revenueUtils");
 const { resolveSubscriptionPackage } = require("../utils/packageSnapshot");
+const {
+    filterUsersByLocationScope,
+    userVisibleInLocationScope,
+    resolveAllowedLocationIds,
+} = require("../utils/locationScope");
 
 const FINANCE_ROLES = ["Sales Manager", "Owner", "General Manager", "Accountant"];
 const STAFF_CREATOR_ROLES = ["Sales Manager", "Owner", "Coach Manager", "General Manager"];
@@ -354,10 +359,13 @@ const getSalesUsers = async (req, res) => {
     try {
         const salesUsers = await User.find(
             { role: { $in: ["Sales", "Sales Manager"] } },
-            "name role _id"
-        ).sort({ name: 1 });
+            "name role _id allowedLocationIds canAccessAllLocations"
+        ).sort({ name: 1 }).lean();
 
-        res.status(200).json({ salesUsers });
+        res.status(200).json({
+            salesUsers: filterUsersByLocationScope(salesUsers, req.tenant, req.locationScope)
+                .map(({ _id, name, role }) => ({ _id, name, role })),
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -367,10 +375,13 @@ const getReceptionists = async (req, res) => {
     try {
         const staff = await User.find(
             { role: { $in: ["Receptionist", "Sales", "Sales Manager", "Coach", "Coach Manager", "Accountant"] } },
-            "name mobile_number role _id email createdAt"
-        ).sort({ role: 1, name: 1 });
+            "name mobile_number role _id email createdAt allowedLocationIds canAccessAllLocations"
+        ).sort({ role: 1, name: 1 }).lean();
 
-        res.json({ receptionists: staff });
+        res.json({
+            receptionists: filterUsersByLocationScope(staff, req.tenant, req.locationScope)
+                .map(({ allowedLocationIds, canAccessAllLocations, ...rest }) => rest),
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -627,7 +638,7 @@ const getSalesTeam = async (req, res) => {
 
         const [team, members] = await Promise.all([
             User.find({ role: { $in: ["Sales", "Sales Manager"] } })
-                .select("name email role monthlyTarget abilities createdAt")
+                .select("name email role monthlyTarget abilities createdAt allowedLocationIds canAccessAllLocations")
                 .sort({ name: 1 })
                 .lean(),
             Member.find({ ...(req.locationFilter || {}) })
@@ -637,10 +648,22 @@ const getSalesTeam = async (req, res) => {
         ]);
 
         const now = new Date();
-        const teamWithStats = team.map((user) => ({
-            ...formatUserResponse(user),
-            stats: buildRepStats(members, user._id, now),
-        }));
+        const teamWithStats = team
+            .map((user) => {
+                const stats = buildRepStats(members, user._id, now);
+                return {
+                    user,
+                    row: {
+                        ...formatUserResponse(user),
+                        stats,
+                    },
+                };
+            })
+            .filter(({ user, row }) => (
+                userVisibleInLocationScope(user, req.tenant, req.locationScope)
+                || (row.stats?.total > 0)
+            ))
+            .map(({ row }) => row);
 
         res.json({ team: teamWithStats });
     } catch (error) {
@@ -767,14 +790,32 @@ const createStaffUser = async (req, res) => {
             maySetLocations
             && (canAccessAllLocations !== undefined || allowedLocationIds !== undefined);
 
-        const locationPayload = explicitLocation
+        let locationPayload = explicitLocation
             ? {
                 canAccessAllLocations: canAccessAllLocations !== undefined
                     ? Boolean(canAccessAllLocations)
                     : false,
                 allowedLocationIds: Array.isArray(allowedLocationIds) ? allowedLocationIds : [],
             }
-            : locationDefaults;
+            : { ...locationDefaults };
+
+        // When creator didn't send grants: stamp the selected navbar branch, else inherit creator grants
+        if (!explicitLocation && role !== "General Manager" && role !== "Owner") {
+            if (req.locationScope?.mode === "one" && req.locationScope.locationId) {
+                locationPayload = {
+                    canAccessAllLocations: false,
+                    allowedLocationIds: [String(req.locationScope.locationId)],
+                };
+            } else {
+                const creatorAllowed = resolveAllowedLocationIds(req.user, req.tenant);
+                if (Array.isArray(creatorAllowed) && creatorAllowed.length) {
+                    locationPayload = {
+                        canAccessAllLocations: false,
+                        allowedLocationIds: creatorAllowed,
+                    };
+                }
+            }
+        }
 
         if (explicitLocation) {
             const probe = {
@@ -1090,19 +1131,33 @@ const getCoachTeam = async (req, res) => {
 
         const [team, members] = await Promise.all([
             User.find({ role: { $in: ["Coach", "Coach Manager"] } })
-                .select("name email role abilities createdAt")
-                .sort({ name: 1 }),
+                .select("name email role abilities createdAt allowedLocationIds canAccessAllLocations")
+                .sort({ name: 1 })
+                .lean(),
             Member.find({
                 current_couch: { $ne: null },
                 ...(req.locationFilter || {}),
             })
-                .select("current_couch couch_subscription_status PT_sessions used_PT_sessions"),
+                .select("current_couch couch_subscription_status PT_sessions used_PT_sessions")
+                .lean(),
         ]);
 
-        const teamWithStats = team.map((user) => ({
-            ...formatUserResponse(user),
-            stats: buildCoachStats(members, user._id),
-        }));
+        const teamWithStats = team
+            .map((user) => {
+                const stats = buildCoachStats(members, user._id);
+                return {
+                    user,
+                    row: {
+                        ...formatUserResponse(user),
+                        stats,
+                    },
+                };
+            })
+            .filter(({ user, row }) => (
+                userVisibleInLocationScope(user, req.tenant, req.locationScope)
+                || (row.stats?.total > 0)
+            ))
+            .map(({ row }) => row);
 
         res.json({ team: teamWithStats });
     } catch (error) {
@@ -1277,10 +1332,14 @@ const updateStaffMobile = async (req, res) => {
 const getReceptionistTeam = async (req, res) => {
     try {
         const team = await User.find({ role: "Receptionist" })
-            .select("name email role mobile_number canViewPhones abilities createdAt")
-            .sort({ name: 1 });
+            .select("name email role mobile_number canViewPhones abilities createdAt allowedLocationIds canAccessAllLocations")
+            .sort({ name: 1 })
+            .lean();
 
-        res.json({ team: team.map(formatUserResponse) });
+        res.json({
+            team: filterUsersByLocationScope(team, req.tenant, req.locationScope)
+                .map(formatUserResponse),
+        });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
     }
@@ -1343,11 +1402,12 @@ const getTeamsPage = async (req, res) => {
         }
 
         const users = await User.find()
-            .select("name email role mobile_number canViewPhones abilities createdAt")
+            .select("name email role mobile_number canViewPhones abilities createdAt allowedLocationIds canAccessAllLocations")
             .sort({ name: 1 })
             .lean();
 
-        const formatted = users.map((u) => formatUserResponse(u));
+        const formatted = filterUsersByLocationScope(users, req.tenant, req.locationScope)
+            .map((u) => formatUserResponse(u));
 
         const sales = formatted.filter(
             (user) => user.role === "Sales Manager" || user.role === "Sales"

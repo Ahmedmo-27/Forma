@@ -560,6 +560,54 @@ const getMemberProfile = async (req, res) => {
     }
 };
 
+/**
+ * Desk branch for a check-in stamp.
+ * Prefer explicit body.locationId (multi-branch desks), else navbar single-branch scope.
+ */
+async function resolveCheckInLocationId(req) {
+    const bodyLoc = req.body?.locationId || req.body?.checkInLocationId || null;
+    const scopeLoc = req.locationScope?.locationId
+        || (req.locationFilter?.locationId && !(req.locationFilter.locationId.$in)
+            ? req.locationFilter.locationId
+            : null);
+    const raw = bodyLoc || scopeLoc || null;
+
+    if (!raw) {
+        const multiOn = Array.isArray(req.planFeatures)
+            ? req.planFeatures.includes("multi_branches")
+            : false;
+        const mode = req.locationScope?.mode;
+        // Multi-branch desks viewing All / multiple grants must pick a desk branch
+        if (multiOn && (mode === "unrestricted" || mode === "subset")) {
+            return {
+                error: "Select which branch this check-in is for",
+                code: "CHECKIN_LOCATION_REQUIRED",
+                status: 400,
+            };
+        }
+        return { locationId: null };
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(String(raw))) {
+        return { error: "Invalid check-in location", code: "INVALID_LOCATION", status: 400 };
+    }
+
+    if (!userCanAccessLocation(req.user, req.tenant, raw) && req.user.role !== "Owner") {
+        return {
+            error: "You do not have access to this location",
+            code: "LOCATION_FORBIDDEN",
+            status: 403,
+        };
+    }
+
+    const exists = await Location.findById(raw).select("_id").lean();
+    if (!exists) {
+        return { error: "Location not found", code: "LOCATION_NOT_FOUND", status: 404 };
+    }
+
+    return { locationId: exists._id };
+}
+
 // ─── 4. Check In Member ───────────────────────────────────────────────────────
 const checkInMember = async (req, res) => {
     try {
@@ -570,25 +618,29 @@ const checkInMember = async (req, res) => {
             return res.status(404).json({ message: "Member not found" });
         }
 
+        const deskLoc = await resolveCheckInLocationId(req);
+        if (deskLoc.error) {
+            return res.status(deskLoc.status || 400).json({
+                code: deskLoc.code,
+                message: deskLoc.error,
+            });
+        }
+
         const now = new Date();
-        const checkInLocationId = req.locationScope?.locationId
-            || (req.locationFilter?.locationId && !(req.locationFilter.locationId.$in)
-                ? req.locationFilter.locationId
-                : null);
         const entry = {
             _id: new mongoose.Types.ObjectId(),
             type: "check-in",
             text: "Member checked in",
             createdBy: req.user.id,
             createdAt: now,
-            locationId: checkInLocationId || null,
+            locationId: deskLoc.locationId || null,
         };
 
         // Active members with an active subscription only append a log entry. One update, no full-document save.
+        // Do not filter by member home branch — guests can check in at any desk the staff may operate.
         const updated = await Member.findOneAndUpdate(
             {
                 ...query,
-                ...(req.locationFilter || {}),
                 isBlocked: { $ne: true },
                 isMember: true,
                 status: "active",
@@ -624,8 +676,6 @@ const checkInMember = async (req, res) => {
         if (!memberDoc) {
             return res.status(404).json({ message: "Member not found" });
         }
-        const memberForbidden = forbidIfOutOfLocationScope(req, memberDoc);
-        if (memberForbidden) return sendMemberScopeError(res, memberForbidden);
         const member = memberDoc;
 
         if (member.isBlocked) {

@@ -46,6 +46,44 @@ function userCanAccessLocation(user, tenant, locationObjectId) {
 }
 
 /**
+ * Active branch ids for a request locationScope (empty = unrestricted / none).
+ * @returns {null|string[]} null = unrestricted (show all users); [] = none
+ */
+function scopeLocationIdStrings(locationScope) {
+    if (!locationScope || locationScope.mode === "unrestricted") return null;
+    if (locationScope.mode === "none") return [];
+    if (locationScope.mode === "one" && locationScope.locationId) {
+        return [String(locationScope.locationId)];
+    }
+    if (locationScope.mode === "subset" && Array.isArray(locationScope.locationIds)) {
+        return locationScope.locationIds.map((id) => String(id));
+    }
+    return null;
+}
+
+/**
+ * Whether a staff user should appear in branch-scoped lists (Call Center authors, teams, access).
+ * Access-based: all-access users always match; otherwise grants must intersect the active scope.
+ */
+function userVisibleInLocationScope(user, tenant, locationScope) {
+    const scopeIds = scopeLocationIdStrings(locationScope);
+    if (scopeIds === null) return true;
+    if (!scopeIds.length) return false;
+
+    const allowed = resolveAllowedLocationIds(user, tenant);
+    if (allowed === null) return true;
+    if (!allowed.length) return false;
+    return allowed.some((id) => scopeIds.includes(String(id)));
+}
+
+function filterUsersByLocationScope(users, tenant, locationScope) {
+    if (!Array.isArray(users)) return [];
+    const scopeIds = scopeLocationIdStrings(locationScope);
+    if (scopeIds === null) return users;
+    return users.filter((user) => userVisibleInLocationScope(user, tenant, locationScope));
+}
+
+/**
  * Build a Mongo filter fragment for Member.locationId (home branch).
  * Empty object = no restriction.
  */
@@ -159,6 +197,9 @@ module.exports = {
     userHasAllLocations,
     resolveAllowedLocationIds,
     userCanAccessLocation,
+    scopeLocationIdStrings,
+    userVisibleInLocationScope,
+    filterUsersByLocationScope,
     memberLocationFilter,
     checkInLocationElemMatch,
     mergeLocationIntoFilter,

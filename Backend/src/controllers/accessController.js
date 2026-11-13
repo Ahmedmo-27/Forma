@@ -28,11 +28,13 @@ const searchUsersForAccess = async (req, res) => {
         if (role) {
             if (!roles.includes(role)) return res.status(403).json({ message: "Not authorized" });
             const users = await User.find({ role, _id: { $ne: req.user.id } })
-                .select("name role")
+                .select("name role allowedLocationIds canAccessAllLocations")
                 .sort({ name: 1 })
-                .limit(200);
+                .limit(200)
+                .lean();
             return res.json({
-                users: users.map((user) => ({ _id: user._id, name: user.name, role: user.role })),
+                users: filterUsersByLocationScope(users, req.tenant, req.locationScope)
+                    .map((user) => ({ _id: user._id, name: user.name, role: user.role })),
             });
         }
 
@@ -45,16 +47,19 @@ const searchUsersForAccess = async (req, res) => {
             _id: { $ne: req.user.id },
             $or: [{ name: regex }, { email: regex }],
         })
-            .select("name role")
+            .select("name role allowedLocationIds canAccessAllLocations")
             .sort({ name: 1 })
-            .limit(8);
+            .limit(40)
+            .lean();
 
         res.json({
-            users: users.map((user) => ({
-                _id: user._id,
-                name: user.name,
-                role: user.role,
-            })),
+            users: filterUsersByLocationScope(users, req.tenant, req.locationScope)
+                .slice(0, 8)
+                .map((user) => ({
+                    _id: user._id,
+                    name: user.name,
+                    role: user.role,
+                })),
         });
     } catch (error) {
         res.status(500).json({ message: "Server error", error: error.message });
@@ -62,7 +67,11 @@ const searchUsersForAccess = async (req, res) => {
 };
 
 const Location = require("../models/Location");
-const { userHasAllLocations, toIdStrings } = require("../utils/locationScope");
+const {
+    userHasAllLocations,
+    toIdStrings,
+    filterUsersByLocationScope,
+} = require("../utils/locationScope");
 const { applyLocationAccessToUser } = require("../utils/userLocationAccess");
 
 async function applyLocationGrants(req, user) {

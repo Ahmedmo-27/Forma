@@ -3,6 +3,8 @@ import {
     userHasAllLocations,
     resolveAllowedLocationIds,
     userCanAccessLocation,
+    userVisibleInLocationScope,
+    filterUsersByLocationScope,
     memberLocationFilter,
     mergeLocationIntoFilter,
     memberMatchesLocationFilter,
@@ -95,6 +97,25 @@ describe("locationScope helpers", () => {
             { locationFilter: filter },
             { locationId: "eeeeeeeeeeeeeeeeeeeeeeee" }
         )?.code).toBe("MEMBER_LOCATION_FORBIDDEN");
+    });
+
+    it("filters staff lists by branch grants", () => {
+        const branchA = "aaaaaaaaaaaaaaaaaaaaaaaa";
+        const branchB = "bbbbbbbbbbbbbbbbbbbbbbbb";
+        const one = { mode: "one", locationId: branchA };
+        const allAccess = { role: "Sales Manager", canAccessAllLocations: true, allowedLocationIds: [] };
+        const onlyA = { role: "Sales", canAccessAllLocations: false, allowedLocationIds: [branchA] };
+        const onlyB = { role: "Sales", canAccessAllLocations: false, allowedLocationIds: [branchB] };
+
+        expect(userVisibleInLocationScope(allAccess, {}, one)).toBe(true);
+        expect(userVisibleInLocationScope(onlyA, {}, one)).toBe(true);
+        expect(userVisibleInLocationScope(onlyB, {}, one)).toBe(false);
+        expect(userVisibleInLocationScope(onlyA, {}, { mode: "unrestricted" })).toBe(true);
+
+        const filtered = filterUsersByLocationScope([allAccess, onlyA, onlyB], {}, one);
+        expect(filtered).toHaveLength(2);
+        expect(filtered).toContain(allAccess);
+        expect(filtered).toContain(onlyA);
     });
 });
 
