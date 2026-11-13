@@ -31,25 +31,6 @@ const platformUserSchema = new mongoose.Schema(
             default: "active",
             index: true,
         },
-        mfa: {
-            enabled: {
-                type: Boolean,
-                default: false,
-            },
-            secretEncrypted: {
-                type: String,
-                default: null,
-            },
-            recoveryCodesHashed: [
-                {
-                    type: String,
-                },
-            ],
-            enrolledAt: {
-                type: Date,
-                default: null,
-            },
-        },
         lastLoginAt: {
             type: Date,
             default: null,

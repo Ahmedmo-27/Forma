@@ -1,19 +1,10 @@
 import platformClient from "./client";
 
 // ==========================================
-// 1. Authentication & MFA
+// 1. Authentication
 // ==========================================
 export const apiLogin = (data, signal) =>
   platformClient.post("/auth/login", data, { signal });
-
-export const apiMfaSetup = (data, signal) =>
-  platformClient.post("/auth/mfa/setup", data, { signal });
-
-export const apiMfaVerify = (data, signal) =>
-  platformClient.post("/auth/mfa/verify-enrollment", data, { signal });
-
-export const apiMfaChallenge = (data, signal) =>
-  platformClient.post("/auth/mfa/challenge", data, { signal });
 
 export const apiGetMe = (signal) =>
   platformClient.get("/auth/me", { signal });
@@ -35,9 +26,6 @@ export const apiUpdatePlatformUser = (id, data, signal) =>
 
 export const apiDeletePlatformUser = (id, data, signal) =>
   platformClient.delete(`/users/${id}`, { data, signal });
-
-export const apiResetUserMfa = (id, data, signal) =>
-  platformClient.post(`/users/${id}/reset-mfa`, data, { signal });
 
 export const apiRevokeUserSessions = (id, signal) =>
   platformClient.post(`/users/${id}/revoke-sessions`, {}, { signal });

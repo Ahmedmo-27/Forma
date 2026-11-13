@@ -29,7 +29,6 @@ export function PlatformAuthProvider({ children }) {
 
   const [token, setToken] = useState(() => localStorage.getItem(STORAGE_TOKEN));
   const [loading, setLoading] = useState(true);
-  const [mfaSession, setMfaSession] = useState(null); // { tempToken, user, step: "challenge" | "setup" }
 
   const [impersonation, setImpersonation] = useState(() => {
     try {
@@ -72,7 +71,6 @@ export function PlatformAuthProvider({ children }) {
 
     setToken(nextToken);
     setUser(nextUser);
-    setMfaSession(null);
 
     localStorage.setItem(STORAGE_TOKEN, nextToken);
     if (refreshToken) {
@@ -98,7 +96,6 @@ export function PlatformAuthProvider({ children }) {
 
     setToken(null);
     setUser(null);
-    setMfaSession(null);
     setImpersonation(null);
 
     window.location.href = "/platform/login";
@@ -120,9 +117,6 @@ export function PlatformAuthProvider({ children }) {
     token,
     loading,
     isAuthenticated: Boolean(token && user),
-    mfaSession,
-    setMfaSession,
-    clearMfaSession: () => setMfaSession(null),
     loginSuccess,
     logout,
     impersonation,

@@ -17,24 +17,6 @@ export const ERROR_CODES = {
     category: "auth",
     retryable: false,
   },
-  AUTH_MFA_REQUIRED: {
-    code: "AUTH_MFA_REQUIRED",
-    status: 401,
-    category: "auth",
-    retryable: true,
-  },
-  AUTH_MFA_INVALID_CODE: {
-    code: "AUTH_MFA_INVALID_CODE",
-    status: 400,
-    category: "auth",
-    retryable: true,
-  },
-  AUTH_MFA_RECOVERY_USED: {
-    code: "AUTH_MFA_RECOVERY_USED",
-    status: 200,
-    category: "auth",
-    retryable: false,
-  },
   AUTH_TOKEN_EXPIRED: {
     code: "AUTH_TOKEN_EXPIRED",
     status: 401,

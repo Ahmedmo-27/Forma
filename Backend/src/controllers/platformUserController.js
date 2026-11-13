@@ -22,7 +22,7 @@ async function getPlatformUsers(req, res) {
 
         const [users, total] = await Promise.all([
             PlatformUser.find(filter)
-                .select("-password -mfa.secretEncrypted -mfa.recoveryCodesHashed")
+                .select("-password")
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit),
@@ -212,50 +212,6 @@ async function deletePlatformUser(req, res) {
 }
 
 /**
- * Reset MFA for a Platform User
- * POST /api/platform/users/:id/reset-mfa
- */
-async function resetUserMfa(req, res) {
-    try {
-        const { id } = req.params;
-        const { reason } = req.body;
-        if (!reason || !reason.trim()) {
-            return res.status(400).json({ message: "Mandatory 'reason' field required to reset MFA" });
-        }
-
-        const user = await PlatformUser.findById(id);
-        if (!user) return res.status(404).json({ message: "Platform user not found" });
-
-        user.mfa = {
-            enabled: false,
-            secretEncrypted: null,
-            recoveryCodesHashed: [],
-            enrolledAt: null,
-        };
-        // Revoke existing sessions upon MFA reset
-        user.tokenVersion = (user.tokenVersion || 0) + 1;
-        await user.save();
-
-        await AuditLog.create({
-            action: "phone_privacy_updated",
-            actor: req.platformUser.id,
-            actorRole: "PlatformUser",
-            targetType: "user",
-            targetId: user._id.toString(),
-            meta: {
-                action: "mfa_reset",
-                targetUserEmail: user.email,
-                reason,
-            },
-        });
-
-        res.json({ message: `MFA reset successfully for ${user.email}. User must re-enroll on next sign in.` });
-    } catch (err) {
-        res.status(500).json({ message: "Server error", error: err.message });
-    }
-}
-
-/**
  * Revoke All Active Sessions for a Platform User
  * POST /api/platform/users/:id/revoke-sessions
  */
@@ -279,6 +235,5 @@ module.exports = {
     createPlatformUser,
     updatePlatformUser,
     deletePlatformUser,
-    resetUserMfa,
     revokeUserSessions,
 };

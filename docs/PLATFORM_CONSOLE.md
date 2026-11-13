@@ -64,7 +64,7 @@ The platform console implements fine-grained Role-Based Access Control (RBAC) ac
 |---|---|---|:---:|:---:|:---:|:---:|
 | **Platform Users** | `platform_users.read` | View platform team accounts | ✅ | ❌ | ❌ | ❌ |
 | | `platform_users.manage` | Invite, edit roles, toggle status | ✅ | ❌ | ❌ | ❌ |
-| | `platform_users.reset_mfa` | Reset operator MFA / revoke sessions | ✅ | ❌ | ❌ | ❌ |
+| | `platform_users.revoke` | Revoke operator sessions | ✅ | ❌ | ❌ | ❌ |
 | **Tenants** | `tenants.read` | Search and view tenant profiles | ✅ | ✅ | ✅ | ✅ |
 | | `tenants.create` | Onboard new gym tenants | ✅ | ❌ | ❌ | ❌ |
 | | `tenants.lifecycle` | Suspend, activate, cancel, extend trial | ✅ | ❌ | ❌ | ❌ |
@@ -188,8 +188,7 @@ Follow the interactive prompts:
 1. Enter Administrator Name.
 2. Enter Administrator Email (unique).
 3. Enter Password (minimum 8 characters; never hardcoded in scripts).
-4. Save the generated Base32 MFA secret or scan the QR URI into Google Authenticator / 1Password.
-5. Save the 8 emergency backup recovery codes in a secure vault.
+4. Sign in at `/platform/login` with the email and password.
 
 ### Runbook 2: Onboarding a New Gym Tenant
 1. Navigate to `/platform/tenants` and click **+ Onboard Tenant**.

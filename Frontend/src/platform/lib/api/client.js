@@ -69,8 +69,7 @@ platformClient.interceptors.response.use(
       // Avoid looping on auth endpoints
       if (
         originalRequest?.url?.includes("/auth/login") ||
-        originalRequest?.url?.includes("/auth/refresh") ||
-        originalRequest?.url?.includes("/auth/mfa/")
+        originalRequest?.url?.includes("/auth/refresh")
       ) {
         return Promise.reject(normalized);
       }

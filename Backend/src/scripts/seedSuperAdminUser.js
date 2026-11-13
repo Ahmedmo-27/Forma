@@ -35,9 +35,6 @@ async function seed() {
                 password: hashedPassword,
                 role: "super_admin",
                 status: "active",
-                mfa: {
-                    enabled: false,
-                },
             });
             console.log(`✅ Platform user ${email} created as super_admin (ID: ${user._id}).`);
         }

@@ -11,9 +11,6 @@ const { autoInvalidate } = require("../utils/cacheInvalidator");
 
 const {
     login,
-    setupMfa,
-    verifyEnrollment,
-    challengeMfa,
     refreshToken,
     getMe,
 } = require("../controllers/platformAuthController");
@@ -23,7 +20,6 @@ const {
     createPlatformUser,
     updatePlatformUser,
     deletePlatformUser,
-    resetUserMfa,
     revokeUserSessions,
 } = require("../controllers/platformUserController");
 
@@ -116,12 +112,9 @@ const {
 router.use(platformIpAllowlist);
 
 // ==========================================
-// 1. Platform Authentication & MFA (Public / Rate-limited)
+// 1. Platform Authentication (Public / Rate-limited)
 // ==========================================
 router.post("/auth/login", platformAuthLimiter, login);
-router.post("/auth/mfa/setup", platformAuthLimiter, setupMfa);
-router.post("/auth/mfa/verify-enrollment", platformAuthLimiter, verifyEnrollment);
-router.post("/auth/mfa/challenge", platformAuthLimiter, challengeMfa);
 router.post("/auth/refresh", platformAuthLimiter, refreshToken);
 
 // ==========================================
@@ -136,7 +129,6 @@ router.get("/users", requirePlatformPermission(PERMISSIONS.PLATFORM_USERS_MANAGE
 router.post("/users", requirePlatformPermission(PERMISSIONS.PLATFORM_USERS_MANAGE), createPlatformUser);
 router.patch("/users/:id", requirePlatformPermission(PERMISSIONS.PLATFORM_USERS_MANAGE), updatePlatformUser);
 router.delete("/users/:id", requirePlatformPermission(PERMISSIONS.PLATFORM_USERS_MANAGE), deletePlatformUser);
-router.post("/users/:id/reset-mfa", requirePlatformPermission(PERMISSIONS.PLATFORM_USERS_REVOKE), resetUserMfa);
 router.post("/users/:id/revoke-sessions", requirePlatformPermission(PERMISSIONS.PLATFORM_USERS_REVOKE), revokeUserSessions);
 
 // ==========================================

@@ -3,17 +3,9 @@ import jwt from "jsonwebtoken";
 import { protectPlatform, PLATFORM_AUDIENCE, PLATFORM_ISSUER } from "../middleware/platformAuth";
 import { protect } from "../middleware/authMiddleware";
 import {
-    generateTotpSecret,
-    generateTotpCode,
-    verifyTotpCode,
-    generateRecoveryCodes,
-    verifyRecoveryCode,
-} from "../utils/totp";
-import {
     ROLES,
     PERMISSIONS,
     hasPermission,
-    getPermissionsForRole,
 } from "../config/platformPermissions";
 import { requirePlatformPermission } from "../middleware/platformRbac";
 import { login } from "../controllers/platformAuthController";
@@ -76,50 +68,6 @@ describe("Phase 1: Platform Identity, Security & RBAC", () => {
 
             expect(next).not.toHaveBeenCalled();
             expect(res.status).toHaveBeenCalledWith(401);
-        });
-    });
-
-    describe("TOTP MFA Engine & Recovery Codes", () => {
-        it("generates a valid 6-digit TOTP code and validates it within time window", () => {
-            const secret = generateTotpSecret();
-            expect(secret).toBeDefined();
-            expect(secret.length).toBeGreaterThan(16);
-
-            const code = generateTotpCode(secret);
-            expect(code).toMatch(/^\d{6}$/);
-
-            const isValid = verifyTotpCode(secret, code);
-            expect(isValid).toBe(true);
-
-            // Rejects invalid code
-            const isInvalid = verifyTotpCode(secret, "999999");
-            expect(isInvalid).toBe(false);
-        });
-
-        it("allows drift tolerance of ±1 step (30s)", () => {
-            const secret = generateTotpSecret();
-            const now = Date.now();
-            const pastCode = generateTotpCode(secret, now - 30000); // 30s ago
-            const futureCode = generateTotpCode(secret, now + 30000); // 30s in future
-            const tooOldCode = generateTotpCode(secret, now - 90000); // 90s ago
-
-            expect(verifyTotpCode(secret, pastCode, 1, now)).toBe(true);
-            expect(verifyTotpCode(secret, futureCode, 1, now)).toBe(true);
-            expect(verifyTotpCode(secret, tooOldCode, 1, now)).toBe(false);
-        });
-
-        it("generates and validates hashed backup recovery codes", async () => {
-            const { plainCodes, hashedCodes } = await generateRecoveryCodes(4);
-            expect(plainCodes).toHaveLength(4);
-            expect(hashedCodes).toHaveLength(4);
-
-            // First code matches index 0
-            const index = await verifyRecoveryCode(plainCodes[0], hashedCodes);
-            expect(index).toBe(0);
-
-            // Invalid code returns -1
-            const badIndex = await verifyRecoveryCode("INVALID-CODE", hashedCodes);
-            expect(badIndex).toBe(-1);
         });
     });
 
@@ -203,8 +151,8 @@ describe("Phase 1: Platform Identity, Security & RBAC", () => {
         });
     });
 
-    describe("Platform Login MFA Gate", () => {
-        it("requires MFA setup when MFA is not enrolled", async () => {
+    describe("Platform Login", () => {
+        it("issues access and refresh tokens on successful password login", async () => {
             const hashedPassword = await passwordUtils.hashPassword("password123");
             const fakeUser = {
                 _id: "user-super-1",
@@ -216,7 +164,6 @@ describe("Phase 1: Platform Identity, Security & RBAC", () => {
                 failedLoginCount: 1,
                 lockedUntil: null,
                 tokenVersion: 0,
-                mfa: { enabled: false },
                 save: vi.fn().mockResolvedValue(true),
             };
 
@@ -239,48 +186,17 @@ describe("Phase 1: Platform Identity, Security & RBAC", () => {
             expect(fakeUser.save).toHaveBeenCalled();
 
             const jsonArg = res.json.mock.calls[0][0];
-            expect(jsonArg.mfaSetupRequired).toBe(true);
-            expect(jsonArg.tempToken).toEqual(expect.any(String));
-            expect(jsonArg.token).toBeUndefined();
-            expect(jsonArg.refreshToken).toBeUndefined();
-        });
-
-        it("requires MFA challenge when MFA is already enrolled", async () => {
-            const hashedPassword = await passwordUtils.hashPassword("password123");
-            const fakeUser = {
-                _id: "user-super-2",
-                name: "Billing Admin",
-                email: "billing@platform.com",
-                password: hashedPassword,
-                role: "billing",
-                status: "active",
-                failedLoginCount: 0,
-                lockedUntil: null,
-                tokenVersion: 0,
-                mfa: { enabled: true, secretEncrypted: "enc" },
-                save: vi.fn().mockResolvedValue(true),
-            };
-
-            vi.spyOn(PlatformUser, "findOne").mockResolvedValue(fakeUser);
-
-            const req = {
-                body: {
-                    email: "billing@platform.com",
-                    password: "password123",
-                },
-            };
-            const res = {
-                status: vi.fn().mockReturnThis(),
-                json: vi.fn(),
-            };
-
-            await login(req, res);
-
-            const jsonArg = res.json.mock.calls[0][0];
-            expect(jsonArg.mfaRequired).toBe(true);
-            expect(jsonArg.tempToken).toEqual(expect.any(String));
-            expect(jsonArg.token).toBeUndefined();
-            expect(jsonArg.refreshToken).toBeUndefined();
+            expect(jsonArg.token).toEqual(expect.any(String));
+            expect(jsonArg.refreshToken).toEqual(expect.any(String));
+            expect(jsonArg.user).toEqual(
+                expect.objectContaining({
+                    email: "admin@platform.com",
+                    role: "super_admin",
+                })
+            );
+            expect(jsonArg.mfaRequired).toBeUndefined();
+            expect(jsonArg.mfaSetupRequired).toBeUndefined();
+            expect(jsonArg.tempToken).toBeUndefined();
         });
     });
 });

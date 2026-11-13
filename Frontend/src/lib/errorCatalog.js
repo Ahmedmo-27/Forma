@@ -20,27 +20,6 @@ export const ERROR_MESSAGES = {
     presentation: "modal",
     primaryAction: { label: "Wait for Timer", action: "wait" },
   },
-  AUTH_MFA_REQUIRED: {
-    title: "Two-Factor Authentication Required",
-    message: "Please enter the 6-digit code from your authenticator app to complete sign-in.",
-    severity: "info",
-    presentation: "modal",
-    primaryAction: { label: "Verify Code", action: "mfa_challenge" },
-  },
-  AUTH_MFA_INVALID_CODE: {
-    title: "Invalid Verification Code",
-    message: "The 6-digit code was incorrect or has expired. Please check your authenticator and try again.",
-    severity: "warning",
-    presentation: "inline",
-    primaryAction: { label: "Retry Code", action: "retry" },
-  },
-  AUTH_MFA_RECOVERY_USED: {
-    title: "Backup Recovery Code Used",
-    message: "You used a single-use backup recovery code. We strongly recommend generating new recovery codes now.",
-    severity: "warning",
-    presentation: "toast",
-    primaryAction: { label: "Settings", action: "navigate_settings" },
-  },
   AUTH_TOKEN_EXPIRED: {
     title: "Session Expired",
     message: "Your session has expired. Please enter your credentials to resume without losing your current progress.",

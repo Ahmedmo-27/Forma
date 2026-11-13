@@ -74,7 +74,6 @@ async function run() {
         password: hashedPassword,
         role: "super_admin",
         status: "active",
-        mfa: { enabled: false },
     });
 
     console.log(`\n🎉 Super Admin created successfully!`);

@@ -74,9 +74,6 @@ AppError (isOperational = true)
 | :--- | :---: | :--- | :---: | :--- | :--- |
 | `AUTH_INVALID_CREDENTIALS` | 401 | auth | Yes | Inline message | Verify credentials and try again. |
 | `AUTH_ACCOUNT_LOCKED` | 429 | auth | Timer | RateLimitedModal | Wait for cooldown timer to expire. |
-| `AUTH_MFA_REQUIRED` | 401 | auth | Yes | MFA modal | Enter 6-digit TOTP code. |
-| `AUTH_MFA_INVALID_CODE` | 400 | auth | Yes | Inline message | Verify authenticator code or use backup. |
-| `AUTH_MFA_RECOVERY_USED` | 200 | auth | No | Warning toast | Generate fresh recovery codes. |
 | `AUTH_TOKEN_EXPIRED` | 401 | auth | Auto | SessionExpiredModal | Re-enter password without losing unsaved form. |
 | `AUTH_TOKEN_INVALID` | 401 | auth | No | SessionExpiredModal | Sign in with valid credentials. |
 | `AUTH_WRONG_AUDIENCE` | 401 | auth | No | ErrorModal | Sign in through designated portal. |
