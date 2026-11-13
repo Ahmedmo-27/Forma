@@ -5,7 +5,8 @@
  * 1. Verify all documents have `tenantId` populated (run Phase 7 data migration first).
  * 2. CREATE new compound indexes `{ tenantId: 1, ... }` FIRST while legacy indexes remain in place.
  * 3. Verify that all new compound indexes have built successfully.
- * 4. DROP legacy global unique indexes (`systemId_1`, `memberId_1`, `barcode_1`, `email_1`).
+ * 4. DROP legacy global unique indexes (`systemId_1`, `memberId_1`, `barcode_1`).
+ * Staff email, username, and phoneKey are globally unique again (not per gym).
  *
  * Usage:
  *   node src/scripts/migrateIndexes.js [--dry-run]
@@ -21,9 +22,25 @@ const INDEX_OPERATIONS = [
     {
         collection: "users",
         newIndexes: [
-            { keys: { tenantId: 1, email: 1 }, options: { unique: true, name: "tenantId_1_email_1" } },
+            { keys: { email: 1 }, options: { unique: true, name: "email_1" } },
+            {
+                keys: { username: 1 },
+                options: {
+                    unique: true,
+                    partialFilterExpression: { username: { $type: "string" } },
+                    name: "username_1",
+                },
+            },
+            {
+                keys: { phoneKey: 1 },
+                options: {
+                    unique: true,
+                    partialFilterExpression: { phoneKey: { $gt: "" } },
+                    name: "phoneKey_1",
+                },
+            },
         ],
-        legacyIndexesToDrop: ["email_1"],
+        legacyIndexesToDrop: ["tenantId_1_email_1", "tenantId_1_username_1"],
     },
     {
         collection: "members",
@@ -60,6 +77,14 @@ const INDEX_OPERATIONS = [
             { keys: { tenantId: 1, isBlocked: 1 }, options: { name: "tenantId_1_isBlocked_1" } },
             { keys: { tenantId: 1, name: 1 }, options: { name: "tenantId_1_name_1" } },
             { keys: { tenantId: 1, phones: 1 }, options: { name: "tenantId_1_phones_1" } },
+            {
+                keys: { phoneKey: 1 },
+                options: {
+                    unique: true,
+                    partialFilterExpression: { phoneKey: { $gt: "" } },
+                    name: "phoneKey_1",
+                },
+            },
         ],
         legacyIndexesToDrop: ["systemId_1", "memberId_1", "barcode_1"],
     },
