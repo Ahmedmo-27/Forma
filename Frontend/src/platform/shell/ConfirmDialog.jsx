@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { AlertTriangle, AlertCircle } from "lucide-react";
+import {  AlertCircle } from "lucide-react";
 import { Dialog } from "../ui/Dialog";
 import { Button } from "../ui/Button";
 import { Textarea } from "../ui/Textarea";

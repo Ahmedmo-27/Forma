@@ -22,7 +22,7 @@ export default function Transfer() {
   const [search, setSearch]         = useState('');
   const [repFilter, setRepFilter]   = useState('all');
   const [page, setPage]             = useState(1);
-  const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
+  const [_pagination, _setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
   const [selectedIds, setSelectedIds] = useState(new Set());
   const [transferTo, setTransferTo] = useState('');
   const [selectCountInput, setSelectCountInput] = useState('');

@@ -11,13 +11,10 @@ import {
   Badge,
   StatusPill,
   Tooltip,
-  Popover,
   DropdownMenu,
   Dialog,
   Drawer,
-  Skeleton,
   Avatar,
-  Breadcrumbs,
   Pagination,
   UsageMeter,
   Callout,
@@ -37,7 +34,6 @@ import { usePlatformTheme } from "../../lib/theme/ThemeContext";
 import {
   Search,
   Sparkles,
-  Shield,
   Download,
   Trash2,
   ExternalLink,
@@ -48,7 +44,7 @@ import {
 } from "lucide-react";
 
 export default function DesignSystemPage() {
-  const { theme, setTheme, density, setDensity, resolvedTheme } = usePlatformTheme();
+  const { theme, setTheme, density, setDensity, resolvedTheme: _resolvedTheme } = usePlatformTheme();
 
   // Component state demonstrations
   const [comboboxVal, setComboboxVal] = useState("titan");

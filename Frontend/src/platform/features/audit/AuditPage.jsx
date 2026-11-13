@@ -15,11 +15,8 @@ import {
 import {
   ShieldAlert,
   Search,
-  Filter,
   RefreshCw,
   Eye,
-  FileCode,
-  Calendar,
   Lock,
 } from "lucide-react";
 import { formatDate, formatRelativeTime } from "../../lib/utils/formatters";

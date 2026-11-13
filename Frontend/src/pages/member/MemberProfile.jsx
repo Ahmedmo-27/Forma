@@ -381,7 +381,7 @@ export default function MemberProfile() {
 
 function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
   const sub = member.subscriptions?.at(-1);
-  const pkg = sub?.packageSnapshot ?? sub?.package;
+  const _pkg = sub?.packageSnapshot ?? sub?.package;
   const totalCheckIns = stats?.totalCheckIns ?? 0;
 
   const lastCheckIn = (member.userlog ?? [])

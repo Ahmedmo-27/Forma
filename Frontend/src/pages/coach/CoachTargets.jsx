@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, CardHeader, Spinner, EmptyState, Avatar } from '../../components/ui';
+import { PageHeader, Spinner, EmptyState, Avatar } from '../../components/ui';
 import { getCoachTeam } from '../../api/endpoints';
 
 export default function CoachTargets() {
@@ -27,8 +27,8 @@ export default function CoachTargets() {
 
   const totalMembers = team.reduce((s, c) => s + (c.stats?.total ?? 0), 0);
   const totalActive = team.reduce((s, c) => s + (c.stats?.active ?? 0), 0);
-  const totalPT = team.reduce((s, c) => s + (c.stats?.totalPTSessions ?? 0), 0);
-  const totalUsedPT = team.reduce((s, c) => s + (c.stats?.usedPTSessions ?? 0), 0);
+  const _totalPT = team.reduce((s, c) => s + (c.stats?.totalPTSessions ?? 0), 0);
+  const _totalUsedPT = team.reduce((s, c) => s + (c.stats?.usedPTSessions ?? 0), 0);
 
   return (
     <Layout>

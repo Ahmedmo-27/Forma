@@ -1,4 +1,4 @@
-import { GitCompare, RefreshCw } from "lucide-react";
+
 import { ErrorModal } from "./ErrorModal";
 
 export function ConflictModal({ isOpen, onClose, onReload }) {

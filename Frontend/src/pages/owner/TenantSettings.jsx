@@ -1,5 +1,5 @@
 import { apiOrigin } from '../../api/axios';
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import QRCode from 'qrcode';
 import toast from 'react-hot-toast';
@@ -14,10 +14,10 @@ import {
   logoutWhatsAppSession,
 } from '../../api/endpoints';
 import {
-  PageHeader, Card, CardHeader, Input, Select, Btn, Spinner, Badge,
+  PageHeader, Card, CardHeader, Input, Select, Btn, Spinner,
 } from '../../components/ui';
 import {
-  isValidHexColor,
+  
   normalizeHexColor,
   toColorPickerValue,
   validateFile,
@@ -380,7 +380,7 @@ export default function TenantSettings() {
   }
 
   const logoKey = tenant?.settings?.branding?.logoKey;
-  const logoFile = logoKey ? String(logoKey).split(/[\/\\]/).pop() : null;
+  const logoFile = logoKey ? String(logoKey).split(/[/\\]/).pop() : null;
   const logoUrl = logoFile ? `${apiOrigin}/uploads/${encodeURIComponent(logoFile)}` : '/forma-favicon.png';
 
   const plan = tenant?.plan;

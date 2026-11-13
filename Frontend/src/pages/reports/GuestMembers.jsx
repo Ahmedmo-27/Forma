@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, EmptyState, Badge, Pagination, fmtDate, Avatar, toLocalDateString, parseDateBoundary, Table, MenuSelect } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, EmptyState, Pagination, fmtDate, Avatar, toLocalDateString, parseDateBoundary, Table, MenuSelect } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAllMembers, getSalesUsers, getCoachTeam } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
@@ -240,7 +240,7 @@ export default function GuestMembers() {
                     </tr>
                   </thead>
                   <tbody>
-                    {paginatedResults.map((m, i) => (
+                    {paginatedResults.map((m, _i) => (
                       <tr
                         key={m._id}
                         className="tbl-row"

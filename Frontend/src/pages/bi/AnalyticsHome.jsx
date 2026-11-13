@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import {  useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Layout from '../../components/Layout';
 import {
@@ -6,7 +6,6 @@ import {
   EmptyState,
   PageHeader,
   Avatar,
-  Badge,
   Modal,
   Btn,
   DashboardSkeleton,
@@ -62,7 +61,7 @@ function formatNumberOnly(piasters) {
   return `${sign}${pounds}.${fils}`;
 }
 
-function formatValue(kpi, currency = 'EGP') {
+function _formatValue(kpi, currency = 'EGP') {
   if (kpi.value == null) return 'Not enough data';
   if (kpi.unit === 'piasters') return formatPiasters(kpi.value, currency);
   if (kpi.unit === 'rate') return `${(Number(kpi.value) * 100).toFixed(1)}%`;

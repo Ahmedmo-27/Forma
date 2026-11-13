@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -9,7 +9,7 @@ import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, CardHeader, StatCard,
-  Avatar, Badge, EmptyState, fmtDate, Table, fmtDateTime, fmtTimeWithSeconds, toLocalDateString,
+  Avatar, EmptyState, fmtDate, fmtTimeWithSeconds, toLocalDateString,
   DashboardSkeleton,
 } from '../../components/ui';
 import {
@@ -42,7 +42,7 @@ import {
 
 const fmt = (n) => Number(n ?? 0).toLocaleString();
 
-function monthStart() {
+function _monthStart() {
   return `${toLocalDateString().slice(0, 7)}-01`;
 }
 const TODAY = toLocalDateString();
@@ -108,10 +108,10 @@ export default function OwnerDashboard() {
   useLocationEffect(() => { load(); }, [load]);
 
   // derived stats
-  const activeMembers  = members.filter(m => m.status === 'active').length;
-  const frozenMembers  = members.filter(m => m.status === 'frozen').length;
-  const expiredMembers = members.filter(m => m.status === 'expired').length;
-  const guestMembers   = members.filter(m => m.status === 'guest').length;
+  const _activeMembers  = members.filter(m => m.status === 'active').length;
+  const _frozenMembers  = members.filter(m => m.status === 'frozen').length;
+  const _expiredMembers = members.filter(m => m.status === 'expired').length;
+  const _guestMembers   = members.filter(m => m.status === 'guest').length;
   const pendingReqs    = requests.filter(r => r.status === 'pending').length;
   const salesReps      = salesTeam.filter(u => u.role === 'Sales');
   const monthKey       = TODAY.slice(0, 7);

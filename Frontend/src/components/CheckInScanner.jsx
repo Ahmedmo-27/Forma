@@ -21,7 +21,7 @@ export default function CheckInScanner({
   onScan,
   autoStart = false,
   lastScannedResult = null,
-  embedded = true,
+  embedded: _embedded = true,
   onClose = null,
 }) {
   const containerId = useRef(`checkin-scanner-${Math.random().toString(36).substring(2, 9)}`).current;

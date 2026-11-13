@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { getTenantMe } from '../api/endpoints';
 import { useAuth } from './AuthContext';
-import { isValidHexColor, normalizeHexColor } from '../lib/validation';
+import {  normalizeHexColor } from '../lib/validation';
 
 const TenantContext = createContext(null);
 
@@ -120,7 +120,7 @@ export function TenantProvider({ children }) {
 
   const hasFeature = useCallback((featureKey) => {
     if (!tenant) return true; // optimistic fallback while loading or single-tenant mode
-    return tenant.effectiveFeatures?.includes(featureKey) ?? true;
+    return Array.isArray(tenant.effectiveFeatures) && tenant.effectiveFeatures.includes(featureKey);
   }, [tenant]);
 
   const enabledActivities = tenant?.settings?.enabledActivities?.length > 0

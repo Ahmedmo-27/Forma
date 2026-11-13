@@ -1,4 +1,4 @@
-import { CreditCard, CheckCircle } from "lucide-react";
+
 import { ErrorModal } from "./ErrorModal";
 
 export function PaymentFailedModal({ isOpen, onClose, error, onRetryPayment }) {

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { Card, CardHeader, Badge, Table, EmptyState, fmtDate, fmtDateTime, Btn, Modal, Input, Select, Spinner, ConfirmDialog, Switch, Alert, toLocalDateString } from '../../../components/ui';
 import { getPackages, getMemberPendingException, createPackageException, updatePackageExceptionStatus, assignPackage, createPackage, addPTSessions, refundMember, refundPTSessions } from '../../../api/endpoints';
-import api from '../../../api/axios';
 import CatalogPackageForm, { EMPTY_PACKAGE_FORM, validatePackageForm, packageFormToPayload } from '../../../components/PackageForm';
 import PackageAcceptModal from '../../../components/accounting/PackageAcceptModal';
 import { useTenant } from '../../../context/TenantContext';
@@ -756,7 +755,7 @@ function PackageFormFields({ form, set, readOnly, makeException, allEditable }) 
   );
 }
 
-function AddPackageModal({ open, onClose, member, pending, isSalesManager, isAccountant, isOwner, onSuccess, onReview }) {
+function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSalesManager, isAccountant, isOwner, onSuccess, onReview }) {
   const { currency = 'EGP' } = useTenant() || {};
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(false);

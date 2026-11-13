@@ -15,14 +15,11 @@ import {
 import {
   FileSpreadsheet,
   Download,
-  Filter,
   RefreshCw,
   ShieldCheck,
   TrendingUp,
   TrendingDown,
   Gift,
-  Tag,
-  Calendar,
 } from "lucide-react";
 import { formatCurrency, formatDate, formatRelativeTime } from "../../lib/utils/formatters";
 
@@ -203,7 +200,6 @@ export default function LedgerPage() {
                 const isPurchase = evt.type === "purchase";
                 const isRefund = evt.type === "refund";
                 const isGrant = evt.type === "manual_grant";
-                const isPriceChange = evt.type === "price_change";
 
                 return (
                   <tr

@@ -29,7 +29,6 @@ import {
   Snowflake,
   Ticket,
   User,
-  X,
   XCircle,
 } from 'lucide-react';
 

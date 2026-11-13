@@ -5,7 +5,7 @@ import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, SearchInput, EmptyState, Avatar, Badge, fmtDateTime, Pagination, CardListSkeleton } from '../../components/ui';
+import { PageHeader, Btn, SearchInput, EmptyState, Avatar, Badge, fmtDateTime, Pagination, CardListSkeleton } from '../../components/ui';
 import { getAllNotes, getSalesUsers } from '../../api/endpoints';
 import { Check, X } from 'lucide-react';
 

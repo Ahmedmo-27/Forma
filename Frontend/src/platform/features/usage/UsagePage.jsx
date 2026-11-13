@@ -13,7 +13,6 @@ import {
   Skeleton,
   Callout,
   EmptyState,
-  UsageMeter,
   platformToast,
 } from "../../ui";
 import {
@@ -22,12 +21,10 @@ import {
   AlertTriangle,
   Download,
   RefreshCw,
-  TrendingUp,
   Server,
-  Zap,
   ShieldAlert,
 } from "lucide-react";
-import { formatBytes, formatNumber, formatDate } from "../../lib/utils/formatters";
+import { formatBytes, formatNumber } from "../../lib/utils/formatters";
 
 export default function UsagePage() {
   const [recomputing, setRecomputing] = useState(false);
@@ -43,7 +40,7 @@ export default function UsagePage() {
 
   const {
     data: snapshotsData,
-    isLoading: snapshotsLoading,
+    isLoading: _snapshotsLoading,
   } = useQuery({
     queryKey: ["platform", "analytics-snapshots"],
     queryFn: () => apiGetAnalyticsSnapshots({ limit: 14 }).then((r) => r.data || []),
@@ -52,7 +49,7 @@ export default function UsagePage() {
   const topStorage = costData?.topStorage || [];
   const topWhatsApp = costData?.topWhatsApp || [];
   const fairUseOverages = costData?.fairUseOverages || [];
-  const snapshots = snapshotsData || [];
+  const _snapshots = snapshotsData || [];
 
   const totalStorageBytes = costData?.totalStorageBytes ?? topStorage.reduce((acc, t) => acc + (t.storageBytes || 0), 0);
   const totalWhatsAppMessages = topWhatsApp.reduce((acc, t) => acc + (t.whatsappMonthly || 0), 0);

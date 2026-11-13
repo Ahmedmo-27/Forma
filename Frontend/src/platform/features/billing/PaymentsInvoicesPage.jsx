@@ -34,7 +34,6 @@ import {
   RotateCcw,
   Clock,
   Search,
-  ExternalLink,
   ShieldCheck,
 } from "lucide-react";
 import { formatCurrency, formatDate, formatRelativeTime } from "../../lib/utils/formatters";

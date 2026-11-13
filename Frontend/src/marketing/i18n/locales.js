@@ -18,6 +18,9 @@ export const MARKETING_PATHS = [
   "/multi-branch-gym-software",
   "/technology",
   "/faq",
+  "/privacy",
+  "/terms",
+  "/refunds",
 ];
 
 export function isLocale(value) {

@@ -9,8 +9,6 @@ import {
 import {
   Button,
   Badge,
-  Input,
-  Select,
   Tabs,
   TabsList,
   TabTrigger,
@@ -33,7 +31,6 @@ import {
   XCircle,
   Edit2,
   Calendar,
-  Layers,
 } from "lucide-react";
 import { formatCurrency, formatDate, formatDurationLabel } from "../../lib/utils/formatters";
 

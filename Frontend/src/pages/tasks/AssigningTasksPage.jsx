@@ -17,8 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import {
   EXPORT_COLUMNS, buildExcel, columnsForExport,
-  columnValue, taskPermissions, toggleId, toggleIds,
-  canUserAssignTasks, canUserReceiveTasks, formatTaskDateTime,
+  columnValue, taskPermissions, toggleId, toggleIds, canUserReceiveTasks, formatTaskDateTime,
   filterMembersAdvanced, packageName, toLocalDateString,
   SELECTION_TEMPLATES, applySelectionTemplate, invertSelection,
 } from './taskMembers';
@@ -68,7 +67,7 @@ export default function AssigningTasksPage() {
 
   // ── Overview KPI Stats State ──
   const [overviewStats, setOverviewStats] = useState(null);
-  const [loadingOverview, setLoadingOverview] = useState(false);
+  const [_loadingOverview, setLoadingOverview] = useState(false);
 
   // ── Reference Data ──
   const [salesUsers, setSalesUsers] = useState([]);
@@ -91,7 +90,7 @@ export default function AssigningTasksPage() {
 
   const [members, setMembers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [loaded, setLoaded] = useState(false);
+  const [_loaded, setLoaded] = useState(false);
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(() => new Set());
   const selectedSet = useMemo(() => {
@@ -143,8 +142,8 @@ export default function AssigningTasksPage() {
   const [templateMenuOpen, setTemplateMenuOpen] = useState(false);
   const [customCountInput, setCustomCountInput] = useState('10');
   const [customCountOrder, setCustomCountOrder] = useState('first');
-  const [transferModalTemplate, setTransferModalTemplate] = useState('');
-  const [lastAppliedTemplate, setLastAppliedTemplate] = useState('');
+  const [_transferModalTemplate, setTransferModalTemplate] = useState('');
+  const [_lastAppliedTemplate, setLastAppliedTemplate] = useState('');
   const [menuAlign, setMenuAlign] = useState('left');
   const templateMenuRef = useRef(null);
 
@@ -152,11 +151,11 @@ export default function AssigningTasksPage() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [createdTasks, setCreatedTasks] = useState([]);
   const [loadingCreatedTasks, setLoadingCreatedTasks] = useState(false);
-  const [inspectTaskId, setInspectTaskId] = useState(null);
+  const [_inspectTaskId, _setInspectTaskId] = useState(null);
 
   // ── Bulk Transfer Progress State ──
-  const [transferProgress, setTransferProgress] = useState({ current: 0, total: 0 });
-  const [transferStatus, setTransferStatus] = useState('idle');
+  const [_transferProgress, setTransferProgress] = useState({ current: 0, total: 0 });
+  const [_transferStatus, setTransferStatus] = useState('idle');
   const [cooldownRemaining, setCooldownRemaining] = useState(0);
 
   // ── WhatsApp Bulk Send ──
@@ -432,7 +431,7 @@ export default function AssigningTasksPage() {
     toast.success(`Selected ${ids.length} members (${label})`);
   };
 
-  const handleApplyCustomCount = () => {
+  const _handleApplyCustomCount = () => {
     const count = parseInt(customCountInput, 10);
     if (!Number.isFinite(count) || count <= 0) {
       toast.error('Please enter a valid positive number');
@@ -489,7 +488,7 @@ export default function AssigningTasksPage() {
     [members, selectedSet]
   );
 
-  const handleApplyTemplateInsideModal = (templateId) => {
+  const _handleApplyTemplateInsideModal = (templateId) => {
     setTransferModalTemplate(templateId);
     handleApplyTemplate(templateId);
   };
@@ -549,7 +548,7 @@ export default function AssigningTasksPage() {
     }
   };
 
-  const handleQuickTransfer = async (e) => {
+  const _handleQuickTransfer = async (e) => {
     e.preventDefault();
     const id = quickId.trim();
     if (!id) return;

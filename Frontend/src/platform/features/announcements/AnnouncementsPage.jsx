@@ -18,18 +18,15 @@ import CreateAnnouncementModal from "./CreateAnnouncementModal";
 import {
   Megaphone,
   Plus,
-  AlertCircle,
-  Info,
   CheckCircle,
   AlertTriangle,
-  Calendar,
   Users,
   Edit2,
   Trash2,
   Check,
   X,
 } from "lucide-react";
-import { formatDate, formatRelativeTime } from "../../lib/utils/formatters";
+import { formatDate } from "../../lib/utils/formatters";
 
 export default function AnnouncementsPage() {
   const [page, setPage] = useState(1);

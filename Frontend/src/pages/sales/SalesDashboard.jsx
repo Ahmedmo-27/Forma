@@ -6,7 +6,7 @@ import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, CardHeader, StatCard, Avatar, Badge, EmptyState, fmtDate, fmtTimeWithSeconds, toLocalDateString, DashboardSkeleton } from '../../components/ui';
+import { PageHeader, Card, StatCard, Avatar, EmptyState, fmtDate, fmtTimeWithSeconds, toLocalDateString, DashboardSkeleton } from '../../components/ui';
 import { getAllMembers, getSalesTeam, getRequests, getTodayCheckIns, getSalesManagerRevenue } from '../../api/endpoints';
 import {
   BarChart3,
@@ -151,7 +151,7 @@ export default function SalesDashboard() {
   }, [load]);
 
   // Stats
-  const totalMembers = members.length;
+  const _totalMembers = members.length;
   const activeCount  = members.filter(m => m.status === 'active').length;
   const frozenCount  = members.filter(m => m.status === 'frozen').length;
   const expiredCount = members.filter(m => m.status === 'expired').length;

@@ -81,7 +81,7 @@ export default function PlansFeaturesPage() {
 
   const {
     data: rolesData,
-    isLoading: rolesLoading,
+    isLoading: _rolesLoading,
   } = useQuery({
     queryKey: ["platform", "roles"],
     queryFn: () => apiGetRoles().then((r) => r.data).catch(() => []),

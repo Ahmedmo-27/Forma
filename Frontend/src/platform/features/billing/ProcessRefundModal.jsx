@@ -10,7 +10,7 @@ import {
 } from "../../ui";
 import { apiProcessRefund, apiGetTenants } from "../../lib/api/endpoints";
 import { useQuery } from "@tanstack/react-query";
-import { DollarSign, AlertCircle } from "lucide-react";
+
 
 export default function ProcessRefundModal({
   open,

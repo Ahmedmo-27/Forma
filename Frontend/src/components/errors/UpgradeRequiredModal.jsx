@@ -1,4 +1,4 @@
-import { Sparkles, ArrowRight } from "lucide-react";
+
 import { ErrorModal } from "./ErrorModal";
 
 export function UpgradeRequiredModal({ isOpen, onClose, error, onNavigateBilling }) {

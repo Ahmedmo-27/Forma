@@ -23,7 +23,7 @@ export function DataTable({
   page = 1,
   limit = 20,
   loading = false,
-  error = null,
+  error: _error = null,
   onPageChange,
   onSearch,
   searchValue = "",

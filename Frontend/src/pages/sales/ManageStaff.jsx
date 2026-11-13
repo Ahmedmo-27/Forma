@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
@@ -45,9 +45,14 @@ const INIT = {
 export default function ManageStaff() {
   usePageTitle('Manage Staff');
   const { user } = useAuth();
-  const { hasFeature } = useTenant() || {};
+  const { hasFeature, tenant } = useTenant() || {};
   const { selectedLocationId } = useLocationScope();
-  const roleOptions = CREATABLE_ROLES[user?.role] || [];
+  const effectiveRoles = tenant?.effectiveRoles;
+  const roleOptions = useMemo(() => {
+    const creatable = CREATABLE_ROLES[user?.role] || [];
+    if (!Array.isArray(effectiveRoles)) return creatable;
+    return creatable.filter(([role]) => effectiveRoles.includes(role));
+  }, [user?.role, effectiveRoles]);
   const canSetLocations = ['Owner', 'General Manager'].includes(user?.role)
     && Boolean(hasFeature?.('multi_branches'));
   const deskBranch =
@@ -90,6 +95,16 @@ export default function ManageStaff() {
       return { ...f, allowedLocationIds: [deskBranch] };
     });
   }, [canSetLocations, deskBranch]);
+
+  useEffect(() => {
+    if (!roleOptions.length) return;
+    if (roleOptions.some(([role]) => role === form.role)) return;
+    setForm((current) => ({
+      ...current,
+      role: roleOptions[0][0],
+      canAccessAllLocations: roleOptions[0][0] === 'General Manager',
+    }));
+  }, [roleOptions, form.role]);
 
   const validate = () => {
     const e = {};

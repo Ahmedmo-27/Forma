@@ -13,28 +13,21 @@ import {
   Badge,
   Input,
   Textarea,
-  Select,
-  Switch,
   Callout,
   Tabs,
   TabsList,
   TabTrigger,
   TabContent,
-  Skeleton,
   platformToast,
 } from "../../ui";
 import { ConfirmDialog } from "../../shell/ConfirmDialog";
 import {
-  Activity,
-  Server,
+  
   Database,
   Cpu,
   Clock,
   ShieldAlert,
-  AlertTriangle,
   Building,
-  CreditCard,
-  Archive,
   Save,
   RefreshCw,
   CheckCircle2,
@@ -72,7 +65,7 @@ export default function HealthSettingsPage() {
   // Query System Health
   const {
     data: healthData,
-    isLoading,
+    isLoading: _isLoading,
     refetch,
     isFetching,
   } = useQuery({

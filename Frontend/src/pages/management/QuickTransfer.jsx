@@ -33,7 +33,7 @@ function Field({ label, children }) {
 export default function QuickTransfer() {
   usePageTitle('Quick Transfer');
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
 
   const [salesUsers, setSalesUsers] = useState([]);
   const [coaches, setCoaches] = useState([]);

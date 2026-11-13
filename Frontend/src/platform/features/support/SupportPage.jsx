@@ -14,25 +14,20 @@ import {
   Callout,
   CopyChip,
   Skeleton,
-  EmptyState,
   platformToast,
 } from "../../ui";
 import {
   UserCheck,
-  ShieldAlert,
   LogOut,
   Download,
-  Clock,
   History,
-  AlertTriangle,
   FileJson,
-  Eye,
   KeyRound,
 } from "lucide-react";
 import { formatDate, formatRelativeTime } from "../../lib/utils/formatters";
 
 export default function SupportPage() {
-  const { user, impersonationSession, startImpersonation, exitImpersonation } = usePlatformAuth();
+  const { user: _user, impersonationSession, startImpersonation, exitImpersonation } = usePlatformAuth();
   const { role } = usePlatformRole();
   const isSuperAdmin = role === "super_admin";
 

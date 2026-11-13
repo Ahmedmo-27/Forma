@@ -18,12 +18,6 @@ import {
   Plus,
   Minus,
   RotateCcw,
-  Sparkles,
-  Shield,
-  Layers,
-  Users,
-  Activity,
-  AlertTriangle,
 } from "lucide-react";
 
 export default function TenantOverridesModal({

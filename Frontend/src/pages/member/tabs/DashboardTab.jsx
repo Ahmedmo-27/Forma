@@ -98,7 +98,7 @@ function QuickActionBtn({ icon: Icon, label, sub, onClick, accent = 'var(--navy)
 }
 
 export default function DashboardTab({ member, user, data, onTabChange }) {
-  const navigate = useNavigate();
+  const _navigate = useNavigate();
   const { currency = 'EGP' } = useTenant() || {};
 
   const subs = member.subscriptions ?? [];

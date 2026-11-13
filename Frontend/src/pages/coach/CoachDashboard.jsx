@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
@@ -6,7 +6,7 @@ import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, CardHeader, StatCard, Avatar, Badge, EmptyState, DashboardSkeleton } from '../../components/ui';
+import { PageHeader, Card, StatCard, Avatar, Badge, EmptyState, DashboardSkeleton } from '../../components/ui';
 import { getAllMembers } from '../../api/endpoints';
 import { Check, Dumbbell, Users } from 'lucide-react';
 
@@ -24,7 +24,7 @@ export default function CoachDashboard() {
     try {
       const res = await getAllMembers();
       setMembers(res.data.members ?? []);
-    } catch (err) {
+    } catch (_err) {
       // Retry once on transient Atlas connection failures
       if (attempt === 0) {
         await new Promise(res => setTimeout(res, 3000));

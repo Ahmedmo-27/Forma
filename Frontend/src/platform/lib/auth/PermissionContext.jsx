@@ -1,5 +1,6 @@
 import { createContext, useContext, useMemo } from "react";
 import { usePlatformAuth } from "./AuthContext";
+import { canPlatform } from "./permissions.js";
 
 const PermissionContext = createContext(null);
 
@@ -16,13 +17,8 @@ export function PermissionProvider({ children }) {
   }, [user]);
 
   const hasPermission = useMemo(
-    () => (permissionKey) => {
-      if (!user) return false;
-      if (user.role === "super_admin") return true;
-      if (!permissionKey) return true;
-      return permissions.has("*") || permissions.has(permissionKey);
-    },
-    [user, permissions]
+    () => (permissionKey) => canPlatform(user, permissionKey),
+    [user]
   );
 
   const hasRole = useMemo(

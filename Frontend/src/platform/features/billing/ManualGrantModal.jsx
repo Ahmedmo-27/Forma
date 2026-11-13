@@ -9,7 +9,6 @@ import {
 } from "../../ui";
 import { apiIssueManualGrant, apiGetTenants, apiGetPlans } from "../../lib/api/endpoints";
 import { useQuery } from "@tanstack/react-query";
-import { Gift } from "lucide-react";
 
 export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
   const [loading, setLoading] = useState(false);

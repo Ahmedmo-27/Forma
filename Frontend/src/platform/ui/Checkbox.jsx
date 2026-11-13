@@ -4,7 +4,7 @@ import { cn } from "../lib/utils/cn";
 
 export const Checkbox = forwardRef(function Checkbox(
   {
-    className = "",
+    className: _className = "",
     label,
     description,
     checked = false,

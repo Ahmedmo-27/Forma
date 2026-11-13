@@ -348,6 +348,13 @@ export default function GetStartedPage() {
                   Contact sales instead
                 </MagneticButton>
               </div>
+              <p className="marketing-policy-legal">
+                {g.legalBefore}
+                <Link to={path("/terms")}>{g.legalTerms}</Link>
+                {g.legalBetween}
+                <Link to={path("/privacy")}>{g.legalPrivacy}</Link>
+                {g.legalAfter}
+              </p>
             </form>
           )}
         </div>

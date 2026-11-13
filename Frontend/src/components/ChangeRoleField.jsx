@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { Btn, Spinner, MenuSelect } from './ui';
 import { useAuth } from '../context/AuthContext';
+import { useTenant } from '../context/TenantContext';
 import { changeUserRole } from '../api/endpoints';
 import { hasAccess } from '../lib/access';
 import { canChangeUserRole, roleChoicesFor } from '../lib/roles';
 
 export default function ChangeRoleField({ userId, currentRole, onChanged, label = 'Role' }) {
   const { user } = useAuth();
+  const { tenant } = useTenant();
   const [nextRole, setNextRole] = useState(currentRole || '');
   const [saving, setSaving] = useState(false);
 
@@ -16,7 +18,7 @@ export default function ChangeRoleField({ userId, currentRole, onChanged, label 
   }, [userId, currentRole]);
 
   const allowed = hasAccess(user, 'change_role') && canChangeUserRole(user?.role, currentRole);
-  const choices = roleChoicesFor(user?.role, currentRole);
+  const choices = roleChoicesFor(user?.role, currentRole, tenant?.effectiveRoles);
 
   if (!allowed || !userId) return null;
 

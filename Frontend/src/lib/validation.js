@@ -10,7 +10,7 @@ const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-
 const PHONE_CHARS_REGEX = /^[+0-9\s\-()]+$/;
 
 // Hex color regex (#RGB, #RRGGBB)
-const HEX_COLOR_REGEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
+const _HEX_COLOR_REGEX = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/;
 
 export function isValidEmail(email) {
   if (!email || typeof email !== 'string') return false;

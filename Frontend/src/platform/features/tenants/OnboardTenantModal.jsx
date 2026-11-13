@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Copy, Check, ExternalLink, KeyRound, Building2 } from "lucide-react";
+import { Copy } from "lucide-react";
 import { Dialog } from "../../ui/Dialog";
 import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Input";

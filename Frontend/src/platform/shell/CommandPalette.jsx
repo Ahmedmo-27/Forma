@@ -16,10 +16,8 @@ import {
   Users,
   HeartPulse,
   ScrollText,
-  Plus,
   ArrowRight,
   Command,
-  HelpCircle,
   X,
 } from "lucide-react";
 import { usePermission } from "../lib/auth/PermissionContext";
@@ -33,7 +31,7 @@ export function CommandPalette({ isOpen, onClose }) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [tenantResults, setTenantResults] = useState([]);
-  const [isSearchingTenants, setIsSearchingTenants] = useState(false);
+  const [_isSearchingTenants, setIsSearchingTenants] = useState(false);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
 
   const inputRef = useRef(null);

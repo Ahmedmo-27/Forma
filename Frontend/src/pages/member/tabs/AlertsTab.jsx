@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { Card, CardHeader, Btn, Spinner, EmptyState, Badge, fmtDateTime, Textarea } from '../../../components/ui';
+import { Card, CardHeader, Btn, Spinner, EmptyState, fmtDateTime, Textarea } from '../../../components/ui';
 import { addAlert, deactivateAlert } from '../../../api/endpoints';
 import { AlertTriangle, Bell, X } from 'lucide-react';
 

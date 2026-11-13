@@ -1,8 +1,8 @@
-import { useState, useCallback } from "react";
+import { useState } from "react";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import {
-  Building2,
+  
   Plus,
   MoreHorizontal,
   Eye,
@@ -12,7 +12,6 @@ import {
   Trash2,
   ExternalLink,
   Layers,
-  ArrowRight,
   Sliders,
 } from "lucide-react";
 import {
@@ -37,7 +36,7 @@ import { platformToast } from "../../ui/Toast";
 
 export default function TenantsListPage() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams, _setSearchParams] = useSearchParams();
   const initialStatus = searchParams.get("status") || "";
 
   const [page, setPage] = useState(1);
@@ -81,8 +80,8 @@ export default function TenantsListPage() {
   const {
     data,
     isLoading,
-    isError,
-    error,
+    isError: _isError,
+    error: _error,
     refetch,
   } = useQuery({
     queryKey: ["tenants", { page, search, statusFilter, cycleFilter }],

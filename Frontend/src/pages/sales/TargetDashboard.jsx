@@ -16,7 +16,7 @@ const fmt  = (n) => Number(n ?? 0).toLocaleString('en-EG');
 const TODAY = toLocalDateString();
 const MONTH_START = `${TODAY.slice(0, 7)}-01`;
 
-function ProgressBar({ value, max, height = 6 }) {
+function _ProgressBar({ value, max, height = 6 }) {
   if (!max) return null;
   const pct    = Math.min(100, Math.round((value / max) * 100));
   const color  = pct >= 100 ? 'var(--green)' : pct >= 60 ? 'var(--blue)' : 'var(--amber)';

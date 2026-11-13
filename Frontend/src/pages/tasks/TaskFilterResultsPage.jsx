@@ -15,7 +15,7 @@ import {
   bulkTransferSalesReps, bulkTransferCoach,
 } from '../../api/endpoints';
 import {
-  CircleDot, Dumbbell, MessageCircle, RefreshCw, Search, UserRound, Users,
+  CircleDot, Dumbbell, MessageCircle, RefreshCw, UserRound, Users,
 } from 'lucide-react';
 import {
   filterMembersAdvanced, packageName, columnValue,
@@ -42,26 +42,27 @@ async function loadAllMembers() {
 }
 
 export default function TaskFilterResultsPage() {
-  usePageTitle('Filter Results');
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
-  const { hasFeature } = useTenant();
-
-  const { canSalesman, canCoach, canWhatsApp } = taskPermissions(user, hasFeature);
-
-  // ── Read filters from location state ──
   const filters = location.state?.filters;
 
-  // ── Redirect if no filters ──
   useEffect(() => {
     if (!filters) {
       navigate('/tasks/filter', { replace: true });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [filters, navigate]);
 
   if (!filters) return null;
+  return <TaskFilterResults filters={filters} />;
+}
+
+function TaskFilterResults({ filters }) {
+  usePageTitle('Filter Results');
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { hasFeature } = useTenant();
+
+  const { canSalesman, canCoach, canWhatsApp } = taskPermissions(user, hasFeature);
 
   const {
     search = '',

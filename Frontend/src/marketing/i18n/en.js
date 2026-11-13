@@ -3,9 +3,9 @@
 export default {
   meta: {
     siteName: "Forma",
-    defaultTitle: "Forma — Gym management software in Egypt",
+    defaultTitle: "Forma — The operating system for serious gyms",
     defaultDescription:
-      "Forma is the gym operating system for Egyptian operators — members, check-ins, sales CRM, coaching, and billing. Sales-assisted onboarding with bank transfer in EGP.",
+      "One gym workspace for members, check-ins, sales CRM, coaching, and billing. Sales-assisted launch with bank transfer — built for operators in Egypt.",
     browserRequirements: "Requires a modern web browser.",
   },
   nav: {
@@ -32,12 +32,15 @@ export default {
     tagline: "© {year} Forma. Gym & fitness management in Egypt.",
     technology: "Technology",
     faq: "FAQ",
+    privacy: "Privacy",
+    terms: "Terms",
+    refunds: "Refunds",
   },
   home: {
-    title: "Forma — Gym management software in Egypt",
+    title: "Forma — The operating system for serious gyms",
     description:
-      "Run your gym in Egypt with one workspace for members, check-ins, sales CRM, coaching, and billing — sales-assisted onboarding with bank transfer.",
-    h1: "Gym management software built for serious operators in Egypt.",
+      "One gym workspace for members, check-ins, sales CRM, coaching, and billing. Sales-assisted launch with bank transfer — built for operators in Egypt.",
+    h1: "The operating system for serious gyms.",
     heroCopy:
       "One workspace for members, staff, check-ins, and billing — launched with sales, paid by bank transfer in EGP.",
     viewPlans: "View plans",
@@ -260,6 +263,11 @@ export default {
     h1: "Open your gym workspace.",
     introBefore: "We create a trial tenant, email the owner invite, and issue a bank-transfer reference. Prefer a walkthrough?",
     emailPrefix: "Email",
+    legalBefore: "By opening a workspace you agree to the ",
+    legalTerms: "Terms",
+    legalBetween: " and the ",
+    legalPrivacy: "Privacy policy",
+    legalAfter: ".",
   },
   comingSoon: {
     title: "Under development — Forma",
@@ -417,6 +425,240 @@ export default {
     h1: "Questions operators ask about Forma.",
     intro:
       "Straight answers on how Forma differs from template ERP gym tools, launch, payment, plans, staff login, and the technology the workspace runs on.",
+  },
+  policies: {
+    related: "Related",
+    privacy: {
+      title: "Privacy policy — Forma",
+      description:
+        "How Forma handles gym, staff, and member information for operators in Egypt — public signup, workspace data, bank-transfer billing, and requests.",
+      h1: "Privacy policy",
+      updatedLabel: "Updated",
+      updated: "13 November 2026",
+      intro:
+        "This policy explains what Forma collects on the public site and inside a gym workspace, and why.",
+      sections: [
+        {
+          heading: "Who this covers",
+          paragraphs: [
+            "Forma operates the gym management service at forma-official.com and the staff application at app.forma-official.com.",
+            "This policy covers visitors to the public site, gym operators who open a workspace, and the staff those gyms invite. It also describes member information a gym stores in Forma.",
+          ],
+        },
+        {
+          heading: "Who decides",
+          paragraphs: [
+            "Forma operates the service and decides how the platform itself is run.",
+            "Each gym decides what to record about its members, packages, attendance, and messages, and is responsible for that information. Staff accounts belong to the gym that invites them.",
+          ],
+        },
+        {
+          heading: "The public site",
+          paragraphs: [
+            "When you open a workspace, we receive the gym name, a workspace address, the owner’s name and email, and the plan and billing period you choose.",
+            "Messages you send to sales@forma-official.com are kept so we can reply and open the workspace.",
+          ],
+        },
+        {
+          heading: "Information we handle",
+          paragraphs: [
+            "The table lists the main categories. Subscription fees are paid by bank transfer in EGP. We do not ask for or store payment card numbers.",
+          ],
+          table: {
+            caption: "Information Forma handles",
+            headers: ["Data", "Who it is about", "Why it is used"],
+            rows: [
+              [
+                "Gym name, workspace address, plan, and billing period",
+                "The gym",
+                "Open the workspace and invoice the subscription",
+              ],
+              [
+                "Owner and staff names, emails, and roles",
+                "Gym staff",
+                "Sign-in, invitations, and access inside the workspace",
+              ],
+              [
+                "Member names, phones, packages, freezes, notes, and attendance",
+                "The gym’s members",
+                "Run membership, check-in, and follow-up for that gym",
+              ],
+              [
+                "WhatsApp templates and messages the gym sends",
+                "People the gym contacts",
+                "Deliver follow-ups the gym chooses to send",
+              ],
+              [
+                "Bank-transfer references and invoices",
+                "The gym",
+                "Confirm payment and keep billing records",
+              ],
+              [
+                "Security and audit logs",
+                "Staff using the workspace",
+                "Protect accounts and record sensitive changes",
+              ],
+            ],
+          },
+        },
+        {
+          heading: "Cookies",
+          paragraphs: [
+            "The public site does not use advertising or analytics cookies.",
+            "If a Forma administrator previews the site before it is published, the browser stores a short-lived preview cookie on forma-official.com. Staff sign-in uses a token in the application, not a marketing cookie.",
+          ],
+        },
+        {
+          heading: "Services that process information for us",
+          paragraphs: [
+            "Email — invitations, password setup, invoices, and messages a gym sends — is delivered through Brevo. The public site is hosted on Vercel. The application API runs on Railway. Gym data is stored in MongoDB and files on Cloudflare R2.",
+            "These providers process information so Forma can run the service.",
+          ],
+        },
+        {
+          heading: "How long we keep it",
+          paragraphs: [
+            "Workspace information is kept while the gym’s workspace is open, and afterwards for invoices and security logs we still need.",
+            "You can ask us to close a workspace by emailing sales@forma-official.com.",
+          ],
+        },
+        {
+          heading: "Requests",
+          paragraphs: [
+            "To ask about this policy, or about information Forma holds for your gym, email security@forma-official.com. We reply to the owner or an authorised staff member of that gym.",
+          ],
+        },
+      ],
+    },
+    terms: {
+      title: "Terms of use — Forma",
+      description:
+        "Terms for using Forma, the gym management workspace for operators in Egypt: plans, staff access, acceptable use, and Egyptian law.",
+      h1: "Terms of use",
+      updatedLabel: "Updated",
+      updated: "13 November 2026",
+      intro:
+        "These terms govern use of the Forma public site and the gym workspace. Payment rules are on the refund and payment page.",
+      sections: [
+        {
+          heading: "The service",
+          paragraphs: [
+            "Forma is gym management software for operators in Egypt. Sales helps you launch.",
+            "Plans are Basic, Gold, and Platinum, billed monthly or yearly in EGP. There is no card checkout on the public site.",
+          ],
+        },
+        {
+          heading: "Who may use a workspace",
+          paragraphs: [
+            "The owner who opens the workspace, and staff that gym invites, may use it. Each person keeps their own sign-in.",
+            "The gym is responsible for what its staff do in the workspace.",
+          ],
+        },
+        {
+          heading: "The gym’s duties",
+          paragraphs: [
+            "Record only member information you are allowed to hold.",
+            "Use WhatsApp and email follow-ups in line with the law and with what you have told your members. Do not use Forma to send unlawful or deceptive messages.",
+          ],
+        },
+        {
+          heading: "Acceptable use",
+          paragraphs: [
+            "Do not attempt to access another gym’s workspace, probe the service, or interfere with it.",
+            "Do not upload content you have no right to store.",
+          ],
+        },
+        {
+          heading: "Fees",
+          paragraphs: [
+            "Subscription fees, bank transfer, activation, and refunds are set out on the refund and payment page.",
+            "A workspace that is not paid as agreed may be suspended until payment is confirmed.",
+          ],
+          links: [{ to: "/refunds", label: "Refund and payment" }],
+        },
+        {
+          heading: "Availability and changes",
+          paragraphs: [
+            "We aim to keep the workspace available. We may change features, plans, or these terms.",
+            "If we change these terms, we update the date on this page. Continued use after that date means you accept the updated terms.",
+          ],
+        },
+        {
+          heading: "Intellectual property",
+          paragraphs: [
+            "Forma, the software, and the site content belong to Forma. Your gym’s member records and files remain yours.",
+            "You allow Forma to host and process those records so we can provide the service.",
+          ],
+        },
+        {
+          heading: "Liability",
+          paragraphs: [
+            "Forma is a tool for running your gym. You are responsible for membership decisions, refunds you give members, and messages you send.",
+            "To the extent Egyptian law allows, Forma is not liable for lost profit or for indirect loss arising from use of the service.",
+          ],
+        },
+        {
+          heading: "Law",
+          paragraphs: [
+            "These terms are governed by the laws of Egypt. Disputes are brought before the courts of Cairo.",
+          ],
+        },
+      ],
+    },
+    refunds: {
+      title: "Refund and payment — Forma",
+      description:
+        "How Forma subscriptions are paid in EGP by bank transfer, when a period starts, and when a fee can be returned.",
+      h1: "Refund and payment",
+      updatedLabel: "Updated",
+      updated: "13 November 2026",
+      intro:
+        "Forma subscriptions are paid by bank transfer in Egyptian pounds. This page is the rule for the Forma fee, not for refunds a gym gives its own members.",
+      sections: [
+        {
+          heading: "Payment rules",
+          paragraphs: [
+            "Sales sends the account and the payment reference. Use that reference on the transfer so we can match it to your workspace.",
+          ],
+          table: {
+            caption: "Forma subscription payment rules",
+            headers: ["Topic", "Rule"],
+            rows: [
+              [
+                "Currency and method",
+                "Fees are quoted in EGP and paid by bank transfer to the account sales sends you. Forma does not take or store card numbers.",
+              ],
+              [
+                "When the period starts",
+                "The subscription period starts when Forma confirms that the transfer has cleared.",
+              ],
+              [
+                "Before activation",
+                "If the workspace has not been activated, you may cancel and we will return the transfer.",
+              ],
+              [
+                "After activation",
+                "Fees for the current period are not refunded. You may choose not to renew when the period ends.",
+              ],
+              [
+                "Wrong reference",
+                "If a transfer arrives without the payment reference we issued, email sales so we can match it.",
+              ],
+              [
+                "Member refunds",
+                "Refunds of a member’s package are decided and recorded by the gym inside Forma. They are not a refund of Forma’s subscription fee.",
+              ],
+            ],
+          },
+        },
+        {
+          heading: "How to ask",
+          paragraphs: [
+            "Email sales@forma-official.com from the owner address on the workspace. Include the gym name and the payment reference.",
+          ],
+        },
+      ],
+    },
   },
   shared: {
     contactSales: "Contact sales",

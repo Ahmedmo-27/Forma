@@ -4,7 +4,7 @@ import api from '../api/axios';
 
 const AuthContext = createContext(null);
 
-function parseUser() {
+function _parseUser() {
   try {
     const raw = localStorage.getItem('ff_user');
     return raw ? JSON.parse(raw) : null;

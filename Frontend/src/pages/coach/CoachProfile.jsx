@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import {
-  PageHeader, Card, Table, Badge, Btn, Spinner,
+  PageHeader, Card, Table, Badge, Spinner,
   EmptyState, Avatar, fmtDate, Skeleton,
 } from '../../components/ui';
 import { getCoachProfile, updateCoachRepAbilities } from '../../api/endpoints';

@@ -3,7 +3,7 @@ import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, CardHeader, Table, Badge, Btn, Spinner, EmptyState, SearchInput, Avatar, Modal, Select, formatSystemId, MenuSelect } from '../../components/ui';
+import { PageHeader, Card, Table, Badge, Btn, Spinner, EmptyState, SearchInput, Avatar, Modal, Select, formatSystemId, MenuSelect } from '../../components/ui';
 import { getAllMembers, getCoachTeam, switchCoach, assignCoach, bulkTransferCoach } from '../../api/endpoints';
 import { RefreshCw } from 'lucide-react';
 

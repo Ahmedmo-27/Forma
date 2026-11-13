@@ -281,6 +281,9 @@ export default function MarketingLayout() {
             </Link>
             <Link to={path("/technology")}>{t.footer.technology}</Link>
             <Link to={path("/faq")}>{t.footer.faq}</Link>
+            <Link to={path("/privacy")}>{t.footer.privacy}</Link>
+            <Link to={path("/terms")}>{t.footer.terms}</Link>
+            <Link to={path("/refunds")}>{t.footer.refunds}</Link>
             <a href={SALES_MAILTO}>sales@forma-official.com</a>
             <a href={`${appOrigin()}/login`}>{t.nav.staffLogin}</a>
           </nav>

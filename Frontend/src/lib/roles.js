@@ -36,9 +36,15 @@ export function canChangeUserRole(actor, targetRole) {
   return Boolean(targetRole);
 }
 
+function rolesOnPlan(roles, effectiveRoles) {
+  if (!Array.isArray(effectiveRoles)) return roles;
+  const allowed = new Set(effectiveRoles);
+  return roles.filter((role) => allowed.has(role));
+}
+
 /** Keep the person's current role visible only when the actor has authority over that role. */
-export function roleChoicesFor(actor, currentRole) {
-  const options = assignableRolesFor(actor);
+export function roleChoicesFor(actor, currentRole, effectiveRoles) {
+  const options = rolesOnPlan(assignableRolesFor(actor), effectiveRoles);
   if (currentRole && !options.includes(currentRole) && canChangeUserRole(actor, currentRole)) {
     return [currentRole, ...options];
   }

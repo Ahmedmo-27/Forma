@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Spinner, EmptyState, Avatar, Badge, Pagination } from '../../components/ui';
+import { PageHeader, Spinner, EmptyState, Avatar, Pagination } from '../../components/ui';
 import { getSalesTeam, getReceptionistTeam } from '../../api/endpoints';
 
 const DEFAULT_PAGE_SIZE = 12;
@@ -83,8 +83,8 @@ export default function SalesTeam() {
     } catch {}
   };
 
-  const loading = tab === 'sales' ? loadingSales : loadingRecp;
-  const team = tab === 'sales' ? salesTeam : receptionists;
+  const _loading = tab === 'sales' ? loadingSales : loadingRecp;
+  const _team = tab === 'sales' ? salesTeam : receptionists;
 
   return (
     <Layout>

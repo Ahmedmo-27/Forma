@@ -672,7 +672,7 @@ export function filterAssignedHistoryAdvanced(history = [], filters = {}) {
 
     // 6. Date period filter
     if (fromTime || toTime) {
-      let targetTime = null;
+      let targetTime;
       if (dateField === 'completedAt') {
         targetTime = item.completedAt ? new Date(item.completedAt).getTime() : null;
       } else if (dateField === 'endDate') {

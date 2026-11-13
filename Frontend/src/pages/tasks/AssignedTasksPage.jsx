@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
@@ -9,7 +9,7 @@ import {
   Select, Tabs, FilterTabs, Table,
 } from '../../components/ui';
 import {
-  getAssignedActiveTasks, getAssignedTaskHistory, completeMemberTask,
+   getAssignedTaskHistory, completeMemberTask,
 } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
 import {
@@ -22,7 +22,7 @@ import {
 export default function AssignedTasksPage({ embedded = false }) {
   usePageTitle('My Tasks');
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user: _user } = useAuth();
 
   const [assigneeTab, setAssigneeTab] = useState('active'); // 'active' | 'history'
   const [assignedHistory, setAssignedHistory] = useState([]);
