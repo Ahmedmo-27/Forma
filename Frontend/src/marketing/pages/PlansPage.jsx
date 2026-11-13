@@ -12,18 +12,16 @@ import {
   formatDurationLabel,
   normalizeIntervalCount,
 } from "../duration";
+import { useMarketingI18n } from "../i18n";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 import { gsap, useGSAP, registerMarketingGsap } from "../gsap/register";
 
 registerMarketingGsap();
 
-const PLANS_DESCRIPTION =
-  "Compare Forma Basic, Gold, and Platinum plans in EGP — choose any available month or year duration. Sales-assisted onboarding with bank transfer.";
-
-function formatAmount(amount, currency = "EGP") {
+function formatAmount(amount, currency = "EGP", locale = "en") {
   if (amount == null) return "—";
   try {
-    return new Intl.NumberFormat("en-EG", {
+    return new Intl.NumberFormat(locale === "ar" ? "ar-EG" : "en-EG", {
       style: "currency",
       currency,
       maximumFractionDigits: 0,
@@ -53,6 +51,8 @@ function matchPrice(prices, planKey, cycle, intervalCount) {
 }
 
 export default function PlansPage() {
+  const { t, path, locale } = useMarketingI18n();
+  const p = t.plans;
   const [selectedDuration, setSelectedDuration] = useState(null);
   const sectionRef = useRef(null);
   const gridRef = useRef(null);
@@ -168,27 +168,24 @@ export default function PlansPage() {
 
   return (
     <>
-      <MarketingHelmet
-        title="Plans — Forma"
-        description={PLANS_DESCRIPTION}
-        path="/plans"
-      />
+      <MarketingHelmet title={p.title} description={p.description} path={path("/plans")} />
 
       <section className="marketing-section" aria-labelledby="plans-heading" ref={sectionRef}>
         <div className="marketing-shell">
           <div className="marketing-section-head" ref={headRevealRef}>
-            <h1 id="plans-heading">Plans that scale with your floor.</h1>
+            <h1 id="plans-heading">{p.h1}</h1>
             <p>
-              All prices in {data?.currency || "EGP"}. Prefer a guided rollout?{" "}
+              {p.introBefore} {data?.currency || "EGP"}
+              {p.introAfter}{" "}
               <a href={SALES_MAILTO} style={{ textDecoration: "underline" }}>
-                Contact sales
+                {p.contactSales}
               </a>
               .
             </p>
           </div>
 
           {durationOptions.length > 0 && (
-            <div className="marketing-cycle-tabs" role="tablist" aria-label="Plan duration">
+            <div className="marketing-cycle-tabs" role="tablist" aria-label={p.chooseDuration}>
               {durationOptions.map((d) => (
                 <button
                   key={d.id}
@@ -202,17 +199,19 @@ export default function PlansPage() {
                 >
                   {d.label}
                   {d.months > 1 && maxDurationSave > 0 && durationId === d.id ? (
-                    <span className="marketing-cycle-save">Save up to {maxDurationSave}%</span>
+                    <span className="marketing-cycle-save">
+                      {p.saveUpTo.replace("{pct}", String(maxDurationSave))}
+                    </span>
                   ) : null}
                 </button>
               ))}
             </div>
           )}
 
-          {isLoading && <p className="marketing-alert">Loading plans…</p>}
+          {isLoading && <p className="marketing-alert">{p.loading}</p>}
           {isError && (
             <p className="marketing-alert marketing-alert-error" role="alert">
-              {error?.response?.data?.message || error?.message || "Could not load plans."}
+              {error?.response?.data?.message || error?.message || p.error}
             </p>
           )}
 
@@ -251,7 +250,9 @@ export default function PlansPage() {
                     </div>
                     <div className="marketing-price">
                       <strong>
-                        {soldOut ? "Sold out" : formatAmount(plan.price?.amount, data?.currency)}
+                        {soldOut
+                          ? p.soldOut
+                          : formatAmount(plan.price?.amount, data?.currency, locale)}
                       </strong>
                       {!soldOut && plan.price && (
                         <span>
@@ -284,9 +285,9 @@ export default function PlansPage() {
                     ) : (
                       <MagneticButton
                         className="marketing-btn marketing-btn-primary"
-                        to={`/get-started?plan=${encodeURIComponent(plan.key)}&cycle=${encodeURIComponent(cycle)}&intervalCount=${encodeURIComponent(intervalCount)}`}
+                        to={`${path("/get-started")}?plan=${encodeURIComponent(plan.key)}&cycle=${encodeURIComponent(cycle)}&intervalCount=${encodeURIComponent(intervalCount)}`}
                       >
-                        Get started
+                        {p.getStarted}
                       </MagneticButton>
                     )}
                   </article>

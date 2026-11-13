@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
 
+# Marketing lives on www; staff app is on app.forma-official.com
 Sitemap: https://www.forma-official.com/sitemap.xml

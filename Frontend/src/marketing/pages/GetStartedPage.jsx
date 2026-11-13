@@ -10,6 +10,7 @@ import {
   formatDurationLabel,
   normalizeIntervalCount,
 } from "../duration";
+import { useMarketingI18n } from "../i18n";
 import { gsap, useGSAP, registerMarketingGsap } from "../gsap/register";
 
 registerMarketingGsap();
@@ -24,6 +25,8 @@ function slugify(value) {
 }
 
 export default function GetStartedPage() {
+  const { t, path } = useMarketingI18n();
+  const g = t.getStarted;
   const [params] = useSearchParams();
   const panelRef = useRef(null);
   const { data: catalog } = useQuery({
@@ -157,21 +160,16 @@ export default function GetStartedPage() {
 
   return (
     <>
-      <MarketingHelmet
-        title="Get started — Forma"
-        description="Open a Forma gym workspace: pick a plan, create your trial tenant, and receive bank-transfer instructions with your payment reference."
-        path="/get-started"
-      />
+      <MarketingHelmet title={g.title} description={g.description} path={path("/get-started")} />
 
       <section className="marketing-section" aria-labelledby="start-heading">
         <div className="marketing-shell" ref={panelRef}>
           <div className="marketing-section-head">
-            <h1 id="start-heading">Open your gym workspace.</h1>
+            <h1 id="start-heading">{g.h1}</h1>
             <p>
-              We create a trial tenant, email the owner invite, and issue a bank-transfer reference.
-              Prefer a walkthrough?{" "}
+              {g.introBefore}{" "}
               <a href={SALES_MAILTO} style={{ textDecoration: "underline" }}>
-                Email {SALES_EMAIL}
+                {g.emailPrefix} {SALES_EMAIL}
               </a>
               .
             </p>
@@ -244,7 +242,7 @@ export default function GetStartedPage() {
                 >
                   Open invite / login
                 </a>
-                <Link className="marketing-btn marketing-btn-ghost" to="/plans">
+                <Link className="marketing-btn marketing-btn-ghost" to={path("/plans")}>
                   Back to plans
                 </Link>
               </div>

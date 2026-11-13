@@ -2,6 +2,18 @@
   "redirects": [
     {
       "source": "/",
+      "has": [{ "type": "host", "value": "forma-official.com" }],
+      "destination": "https://www.forma-official.com/",
+      "permanent": true
+    },
+    {
+      "source": "/:path*",
+      "has": [{ "type": "host", "value": "forma-official.com" }],
+      "destination": "https://www.forma-official.com/:path*",
+      "permanent": true
+    },
+    {
+      "source": "/",
       "has": [{ "type": "host", "value": "app.forma-official.com" }],
       "destination": "/login",
       "permanent": false
@@ -25,6 +37,19 @@
           "key": "Strict-Transport-Security",
           "value": "max-age=63072000; includeSubDomains; preload"
         }
+      ]
+    },
+    {
+      "source": "/sitemap.xml",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" },
+        { "key": "Content-Type", "value": "application/xml; charset=utf-8" }
+      ]
+    },
+    {
+      "source": "/robots.txt",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
       ]
     }
   ]

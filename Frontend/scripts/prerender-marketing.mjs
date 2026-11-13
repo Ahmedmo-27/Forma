@@ -1,0 +1,240 @@
+/**
+ * After `vite build`, write static HTML shells for marketing routes so crawlers
+ * see titles, descriptions, canonical, hreflang, OG, JSON-LD, and main copy
+ * without executing JS. SPA hydrate still mounts into #root.
+ */
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const root = path.join(__dirname, "..");
+const distDir = path.join(root, "dist");
+const ORIGIN = "https://www.forma-official.com";
+
+const { MARKETING_PATHS, localizedPath } = await import(
+  pathToFileURL(path.join(root, "src/marketing/i18n/locales.js")).href
+);
+const { default: en } = await import(pathToFileURL(path.join(root, "src/marketing/i18n/en.js")).href);
+const { default: ar } = await import(pathToFileURL(path.join(root, "src/marketing/i18n/ar.js")).href);
+
+const catalogs = { en, ar };
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function pageCopy(locale, barePath) {
+  const t = catalogs[locale];
+  const map = {
+    "/": t.home,
+    "/why-forma": t.why,
+    "/plans": t.plans,
+    "/get-started": t.getStarted,
+    "/gym-management-software-egypt": t.solutions.egypt,
+    "/whatsapp-gym-crm": t.solutions.whatsapp,
+    "/multi-branch-gym-software": t.solutions.multiBranch,
+  };
+  return map[barePath] || t.home;
+}
+
+function faqItems(locale, barePath) {
+  const t = catalogs[locale];
+  if (barePath === "/") return t.home.faq;
+  if (barePath === "/gym-management-software-egypt") return t.solutions.egypt.faq;
+  if (barePath === "/whatsapp-gym-crm") return t.solutions.whatsapp.faq;
+  if (barePath === "/multi-branch-gym-software") return t.solutions.multiBranch.faq;
+  return [];
+}
+
+function absolute(pathname) {
+  return `${ORIGIN}${pathname === "/" ? "/" : pathname}`;
+}
+
+function buildJsonLd(locale, barePath, copy) {
+  const faqs = faqItems(locale, barePath);
+  const graph = [
+    {
+      "@type": "Organization",
+      "@id": `${ORIGIN}/#organization`,
+      name: "Forma",
+      url: ORIGIN,
+      email: "sales@forma-official.com",
+      logo: `${ORIGIN}/forma-horizontal.jpeg`,
+    },
+    {
+      "@type": "WebPage",
+      "@id": absolute(localizedPath(barePath, locale)),
+      url: absolute(localizedPath(barePath, locale)),
+      name: copy.title,
+      description: copy.description,
+      inLanguage: locale === "ar" ? "ar" : "en",
+      isPartOf: { "@id": `${ORIGIN}/#website` },
+    },
+  ];
+  if (faqs.length) {
+    graph.push({
+      "@type": "FAQPage",
+      mainEntity: faqs.map((item) => ({
+        "@type": "Question",
+        name: item.q,
+        acceptedAnswer: { "@type": "Answer", text: item.a },
+      })),
+    });
+  }
+  return { "@context": "https://schema.org", "@graph": graph };
+}
+
+function injectIntoTemplate(template, { locale, barePath, pathname }) {
+  const t = catalogs[locale];
+  const copy = pageCopy(locale, barePath);
+  const title = escapeHtml(copy.title || t.meta.defaultTitle);
+  const description = escapeHtml(copy.description || t.meta.defaultDescription);
+  const canonical = absolute(pathname);
+  const enUrl = absolute(localizedPath(barePath, "en"));
+  const arUrl = absolute(localizedPath(barePath, "ar"));
+  const ogImage = locale === "ar" ? `${ORIGIN}/og-share-ar.jpg` : `${ORIGIN}/og-share.jpg`;
+  const ogLocale = locale === "ar" ? "ar_EG" : "en_US";
+  const ogAltLocale = locale === "ar" ? "en_US" : "ar_EG";
+  const dir = locale === "ar" ? "rtl" : "ltr";
+  const lang = locale === "ar" ? "ar" : "en";
+  const jsonLd = JSON.stringify(buildJsonLd(locale, barePath, copy));
+  const h1 = escapeHtml(copy.h1 || copy.title);
+  const intro = escapeHtml(copy.intro || copy.heroCopy || copy.description || "");
+
+  let html = template;
+  html = html.replace(/<html\s+lang="[^"]*"/, `<html lang="${lang}" dir="${dir}"`);
+  html = html.replace(/<title>[^<]*<\/title>/, `<title>${title}</title>`);
+  html = html.replace(
+    /<meta\s+name="description"\s+content="[^"]*"\s*\/>/,
+    `<meta name="description" content="${description}" />`
+  );
+  html = html.replace(
+    /<link\s+rel="canonical"\s+href="[^"]*"\s*\/>/,
+    `<link rel="canonical" href="${canonical}" />`
+  );
+  html = html.replace(
+    /<link\s+rel="alternate"\s+hreflang="en"\s+href="[^"]*"\s*\/>/,
+    `<link rel="alternate" hreflang="en" href="${enUrl}" />`
+  );
+  html = html.replace(
+    /<link\s+rel="alternate"\s+hreflang="ar"\s+href="[^"]*"\s*\/>/,
+    `<link rel="alternate" hreflang="ar" href="${arUrl}" />`
+  );
+  html = html.replace(
+    /<link\s+rel="alternate"\s+hreflang="x-default"\s+href="[^"]*"\s*\/>/,
+    `<link rel="alternate" hreflang="x-default" href="${enUrl}" />`
+  );
+  html = html.replace(
+    /<meta\s+property="og:title"\s+content="[^"]*"\s*\/>/,
+    `<meta property="og:title" content="${title}" />`
+  );
+  html = html.replace(
+    /<meta\s+property="og:description"\s+content="[^"]*"\s*\/>/,
+    `<meta property="og:description" content="${description}" />`
+  );
+  html = html.replace(
+    /<meta\s+property="og:url"\s+content="[^"]*"\s*\/>/,
+    `<meta property="og:url" content="${canonical}" />`
+  );
+  html = html.replace(
+    /<meta\s+property="og:image"\s+content="[^"]*"\s*\/>/,
+    `<meta property="og:image" content="${ogImage}" />`
+  );
+  html = html.replace(
+    /<meta\s+property="og:image:secure_url"\s+content="[^"]*"\s*\/>/,
+    `<meta property="og:image:secure_url" content="${ogImage}" />`
+  );
+  html = html.replace(
+    /<meta\s+property="og:locale"\s+content="[^"]*"\s*\/>/,
+    `<meta property="og:locale" content="${ogLocale}" />`
+  );
+  html = html.replace(
+    /<meta\s+property="og:locale:alternate"\s+content="[^"]*"\s*\/>/,
+    `<meta property="og:locale:alternate" content="${ogAltLocale}" />`
+  );
+  html = html.replace(
+    /<meta\s+name="twitter:title"\s+content="[^"]*"\s*\/>/,
+    `<meta name="twitter:title" content="${title}" />`
+  );
+  html = html.replace(
+    /<meta\s+name="twitter:description"\s+content="[^"]*"\s*\/>/,
+    `<meta name="twitter:description" content="${description}" />`
+  );
+  html = html.replace(
+    /<meta\s+name="twitter:image"\s+content="[^"]*"\s*\/>/,
+    `<meta name="twitter:image" content="${ogImage}" />`
+  );
+
+  // Keep prerendered shells noindex until an indexable production build
+  // (set PUBLIC_SITE_INDEXABLE=1 when flipping public_site.published=true).
+  const indexable =
+    process.env.PUBLIC_SITE_INDEXABLE === "1" ||
+    process.env.PUBLIC_SITE_INDEXABLE === "true" ||
+    process.argv.includes("--indexable");
+  const robots = indexable ? "index, follow" : "noindex, nofollow";
+  const headExtras = `
+    <meta name="robots" content="${robots}" />
+    <script type="application/ld+json">${jsonLd}</script>
+`;
+  html = html.replace("</head>", `${headExtras}</head>`);
+
+  const seoBlock = `
+    <noscript>
+      <main id="seo-prerender" lang="${lang}" dir="${dir}" style="font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#142843">
+        <p><strong>Forma</strong></p>
+        <h1>${h1}</h1>
+        <p>${intro}</p>
+        <p><a href="${escapeHtml(enUrl)}">English</a> · <a href="${escapeHtml(arUrl)}">العربية</a></p>
+        <p><a href="${ORIGIN}/plans">Plans</a> · <a href="${ORIGIN}/get-started">Get started</a> · <a href="mailto:sales@forma-official.com">Contact sales</a></p>
+      </main>
+    </noscript>
+`;
+  html = html.replace('<div id="root"></div>', `<div id="root"></div>${seoBlock}`);
+
+  // Inject GSC verification if provided at build time
+  const gsc = process.env.VITE_GSC_VERIFICATION || process.env.GSC_VERIFICATION;
+  if (gsc) {
+    html = html.replace(
+      "</head>",
+      `<meta name="google-site-verification" content="${escapeHtml(gsc)}" />\n</head>`
+    );
+  }
+
+  return html;
+}
+
+function writeRoute(template, locale, barePath) {
+  const pathname = localizedPath(barePath, locale);
+  const html = injectIntoTemplate(template, { locale, barePath, pathname });
+  let outFile;
+  if (pathname === "/") {
+    outFile = path.join(distDir, "index.html");
+  } else {
+    const dir = path.join(distDir, pathname.replace(/^\//, ""));
+    fs.mkdirSync(dir, { recursive: true });
+    outFile = path.join(dir, "index.html");
+  }
+  fs.writeFileSync(outFile, html, "utf8");
+  console.log(`prerender ${pathname} → ${path.relative(distDir, outFile)}`);
+}
+
+function main() {
+  const templatePath = path.join(distDir, "index.html");
+  if (!fs.existsSync(templatePath)) {
+    console.error("dist/index.html missing — run vite build first");
+    process.exit(1);
+  }
+  const template = fs.readFileSync(templatePath, "utf8");
+  for (const barePath of MARKETING_PATHS) {
+    writeRoute(template, "en", barePath);
+    writeRoute(template, "ar", barePath);
+  }
+  console.log(`Prerendered ${MARKETING_PATHS.length * 2} marketing URLs`);
+}
+
+main();

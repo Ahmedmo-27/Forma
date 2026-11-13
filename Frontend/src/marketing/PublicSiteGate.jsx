@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Outlet } from "react-router-dom";
 import { fetchSiteConfig } from "./api";
 import ComingSoonPage from "./pages/ComingSoonPage";
+import { MarketingI18nProvider } from "./i18n";
 
 /**
  * When public_site.published is false, only platform super_admin (preview cookie / token) may view marketing.
@@ -16,27 +17,35 @@ export default function PublicSiteGate() {
 
   if (isLoading) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ background: "#142843", color: "#FCF3E2", fontFamily: "Outfit, Geist, system-ui, sans-serif" }}
-      >
-        Loading Forma…
-      </div>
+      <MarketingI18nProvider>
+        <div
+          className="min-h-screen flex items-center justify-center"
+          style={{ background: "#142843", color: "#FCF3E2", fontFamily: "Outfit, Geist, system-ui, sans-serif" }}
+        >
+          Loading Forma…
+        </div>
+      </MarketingI18nProvider>
     );
   }
 
   if (isError) {
     return (
-      <ComingSoonPage message="We could not verify public site availability. Please try again shortly." />
+      <MarketingI18nProvider>
+        <ComingSoonPage message="We could not verify public site availability. Please try again shortly." />
+      </MarketingI18nProvider>
     );
   }
 
   if (!data?.allowAccess) {
-    return <ComingSoonPage message={data?.message} />;
+    return (
+      <MarketingI18nProvider>
+        <ComingSoonPage message={data?.message} />
+      </MarketingI18nProvider>
+    );
   }
 
   return (
-    <>
+    <MarketingI18nProvider>
       {!data.published && data.canPreview ? (
         <div
           role="status"
@@ -56,6 +65,6 @@ export default function PublicSiteGate() {
         </div>
       ) : null}
       <Outlet />
-    </>
+    </MarketingI18nProvider>
   );
 }

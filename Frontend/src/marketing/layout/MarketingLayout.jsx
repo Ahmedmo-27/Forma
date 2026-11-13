@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation } from "react-router-dom";
 import { Helmet } from "react-helmet-async";
 import { appOrigin, SALES_MAILTO } from "../host";
 import { useMarketingTheme } from "../hooks/useMarketingTheme";
+import { useMarketingI18n } from "../i18n";
 import { gsap, ScrollTrigger, useGSAP, registerMarketingGsap } from "../gsap/register";
 import "../styles/marketing.css";
 
@@ -46,6 +47,7 @@ function getFocusable(container) {
 export default function MarketingLayout() {
   const { pathname } = useLocation();
   const { theme, toggleTheme } = useMarketingTheme();
+  const { t, path, alternate, locale, meta } = useMarketingI18n();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const rootRef = useRef(null);
@@ -53,6 +55,7 @@ export default function MarketingLayout() {
   const drawerRef = useRef(null);
   const toggleRef = useRef(null);
   const menuId = useId();
+  const year = new Date().getFullYear();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -71,7 +74,6 @@ export default function MarketingLayout() {
     requestAnimationFrame(() => ScrollTrigger.refresh());
   }, [theme]);
 
-  // Mobile drawer: Escape, focus first link, trap Tab, restore focus on close
   useEffect(() => {
     if (!menuOpen) return;
 
@@ -151,14 +153,20 @@ export default function MarketingLayout() {
     { scope: rootRef }
   );
 
+  const navLinks = [
+    { to: path("/why-forma"), label: t.nav.why },
+    { to: path("/plans"), label: t.nav.plans },
+    { to: path("/get-started"), label: t.nav.getStarted },
+  ];
+
   return (
-    <div className="marketing-root" data-theme={theme} ref={rootRef}>
+    <div className="marketing-root" data-theme={theme} data-locale={locale} dir={meta.dir} ref={rootRef}>
       <Helmet>
         <meta name="color-scheme" content="dark light" />
       </Helmet>
 
       <a className="marketing-skip-link" href="#main">
-        Skip to content
+        {t.nav.skip}
       </a>
 
       <header
@@ -166,37 +174,42 @@ export default function MarketingLayout() {
         ref={navRef}
       >
         <div className="marketing-shell marketing-nav-inner">
-          <Link to="/" className="marketing-nav-logo" aria-label="Forma home">
+          <Link to={path("/")} className="marketing-nav-logo" aria-label={t.nav.homeAria}>
             <span className="marketing-nav-logo-chip">
               <img src="/forma-horizontal.jpeg" alt="forma" />
             </span>
           </Link>
 
-          <nav className="marketing-nav-links marketing-nav-desktop" aria-label="Primary">
-            <Link to="/why-forma" className="marketing-nav-link">
-              Why Forma?
-            </Link>
-            <Link to="/plans" className="marketing-nav-link">
-              Plans
-            </Link>
-            <Link to="/get-started" className="marketing-nav-link">
-              Get started
-            </Link>
+          <nav className="marketing-nav-links marketing-nav-desktop" aria-label={t.nav.primaryNav}>
+            {navLinks.map((link) => (
+              <Link key={link.to} to={link.to} className="marketing-nav-link">
+                {link.label}
+              </Link>
+            ))}
             <a className="marketing-nav-link" href={SALES_MAILTO}>
-              Contact sales
+              {t.nav.contactSales}
             </a>
             <a className="marketing-nav-link" href={`${appOrigin()}/login`}>
-              Staff login
+              {t.nav.staffLogin}
             </a>
           </nav>
 
           <div className="marketing-nav-actions">
+            <Link
+              to={alternate()}
+              className="marketing-lang-switch"
+              aria-label={t.nav.langSwitchAria}
+              hrefLang={locale === "ar" ? "en" : "ar"}
+            >
+              {t.nav.langSwitch}
+            </Link>
+
             <button
               type="button"
               className="marketing-theme-toggle"
               onClick={toggleTheme}
-              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
-              title={theme === "dark" ? "Light mode" : "Dark mode"}
+              aria-label={theme === "dark" ? t.nav.switchToLight : t.nav.switchToDark}
+              title={theme === "dark" ? t.nav.lightMode : t.nav.darkMode}
             >
               <ThemeIcon theme={theme} />
             </button>
@@ -207,7 +220,7 @@ export default function MarketingLayout() {
               className={`marketing-nav-toggle${menuOpen ? " is-open" : ""}`}
               aria-expanded={menuOpen}
               aria-controls={menuId}
-              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-label={menuOpen ? t.nav.closeMenu : t.nav.openMenu}
               onClick={() => setMenuOpen((open) => !open)}
             >
               <span className="marketing-nav-toggle-bar" aria-hidden="true" />
@@ -223,26 +236,31 @@ export default function MarketingLayout() {
           className={`marketing-nav-drawer${menuOpen ? " is-open" : ""}`}
           hidden={!menuOpen}
         >
-          <nav className="marketing-shell marketing-nav-drawer-links" aria-label="Mobile">
-            <Link to="/why-forma" className="marketing-nav-drawer-link" onClick={() => setMenuOpen(false)}>
-              Why Forma?
-            </Link>
-            <Link to="/plans" className="marketing-nav-drawer-link" onClick={() => setMenuOpen(false)}>
-              Plans
-            </Link>
-            <Link
-              to="/get-started"
-              className="marketing-nav-drawer-link"
-              onClick={() => setMenuOpen(false)}
-            >
-              Get started
-            </Link>
+          <nav className="marketing-shell marketing-nav-drawer-links" aria-label={t.nav.mobileNav}>
+            {navLinks.map((link) => (
+              <Link
+                key={link.to}
+                to={link.to}
+                className="marketing-nav-drawer-link"
+                onClick={() => setMenuOpen(false)}
+              >
+                {link.label}
+              </Link>
+            ))}
             <a className="marketing-nav-drawer-link" href={SALES_MAILTO}>
-              Contact sales
+              {t.nav.contactSales}
             </a>
             <a className="marketing-nav-drawer-link" href={`${appOrigin()}/login`}>
-              Staff login
+              {t.nav.staffLogin}
             </a>
+            <Link
+              to={alternate()}
+              className="marketing-nav-drawer-link"
+              onClick={() => setMenuOpen(false)}
+              aria-label={t.nav.langSwitchAria}
+            >
+              {t.nav.langSwitch}
+            </Link>
           </nav>
         </div>
       </header>
@@ -253,13 +271,16 @@ export default function MarketingLayout() {
 
       <footer className="marketing-footer">
         <div className="marketing-shell marketing-footer-inner">
-          <p>© {new Date().getFullYear()} Forma. Gym & fitness management.</p>
-          <nav aria-label="Footer">
-            <Link to="/why-forma">Why Forma?</Link>
-            <Link to="/plans">Plans</Link>
-            <Link to="/get-started">Get started</Link>
+          <p>{t.footer.tagline.replace("{year}", String(year))}</p>
+          <nav aria-label={t.nav.footerNav}>
+            <Link to={path("/why-forma")}>{t.nav.why}</Link>
+            <Link to={path("/plans")}>{t.nav.plans}</Link>
+            <Link to={path("/get-started")}>{t.nav.getStarted}</Link>
+            <Link to={path("/gym-management-software-egypt")}>
+              {locale === "ar" ? "إدارة الجيم في مصر" : "Gym software Egypt"}
+            </Link>
             <a href={SALES_MAILTO}>sales@forma-official.com</a>
-            <a href={`${appOrigin()}/login`}>Staff login</a>
+            <a href={`${appOrigin()}/login`}>{t.nav.staffLogin}</a>
           </nav>
         </div>
       </footer>

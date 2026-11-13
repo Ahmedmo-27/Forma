@@ -17,6 +17,7 @@ const MarketingHomePage = lazy(() => import('./marketing/pages/HomePage'));
 const MarketingPlansPage = lazy(() => import('./marketing/pages/PlansPage'));
 const MarketingGetStartedPage = lazy(() => import('./marketing/pages/GetStartedPage'));
 const MarketingWhyFormaPage = lazy(() => import('./marketing/pages/WhyFormaPage'));
+const MarketingSolutionPage = lazy(() => import('./marketing/pages/SolutionPage'));
 const PublicSiteGate = lazy(() => import('./marketing/PublicSiteGate'));
 const RedirectToApp = lazy(() => import('./marketing/RedirectToApp'));
 
@@ -628,7 +629,107 @@ export default function App() {
                     </Suspense>
                   }
                 />
+                <Route
+                  path="gym-management-software-egypt"
+                  element={
+                    <Suspense fallback={<MarketingFallback />}>
+                      <MarketingSolutionPage
+                        solutionKey="egypt"
+                        barePath="/gym-management-software-egypt"
+                      />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="whatsapp-gym-crm"
+                  element={
+                    <Suspense fallback={<MarketingFallback />}>
+                      <MarketingSolutionPage solutionKey="whatsapp" barePath="/whatsapp-gym-crm" />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="multi-branch-gym-software"
+                  element={
+                    <Suspense fallback={<MarketingFallback />}>
+                      <MarketingSolutionPage
+                        solutionKey="multiBranch"
+                        barePath="/multi-branch-gym-software"
+                      />
+                    </Suspense>
+                  }
+                />
                 <Route path="checkout" element={<Navigate to="/get-started" replace />} />
+
+                {/* Arabic locale mirrors (EN stays at unprefixed paths) */}
+                <Route path="ar">
+                  <Route
+                    index
+                    element={
+                      <Suspense fallback={<MarketingFallback />}>
+                        <MarketingHomePage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="plans"
+                    element={
+                      <Suspense fallback={<MarketingFallback />}>
+                        <MarketingPlansPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="why-forma"
+                    element={
+                      <Suspense fallback={<MarketingFallback />}>
+                        <MarketingWhyFormaPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="get-started"
+                    element={
+                      <Suspense fallback={<MarketingFallback />}>
+                        <MarketingGetStartedPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="gym-management-software-egypt"
+                    element={
+                      <Suspense fallback={<MarketingFallback />}>
+                        <MarketingSolutionPage
+                          solutionKey="egypt"
+                          barePath="/gym-management-software-egypt"
+                        />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="whatsapp-gym-crm"
+                    element={
+                      <Suspense fallback={<MarketingFallback />}>
+                        <MarketingSolutionPage
+                          solutionKey="whatsapp"
+                          barePath="/whatsapp-gym-crm"
+                        />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="multi-branch-gym-software"
+                    element={
+                      <Suspense fallback={<MarketingFallback />}>
+                        <MarketingSolutionPage
+                          solutionKey="multiBranch"
+                          barePath="/multi-branch-gym-software"
+                        />
+                      </Suspense>
+                    }
+                  />
+                  <Route path="checkout" element={<Navigate to="/ar/get-started" replace />} />
+                </Route>
               </Route>
             </Route>
           ) : null}

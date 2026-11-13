@@ -1,5 +1,6 @@
 /** Category comparison: template ERP gym tools vs Forma (no competitor names). */
-export const COMPARE_ROWS = [
+
+const EN = [
   {
     theme: "Product DNA",
     them: "One ERP template stretched across restaurants, retail, warehouses, and gyms.",
@@ -36,3 +37,48 @@ export const COMPARE_ROWS = [
     forma: "Sales-assisted launch with deliberate bank-transfer activation.",
   },
 ];
+
+const AR = [
+  {
+    theme: "هوية المنتج",
+    them: "قالب ERP واحد ممدود على مطاعم وتجزئة ومستودعات وجيمات.",
+    forma: "نظام تشغيل جيم غرضي — منصة حديثة مصمّمة لأرض الصالة.",
+  },
+  {
+    theme: "نطاق الضرر",
+    them: "ثغرة أو خطأ في القالب المشترك قد يصيب كل القطاعات على المنصة — حتى لو بدأ في وحدة مطاعم.",
+    forma: "سطح مركّز على الجيم — مخاطرك ليست مربوطة بوحدات صناعات أخرى.",
+  },
+  {
+    theme: "حدود البيانات",
+    them: "أنماط تعدد الصناعات تزيد الالتباس وخطر التسريب عند ضعف العزل.",
+    forma: "مساحات عمل جيم بصلاحيات حسب الدور وعمليات محدودة بالمستأجر.",
+  },
+  {
+    theme: "التوقف",
+    them: "حوادث القالب المشترك تُسقط أعمالًا غير مرتبطة معًا.",
+    forma: "منصة مملوكة لمشغّلي الجيم — إصدارات وتشغيل موجّهة لسير عملك.",
+  },
+  {
+    theme: "ملاءمة الأرض",
+    them: "شاشات ERP عامة تُفرض على العضويات والحضور.",
+    forma: "أعضاء وباقات وحضور ومبيعات وتدريب وفوترة في مساحة أصيلة للجيم.",
+  },
+  {
+    theme: "خارطة الطريق",
+    them: "احتياجاتك تنتظر خلف وحدات ERP غير ذات صلة.",
+    forma: "خارطة طريق يقودها مشغّلو الجيم — لا نقاط بيع للمطاعم.",
+  },
+  {
+    theme: "الإطلاق",
+    them: "رمي خدمة ذاتية داخل لوحة.",
+    forma: "إطلاق بمساعدة المبيعات وتفعيل متعمّد بتحويل بنكي.",
+  },
+];
+
+/** @deprecated use compareRowsFor(locale) */
+export const COMPARE_ROWS = EN;
+
+export function compareRowsFor(locale = "en") {
+  return locale === "ar" ? AR : EN;
+}

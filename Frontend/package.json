@@ -5,7 +5,13 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build:og": "node scripts/build-og-images.mjs",
+    "build:sitemap": "node scripts/generate-sitemap.mjs",
+    "build:prerender": "node scripts/prerender-marketing.mjs",
+    "build:prerender:indexable": "node scripts/prerender-marketing.mjs --indexable",
+    "build": "npm run build:sitemap && vite build && npm run build:prerender",
+    "build:indexable": "npm run build:sitemap && vite build && npm run build:prerender:indexable",
+    "publish:site": "node scripts/publish-public-site.mjs",
     "lint": "eslint .",
     "preview": "vite preview"
   },
@@ -37,6 +43,7 @@
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.3",
     "globals": "^17.6.0",
+    "sharp": "^0.35.5",
     "tailwindcss": "^4.3.1",
     "vite": "^8.1.0"
   }

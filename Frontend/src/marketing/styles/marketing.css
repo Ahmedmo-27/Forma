@@ -199,6 +199,44 @@
   display: block;
 }
 
+.marketing-lang-switch,
+.marketing-root a.marketing-lang-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  border: 1px solid var(--mkt-toggle-border);
+  border-radius: 8px;
+  background: var(--mkt-toggle-bg);
+  color: var(--mkt-nav-link) !important;
+  font-size: 0.8125rem;
+  font-weight: 650;
+  letter-spacing: 0.02em;
+  text-decoration: none !important;
+  flex-shrink: 0;
+  transition: background 160ms ease, border-color 160ms ease, color 160ms ease;
+}
+
+.marketing-lang-switch:hover,
+.marketing-lang-switch:focus-visible,
+.marketing-root a.marketing-lang-switch:hover,
+.marketing-root a.marketing-lang-switch:focus-visible {
+  color: var(--mkt-nav-link-hover) !important;
+}
+
+.marketing-root a.marketing-lang-switch:focus-visible {
+  outline: 2px solid var(--mkt-nav-link);
+  outline-offset: 3px;
+}
+
+.marketing-solution-point-title {
+  font-size: clamp(1.15rem, 2.2vw, 1.35rem);
+  font-weight: 700;
+  margin: 0 0 0.35rem;
+  color: inherit;
+}
+
 .marketing-nav-toggle {
   display: none;
   appearance: none;
@@ -1512,4 +1550,43 @@
   .marketing-nav-toggle {
     display: inline-flex;
   }
+}
+
+/* RTL (Arabic) */
+.marketing-root[dir="rtl"] .marketing-hero-scrim,
+.marketing-root[dir="rtl"] {
+  text-align: start;
+}
+
+.marketing-root[dir="rtl"] .marketing-hero {
+  --mkt-hero-scrim: linear-gradient(
+    255deg,
+    color-mix(in srgb, var(--mkt-navy) 88%, transparent) 0%,
+    color-mix(in srgb, var(--mkt-navy) 62%, transparent) 48%,
+    color-mix(in srgb, var(--mkt-navy) 48%, transparent) 100%
+  );
+}
+
+.marketing-root[data-theme="light"][dir="rtl"] .marketing-hero {
+  --mkt-hero-scrim: linear-gradient(
+    255deg,
+    color-mix(in srgb, #f4ecdc 82%, transparent) 0%,
+    color-mix(in srgb, #f4ecdc 55%, transparent) 48%,
+    color-mix(in srgb, var(--mkt-navy) 35%, transparent) 100%
+  );
+}
+
+.marketing-root[dir="rtl"] .marketing-nav-inner,
+.marketing-root[dir="rtl"] .marketing-footer-inner,
+.marketing-root[dir="rtl"] .marketing-cta-row,
+.marketing-root[dir="rtl"] .marketing-nav-actions {
+  flex-direction: row;
+}
+
+.marketing-root[dir="rtl"] .marketing-steps-progress-fill {
+  transform-origin: right center;
+}
+
+.marketing-root[dir="rtl"] .marketing-compare-label {
+  text-align: start;
 }

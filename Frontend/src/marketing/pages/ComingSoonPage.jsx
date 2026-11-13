@@ -2,12 +2,15 @@ import { useRef } from "react";
 import { SALES_MAILTO, SALES_EMAIL, appOrigin } from "../host";
 import MagneticButton from "../components/MagneticButton";
 import MarketingHelmet from "../components/MarketingHelmet";
+import { useMarketingI18n } from "../i18n";
 import { gsap, useGSAP, registerMarketingGsap } from "../gsap/register";
 import "../styles/marketing.css";
 
 registerMarketingGsap();
 
 export default function ComingSoonPage({ message }) {
+  const { t, path, meta } = useMarketingI18n();
+  const c = t.comingSoon;
   const rootRef = useRef(null);
 
   useGSAP(
@@ -67,11 +70,11 @@ export default function ComingSoonPage({ message }) {
   );
 
   return (
-    <div className="marketing-root marketing-soon" ref={rootRef}>
+    <div className="marketing-root marketing-soon" data-locale={meta.htmlLang} dir={meta.dir} ref={rootRef}>
       <MarketingHelmet
-        title="Under development — Forma"
-        description="Forma’s public site is under development. Contact sales for early access."
-        path="/"
+        title={c.title}
+        description={c.description}
+        path={path("/")}
         noIndex
       />
 
@@ -91,27 +94,24 @@ export default function ComingSoonPage({ message }) {
 
             <p className="marketing-soon-status">
               <span className="marketing-soon-pulse" aria-hidden="true" />
-              Under development
+              {c.status}
             </p>
 
             <h1 id="soon-heading" className="marketing-soon-title">
-              Forma is taking shape.
+              {c.h1}
             </h1>
 
-            <p className="marketing-soon-copy">
-              {message ||
-                "Our public site isn’t open to guests yet. We’re finishing the launch experience — talk to sales if you’d like an early walkthrough."}
-            </p>
+            <p className="marketing-soon-copy">{message || c.defaultMessage}</p>
 
             <div className="marketing-soon-actions">
               <MagneticButton className="marketing-btn marketing-btn-primary" href={SALES_MAILTO}>
-                Contact sales
+                {t.shared.contactSales}
               </MagneticButton>
               <MagneticButton
                 className="marketing-btn marketing-btn-ghost"
                 href={`${appOrigin()}/login`}
               >
-                Staff login
+                {t.nav.staffLogin}
               </MagneticButton>
             </div>
 
