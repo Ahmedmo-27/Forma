@@ -2541,7 +2541,7 @@ const getTodayCoachTransfers = async (req, res) => {
 
 const refund = async (req, res) => {
     try {
-        const memberID = req.params.memberId || req.body.memberID;
+        const memberID = req.params?.memberId || req.body.memberID;
         const { refund_amount, reason } = req.body;
 
         if (!memberID) {
@@ -2643,7 +2643,7 @@ const refund = async (req, res) => {
 
 const refundPT_Sessions = async (req, res) => {
     try {
-        const memberID = req.params.memberId || req.body.memberID;
+        const memberID = req.params?.memberId || req.body.memberID;
         const { refund_amount, reason } = req.body;
 
         if (!memberID) {

@@ -88,3 +88,22 @@ export function truncateMiddle(str, frontChars = 6, backChars = 6) {
   if (s.length <= frontChars + backChars + 3) return s;
   return `${s.slice(0, frontChars)}…${s.slice(-backChars)}`;
 }
+
+/** Human label for plan duration SKUs, e.g. "3 months", "2 years". */
+export function formatDurationLabel(cycle, intervalCount = 1) {
+  const count = Math.max(1, Math.floor(Number(intervalCount) || 1));
+  if (cycle === "lifetime") return "Lifetime";
+  if (cycle === "yearly") return count === 1 ? "1 year" : `${count} years`;
+  return count === 1 ? "1 month" : `${count} months`;
+}
+
+export function durationKey(cycle, intervalCount = 1) {
+  return `${cycle}:${Math.max(1, Math.floor(Number(intervalCount) || 1))}`;
+}
+
+export function periodMonths(cycle, intervalCount = 1) {
+  const count = Math.max(1, Math.floor(Number(intervalCount) || 1));
+  if (cycle === "lifetime") return null;
+  if (cycle === "yearly") return count * 12;
+  return count;
+}

@@ -8,6 +8,12 @@ const ManualPayment = require("../../models/ManualPayment");
 const { getPaymentAdapter } = require("./paymentAdapter");
 const { runAsPlatform } = require("../../context/tenantContext");
 const { BILLING_CURRENCY } = require("../../config/currency");
+const {
+    normalizeIntervalCount,
+    periodMonths,
+    formatDurationLabel,
+    durationKey,
+} = require("./billingDuration");
 
 const TIER_RANKS = {
     basic: 1,
@@ -57,10 +63,24 @@ async function executeInTransaction(callback) {
 }
 
 /**
- * Resolve active PlanPrice for a plan key and cycle.
+ * Resolve active PlanPrice for a plan key, cycle unit, and interval count.
+ * Third argument may be a Date (legacy callers) or an intervalCount number.
  * Enforces validity date window and active flag.
  */
-async function resolveActivePlanPrice(planKey, cycle = "monthly", now = new Date()) {
+async function resolveActivePlanPrice(planKey, cycle = "monthly", intervalCountOrNow = 1, now = new Date()) {
+    let intervalCount = 1;
+    let resolvedNow = now;
+
+    if (intervalCountOrNow instanceof Date) {
+        resolvedNow = intervalCountOrNow;
+        intervalCount = 1;
+    } else {
+        intervalCount = normalizeIntervalCount(intervalCountOrNow);
+        if (!(resolvedNow instanceof Date)) {
+            resolvedNow = new Date();
+        }
+    }
+
     const plan = await Plan.findOne({ key: planKey });
     if (!plan) {
         const error = new Error(`Plan '${planKey}' not found.`);
@@ -68,16 +88,26 @@ async function resolveActivePlanPrice(planKey, cycle = "monthly", now = new Date
         throw error;
     }
 
+    // Match explicit intervalCount; for count=1 also accept legacy docs missing the field.
+    const intervalClause =
+        intervalCount === 1
+            ? { $or: [{ intervalCount: 1 }, { intervalCount: { $exists: false } }] }
+            : { intervalCount };
+
     const planPrice = await PlanPrice.findOne({
         planId: plan._id,
         cycle,
         isActive: true,
-        validFrom: { $lte: now },
-        $or: [{ validUntil: null }, { validUntil: { $gt: now } }],
+        validFrom: { $lte: resolvedNow },
+        $and: [
+            intervalClause,
+            { $or: [{ validUntil: null }, { validUntil: { $gt: resolvedNow } }] },
+        ],
     });
 
     if (!planPrice) {
-        const error = new Error(`No active ${cycle} price found for plan '${planKey}'.`);
+        const label = formatDurationLabel(cycle, intervalCount);
+        const error = new Error(`No active ${label} price found for plan '${planKey}'.`);
         error.code = "PRICE_NOT_FOUND";
         throw error;
     }
@@ -784,4 +814,8 @@ module.exports = {
     revokeLifetime,
     updateEntitlementPolicy,
     resolveActivePlanPrice,
+    normalizeIntervalCount,
+    periodMonths,
+    formatDurationLabel,
+    durationKey,
 };

@@ -276,7 +276,17 @@ export default function TenantDetailPage() {
   }
 
   const cycle = tenant.billing?.cycle || "monthly";
+  const intervalCount = tenant.billing?.intervalCount || 1;
   const isLifetime = cycle === "lifetime";
+  const durationLabel = isLifetime
+    ? "Lifetime"
+    : cycle === "yearly"
+      ? intervalCount === 1
+        ? "1 year"
+        : `${intervalCount} years`
+      : intervalCount === 1
+        ? "1 month"
+        : `${intervalCount} months`;
 
   return (
     <div className="space-y-6 text-left animate-in fade-in duration-200">
@@ -302,7 +312,7 @@ export default function TenantDetailPage() {
             <CopyChip value={tenant.slug} prefix="/" />
             <StatusPill status={tenant.status} />
             <Badge variant={isLifetime ? "success" : "neutral"} size="sm">
-              {cycle}
+              {durationLabel}
             </Badge>
           </div>
         </div>

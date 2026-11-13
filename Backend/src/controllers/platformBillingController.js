@@ -78,9 +78,11 @@ async function confirmPayment(req, res) {
                 });
             } else {
                 const now = new Date();
-                const months = payment.cycle === "yearly" ? 12 : 1;
+                const intervalCount = billingService.normalizeIntervalCount(payment.intervalCount);
+                const months = billingService.periodMonths(payment.cycle, intervalCount);
                 tenant.status = "active";
                 tenant.billing.cycle = payment.cycle;
+                tenant.billing.intervalCount = intervalCount;
                 tenant.currentPeriodEnd = new Date(now.getTime() + months * 30 * 24 * 60 * 60 * 1000);
                 await tenant.save();
 
@@ -90,6 +92,7 @@ async function confirmPayment(req, res) {
                         type: "purchase",
                         planKey: payment.planKey,
                         cycle: payment.cycle,
+                        intervalCount,
                         amount: payment.amount,
                         currency: BILLING_CURRENCY,
                         actorId: req.platformUser.id,
@@ -280,7 +283,14 @@ async function processRefund(req, res) {
 async function issueManualGrant(req, res) {
     return runAsPlatform(async () => {
         try {
-            const { tenantId, planKey, cycle = "monthly", durationMonths = 1, reason } = req.body;
+            const {
+                tenantId,
+                planKey,
+                cycle = "monthly",
+                intervalCount: rawIntervalCount,
+                durationMonths = 1,
+                reason,
+            } = req.body;
             if (!tenantId || !planKey || !reason || !reason.trim()) {
                 return res.status(400).json({ message: "tenantId, planKey, and mandatory 'reason' are required" });
             }
@@ -298,11 +308,16 @@ async function issueManualGrant(req, res) {
                 });
             }
 
+            const intervalCount = billingService.normalizeIntervalCount(
+                rawIntervalCount != null ? rawIntervalCount : durationMonths
+            );
+
             // Recurring complementary grant
             const now = new Date();
             tenant.status = "active";
             tenant.planId = plan._id;
             tenant.billing.cycle = cycle;
+            tenant.billing.intervalCount = intervalCount;
             tenant.currentPeriodEnd = new Date(now.getTime() + Number(durationMonths) * 30 * 24 * 60 * 60 * 1000);
             await tenant.save();
 
@@ -311,6 +326,7 @@ async function issueManualGrant(req, res) {
                 type: "manual_grant",
                 planKey: plan.key,
                 cycle,
+                intervalCount,
                 amount: 0,
                 currency: BILLING_CURRENCY,
                 actorId: req.platformUser.id,

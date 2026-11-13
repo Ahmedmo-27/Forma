@@ -9,6 +9,7 @@ import AuditLog from "../models/AuditLog";
 import {
     getPlanImpactPreview,
     archivePlan,
+    createPlanPrice,
     updatePlanPrice,
     getRoles,
 } from "../controllers/platformPlanController";
@@ -125,6 +126,78 @@ describe("Phase 3: Plans, Features & Pricing Management", () => {
     });
 
     describe("PlanPrice & Immutable Price Changes", () => {
+        it("creates a multi-month plan price with intervalCount", async () => {
+            const planId = new mongoose.Types.ObjectId();
+            const created = {
+                _id: new mongoose.Types.ObjectId(),
+                planId,
+                cycle: "monthly",
+                intervalCount: 3,
+                amount: 4000,
+            };
+
+            vi.spyOn(PlanPrice, "findOne").mockResolvedValue(null);
+            vi.spyOn(PlanPrice, "create").mockResolvedValue(created);
+
+            const req = {
+                body: {
+                    planId: planId.toString(),
+                    cycle: "monthly",
+                    intervalCount: 3,
+                    amount: 4000,
+                },
+                platformUser: adminUser,
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await createPlanPrice(req, res);
+
+            expect(PlanPrice.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    planId: planId.toString(),
+                    cycle: "monthly",
+                    intervalCount: 3,
+                    amount: 4000,
+                })
+            );
+            expect(res.status).toHaveBeenCalledWith(201);
+            expect(res.json).toHaveBeenCalledWith(created);
+        });
+
+        it("rejects duplicate active price for the same plan duration", async () => {
+            const planId = new mongoose.Types.ObjectId();
+            vi.spyOn(PlanPrice, "findOne").mockResolvedValue({
+                _id: new mongoose.Types.ObjectId(),
+                planId,
+                cycle: "yearly",
+                intervalCount: 2,
+            });
+
+            const req = {
+                body: {
+                    planId: planId.toString(),
+                    cycle: "yearly",
+                    intervalCount: 2,
+                    amount: 28000,
+                },
+                platformUser: adminUser,
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await createPlanPrice(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(409);
+            expect(res.json).toHaveBeenCalledWith(
+                expect.objectContaining({ code: "PRICE_DURATION_EXISTS" })
+            );
+        });
+
         it("rejects price modification if mandatory reason is missing", async () => {
             const priceId = new mongoose.Types.ObjectId();
             const mockPrice = {

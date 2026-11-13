@@ -3,7 +3,9 @@ const { enforceEgpCurrency } = require("./forceEgp");
 
 /**
  * PlanPrice (Platform-Level)
- * Represents cycle-specific pricing (monthly, yearly, lifetime) for a plan tier.
+ * Represents cycle-specific pricing for a plan tier.
+ * `cycle` is the unit (monthly / yearly / lifetime); `intervalCount` is how many
+ * units are sold (e.g. monthly×3 = 3 months, yearly×2 = 2 years).
  * Supports promotional validity windows and atomic seat caps for lifetime deals.
  */
 const planPriceSchema = new mongoose.Schema(
@@ -19,6 +21,12 @@ const planPriceSchema = new mongoose.Schema(
             required: true,
             enum: ["monthly", "yearly", "lifetime"],
             index: true,
+        },
+        intervalCount: {
+            type: Number,
+            required: true,
+            min: 1,
+            default: 1,
         },
         amount: {
             type: Number,
@@ -57,7 +65,11 @@ const planPriceSchema = new mongoose.Schema(
     { timestamps: true }
 );
 
-planPriceSchema.index({ planId: 1, cycle: 1, isActive: 1 });
+planPriceSchema.index({ planId: 1, cycle: 1, intervalCount: 1, isActive: 1 });
+planPriceSchema.index(
+    { planId: 1, cycle: 1, intervalCount: 1 },
+    { unique: true, partialFilterExpression: { isActive: true } }
+);
 enforceEgpCurrency(planPriceSchema);
 
 try {

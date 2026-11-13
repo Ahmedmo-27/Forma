@@ -23,6 +23,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
     ownerEmail: "",
     planKey: "basic",
     cycle: "monthly",
+    intervalCount: 1,
     trialDays: 14,
     amountPaid: 0,
     currency: "EGP",
@@ -39,6 +40,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
         ownerEmail: "",
         planKey: "basic",
         cycle: "monthly",
+        intervalCount: 1,
         trialDays: 14,
         amountPaid: 0,
         currency: "EGP",
@@ -101,6 +103,12 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
       return;
     }
 
+    const intervalCount = Math.floor(Number(form.intervalCount));
+    if (!Number.isFinite(intervalCount) || intervalCount < 1) {
+      setError("Interval count must be a whole number of at least 1.");
+      return;
+    }
+
     setLoading(true);
     setError("");
 
@@ -113,6 +121,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
         ownerName: form.ownerName.trim(),
         trialDays: trial,
         amountPaid: paid,
+        intervalCount,
       });
 
       platformToast.success(`Gym '${res.data.tenant.name}' successfully onboarded!`);
@@ -260,7 +269,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
           />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
             label="Plan Tier"
             value={form.planKey}
@@ -276,21 +285,32 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
             }
           />
 
-          <Select
-            label="Billing Cycle"
-            value={form.cycle}
-            onChange={(e) => setForm({ ...form, cycle: e.target.value })}
-            options={[
-              { value: "monthly", label: "Monthly" },
-              { value: "yearly", label: "Yearly (Annual)" },
-            ]}
-          />
-
           <Input
             label="Trial Period (Days)"
             type="number"
             value={form.trialDays}
             onChange={(e) => setForm({ ...form, trialDays: e.target.value })}
+          />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Select
+            label="Duration Unit"
+            value={form.cycle}
+            onChange={(e) => setForm({ ...form, cycle: e.target.value })}
+            options={[
+              { value: "monthly", label: "Months" },
+              { value: "yearly", label: "Years" },
+            ]}
+          />
+
+          <Input
+            label="Interval Count"
+            type="number"
+            min="1"
+            step="1"
+            value={form.intervalCount}
+            onChange={(e) => setForm({ ...form, intervalCount: e.target.value })}
           />
         </div>
       </form>

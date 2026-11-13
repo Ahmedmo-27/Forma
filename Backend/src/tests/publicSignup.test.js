@@ -51,7 +51,8 @@ describe("Public plans + signup", () => {
                 _id: new mongoose.Types.ObjectId(),
                 planId,
                 cycle: "monthly",
-                amount: 1500,
+                intervalCount: 3,
+                amount: 4000,
                 validFrom: new Date(Date.now() - 1000),
                 validUntil: null,
                 maxLifetimeSeats: null,
@@ -75,7 +76,14 @@ describe("Public plans + signup", () => {
             expect.objectContaining({
                 currency: "EGP",
                 plans: [expect.objectContaining({ key: "basic", name: "Basic" })],
-                prices: [expect.objectContaining({ planKey: "basic", cycle: "monthly", amount: 1500 })],
+                prices: [
+                    expect.objectContaining({
+                        planKey: "basic",
+                        cycle: "monthly",
+                        intervalCount: 3,
+                        amount: 4000,
+                    }),
+                ],
             })
         );
     });
@@ -179,6 +187,7 @@ describe("Public plans + signup", () => {
                 tenantId,
                 planKey: "basic",
                 cycle: "monthly",
+                intervalCount: 1,
                 amount: 1500,
                 status: "pending",
                 paymentRef: expect.stringMatching(/^MANUAL-/),
@@ -199,6 +208,101 @@ describe("Public plans + signup", () => {
                         referenceCode: expect.any(String),
                     }),
                 }),
+            })
+        );
+    }, 15000);
+
+    it("resolves a multi-month price and persists intervalCount on signup", async () => {
+        const planId = new mongoose.Types.ObjectId();
+        const tenantId = new mongoose.Types.ObjectId();
+        const ownerId = new mongoose.Types.ObjectId();
+        const plan = {
+            _id: planId,
+            key: "gold",
+            name: "Gold",
+            isActive: true,
+            visibility: "public",
+        };
+        const planPrice = {
+            _id: new mongoose.Types.ObjectId(),
+            amount: 4000,
+            intervalCount: 3,
+            cycle: "monthly",
+            maxLifetimeSeats: null,
+            soldLifetimeSeats: 0,
+        };
+
+        vi.spyOn(Plan, "findOne").mockResolvedValue(plan);
+        vi.spyOn(PlanPrice, "findOne").mockResolvedValue(planPrice);
+        vi.spyOn(Tenant, "findOne").mockResolvedValue(null);
+        vi.spyOn(User, "findOne").mockResolvedValue(null);
+        vi.spyOn(Tenant, "create").mockResolvedValue({
+            _id: tenantId,
+            name: "Quarter Gym",
+            slug: "quarter-gym",
+            status: "trial",
+            save: vi.fn().mockResolvedValue(true),
+        });
+        vi.spyOn(User, "create").mockResolvedValue({
+            _id: ownerId,
+            name: "Owner",
+            email: "owner@quarter.com",
+        });
+        vi.spyOn(PasswordSetupToken, "updateMany").mockResolvedValue({});
+        vi.spyOn(PasswordSetupToken, "create").mockResolvedValue({});
+        vi.spyOn(mailer, "sendInvite").mockResolvedValue({ skipped: true });
+        vi.spyOn(paymentAdapter, "getPaymentAdapter").mockReturnValue({
+            initiatePayment: vi.fn().mockResolvedValue({
+                paymentRef: "MANUAL-Q3",
+                paymentMethod: "manual_transfer",
+                status: "pending",
+                amount: 4000,
+                currency: "EGP",
+                instructions: { referenceCode: "MANUAL-Q3" },
+            }),
+        });
+        vi.spyOn(ManualPayment, "create").mockResolvedValue({});
+        vi.spyOn(AuditLog, "create").mockResolvedValue({});
+
+        const res = mockRes();
+        await publicSignup(
+            {
+                body: {
+                    name: "Quarter Gym",
+                    slug: "quarter-gym",
+                    ownerName: "Owner",
+                    ownerEmail: "owner@quarter.com",
+                    planKey: "gold",
+                    cycle: "monthly",
+                    intervalCount: 3,
+                },
+            },
+            res
+        );
+
+        expect(PlanPrice.findOne).toHaveBeenCalledWith(
+            expect.objectContaining({
+                planId,
+                cycle: "monthly",
+                isActive: true,
+            })
+        );
+        expect(Tenant.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                billing: expect.objectContaining({ cycle: "monthly", intervalCount: 3 }),
+            })
+        );
+        expect(ManualPayment.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                cycle: "monthly",
+                intervalCount: 3,
+                amount: 4000,
+            })
+        );
+        expect(res.status).toHaveBeenCalledWith(201);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                payment: expect.objectContaining({ cycle: "monthly", intervalCount: 3, amount: 4000 }),
             })
         );
     }, 15000);

@@ -1,10 +1,15 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { fetchPublicPlans, submitPublicSignup } from "../api";
 import { appOrigin, SALES_MAILTO, SALES_EMAIL } from "../host";
 import MagneticButton from "../components/MagneticButton";
 import MarketingHelmet from "../components/MarketingHelmet";
+import {
+  durationKey,
+  formatDurationLabel,
+  normalizeIntervalCount,
+} from "../duration";
 import { gsap, useGSAP, registerMarketingGsap } from "../gsap/register";
 
 registerMarketingGsap();
@@ -33,6 +38,7 @@ export default function GetStartedPage() {
     ownerEmail: "",
     planKey: params.get("plan") || "basic",
     cycle: params.get("cycle") || "monthly",
+    intervalCount: normalizeIntervalCount(params.get("intervalCount") || 1),
   });
   const [result, setResult] = useState(null);
 
@@ -55,14 +61,44 @@ export default function GetStartedPage() {
   );
 
   const planOptions = catalog?.plans || [];
-  const cycleOptions = useMemo(() => {
-    const cycles = new Set(
-      (catalog?.prices || [])
-        .filter((p) => p.planKey === form.planKey && !p.isSoldOut)
-        .map((p) => p.cycle)
+  const durationOptions = useMemo(() => {
+    const prices = (catalog?.prices || []).filter(
+      (p) => p.planKey === form.planKey && !p.isSoldOut && p.cycle !== "lifetime"
     );
-    return ["monthly", "yearly"].filter((c) => cycles.has(c));
+    const seen = new Map();
+    for (const p of prices) {
+      const intervalCount = normalizeIntervalCount(p.intervalCount);
+      const id = durationKey(p.cycle, intervalCount);
+      if (seen.has(id)) continue;
+      seen.set(id, {
+        id,
+        cycle: p.cycle,
+        intervalCount,
+        label: formatDurationLabel(p.cycle, intervalCount),
+        amount: p.amount,
+        currency: p.currency || catalog?.currency || "EGP",
+      });
+    }
+    return Array.from(seen.values()).sort((a, b) => {
+      const am = a.cycle === "yearly" ? a.intervalCount * 12 : a.intervalCount;
+      const bm = b.cycle === "yearly" ? b.intervalCount * 12 : b.intervalCount;
+      return am - bm;
+    });
   }, [catalog, form.planKey]);
+
+  const selectedDurationId = durationKey(form.cycle, form.intervalCount);
+
+  useEffect(() => {
+    if (!durationOptions.length) return;
+    if (!durationOptions.some((d) => d.id === selectedDurationId)) {
+      const first = durationOptions[0];
+      setForm((prev) => ({
+        ...prev,
+        cycle: first.cycle,
+        intervalCount: first.intervalCount,
+      }));
+    }
+  }, [durationOptions, selectedDurationId]);
 
   const mutation = useMutation({
     mutationFn: submitPublicSignup,
@@ -73,15 +109,31 @@ export default function GetStartedPage() {
     setForm((prev) => {
       const next = { ...prev, [key]: value };
       if (key === "planKey") {
-        const available = (catalog?.prices || [])
-          .filter((p) => p.planKey === value && !p.isSoldOut)
-          .map((p) => p.cycle);
-        if (!available.includes(next.cycle)) {
-          next.cycle = available[0] || "monthly";
+        const available = (catalog?.prices || []).filter(
+          (p) => p.planKey === value && !p.isSoldOut && p.cycle !== "lifetime"
+        );
+        const stillValid = available.some(
+          (p) =>
+            p.cycle === next.cycle &&
+            normalizeIntervalCount(p.intervalCount) === normalizeIntervalCount(next.intervalCount)
+        );
+        if (!stillValid && available[0]) {
+          next.cycle = available[0].cycle;
+          next.intervalCount = normalizeIntervalCount(available[0].intervalCount);
         }
       }
       return next;
     });
+  }
+
+  function onDurationChange(id) {
+    const option = durationOptions.find((d) => d.id === id);
+    if (!option) return;
+    setForm((prev) => ({
+      ...prev,
+      cycle: option.cycle,
+      intervalCount: option.intervalCount,
+    }));
   }
 
   function onSubmit(e) {
@@ -94,6 +146,7 @@ export default function GetStartedPage() {
       ownerEmail: form.ownerEmail,
       planKey: form.planKey,
       cycle: form.cycle,
+      intervalCount: normalizeIntervalCount(form.intervalCount),
     });
   }
 
@@ -142,7 +195,11 @@ export default function GetStartedPage() {
                 <div>
                   <dt>Plan</dt>
                   <dd>
-                    {result.tenant?.planKey} · {result.payment?.cycle}
+                    {result.tenant?.planKey} ·{" "}
+                    {formatDurationLabel(
+                      result.payment?.cycle,
+                      result.payment?.intervalCount || 1
+                    )}
                   </dd>
                 </div>
                 <div>
@@ -254,16 +311,28 @@ export default function GetStartedPage() {
               </div>
 
               <div className="marketing-field">
-                <label htmlFor="cycle">Billing cycle</label>
+                <label htmlFor="duration">Duration</label>
                 <select
-                  id="cycle"
-                  name="cycle"
-                  value={form.cycle}
-                  onChange={(e) => updateField("cycle", e.target.value)}
+                  id="duration"
+                  name="duration"
+                  value={selectedDurationId}
+                  onChange={(e) => onDurationChange(e.target.value)}
                 >
-                  {(cycleOptions.length ? cycleOptions : ["monthly", "yearly"]).map((c) => (
-                    <option key={c} value={c}>
-                      {c}
+                  {(durationOptions.length
+                    ? durationOptions
+                    : [
+                        {
+                          id: "monthly:1",
+                          cycle: "monthly",
+                          intervalCount: 1,
+                          label: "1 month",
+                        },
+                      ]
+                  ).map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.amount != null
+                        ? `${d.label} — ${d.amount} ${d.currency || "EGP"}`
+                        : d.label}
                     </option>
                   ))}
                 </select>

@@ -1,22 +1,24 @@
-import { useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchPublicPlans } from "../api";
 import { SALES_MAILTO } from "../host";
 import MagneticButton from "../components/MagneticButton";
 import MarketingHelmet from "../components/MarketingHelmet";
 import { labelFeature } from "../data/featureLabels";
+import {
+  buildDurationOptions,
+  durationKey,
+  durationSavingsPercent,
+  formatDurationLabel,
+  normalizeIntervalCount,
+} from "../duration";
 import { useScrollReveal } from "../hooks/useScrollReveal";
 import { gsap, useGSAP, registerMarketingGsap } from "../gsap/register";
 
 registerMarketingGsap();
 
-const CYCLES = [
-  { id: "monthly", label: "Monthly" },
-  { id: "yearly", label: "Yearly" },
-];
-
 const PLANS_DESCRIPTION =
-  "Compare Forma Basic, Gold, and Platinum plans in EGP — monthly or yearly. Sales-assisted onboarding with bank transfer.";
+  "Compare Forma Basic, Gold, and Platinum plans in EGP — choose any available month or year duration. Sales-assisted onboarding with bank transfer.";
 
 function formatAmount(amount, currency = "EGP") {
   if (amount == null) return "—";
@@ -31,21 +33,27 @@ function formatAmount(amount, currency = "EGP") {
   }
 }
 
-function yearlySavingsPercent(prices, planKey) {
-  const monthly = prices.find(
-    (p) => p.planKey === planKey && p.cycle === "monthly" && !p.isSoldOut
+function matchPrice(prices, planKey, cycle, intervalCount) {
+  const count = normalizeIntervalCount(intervalCount);
+  return (
+    prices.find(
+      (p) =>
+        p.planKey === planKey &&
+        p.cycle === cycle &&
+        normalizeIntervalCount(p.intervalCount) === count &&
+        !p.isSoldOut
+    ) ||
+    prices.find(
+      (p) =>
+        p.planKey === planKey &&
+        p.cycle === cycle &&
+        normalizeIntervalCount(p.intervalCount) === count
+    )
   );
-  const yearly = prices.find(
-    (p) => p.planKey === planKey && p.cycle === "yearly" && !p.isSoldOut
-  );
-  if (!monthly?.amount || !yearly?.amount) return null;
-  const fullYear = monthly.amount * 12;
-  if (fullYear <= yearly.amount) return null;
-  return Math.round((1 - yearly.amount / fullYear) * 100);
 }
 
 export default function PlansPage() {
-  const [cycle, setCycle] = useState("monthly");
+  const [selectedDuration, setSelectedDuration] = useState(null);
   const sectionRef = useRef(null);
   const gridRef = useRef(null);
   const panelId = useId();
@@ -58,26 +66,46 @@ export default function PlansPage() {
   });
 
   const prices = data?.prices || [];
+  const durationOptions = useMemo(() => buildDurationOptions(prices), [prices]);
+
+  useEffect(() => {
+    if (!durationOptions.length) {
+      setSelectedDuration(null);
+      return;
+    }
+    setSelectedDuration((prev) => {
+      if (prev && durationOptions.some((d) => d.id === prev.id)) return prev;
+      return durationOptions[0];
+    });
+  }, [durationOptions]);
+
+  const cycle = selectedDuration?.cycle || "monthly";
+  const intervalCount = selectedDuration?.intervalCount || 1;
+  const durationId = selectedDuration?.id || durationKey(cycle, intervalCount);
 
   const plansWithPrice = useMemo(() => {
     const plans = data?.plans || [];
     return plans.map((plan) => {
-      const price =
-        prices.find((p) => p.planKey === plan.key && p.cycle === cycle && !p.isSoldOut) ||
-        prices.find((p) => p.planKey === plan.key && p.cycle === cycle);
-      const savePct = yearlySavingsPercent(prices, plan.key);
+      const price = matchPrice(prices, plan.key, cycle, intervalCount);
+      const savePct = durationSavingsPercent(prices, plan.key, cycle, intervalCount);
       return { ...plan, price, savePct };
     });
-  }, [data, cycle, prices]);
+  }, [data, cycle, intervalCount, prices]);
 
-  const maxYearlySave = useMemo(() => {
+  const maxDurationSave = useMemo(() => {
+    if (!selectedDuration || selectedDuration.months <= 1) return 0;
     let max = 0;
     for (const plan of data?.plans || []) {
-      const pct = yearlySavingsPercent(prices, plan.key);
+      const pct = durationSavingsPercent(
+        prices,
+        plan.key,
+        selectedDuration.cycle,
+        selectedDuration.intervalCount
+      );
       if (pct != null && pct > max) max = pct;
     }
     return max;
-  }, [data, prices]);
+  }, [data, prices, selectedDuration]);
 
   useGSAP(
     () => {
@@ -131,7 +159,11 @@ export default function PlansPage() {
       });
       return () => mm.revert();
     },
-    { scope: gridRef, dependencies: [plansWithPrice, cycle, isLoading, isError], revertOnUpdate: true }
+    {
+      scope: gridRef,
+      dependencies: [plansWithPrice, durationId, isLoading, isError],
+      revertOnUpdate: true,
+    }
   );
 
   return (
@@ -155,25 +187,27 @@ export default function PlansPage() {
             </p>
           </div>
 
-          <div className="marketing-cycle-tabs" role="tablist" aria-label="Billing cycle">
-            {CYCLES.map((c) => (
-              <button
-                key={c.id}
-                type="button"
-                role="tab"
-                id={`cycle-tab-${c.id}`}
-                aria-selected={cycle === c.id}
-                aria-controls={panelId}
-                tabIndex={cycle === c.id ? 0 : -1}
-                onClick={() => setCycle(c.id)}
-              >
-                {c.label}
-                {c.id === "yearly" && maxYearlySave > 0 ? (
-                  <span className="marketing-cycle-save">Save up to {maxYearlySave}%</span>
-                ) : null}
-              </button>
-            ))}
-          </div>
+          {durationOptions.length > 0 && (
+            <div className="marketing-cycle-tabs" role="tablist" aria-label="Plan duration">
+              {durationOptions.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  role="tab"
+                  id={`cycle-tab-${d.id}`}
+                  aria-selected={durationId === d.id}
+                  aria-controls={panelId}
+                  tabIndex={durationId === d.id ? 0 : -1}
+                  onClick={() => setSelectedDuration(d)}
+                >
+                  {d.label}
+                  {d.months > 1 && maxDurationSave > 0 && durationId === d.id ? (
+                    <span className="marketing-cycle-save">Save up to {maxDurationSave}%</span>
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          )}
 
           {isLoading && <p className="marketing-alert">Loading plans…</p>}
           {isError && (
@@ -188,16 +222,17 @@ export default function PlansPage() {
               ref={gridRef}
               id={panelId}
               role="tabpanel"
-              aria-labelledby={`cycle-tab-${cycle}`}
+              aria-labelledby={`cycle-tab-${durationId}`}
             >
               {plansWithPrice.map((plan) => {
                 const featured = plan.key === "gold";
                 const soldOut = plan.price?.isSoldOut;
                 const unavailable = soldOut || !plan.price;
-                const showSave = cycle === "yearly" && plan.savePct != null && plan.savePct > 0;
+                const showSave = plan.savePct != null && plan.savePct > 0;
+                const label = formatDurationLabel(cycle, intervalCount);
                 return (
                   <article
-                    key={`${plan.key}-${cycle}`}
+                    key={`${plan.key}-${durationId}`}
                     className={`marketing-plan${featured ? " is-featured" : ""}`}
                   >
                     <div>
@@ -220,7 +255,7 @@ export default function PlansPage() {
                       </strong>
                       {!soldOut && plan.price && (
                         <span>
-                          / {cycle}
+                          / {label}
                           {plan.price.remainingSeats != null
                             ? ` · ${plan.price.remainingSeats} seats left`
                             : ""}
@@ -249,7 +284,7 @@ export default function PlansPage() {
                     ) : (
                       <MagneticButton
                         className="marketing-btn marketing-btn-primary"
-                        to={`/get-started?plan=${encodeURIComponent(plan.key)}&cycle=${encodeURIComponent(cycle)}`}
+                        to={`/get-started?plan=${encodeURIComponent(plan.key)}&cycle=${encodeURIComponent(cycle)}&intervalCount=${encodeURIComponent(intervalCount)}`}
                       >
                         Get started
                       </MagneticButton>

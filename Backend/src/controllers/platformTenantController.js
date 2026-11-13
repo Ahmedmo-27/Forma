@@ -309,6 +309,7 @@ async function onboardTenant(req, res) {
             ownerEmail,
             planKey = "basic",
             cycle = "monthly",
+            intervalCount: rawIntervalCount = 1,
             trialDays = 14,
             isLifetime = false,
             amountPaid = 0,
@@ -319,6 +320,8 @@ async function onboardTenant(req, res) {
         if (!name || !slug || !ownerName || !ownerEmail) {
             return res.status(400).json({ message: "name, slug, ownerName, and ownerEmail are required" });
         }
+
+        const intervalCount = Math.max(1, Math.floor(Number(rawIntervalCount) || 1));
 
         const normalizedSlug = slug.trim().toLowerCase();
         if (!/^[a-z0-9-]+$/.test(normalizedSlug)) {
@@ -369,6 +372,7 @@ async function onboardTenant(req, res) {
 
         const billing = {
             cycle,
+            intervalCount,
             lifetime: {},
         };
 

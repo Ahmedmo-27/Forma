@@ -35,7 +35,7 @@ import {
   Calendar,
   Layers,
 } from "lucide-react";
-import { formatCurrency, formatDate } from "../../lib/utils/formatters";
+import { formatCurrency, formatDate, formatDurationLabel } from "../../lib/utils/formatters";
 
 export default function PricingCouponsPage() {
   const [activeTab, setActiveTab] = useState("prices");
@@ -199,7 +199,7 @@ export default function PricingCouponsPage() {
             <EmptyState
               icon={DollarSign}
               title="No price matrices authored"
-              description="Define pricing for monthly or yearly memberships."
+              description="Define pricing for any month or year duration length."
               action={
                 <Button
                   size="sm"
@@ -216,7 +216,7 @@ export default function PricingCouponsPage() {
                 <thead>
                   <tr className="border-b border-[var(--platform-border-subtle)] bg-[var(--platform-canvas)] text-[var(--platform-text-muted)] font-semibold uppercase tracking-wider text-[11px]">
                     <th className="py-3 px-4">Plan</th>
-                    <th className="py-3 px-4">Billing Cadence</th>
+                    <th className="py-3 px-4">Duration</th>
                     <th className="py-3 px-4">Amount</th>
                     <th className="py-3 px-4">Validity</th>
                     <th className="py-3 px-4 text-center">Sales Status</th>
@@ -246,9 +246,8 @@ export default function PricingCouponsPage() {
                           <Badge
                             variant={p.cycle === "yearly" ? "success" : "neutral"}
                             size="xs"
-                            className="capitalize"
                           >
-                            {p.cycle}
+                            {formatDurationLabel(p.cycle, p.intervalCount)}
                           </Badge>
                         </td>
 
@@ -257,7 +256,7 @@ export default function PricingCouponsPage() {
                             {formatCurrency(p.amount)}
                           </span>
                           <span className="text-[11px] text-[var(--platform-text-muted)] block">
-                            /{p.cycle}
+                            / {formatDurationLabel(p.cycle, p.intervalCount)}
                           </span>
                         </td>
 

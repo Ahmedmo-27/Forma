@@ -119,6 +119,112 @@ describe("Phase 4: Billing & Payments Operations", () => {
             );
         });
 
+        it("sets currentPeriodEnd for a 3-month intervalCount payment", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
+            const mockTenant = {
+                _id: tenantId,
+                name: "Quarterly Gym",
+                slug: "quarterly-gym",
+                status: "trial",
+                billing: { cycle: "monthly", intervalCount: 1 },
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            const mockPayment = {
+                _id: new mongoose.Types.ObjectId(),
+                paymentRef: "MANUAL-BANK-Q3",
+                tenantId: mockTenant,
+                planKey: "gold",
+                cycle: "monthly",
+                intervalCount: 3,
+                amount: 4000,
+                currency: "EGP",
+                status: "pending",
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            vi.spyOn(ManualPayment, "findById").mockReturnValue({
+                populate: vi.fn().mockResolvedValue(mockPayment),
+            });
+            vi.spyOn(BillingEvent, "create").mockResolvedValue([{ _id: new mongoose.Types.ObjectId() }]);
+            vi.spyOn(Invoice, "create").mockResolvedValue({ invoiceNumber: "INV-2026-0006" });
+            vi.spyOn(PlatformCounter, "findOneAndUpdate").mockResolvedValue({ seq: 6 });
+
+            const before = Date.now();
+            await confirmPayment(
+                {
+                    params: { id: mockPayment._id.toString() },
+                    body: { reason: "Verified 3-month bank transfer" },
+                    platformUser: adminUser,
+                },
+                { json: vi.fn(), status: vi.fn().mockReturnThis() }
+            );
+
+            expect(mockTenant.billing.intervalCount).toBe(3);
+            const expectedMs = 3 * 30 * 24 * 60 * 60 * 1000;
+            const delta = mockTenant.currentPeriodEnd.getTime() - before;
+            expect(delta).toBeGreaterThanOrEqual(expectedMs - 5000);
+            expect(delta).toBeLessThanOrEqual(expectedMs + 5000);
+            expect(BillingEvent.create).toHaveBeenCalledWith(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        cycle: "monthly",
+                        intervalCount: 3,
+                        amount: 4000,
+                    }),
+                ])
+            );
+        });
+
+        it("sets currentPeriodEnd for a 2-year intervalCount payment", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
+            const mockTenant = {
+                _id: tenantId,
+                name: "Biennial Gym",
+                slug: "biennial-gym",
+                status: "trial",
+                billing: { cycle: "yearly", intervalCount: 1 },
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            const mockPayment = {
+                _id: new mongoose.Types.ObjectId(),
+                paymentRef: "MANUAL-BANK-Y2",
+                tenantId: mockTenant,
+                planKey: "platinum",
+                cycle: "yearly",
+                intervalCount: 2,
+                amount: 50000,
+                currency: "EGP",
+                status: "pending",
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            vi.spyOn(ManualPayment, "findById").mockReturnValue({
+                populate: vi.fn().mockResolvedValue(mockPayment),
+            });
+            vi.spyOn(BillingEvent, "create").mockResolvedValue([{ _id: new mongoose.Types.ObjectId() }]);
+            vi.spyOn(Invoice, "create").mockResolvedValue({ invoiceNumber: "INV-2026-0007" });
+            vi.spyOn(PlatformCounter, "findOneAndUpdate").mockResolvedValue({ seq: 7 });
+
+            const before = Date.now();
+            await confirmPayment(
+                {
+                    params: { id: mockPayment._id.toString() },
+                    body: { reason: "Verified 2-year bank transfer" },
+                    platformUser: adminUser,
+                },
+                { json: vi.fn(), status: vi.fn().mockReturnThis() }
+            );
+
+            expect(mockTenant.billing.cycle).toBe("yearly");
+            expect(mockTenant.billing.intervalCount).toBe(2);
+            const expectedMs = 24 * 30 * 24 * 60 * 60 * 1000;
+            const delta = mockTenant.currentPeriodEnd.getTime() - before;
+            expect(delta).toBeGreaterThanOrEqual(expectedMs - 5000);
+            expect(delta).toBeLessThanOrEqual(expectedMs + 5000);
+        });
+
         it("rejects payment submission with mandatory reason", async () => {
             const mockPayment = {
                 _id: new mongoose.Types.ObjectId(),

@@ -1,6 +1,6 @@
 /**
- * Seed PlanPrices (monthly and yearly only).
- * Idempotent: upserts prices by { planId, cycle }.
+ * Seed PlanPrices (monthly and yearly, intervalCount=1).
+ * Idempotent: upserts prices by { planId, cycle, intervalCount }.
  *
  * Usage:
  *   node src/scripts/seedPlanPrices.js [--dry-run]
@@ -31,6 +31,7 @@ async function seedPlanPrices(options = {}) {
             planId: plan._id,
             planKey: plan.key,
             cycle: "monthly",
+            intervalCount: 1,
             amount: plan.priceMonthly,
             currency: plan.currency || "EGP",
             isActive: true,
@@ -41,6 +42,7 @@ async function seedPlanPrices(options = {}) {
             planId: plan._id,
             planKey: plan.key,
             cycle: "yearly",
+            intervalCount: 1,
             amount: plan.priceYearly,
             currency: plan.currency || "EGP",
             isActive: true,
@@ -49,17 +51,31 @@ async function seedPlanPrices(options = {}) {
         });
     }
 
+    // Backfill legacy prices missing intervalCount before upserts (avoid duplicate SKUs).
+    if (!isDryRun) {
+        const backfilled = await PlanPrice.updateMany(
+            { $or: [{ intervalCount: { $exists: false } }, { intervalCount: null }] },
+            { $set: { intervalCount: 1 } }
+        );
+        if (backfilled.modifiedCount) {
+            console.log(`Backfilled intervalCount=1 on ${backfilled.modifiedCount} legacy plan price(s).`);
+        }
+    }
+
     const results = [];
     for (const p of pricesToSeed) {
-        console.log(`PlanPrice [${p.planKey.toUpperCase()} - ${p.cycle.toUpperCase()}]: ${p.amount} ${p.currency}`);
+        console.log(
+            `PlanPrice [${p.planKey.toUpperCase()} - ${p.cycle.toUpperCase()} × ${p.intervalCount}]: ${p.amount} ${p.currency}`
+        );
         if (!isDryRun) {
             const price = await PlanPrice.findOneAndUpdate(
-                { planId: p.planId, cycle: p.cycle },
+                { planId: p.planId, cycle: p.cycle, intervalCount: p.intervalCount },
                 {
                     $set: {
                         amount: p.amount,
                         currency: p.currency,
                         isActive: p.isActive,
+                        intervalCount: p.intervalCount,
                     },
                     $setOnInsert: {
                         validFrom: p.validFrom,

@@ -39,6 +39,11 @@ const billingEventSchema = new mongoose.Schema(
             required: true,
             enum: ["monthly", "yearly", "lifetime"],
         },
+        intervalCount: {
+            type: Number,
+            min: 1,
+            default: 1,
+        },
         amount: {
             type: Number,
             required: true,

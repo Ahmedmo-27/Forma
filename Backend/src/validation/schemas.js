@@ -376,6 +376,7 @@ const updateEntitlementPolicySchema = z.object({
 const planPriceSchema = z.object({
     planId: objectId,
     cycle: z.enum(["monthly", "yearly"]),
+    intervalCount: z.coerce.number().int().min(1).default(1),
     amount: z.coerce.number().min(0),
     currency: egpCurrency,
     isActive: z.boolean().default(true),
@@ -390,6 +391,7 @@ const publicSignupSchema = z.object({
     ownerEmail: z.string().trim().email().toLowerCase(),
     planKey: planKeySchema.default("basic"),
     cycle: z.enum(["monthly", "yearly"]).default("monthly"),
+    intervalCount: z.coerce.number().int().min(1).default(1),
     trialDays: z.coerce.number().int().min(1).max(90).optional().default(14),
 });
 

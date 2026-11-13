@@ -24,6 +24,7 @@ export default function CreatePriceModal({
 
   const [planId, setPlanId] = useState("");
   const [cycle, setCycle] = useState("monthly");
+  const [intervalCount, setIntervalCount] = useState(1);
   const [amount, setAmount] = useState(49);
   const [validUntil, setValidUntil] = useState("");
   const [isActive, setIsActive] = useState(true);
@@ -36,6 +37,7 @@ export default function CreatePriceModal({
     if (priceToEdit) {
       setPlanId(priceToEdit.planId?._id || priceToEdit.planId || "");
       setCycle(priceToEdit.cycle || "monthly");
+      setIntervalCount(priceToEdit.intervalCount || 1);
       setAmount(priceToEdit.amount || 0);
       setValidUntil(
         priceToEdit.validUntil
@@ -49,6 +51,7 @@ export default function CreatePriceModal({
         setPlanId(availablePlans[0]._id);
       }
       setCycle("monthly");
+      setIntervalCount(1);
       setAmount(49);
       setValidUntil("");
       setIsActive(true);
@@ -66,6 +69,11 @@ export default function CreatePriceModal({
       setError("Please provide a valid non-negative price amount");
       return;
     }
+    const count = Math.floor(Number(intervalCount));
+    if (!Number.isFinite(count) || count < 1) {
+      setError("Interval count must be a whole number of at least 1");
+      return;
+    }
     if (validUntil && isNaN(Date.parse(validUntil))) {
       setError("Please enter a valid expiration date");
       return;
@@ -81,6 +89,7 @@ export default function CreatePriceModal({
     const payload = {
       planId,
       cycle,
+      intervalCount: count,
       amount: Number(amount),
       currency: "EGP",
       validUntil: validUntil ? new Date(validUntil).toISOString() : null,
@@ -124,43 +133,61 @@ export default function CreatePriceModal({
       isOpen={open}
       onClose={() => onOpenChange(false)}
       title={isEdit ? "Edit Plan Pricing Tier" : "Define New Price Tier"}
-      description="Attach an EGP price, billing frequency, and seat quotas to a subscription tier."
+      description="Attach an EGP price and any month/year duration length to a subscription tier."
       footer={footer}
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && <Callout variant="danger">{error}</Callout>}
 
+        <div>
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
+            Target Plan <span className="text-[var(--platform-danger)]">*</span>
+          </label>
+          <Select
+            value={planId}
+            onChange={(e) => setPlanId(e.target.value)}
+            disabled={isEdit}
+          >
+            {availablePlans.map((p) => (
+              <option key={p._id} value={p._id}>
+                {p.name} ({p.key})
+              </option>
+            ))}
+          </Select>
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
-              Target Plan <span className="text-[var(--platform-danger)]">*</span>
-            </label>
-            <Select
-              value={planId}
-              onChange={(e) => setPlanId(e.target.value)}
-              disabled={isEdit}
-            >
-              {availablePlans.map((p) => (
-                <option key={p._id} value={p._id}>
-                  {p.name} ({p.key})
-                </option>
-              ))}
-            </Select>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
-              Billing Cadence <span className="text-[var(--platform-danger)]">*</span>
+              Duration Unit <span className="text-[var(--platform-danger)]">*</span>
             </label>
             <Select
               value={cycle}
               onChange={(e) => setCycle(e.target.value)}
               disabled={isEdit}
             >
-              <option value="monthly">Monthly Recurring</option>
-              <option value="yearly">Yearly Contract</option>
+              <option value="monthly">Months</option>
+              <option value="yearly">Years</option>
             </Select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
+              Interval Count <span className="text-[var(--platform-danger)]">*</span>
+            </label>
+            <Input
+              type="number"
+              min="1"
+              step="1"
+              value={intervalCount}
+              onChange={(e) => setIntervalCount(e.target.value)}
+              disabled={isEdit}
+              required
+            />
+            <span className="text-[10px] text-[var(--platform-text-muted)] mt-1 block">
+              e.g. unit Months + count 3 = 3 months; unit Years + count 2 = 2 years
+            </span>
           </div>
         </div>
 

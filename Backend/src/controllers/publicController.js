@@ -80,7 +80,7 @@ async function listPublicPlans(_req, res) {
                     .sort({ sortOrder: 1, priceMonthly: 1 })
                     .lean(),
                 PlanPrice.find({ isActive: true })
-                    .select("planId cycle amount validFrom validUntil maxLifetimeSeats soldLifetimeSeats")
+                    .select("planId cycle intervalCount amount validFrom validUntil maxLifetimeSeats soldLifetimeSeats")
                     .lean(),
             ]);
 
@@ -97,12 +97,14 @@ async function listPublicPlans(_req, res) {
                 })
                 .map((p) => {
                     const plan = plans.find((pl) => String(pl._id) === String(p.planId));
+                    const intervalCount = Number(p.intervalCount) >= 1 ? Number(p.intervalCount) : 1;
 
                     return {
                         id: p._id,
                         planKey: plan?.key,
                         planName: plan?.name,
                         cycle: p.cycle,
+                        intervalCount,
                         amount: p.amount,
                         currency: BILLING_CURRENCY,
                         validUntil: p.validUntil,
@@ -152,6 +154,7 @@ async function publicSignup(req, res) {
             ownerEmail,
             planKey = "basic",
             cycle = "monthly",
+            intervalCount: rawIntervalCount = 1,
             trialDays = 14,
         } = req.body;
 
@@ -161,6 +164,11 @@ async function publicSignup(req, res) {
 
         if (!["monthly", "yearly"].includes(cycle)) {
             return res.status(400).json({ message: "cycle must be monthly or yearly" });
+        }
+
+        const intervalCount = billingService.normalizeIntervalCount(rawIntervalCount);
+        if (Number(rawIntervalCount) < 1 || !Number.isFinite(Number(rawIntervalCount))) {
+            return res.status(400).json({ message: "intervalCount must be an integer >= 1" });
         }
 
         const result = await tenantContext.runAsPlatform(async () => {
@@ -186,7 +194,11 @@ async function publicSignup(req, res) {
                 throw error;
             }
 
-            const { plan, planPrice } = await billingService.resolveActivePlanPrice(planKey, cycle);
+            const { plan, planPrice } = await billingService.resolveActivePlanPrice(
+                planKey,
+                cycle,
+                intervalCount
+            );
             if (plan.visibility === "archived" || !plan.isActive) {
                 const error = new Error(`Plan '${planKey}' is not available for signup`);
                 error.statusCode = 400;
@@ -219,6 +231,7 @@ async function publicSignup(req, res) {
                 currentPeriodEnd: null,
                 billing: {
                     cycle,
+                    intervalCount,
                     lifetime: {},
                 },
                 tags: ["public_signup"],
@@ -294,6 +307,7 @@ async function publicSignup(req, res) {
                 metadata: {
                     source: "public_signup",
                     cycle,
+                    intervalCount,
                 },
             });
 
@@ -302,6 +316,7 @@ async function publicSignup(req, res) {
                 paymentRef: paymentSession.paymentRef,
                 planKey: plan.key,
                 cycle,
+                intervalCount,
                 amount,
                 currency: BILLING_CURRENCY,
                 status: "pending",
@@ -341,6 +356,7 @@ async function publicSignup(req, res) {
                     status: tenant.status,
                     planKey: plan.key,
                     cycle,
+                    intervalCount,
                     trialEndsAt,
                 },
                 owner: {
@@ -358,6 +374,7 @@ async function publicSignup(req, res) {
                     amount: paymentSession.amount,
                     currency: paymentSession.currency,
                     cycle,
+                    intervalCount,
                     instructions: paymentSession.instructions,
                 },
             };

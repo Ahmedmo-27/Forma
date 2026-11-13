@@ -75,6 +75,11 @@ const tenantBillingSchema = new mongoose.Schema(
             default: "monthly",
             index: true,
         },
+        intervalCount: {
+            type: Number,
+            min: 1,
+            default: 1,
+        },
         lifetime: {
             type: lifetimeBillingSchema,
             default: () => ({}),

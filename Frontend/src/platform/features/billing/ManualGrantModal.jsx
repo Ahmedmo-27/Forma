@@ -80,6 +80,7 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
         tenantId,
         planKey,
         cycle,
+        intervalCount: Number(durationMonths),
         durationMonths: Number(durationMonths),
         reason: reason.trim(),
       });
@@ -155,11 +156,11 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
-              Billing Cadence
+              Duration Unit
             </label>
             <Select value={cycle} onChange={(e) => setCycle(e.target.value)}>
-              <option value="monthly">Monthly Recurring</option>
-              <option value="yearly">Yearly Contract</option>
+              <option value="monthly">Months</option>
+              <option value="yearly">Years</option>
             </Select>
           </div>
         </div>

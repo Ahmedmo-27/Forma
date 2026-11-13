@@ -359,7 +359,9 @@ async function archivePlan(req, res) {
 
 async function getPlanPrices(_req, res) {
     try {
-        const prices = await PlanPrice.find().populate("planId", "key name").sort({ planId: 1, cycle: 1 });
+        const prices = await PlanPrice.find()
+            .populate("planId", "key name")
+            .sort({ planId: 1, cycle: 1, intervalCount: 1 });
         res.json(prices);
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
@@ -369,6 +371,7 @@ async function getPlanPrices(_req, res) {
 async function createPlanPrice(req, res) {
     try {
         const { planId, cycle, amount, maxLifetimeSeats, validFrom, validUntil, isActive } = req.body;
+        const intervalCount = Math.max(1, Math.floor(Number(req.body.intervalCount) || 1));
         if (!planId || !cycle || amount == null) {
             return res.status(400).json({ message: "planId, cycle, and amount are required" });
         }
@@ -380,9 +383,27 @@ async function createPlanPrice(req, res) {
             });
         }
 
+        if (!Number.isFinite(intervalCount) || intervalCount < 1) {
+            return res.status(400).json({ message: "intervalCount must be an integer >= 1" });
+        }
+
+        const duplicate = await PlanPrice.findOne({
+            planId,
+            cycle,
+            intervalCount,
+            isActive: true,
+        });
+        if (duplicate) {
+            return res.status(409).json({
+                code: "PRICE_DURATION_EXISTS",
+                message: `An active ${cycle} × ${intervalCount} price already exists for this plan`,
+            });
+        }
+
         const price = await PlanPrice.create({
             planId,
             cycle,
+            intervalCount,
             amount: Number(amount),
             currency: BILLING_CURRENCY,
             maxLifetimeSeats: cycle === "lifetime" ? (maxLifetimeSeats != null ? Number(maxLifetimeSeats) : null) : null,
@@ -393,6 +414,12 @@ async function createPlanPrice(req, res) {
 
         res.status(201).json(price);
     } catch (err) {
+        if (err && err.code === 11000) {
+            return res.status(409).json({
+                code: "PRICE_DURATION_EXISTS",
+                message: "An active price already exists for this plan duration",
+            });
+        }
         res.status(400).json({ message: err.message });
     }
 }
@@ -419,6 +446,7 @@ async function updatePlanPrice(req, res) {
                 type: "price_change",
                 planKey: price.planId.key,
                 cycle: price.cycle,
+                intervalCount: price.intervalCount || 1,
                 amount: Number(amount),
                 currency: BILLING_CURRENCY,
                 actorId: req.platformUser.id,
@@ -428,6 +456,7 @@ async function updatePlanPrice(req, res) {
                     oldAmount,
                     newAmount: Number(amount),
                     reason,
+                    intervalCount: price.intervalCount || 1,
                 },
             });
         }
@@ -455,8 +484,9 @@ async function togglePlanPriceSales(req, res) {
         price.isActive = !price.isActive;
         await price.save();
 
+        const count = price.intervalCount || 1;
         res.json({
-            message: `Sales for ${price.cycle} tier are now ${price.isActive ? "OPEN" : "CLOSED"}`,
+            message: `Sales for ${price.cycle} × ${count} are now ${price.isActive ? "OPEN" : "CLOSED"}`,
             isActive: price.isActive,
         });
     } catch (err) {

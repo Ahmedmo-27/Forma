@@ -4,14 +4,14 @@ const { BILLING_CURRENCY } = require("../config/currency");
 
 /**
  * GET /api/tenant/billing/prices
- * Returns active monthly and yearly prices (lifetime is not offered for sale).
+ * Returns active plan prices for any month/year duration (lifetime is not offered for sale).
  */
 const getPlanPrices = async (_req, res) => {
     try {
         const [plans, prices] = await Promise.all([
             Plan.find({ isActive: true }).select("key name features limits allowedRoles").lean(),
             PlanPrice.find({ isActive: true, cycle: { $in: ["monthly", "yearly"] } })
-                .select("planId cycle amount validFrom validUntil")
+                .select("planId cycle intervalCount amount validFrom validUntil")
                 .lean(),
         ]);
         const plansById = new Map(plans.map((plan) => [String(plan._id), plan]));
@@ -26,6 +26,7 @@ const getPlanPrices = async (_req, res) => {
             })
             .map((p) => {
                 const plan = plansById.get(String(p.planId));
+                const intervalCount = Number(p.intervalCount) >= 1 ? Number(p.intervalCount) : 1;
 
                 return {
                     id: p._id,
@@ -33,6 +34,7 @@ const getPlanPrices = async (_req, res) => {
                     planKey: plan?.key,
                     planName: plan?.name,
                     cycle: p.cycle,
+                    intervalCount,
                     amount: p.amount,
                     currency: BILLING_CURRENCY,
                     validUntil: p.validUntil,
