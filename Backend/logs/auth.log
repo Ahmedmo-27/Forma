@@ -2818,3 +2818,6 @@
 {"ts":"2026-11-13T01:42:12.937Z","level":"info","category":"auth","message":"Password compare completed","env":"test","match":true,"needsRehash":false}
 {"ts":"2026-11-13T01:42:13.286Z","level":"info","category":"auth","message":"Password compare completed","env":"test","match":true,"needsRehash":false}
 {"ts":"2026-11-13T01:57:13.277Z","level":"warn","category":"auth","message":"Auth middleware: no token","env":"test","path":"/uploads/guessed.jpg","method":"GET","ip":"127.0.0.1"}
+{"ts":"2026-11-13T02:06:28.828Z","level":"info","category":"auth","message":"Login attempt","env":"test","requestId":"1794535588828-gz16zs","ip":"127.0.0.1","userAgent":"","hasEmail":true,"hasJwtSecret":true,"apiBaseHint":null}
+{"ts":"2026-11-13T02:06:29.014Z","level":"info","category":"auth","message":"Password compare completed","env":"test","requestId":"1794535588828-gz16zs","userId":"6af670a4f517004880863f6b","match":true,"needsRehash":false}
+{"ts":"2026-11-13T02:06:29.014Z","level":"warn","category":"auth","message":"Login rejected: user is not assigned to a gym","env":"test","requestId":"1794535588828-gz16zs","userId":"6af670a4f517004880863f6b"}
