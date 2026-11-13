@@ -352,7 +352,9 @@ async function createMemberRecord(personData, maxAttempts = 5) {
 
 // ─── 2. Get All Members ───────────────────────────────────────────────────────
 const MEMBER_LIST_SELECT = "systemId memberId barcode name phones photo status isMember gender source assignedSales createdBy current_couch couch_subscription_status subscriptions freezeDaysUsed invitationsUsed isBlocked createdAt userlog";
-const MEMBER_SEARCH_SELECT = "systemId memberId name phones photo status subscriptions assignedSales";
+// Large list / report fetches (limit >= 1000) use this lean select. Include
+// coach + report filter fields so Guest/Members reports can show trainers.
+const MEMBER_SEARCH_SELECT = "systemId memberId name phones photo status gender source subscriptions assignedSales current_couch createdAt";
 const MEMBER_SORT_FIELDS = new Set(["createdAt", "systemId", "name"]);
 
 function memberListSort(query = {}) {
@@ -408,6 +410,7 @@ const getAllMembers = async (req, res) => {
                 .select(MEMBER_SEARCH_SELECT)
                 .populate("subscriptions.package", "name duration activityType")
                 .populate("assignedSales", "name role")
+                .populate("current_couch", "name role")
                 .sort(sortObj)
                 .skip(skip)
                 .limit(limit)

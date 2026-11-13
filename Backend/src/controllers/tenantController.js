@@ -1,5 +1,6 @@
 const path = require("path");
 const fs = require("fs");
+const mongoose = require("mongoose");
 const storageService = require("../services/storageService");
 const Tenant = require("../models/Tenant");
 const Member = require("../models/Member");
@@ -130,8 +131,8 @@ const getMyTenant = async (req, res) => {
 
         const { ensureTenantMultiBranches } = require("../utils/ensureMultiBranches");
         await ensureTenantMultiBranches(tenant, tenant.planId);
-        // Refresh plan after possible gold/platinum feature backfill
-        if (tenant.planId?._id) {
+        // Refresh plan after possible gold/platinum feature backfill (skip when DB down / unit tests)
+        if (tenant.planId?._id && mongoose.connection.readyState === 1) {
             const Plan = require("../models/Plan");
             const freshPlan = await runAsPlatform(async () => Plan.findById(tenant.planId._id));
             if (freshPlan) tenant.planId = freshPlan;
@@ -162,7 +163,9 @@ const getMyTenant = async (req, res) => {
         }
 
         const Location = require("../models/Location");
-        const branchCount = await Location.countDocuments({}).catch(() => 0);
+        const branchCount = mongoose.connection.readyState === 1
+            ? await Location.countDocuments({}).catch(() => 0)
+            : 0;
 
         const response = sanitizeTenantResponse(tenant, tenant.planId, {
             members: membersCount,
