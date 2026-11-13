@@ -20,7 +20,7 @@ describe("Role and Member Overrides (Dynamic Additions & Revocations)", () => {
                 roleAccess: {
                     Sales: ["sales", "accounting"],
                 },
-                planFeatures: ["accounting"],
+                planFeatures: ["sales_crm", "accounting"],
             };
 
             const keys = resolveEffectiveKeys(user, context);
@@ -51,7 +51,7 @@ describe("Role and Member Overrides (Dynamic Additions & Revocations)", () => {
                 roleAccess: {
                     Sales: ["sales", "accounting"],
                 },
-                planFeatures: ["accounting"],
+                planFeatures: ["sales_crm", "accounting"],
             };
 
             // Target has all default sales features + accounting features, EXCEPT user wants refunds OFF
