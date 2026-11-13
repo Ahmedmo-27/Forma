@@ -54,6 +54,7 @@ const createMemberSchema = z.object({
     source: z.preprocess(emptyToNull, memberSource.nullable().optional()),
     packageId: nullableObjectId,
     assignedSales: nullableObjectId,
+    coachId: nullableObjectId,
     locationId: nullableObjectId,
 });
 

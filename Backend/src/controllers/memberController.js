@@ -224,11 +224,18 @@ const createMember = async (req, res) => {
         const {
             name, phones,
             gender, birthdate, source,
-            packageId, assignedSales, locationId: bodyLocationId,
+            packageId, assignedSales, coachId, locationId: bodyLocationId,
         } = req.body;
 
         const systemId = await generateSystemId();
         const salesAssignee = await resolveSalesAssignee(assignedSales || null);
+        let coachAssignee = null;
+        if (coachId) {
+            coachAssignee = await validateCoachAssignee(coachId);
+            if (!coachAssignee) {
+                return res.status(400).json({ message: "Invalid coach — user not found or not a coach role" });
+            }
+        }
         const loc = await resolveMemberLocationId(req, bodyLocationId);
         if (loc.error) {
             return res.status(loc.status || 400).json({ message: loc.error });
@@ -244,6 +251,8 @@ const createMember = async (req, res) => {
             birthdate:     birthdate     || null,
             source:        source        || null,
             assignedSales: salesAssignee,
+            current_couch: coachAssignee ? coachAssignee._id : null,
+            couch_subscription_status: coachAssignee ? "active" : undefined,
             locationId:    loc.locationId,
             createdBy:     req.user.id
         };
@@ -286,6 +295,13 @@ const createMember = async (req, res) => {
         if (personData.assignedSales) {
             await notifyMemberAssigned({
                 recipientId: personData.assignedSales,
+                member,
+                actorId: req.user.id,
+            });
+        }
+        if (personData.current_couch) {
+            await notifyMemberAssigned({
+                recipientId: personData.current_couch,
                 member,
                 actorId: req.user.id,
             });
@@ -2378,7 +2394,9 @@ const addPT_sessions = async (req, res) => {
 
 const bulkTransferCoach = async (req, res) => {
     try {
-        const { coachId, memberIds } = req.body;
+        // Tasks UI historically sent newCoachId; Coach Transfer sends coachId.
+        const coachId = req.body.coachId || req.body.newCoachId;
+        const { memberIds } = req.body;
 
         if (!coachId) {
             return res.status(400).json({ message: "coachId is required" });

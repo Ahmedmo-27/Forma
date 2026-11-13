@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
 import { Card, CardHeader, Btn, Modal, Input, Select, Spinner, InfoRow, Badge, fmtDate } from '../../../components/ui';
-import { assignSales, getSalesUsers, updateMember } from '../../../api/endpoints';
+import { assignSales, assignCoach, switchCoach, getSalesUsers, getCoachTeam, updateMember } from '../../../api/endpoints';
 import { toWhatsAppUrl, WhatsAppBtn } from '../../../utils/whatsapp';
 import WhatsAppTemplateSendModal from '../../../components/WhatsAppTemplateSendModal';
 import { mapFieldErrors, focusFirstInvalidField } from '../../../lib/formErrors';
@@ -10,6 +10,7 @@ import { useLocationScope } from '../../../context/LocationContext';
 
 const SOURCES = ['Social media', 'Walk in', 'Word of mouth', 'referral', 'sales call', 'data entry', 'others'];
 const EDIT_ROLES = ['Owner', 'Sales Manager', 'Receptionist', 'Sales', 'Accountant', 'General Manager'];
+const ASSIGN_COACH_ROLES = ['Owner', 'Coach Manager', 'Sales Manager', 'General Manager'];
 
 function toDateInput(value) {
   if (!value) return '';
@@ -20,9 +21,16 @@ function toDateInput(value) {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
+function coachLabel(coach) {
+  if (!coach) return '—';
+  if (typeof coach === 'string') return '—';
+  return coach.role ? `${coach.name} (${coach.role})` : (coach.name || '—');
+}
+
 export default function PersonalTab({ member, user, onRefresh }) {
   const { multiEnabled, locations } = useLocationScope();
   const [showAssign, setShowAssign] = useState(false);
+  const [showAssignCoach, setShowAssignCoach] = useState(false);
   const [showPhone, setShowPhone]   = useState(false);
   const [showTemplate, setShowTemplate] = useState(false);
   const [showEdit, setShowEdit]     = useState(false);
@@ -30,11 +38,15 @@ export default function PersonalTab({ member, user, onRefresh }) {
   const [editErrors, setEditErrors] = useState({});
   const [saving, setSaving]         = useState(false);
   const [salesUsers, setSalesUsers] = useState([]);
+  const [coaches, setCoaches]       = useState([]);
   const [selected, setSelected]     = useState(member.assignedSales?._id ?? '');
+  const [selectedCoach, setSelectedCoach] = useState(member.current_couch?._id ?? '');
   const [loading, setLoading]       = useState(false);
+  const [coachLoading, setCoachLoading] = useState(false);
 
   const canAssign = user?.role === 'Sales Manager' || user?.role === 'Owner' ||
     (user?.role === 'Receptionist' && !member.assignedSales);
+  const canAssignCoach = ASSIGN_COACH_ROLES.includes(user?.role);
   const canEdit = EDIT_ROLES.includes(user?.role);
   const canEditPhone = Boolean(member.phones && member.phones !== 'hidden');
 
@@ -58,6 +70,41 @@ export default function PersonalTab({ member, user, onRefresh }) {
     try { const res = await getSalesUsers(); setSalesUsers(res.data.salesUsers ?? []); setSelected(member.assignedSales?._id ?? ''); }
     catch { toast.error('Failed to load sales users.'); }
     setShowAssign(true);
+  };
+
+  const openAssignCoach = async () => {
+    try {
+      const res = await getCoachTeam();
+      const team = res.data.team ?? res.data.coaches ?? [];
+      setCoaches(team.filter((c) => ['Coach', 'Coach Manager'].includes(c.role)));
+      setSelectedCoach(member.current_couch?._id ?? member.current_couch ?? '');
+    } catch {
+      toast.error('Failed to load coaches.');
+    }
+    setShowAssignCoach(true);
+  };
+
+  const handleAssignCoach = async () => {
+    if (!selectedCoach) { toast.error('Select a coach'); return; }
+    setCoachLoading(true);
+    try {
+      const memberKey = member.systemId || member._id;
+      const currentCoach = member.current_couch?._id || member.current_couch;
+      // assign-coach is Owner/Coach Manager only; switchCoach covers SM/GM too
+      const canDirectAssign = ['Owner', 'Coach Manager'].includes(user?.role);
+      if (currentCoach || !canDirectAssign) {
+        await switchCoach(memberKey, selectedCoach);
+      } else {
+        await assignCoach(memberKey, selectedCoach);
+      }
+      toast.success('Coach assigned');
+      setShowAssignCoach(false);
+      onRefresh?.();
+    } catch (e) {
+      toast.error(e.response?.data?.message || 'Failed to assign coach.');
+    } finally {
+      setCoachLoading(false);
+    }
   };
 
   const openEdit = () => {
@@ -163,9 +210,14 @@ export default function PersonalTab({ member, user, onRefresh }) {
     <>
       <Card>
         <CardHeader title="Personal Information">
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
             {canEdit && <Btn variant="outline" size="sm" onClick={openEdit}>Edit</Btn>}
             {canAssign && <Btn variant="outline" size="sm" onClick={openAssign}>Assign Sales Rep</Btn>}
+            {canAssignCoach && (
+              <Btn variant="outline" size="sm" onClick={openAssignCoach}>
+                {member.current_couch ? 'Switch Coach' : 'Assign Coach'}
+              </Btn>
+            )}
           </div>
         </CardHeader>
         <InfoRow label="Full Name"         value={member.name} />
@@ -189,6 +241,7 @@ export default function PersonalTab({ member, user, onRefresh }) {
         <InfoRow label="Added By"          value={member.createdBy?.name} />
         <InfoRow label="Added On"          value={fmtDate(member.createdAt)} />
         <InfoRow label="Assigned Sales Rep" value={member.assignedSales ? `${member.assignedSales.name} (${member.assignedSales.role})` : '—'} />
+        <InfoRow label="Assigned Coach" value={coachLabel(member.current_couch)} />
       </Card>
 
       <Modal
@@ -236,6 +289,28 @@ export default function PersonalTab({ member, user, onRefresh }) {
         <Select label="Salesperson" value={selected} onChange={e => setSelected(e.target.value)}>
           <option value="">— Select —</option>
           {salesUsers.map(s => <option key={s._id} value={s._id}>{s.name} ({s.role})</option>)}
+        </Select>
+      </Modal>
+
+      <Modal
+        open={showAssignCoach}
+        onClose={() => setShowAssignCoach(false)}
+        title={member.current_couch ? 'Switch Coach' : 'Assign Coach'}
+        size="sm"
+        footer={(
+          <>
+            <Btn variant="ghost" size="sm" onClick={() => setShowAssignCoach(false)}>Cancel</Btn>
+            <Btn size="sm" onClick={handleAssignCoach} disabled={coachLoading}>
+              {coachLoading ? <Spinner size="sm" /> : (member.current_couch ? 'Switch' : 'Assign')}
+            </Btn>
+          </>
+        )}
+      >
+        <Select label="Coach" value={selectedCoach} onChange={(e) => setSelectedCoach(e.target.value)}>
+          <option value="">— Select —</option>
+          {coaches.map((c) => (
+            <option key={c._id} value={c._id}>{c.name} ({c.role})</option>
+          ))}
         </Select>
       </Modal>
 

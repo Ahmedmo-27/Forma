@@ -492,8 +492,8 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
 
         {/* Row 3: Coach + Sales + Total Visits — separated by a divider dot */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-          {member.current_couch && <Chip icon={Dumbbell} label={`Coach: ${member.current_couch.name}`} accent="var(--sky)" />}
-          {member.assignedSales && <Chip icon={Briefcase} label={`Sales: ${member.assignedSales.name}`} accent="var(--amber)" />}
+          <Chip icon={Dumbbell} label={`Coach: ${member.current_couch?.name || '—'}`} accent="var(--sky)" />
+          <Chip icon={Briefcase} label={`Sales: ${member.assignedSales?.name || '—'}`} accent="var(--amber)" />
           <Chip icon={BarChart3} label={`${totalCheckIns} Total Visits`} />
         </div>
       </div>

@@ -504,7 +504,7 @@ export default function AssigningTasksPage() {
       } else {
         await bulkTransferCoach({
           memberIds: ids,
-          newCoachId: destId,
+          coachId: destId,
           source: 'tasks',
         });
       }
@@ -539,9 +539,9 @@ export default function AssigningTasksPage() {
     try {
       const isSales = salesUsers.some((u) => u._id === destId);
       if (isSales) {
-        await switchSalesRep({ systemId: id, newSalesRepId: destId, reason: 'Quick task assign' });
+        await switchSalesRep(id, destId, { reason: 'Quick task assign' });
       } else {
-        await switchCoach({ systemId: id, newCoachId: destId, reason: 'Quick task assign' });
+        await switchCoach(id, destId, { reason: 'Quick task assign' });
       }
       toast.success(`Member #${id} assigned successfully!`);
       setQuickId('');

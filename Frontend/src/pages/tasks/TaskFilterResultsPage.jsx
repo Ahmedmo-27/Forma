@@ -289,7 +289,7 @@ export default function TaskFilterResultsPage() {
       if (destKind === 'sales') {
         await bulkTransferSalesReps({ memberIds: ids, newSalesRepId: destId, source: 'filter' });
       } else {
-        await bulkTransferCoach({ memberIds: ids, newCoachId: destId, source: 'filter' });
+        await bulkTransferCoach({ memberIds: ids, coachId: destId, source: 'filter' });
       }
       toast.success(`Successfully assigned ${ids.length} members!`);
       setSelected(new Set());
