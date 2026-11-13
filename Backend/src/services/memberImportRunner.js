@@ -12,6 +12,11 @@ const {
     parseSpreadsheetBuffer,
     chunkCountFor,
 } = require("./memberImportRows");
+const {
+    normalizePhone,
+    takenPhoneSet,
+    phoneAlreadyUsed,
+} = require("../utils/identityUniqueness");
 
 function presentJob(job) {
     const total = job.totalRows || 0;
@@ -52,23 +57,25 @@ async function importChunk(slice, { userId, salesAssignee, seenPhones, floor }) 
             rememberError(outcome.errors, { line: row.line, name: row.name, phone: row.phone, reason: row.error });
             continue;
         }
-        if (seenPhones.has(row.phone)) {
+        const phoneKey = normalizePhone(row.phone);
+        if (!phoneKey) {
+            rememberError(outcome.errors, { line: row.line, name: row.name, phone: row.phone, reason: "Invalid phone number" });
+            continue;
+        }
+        if (seenPhones.has(phoneKey)) {
             outcome.skipped += 1;
             continue;
         }
-        seenPhones.add(row.phone);
-        candidates.push(row);
+        seenPhones.add(phoneKey);
+        candidates.push({ ...row, phone: String(row.phone).trim(), phoneKey });
     }
 
     if (!candidates.length) return outcome;
 
-    const existing = await Member.find({ phones: { $in: candidates.map((row) => row.phone) } })
-        .select("phones")
-        .lean();
-    const taken = new Set(existing.map((member) => member.phones));
+    const taken = await takenPhoneSet(candidates.map((row) => row.phoneKey));
     const fresh = [];
     for (const row of candidates) {
-        if (taken.has(row.phone)) {
+        if (phoneAlreadyUsed(taken, row.phoneKey)) {
             outcome.skipped += 1;
             continue;
         }
@@ -84,6 +91,7 @@ async function importChunk(slice, { userId, salesAssignee, seenPhones, floor }) 
         systemId: start + index,
         name: row.name,
         phones: row.phone,
+        phoneKey: row.phoneKey,
         photo: null,
         status: "guest",
         isMember: false,
