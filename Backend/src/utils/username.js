@@ -1,3 +1,5 @@
+const { isPlatformContext, runAsPlatform } = require("../context/tenantContext");
+
 function escapeRegex(value) {
     return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
@@ -14,20 +16,25 @@ function usernameFromEmail(email) {
 }
 
 /**
- * Pick a username that is free in the current query scope
- * (tenant context when creating staff, platform context at login).
+ * Pick a username that is free across every gym.
+ * Login and staff creation both allocate from this global pool.
  */
 async function uniqueUsername(User, email, { excludeId } = {}) {
-    const base = usernameFromEmail(email);
-    let candidate = base;
-    for (let n = 1; n < 50; n += 1) {
-        const query = { username: candidate };
-        if (excludeId) query._id = { $ne: excludeId };
-        const exists = await User.exists(query);
-        if (!exists) return candidate;
-        candidate = `${base}${n + 1}`;
-    }
-    return `${base}${Date.now().toString().slice(-4)}`;
+    const allocate = async () => {
+        const base = usernameFromEmail(email);
+        let candidate = base;
+        for (let n = 1; n < 50; n += 1) {
+            const query = { username: candidate };
+            if (excludeId) query._id = { $ne: excludeId };
+            const exists = await User.findOne(query);
+            if (!exists) return candidate;
+            candidate = `${base}${n + 1}`;
+        }
+        return `${base}${Date.now().toString().slice(-4)}`;
+    };
+
+    if (isPlatformContext()) return allocate();
+    return runAsPlatform(allocate, { reason: "allocate globally unique username" });
 }
 
 module.exports = {
