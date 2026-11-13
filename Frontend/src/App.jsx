@@ -11,6 +11,8 @@ import FeatureGate from './components/FeatureGate';
 import ErrorBoundary from './components/errors/ErrorBoundary';
 import GlobalErrorContainer from './components/errors/GlobalErrorContainer';
 import { isMarketingHost, shouldHardRedirectToApp } from './marketing/host';
+import { canEnterRoute, homePath } from './lib/routeAccess';
+import { TENANT_GUARDS } from './lib/tenantGuards';
 
 const MarketingLayout = lazy(() => import('./marketing/layout/MarketingLayout'));
 const MarketingHomePage = lazy(() => import('./marketing/pages/HomePage'));
@@ -20,6 +22,7 @@ const MarketingWhyFormaPage = lazy(() => import('./marketing/pages/WhyFormaPage'
 const MarketingSolutionPage = lazy(() => import('./marketing/pages/SolutionPage'));
 const MarketingTechnologyPage = lazy(() => import('./marketing/pages/TechnologyPage'));
 const MarketingFaqPage = lazy(() => import('./marketing/pages/FaqPage'));
+const MarketingPolicyPage = lazy(() => import('./marketing/pages/PolicyPage'));
 const PublicSiteGate = lazy(() => import('./marketing/PublicSiteGate'));
 const RedirectToApp = lazy(() => import('./marketing/RedirectToApp'));
 
@@ -84,402 +87,104 @@ import NotFound       from './pages/NotFound';
 // ── Platform Console Subsystem (Rebuilt from Scratch, Zero Tenant Context) ────
 const PlatformApp = lazy(() => import('./platform/routes/PlatformRoutes'));
 
-// ── Protected route wrapper ───────────────────────────────────────────────────
-function accessList(value) {
-  if (!value) return [];
-  return Array.isArray(value) ? value : [value];
-}
+const PAGES = {
+  ConnectWhatsApp,
+  Members,
+  Tasks,
+  AssigningTasksPage,
+  TaskFilterPage,
+  TaskFilterResultsPage,
+  AssignedTasksPage,
+  MemberProfile,
+  CheckIn,
+  SalesDashboard,
+  SalesMembers,
+  SalesRequests,
+  SalesTeam,
+  ReceptionistProfile,
+  SalesPersonProfile,
+  CallCenter,
+  ManageStaff,
+  ManagePackages,
+  ManageWhatsAppTemplates,
+  TargetDashboard,
+  SalesSubscriptions,
+  SalesCallCenter,
+  ImportMembers,
+  AccountantDashboard,
+  PackageRequests,
+  ContractHistory,
+  CoachDashboard,
+  CoachMembers,
+  CoachCheckin,
+  AttendanceReport,
+  CoachStaff,
+  CoachTargets,
+  CoachProfile,
+  CoachTransfers,
+  ReceptionContacts,
+  OwnerDashboard,
+  OwnerTeams,
+  OwnerUserProfile,
+  TenantSettings,
+  RoleAccess,
+  Management,
+  AccessControl,
+  QuickTransfer,
+  AnalyticsHome,
+  Reports,
+  ExecutiveSummary,
+  ChurnReport,
+  ForecastReport,
+  CohortReport,
+  FunnelReport,
+  GuestMembers,
+  ExpiredMembers,
+  ImportedMembers,
+};
 
 function PrivateRoute({ children, roles, feature, access }) {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-
-  const needed = accessList(access);
-  const known = Array.isArray(user.access);
-  if (needed.length && known) {
-    const allowed = needed.some((key) => user.access.includes(key));
-    if (!allowed) return <Navigate to="/" replace />;
-  } else if (roles && !roles.includes(user.role)) {
-    return <Navigate to="/" replace />;
-  }
-
+  if (!canEnterRoute(user, { roles, access })) return <Navigate to="/" replace />;
   if (feature) {
     return <FeatureGate feature={feature}>{children}</FeatureGate>;
   }
   return children;
 }
 
-const ANALYTICS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Accountant'];
-
-const ROLE_HOME = {
-  Owner: { key: 'owner_dashboard', to: '/owner/dashboard' },
-  'General Manager': { key: 'owner_dashboard', to: '/owner/dashboard' },
-  Sales: { key: 'sales_dashboard', to: '/sales/dashboard' },
-  'Sales Manager': { key: 'sales_dashboard', to: '/sales/dashboard' },
-  Coach: { key: 'coach_dashboard', to: '/coach/dashboard' },
-  'Head Coach': { key: 'coach_dashboard', to: '/coach/dashboard' },
-  Accountant: { key: 'accounting_dashboard', to: '/accounting/dashboard' },
-  Receptionist: { key: 'check_in', to: '/checkin' },
-};
-
-const ACCESS_FALLBACKS = [
-  { key: 'owner_dashboard', to: '/owner/dashboard' },
-  { key: 'sales_dashboard', to: '/sales/dashboard' },
-  { key: 'coach_dashboard', to: '/coach/dashboard' },
-  { key: 'accounting_dashboard', to: '/accounting/dashboard' },
-  { key: 'check_in', to: '/checkin' },
-  { key: 'members', to: '/members' },
-  { key: 'sales_members', to: '/sales/members' },
-  { key: 'coach_members', to: '/coach/members' },
-  { key: 'management', to: '/management' },
-  { key: 'reports', to: '/reports' },
-];
-
-// ── Root redirect based on role ───────────────────────────────────────────────
 function RootRedirect() {
   const { user } = useAuth();
   if (!user) return <Navigate to="/login" replace />;
-  const home = ROLE_HOME[user.role] || { key: 'members', to: '/members' };
-  const keys = Array.isArray(user.access) ? user.access : null;
-  if (!keys || keys.includes(home.key)) return <Navigate to={home.to} replace />;
-  const extra = (user.navExtras || []).find((item) => item?.to);
-  if (extra) return <Navigate to={extra.to} replace />;
-  const next = ACCESS_FALLBACKS.find((item) => keys.includes(item.key));
-  return <Navigate to={next?.to || '/contacts'} replace />;
+  return <Navigate to={homePath(user)} replace />;
 }
 
 // ── Tenant Router ─────────────────────────────────────────────────────────────
 function TenantAppRoutes() {
   return (
     <Routes>
-      <Route path="/"      element={<RootRedirect />} />
+      <Route path="/" element={<RootRedirect />} />
       <Route path="/login" element={<Login />} />
       <Route path="/auth/setup-password" element={<SetupPassword />} />
       <Route path="/auth/forgot-password" element={<ForgotPassword />} />
-
-      {/* Receptionist / Owner */}
-      <Route path="/account/whatsapp" element={
-        <PrivateRoute feature="whatsapp">
-          <ConnectWhatsApp />
-        </PrivateRoute>
-      } />
-      <Route path="/members" element={
-        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Head Coach', 'Receptionist']} access="members">
-          <Members />
-        </PrivateRoute>
-      } />
-      <Route path="/tasks" element={
-        <PrivateRoute
-          roles={['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Head Coach', 'Sales', 'Coach']}
-          access={['members', 'sales_members', 'coach_members', 'transfer', 'coach_transfer', 'my_transfers']}
-        >
-          <Tasks />
-        </PrivateRoute>
-      } />
-      <Route path="/tasks/assign" element={
-        <PrivateRoute
-          roles={['Owner', 'General Manager', 'Sales Manager', 'Head Coach']}
-          access={['transfer', 'coach_transfer', 'members']}
-        >
-          <AssigningTasksPage />
-        </PrivateRoute>
-      } />
-      <Route path="/tasks/filter" element={
-        <PrivateRoute
-          roles={['Owner', 'General Manager', 'Sales Manager', 'Head Coach']}
-          access={['transfer', 'coach_transfer', 'members']}
-        >
-          <TaskFilterPage />
-        </PrivateRoute>
-      } />
-      <Route path="/tasks/filter/results" element={
-        <PrivateRoute roles={['Owner','General Manager','Sales Manager','Head Coach','Sales','Coach']} access={['transfer', 'coach_transfer', 'members']}>
-          <TaskFilterResultsPage />
-        </PrivateRoute>
-      } />
-      <Route path="/tasks/assigned" element={
-        <PrivateRoute
-          roles={['Sales', 'Coach', 'Head Coach']}
-          access={['sales_members', 'coach_members', 'my_transfers', 'members']}
-        >
-          <AssignedTasksPage />
-        </PrivateRoute>
-      } />
-
-      {/* Member profile — roles must match Backend membersRoutes profileRoles */}
-      <Route path="/members/:id" element={
-        <PrivateRoute roles={['Receptionist', 'Owner', 'Sales', 'Sales Manager', 'Coach', 'Head Coach', 'Accountant', 'General Manager']} access="member_profile">
-          <MemberProfile />
-        </PrivateRoute>
-      } />
-
-      {/* Check-in — API writeAccess is Receptionist/Owner/Sales Manager only */}
-      <Route path="/checkin" element={
-        <PrivateRoute roles={['Receptionist', 'Owner', 'General Manager', 'Sales Manager', 'Sales']} access="check_in">
-          <CheckIn />
-        </PrivateRoute>
-      } />
-
-      {/* Sales routes */}
-      <Route path="/sales/dashboard" element={
-        <PrivateRoute roles={['Sales', 'Sales Manager', 'Owner', 'General Manager']} access="sales_dashboard">
-          <SalesDashboard />
-        </PrivateRoute>
-      } />
-      <Route path="/sales/members" element={
-        <PrivateRoute roles={['Sales', 'Sales Manager', 'Owner', 'General Manager']} access="sales_members">
-          <SalesMembers />
-        </PrivateRoute>
-      } />
-      <Route path="/sales/requests" element={
-        <PrivateRoute roles={['Sales', 'Sales Manager', 'Owner', 'General Manager']} access={['approve_requests', 'request_assignment', 'request_takeover']}>
-          <SalesRequests />
-        </PrivateRoute>
-      } />
-      <Route path="/sales/team" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner', 'General Manager', 'Accountant']} access="sales_team">
-          <SalesTeam />
-        </PrivateRoute>
-      } />
-      <Route path="/sales/team/receptionist/:id" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner', 'General Manager']} access="sales_team">
-          <ReceptionistProfile />
-        </PrivateRoute>
-      } />
-      <Route path="/sales/team/:id" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner', 'General Manager', 'Accountant']} access="sales_team">
-          <SalesPersonProfile />
-        </PrivateRoute>
-      } />
-      <Route path="/sales/callcenter" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner', 'General Manager']} feature="sales_crm" access="manager_call_center">
-          <CallCenter />
-        </PrivateRoute>
-      } />
-      <Route path="/sales/staff" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner', 'General Manager']} access="staff">
-          <ManageStaff />
-        </PrivateRoute>
-      } />
-      <Route path="/sales/packages" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner', 'General Manager']} feature="packages" access="packages">
-          <ManagePackages />
-        </PrivateRoute>
-      } />
-      <Route path="/sales/whatsapp-templates" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner', 'General Manager', 'Accountant', 'Head Coach']} feature="whatsapp" access="whatsapp_templates">
-          <ManageWhatsAppTemplates />
-        </PrivateRoute>
-      } />
-      <Route path="/coach/whatsapp-templates" element={
-        <PrivateRoute roles={['Head Coach', 'General Manager']} feature="whatsapp" access="whatsapp_templates">
-          <ManageWhatsAppTemplates />
-        </PrivateRoute>
-      } />
-      <Route path="/sales/targets" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner', 'General Manager', 'Accountant']} feature="accounting" access="targets">
-          <TargetDashboard />
-        </PrivateRoute>
-      } />
-      <Route path="/sales/subscriptions" element={
-        <PrivateRoute roles={['Sales']} access="sales_dashboard">
-          <SalesSubscriptions />
-        </PrivateRoute>
-      } />
-      <Route path="/sales/my-callcenter" element={
-        <PrivateRoute roles={['Sales']} feature="sales_crm" access="my_call_center">
-          <SalesCallCenter />
-        </PrivateRoute>
-      } />
+      {TENANT_GUARDS.map((guard) => {
+        const Page = PAGES[guard.page];
+        return (
+          <Route
+            key={guard.path}
+            path={guard.path}
+            element={
+              <PrivateRoute roles={guard.roles} feature={guard.feature} access={guard.access}>
+                <Page />
+              </PrivateRoute>
+            }
+          />
+        );
+      })}
       <Route path="/sales/transfer" element={<Navigate to="/tasks" replace />} />
-      <Route path="/sales/import" element={
-        <PrivateRoute roles={['Sales Manager', 'Owner', 'General Manager']} feature="excel_import" access="import_members">
-          <ImportMembers />
-        </PrivateRoute>
-      } />
-
-      {/* Accountant routes */}
-      <Route path="/accounting/dashboard" element={
-        <PrivateRoute roles={['Accountant', 'Owner', 'General Manager']} feature="accounting" access="accounting_dashboard">
-          <AccountantDashboard />
-        </PrivateRoute>
-      } />
-      <Route path="/accounting/package-requests" element={
-        <PrivateRoute roles={['Accountant', 'Owner', 'General Manager']} feature="exception_approvals" access="package_approvals">
-          <PackageRequests />
-        </PrivateRoute>
-      } />
-      <Route path="/accounting/contract-history" element={
-        <PrivateRoute roles={['Accountant', 'Owner', 'General Manager', 'Sales Manager']} feature="accounting" access="contracts">
-          <ContractHistory />
-        </PrivateRoute>
-      } />
-      <Route path="/accounting/exceptions" element={<Navigate to="/accounting/package-requests" replace />} />
-
-      {/* Coach routes */}
-      <Route path="/coach/dashboard" element={
-        <PrivateRoute roles={['Coach', 'Head Coach']} access="coach_dashboard">
-          <CoachDashboard />
-        </PrivateRoute>
-      } />
-      <Route path="/coach/members" element={
-        <PrivateRoute roles={['Coach', 'Head Coach']} access="coach_members">
-          <CoachMembers />
-        </PrivateRoute>
-      } />
-      <Route path="/coach/checkin" element={
-        <PrivateRoute roles={['Coach', 'Head Coach']} access="coach_checkin">
-          <CoachCheckin />
-        </PrivateRoute>
-      } />
-      <Route path="/coach/attendance" element={
-        <PrivateRoute roles={['Head Coach']} access="coach_attendance">
-          <AttendanceReport />
-        </PrivateRoute>
-      } />
-      <Route path="/coach/staff" element={
-        <PrivateRoute roles={['Head Coach']} access="coach_staff">
-          <CoachStaff />
-        </PrivateRoute>
-      } />
-      <Route path="/coach/targets" element={
-        <PrivateRoute roles={['Head Coach']} access="coach_targets">
-          <CoachTargets />
-        </PrivateRoute>
-      } />
-      <Route path="/coach/team" element={
-        <PrivateRoute roles={['Head Coach']} access="coach_team">
-          <CoachTargets />
-        </PrivateRoute>
-      } />
-      <Route path="/coach/team/:id" element={
-        <PrivateRoute roles={['Head Coach']} access="coach_team">
-          <CoachProfile />
-        </PrivateRoute>
-      } />
       <Route path="/coach/transfer" element={<Navigate to="/tasks" replace />} />
-      <Route path="/coach/my-transfers" element={
-        <PrivateRoute roles={['Coach', 'Head Coach']} access="my_transfers">
-          <CoachTransfers />
-        </PrivateRoute>
-      } />
-
-      {/* Reception contacts — all authenticated */}
-      <Route path="/contacts" element={
-        <PrivateRoute>
-          <ReceptionContacts />
-        </PrivateRoute>
-      } />
-
-      {/* Owner routes */}
-      <Route path="/owner/dashboard" element={
-        <PrivateRoute roles={['Owner', 'General Manager']} access="owner_dashboard">
-          <OwnerDashboard />
-        </PrivateRoute>
-      } />
-      <Route path="/owner/teams" element={
-        <PrivateRoute roles={['Owner', 'General Manager']} access="teams_overview">
-          <OwnerTeams />
-        </PrivateRoute>
-      } />
-      <Route path="/owner/teams/:id" element={
-        <PrivateRoute roles={['Owner', 'General Manager']} access="teams_overview">
-          <OwnerUserProfile />
-        </PrivateRoute>
-      } />
+      <Route path="/accounting/exceptions" element={<Navigate to="/accounting/package-requests" replace />} />
       <Route path="/settings" element={<Navigate to="/owner/settings" replace />} />
-      <Route path="/owner/settings" element={
-        <PrivateRoute roles={['Owner']} access="settings">
-          <TenantSettings />
-        </PrivateRoute>
-      } />
-      <Route path="/owner/access" element={
-        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager']} access="access_control">
-          <RoleAccess />
-        </PrivateRoute>
-      } />
-
-      {/* Management */}
-      <Route path="/management" element={
-        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager', 'Head Coach']} access="management">
-          <Management />
-        </PrivateRoute>
-      } />
-      <Route path="/management/access" element={
-        <PrivateRoute roles={['Owner', 'General Manager', 'Sales Manager', 'Head Coach']} access="access_control">
-          <AccessControl />
-        </PrivateRoute>
-      } />
-      <Route path="/management/quick-transfer" element={
-        <PrivateRoute access={['transfer', 'coach_transfer']}>
-          <QuickTransfer />
-        </PrivateRoute>
-      } />
-
-      <Route path="/analytics" element={
-        <PrivateRoute
-          roles={ANALYTICS_ROLES}
-          feature="members"
-        >
-          <AnalyticsHome />
-        </PrivateRoute>
-      } />
-      {/* Reports */}
-      <Route path="/reports" element={
-        <PrivateRoute
-          roles={['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Accountant']}
-          access={['reports', 'accounting_dashboard']}
-        >
-          <Reports />
-        </PrivateRoute>
-      } />
-      <Route path="/reports/executive" element={
-        <PrivateRoute roles={ANALYTICS_ROLES} feature="business_intelligence">
-          <ExecutiveSummary />
-        </PrivateRoute>
-      } />
-      <Route path="/reports/churn" element={
-        <PrivateRoute roles={ANALYTICS_ROLES} feature="exec_analytics">
-          <ChurnReport />
-        </PrivateRoute>
-      } />
-      <Route path="/reports/forecast" element={
-        <PrivateRoute roles={ANALYTICS_ROLES} feature="exec_analytics">
-          <ForecastReport />
-        </PrivateRoute>
-      } />
-      <Route path="/reports/cohorts" element={
-        <PrivateRoute roles={ANALYTICS_ROLES} feature="exec_analytics">
-          <CohortReport />
-        </PrivateRoute>
-      } />
-      <Route path="/reports/attendance" element={
-        <PrivateRoute roles={ANALYTICS_ROLES} feature="exec_analytics">
-          <AttendanceReport />
-        </PrivateRoute>
-      } />
-      <Route path="/reports/funnel" element={
-        <PrivateRoute roles={ANALYTICS_ROLES} feature="funnels">
-          <FunnelReport />
-        </PrivateRoute>
-      } />
-      <Route path="/reports/guests" element={
-        <PrivateRoute roles={['Owner', 'Sales Manager', 'Sales', 'Head Coach']} access="reports">
-          <GuestMembers />
-        </PrivateRoute>
-      } />
-      <Route path="/reports/expired" element={
-        <PrivateRoute roles={['Owner', 'Sales Manager', 'Sales', 'Head Coach']} access="reports">
-          <ExpiredMembers />
-        </PrivateRoute>
-      } />
-      <Route path="/reports/imported" element={
-        <PrivateRoute roles={['Owner', 'Sales Manager']} access="reports">
-          <ImportedMembers />
-        </PrivateRoute>
-      } />
-
-      {/* 404 */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
@@ -681,6 +386,30 @@ export default function App() {
                     </Suspense>
                   }
                 />
+                <Route
+                  path="privacy"
+                  element={
+                    <Suspense fallback={<MarketingFallback />}>
+                      <MarketingPolicyPage policyKey="privacy" />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="terms"
+                  element={
+                    <Suspense fallback={<MarketingFallback />}>
+                      <MarketingPolicyPage policyKey="terms" />
+                    </Suspense>
+                  }
+                />
+                <Route
+                  path="refunds"
+                  element={
+                    <Suspense fallback={<MarketingFallback />}>
+                      <MarketingPolicyPage policyKey="refunds" />
+                    </Suspense>
+                  }
+                />
                 <Route path="checkout" element={<Navigate to="/get-started" replace />} />
 
                 {/* Arabic locale mirrors (EN stays at unprefixed paths) */}
@@ -763,6 +492,30 @@ export default function App() {
                     element={
                       <Suspense fallback={<MarketingFallback />}>
                         <MarketingFaqPage />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="privacy"
+                    element={
+                      <Suspense fallback={<MarketingFallback />}>
+                        <MarketingPolicyPage policyKey="privacy" />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="terms"
+                    element={
+                      <Suspense fallback={<MarketingFallback />}>
+                        <MarketingPolicyPage policyKey="terms" />
+                      </Suspense>
+                    }
+                  />
+                  <Route
+                    path="refunds"
+                    element={
+                      <Suspense fallback={<MarketingFallback />}>
+                        <MarketingPolicyPage policyKey="refunds" />
                       </Suspense>
                     }
                   />
