@@ -45675,3 +45675,31 @@
 {"ts":"2026-11-13T00:36:05.499Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"compute_daily_metric_snapshot"}
 {"ts":"2026-11-13T00:36:07.670Z","level":"error","category":"bi","message":"Snapshot failed","env":"development","tenantId":"6aebcd2931c7687fac8d6003","error":"Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: test.tenantmetricsnapshots index: tenantId_1_grain_1_localDate_1 dup key: { tenantId: ObjectId('6aebcd2931c7687fac8d6003'), grain: \"day\", localDate: \"2026-11-12\" }"}
 {"ts":"2026-11-13T00:36:17.344Z","level":"info","category":"bi","message":"Snapshot run finished","env":"development","tenants":5}
+{"ts":"2026-11-13T00:46:32.288Z","level":"info","category":"server","message":"Server started","env":"development","port":"5000","nodeEnv":"development","hasJwtSecret":true,"hasMongoUri":true,"bcryptRounds":12,"logLevel":"info","storageDriver":"r2","storageBucket":"forma"}
+{"ts":"2026-11-13T00:46:32.289Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"scheduled_freeze_cycle"}
+{"ts":"2026-11-13T00:46:32.290Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"scheduled_expiry_cycle"}
+{"ts":"2026-11-13T00:46:32.291Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-13T00:46:32.291Z","level":"info","category":"scheduler","message":"Scheduled tasks started (freeze + expiry every 30 min, analytics hourly)","env":"development"}
+{"ts":"2026-11-13T00:46:33.984Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-13T00:46:33.985Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-13T00:46:35.659Z","level":"info","category":"server","message":"Server started","env":"development","port":"5000","nodeEnv":"development","hasJwtSecret":true,"hasMongoUri":true,"bcryptRounds":12,"logLevel":"info","storageDriver":"r2","storageBucket":"forma"}
+{"ts":"2026-11-13T00:46:35.660Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"scheduled_freeze_cycle"}
+{"ts":"2026-11-13T00:46:35.661Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"scheduled_expiry_cycle"}
+{"ts":"2026-11-13T00:46:35.662Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-13T00:46:35.662Z","level":"info","category":"scheduler","message":"Scheduled tasks started (freeze + expiry every 30 min, analytics hourly)","env":"development"}
+{"ts":"2026-11-13T00:46:36.808Z","level":"info","category":"server","message":"Server started","env":"development","port":"5000","nodeEnv":"development","hasJwtSecret":true,"hasMongoUri":true,"bcryptRounds":12,"logLevel":"info","storageDriver":"r2","storageBucket":"forma"}
+{"ts":"2026-11-13T00:46:36.809Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"scheduled_freeze_cycle"}
+{"ts":"2026-11-13T00:46:36.810Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"scheduled_expiry_cycle"}
+{"ts":"2026-11-13T00:46:36.811Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-13T00:46:36.811Z","level":"info","category":"scheduler","message":"Scheduled tasks started (freeze + expiry every 30 min, analytics hourly)","env":"development"}
+{"ts":"2026-11-13T00:46:38.089Z","level":"info","category":"server","message":"Server started","env":"development","port":"5000","nodeEnv":"development","hasJwtSecret":true,"hasMongoUri":true,"bcryptRounds":12,"logLevel":"info","storageDriver":"r2","storageBucket":"forma"}
+{"ts":"2026-11-13T00:46:38.090Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"scheduled_freeze_cycle"}
+{"ts":"2026-11-13T00:46:38.091Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"scheduled_expiry_cycle"}
+{"ts":"2026-11-13T00:46:38.092Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-13T00:46:38.092Z","level":"info","category":"scheduler","message":"Scheduled tasks started (freeze + expiry every 30 min, analytics hourly)","env":"development"}
+{"ts":"2026-11-13T00:46:39.891Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-13T00:46:39.892Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-13T00:47:38.106Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"unspecified"}
+{"ts":"2026-11-13T00:47:38.107Z","level":"info","category":"platform","message":"runAsPlatform invoked","env":"development","actorId":"system","reason":"compute_daily_metric_snapshot"}
+{"ts":"2026-11-13T00:47:40.617Z","level":"error","category":"bi","message":"Snapshot failed","env":"development","tenantId":"6aebcd2931c7687fac8d6003","error":"Plan executor error during findAndModify :: caused by :: E11000 duplicate key error collection: test.tenantmetricsnapshots index: tenantId_1_grain_1_localDate_1 dup key: { tenantId: ObjectId('6aebcd2931c7687fac8d6003'), grain: \"day\", localDate: \"2026-11-12\" }"}
+{"ts":"2026-11-13T00:47:49.656Z","level":"info","category":"bi","message":"Snapshot run finished","env":"development","tenants":5}
