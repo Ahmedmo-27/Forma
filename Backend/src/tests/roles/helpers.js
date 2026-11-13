@@ -3,9 +3,16 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { allowRoles } from "../../middleware/accessMiddleware.js";
+import { AREA_KEYS, featureArea } from "../../config/roleAccess.js";
 import { memberListDecision, resolveEffectiveKeys, roleDefaults } from "../../utils/accessControl.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
+
+export function gmAreaBypass(role, feature) {
+    if (role !== "General Manager") return false;
+    const area = featureArea(feature);
+    return Boolean(area && AREA_KEYS.includes(area));
+}
 
 export function staff(role, extra = {}) {
     return {
