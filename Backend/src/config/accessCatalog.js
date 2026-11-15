@@ -314,6 +314,16 @@ const ACCESS_CATALOG = [
         defaultRoles: ["Accountant", "Owner"],
         planFeature: "accounting",
     },
+    {
+        key: "package_transfers",
+        label: "Package Transfers",
+        description: "Move a current package to a guest and charge a transfer fee",
+        icon: "ArrowLeftRight",
+        group: "Accountant",
+        domain: "accounting",
+        defaultRoles: ["Accountant", "Owner", "General Manager"],
+        planFeature: "accounting",
+    },
 
     {
         key: "coach_dashboard",

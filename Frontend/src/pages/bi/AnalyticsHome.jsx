@@ -603,7 +603,9 @@ export default function AnalyticsHome() {
   const [selectedSeriesKey, setSelectedSeriesKey] = useState('membershipSalesPiasters');
 
   const canSeeInsights = ['Owner', 'General Manager', 'Sales Manager', 'Accountant', 'Head Coach'].includes(user?.role);
-  const viewingAllBranches = !multiEnabled || selectedLocationId === allKey || selectedLocationId === ALL_LOCATIONS;
+  const viewingAllBranches = !multiEnabled
+    || selectedLocationId === allKey
+    || selectedLocationId === ALL_LOCATIONS;
   const branchLabel = viewingAllBranches
     ? 'All locations'
     : (selectedLocation?.name || 'Selected branch');
@@ -617,11 +619,7 @@ export default function AnalyticsHome() {
     try {
       const dash = await getBiDashboard();
       setData(dash.data);
-      // Insights / goals are tenant-wide — only show when viewing All
-      const scopeIsAll = !multiEnabled
-        || selectedLocationId === ALL_LOCATIONS
-        || selectedLocationId === allKey;
-      if (hasFeature('business_intelligence') && canSeeInsights && scopeIsAll) {
+      if (hasFeature('business_intelligence') && canSeeInsights) {
         const [insightRes, suggestRes] = await Promise.all([getBiInsights(), suggestBiObjectives()]);
         setInsights(insightRes.data.insights || []);
         setSuggestions(suggestRes.data.suggestions || []);
@@ -1128,9 +1126,14 @@ export default function AnalyticsHome() {
         )}
 
         {/* ── BUSINESS INTELLIGENCE (PLATINUM) — tenant-wide only ── */}
-        {hasFeature('business_intelligence') && canSeeInsights && viewingAllBranches && (
+        {hasFeature('business_intelligence') && canSeeInsights && (
           <Card>
             <h2 style={{ marginTop: 0, fontSize: 16 }}>What to do next</h2>
+            {multiEnabled && (
+              <p style={{ margin: '0 0 12px', color: 'var(--t3)', fontSize: 13 }}>
+                Based on {branchLabel}.
+              </p>
+            )}
             {!insights.length && <p>No insight met its minimum sample. That is expected on a new or small gym.</p>}
             {insights.map((insight) => (
               <article key={insight._id} style={{ paddingBlock: 12, borderBottom: '1px solid var(--border)' }}>
@@ -1170,14 +1173,6 @@ export default function AnalyticsHome() {
                 )}
               </div>
             ))}
-          </Card>
-        )}
-
-        {hasFeature('business_intelligence') && canSeeInsights && !viewingAllBranches && (
-          <Card>
-            <p style={{ margin: 0, color: 'var(--t3)', fontSize: 13 }}>
-              Insights and suggested goals are gym-wide. Switch the navbar to All locations to view them.
-            </p>
           </Card>
         )}
 

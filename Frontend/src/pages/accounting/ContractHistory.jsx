@@ -141,6 +141,9 @@ export default function ContractHistory() {
                       {c.refunded && (
                         <div style={{ fontSize: 10, color: 'var(--red)', fontWeight: 600, marginTop: 2 }}>Refunded</div>
                       )}
+                      {c.cancelled && !c.refunded && (
+                        <div style={{ fontSize: 10, color: 'var(--red)', fontWeight: 600, marginTop: 2 }} title={c.cancelReason || undefined}>Cancelled · no refund</div>
+                      )}
                     </td>
                     <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{fmtDate(c.startDate)}</td>
                     <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{c.salesManager?.name ?? '—'}</td>

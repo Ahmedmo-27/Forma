@@ -37,6 +37,11 @@ describe("revenueUtils — payment-record revenue", () => {
         expect(subscriptionSalePrice({ pricePaid: 1800, refundAmount: 300, package: { price: 9999 } })).toBe(1500);
     });
 
+    it("subscriptionSalePrice adds a transfer fee without changing the original sale", () => {
+        expect(subscriptionSalePrice({ pricePaid: 1800, transferFee: 200, package: { price: 9999 } })).toBe(2000);
+        expect(subscriptionSalePrice({ pricePaid: 0, transferFee: 0 })).toBe(0);
+    });
+
     it("subscriptionSalePrice falls back to packageSnapshot when pricePaid is missing", () => {
         expect(
             subscriptionSalePrice({

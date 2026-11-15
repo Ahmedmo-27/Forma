@@ -4,6 +4,7 @@ const User = require("../models/User");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const { isSameDay, zonedMidnightUtc, addLocalDays, CAIRO_ZONE, subscriptionSalePrice } = require("../utils/revenueUtils");
 const { resolveSubscriptionPackage } = require("../utils/packageSnapshot");
+const { isForfeitedCancellation } = require("../utils/subscriptionUtils");
 
 const FINANCE_ROLES = ["Accountant", "Owner", "General Manager", "Sales Manager"];
 
@@ -130,7 +131,9 @@ const getContracts = async (req, res) => {
                     endDate: sub.endDate,
                     pricePaid: sub.pricePaid,
                     refundAmount,
-                    refunded: Boolean(sub.refunded) || refundAmount > 0 || sub.cancelled === true,
+                    refunded: Boolean(sub.refunded) || refundAmount > 0,
+                    cancelled: isForfeitedCancellation(sub),
+                    cancelReason: sub.cancelReason || null,
                     netPaid: subscriptionSalePrice(sub),
                     discountPercent: sub.discountPercent,
                     isRenewal: sub.isRenewal,

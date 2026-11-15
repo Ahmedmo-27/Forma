@@ -36,6 +36,7 @@ describe("Owner", () => {
             "contracts",
             "package_approvals",
             "refunds",
+            "package_transfers",
             "coach_transfer",
             "owner_dashboard",
             "teams_overview",

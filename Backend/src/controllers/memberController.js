@@ -38,26 +38,58 @@ const { escapeRegex } = require("../utils/username");
 const { isAssignedToRep, redactMemberForViewer } = require("../utils/memberPrivacy");
 const { assertAllowedUpload, assertAllowedImage } = require("../utils/fileMagic");
 const { writeAudit } = require("../utils/audit");
-const { nextSystemId, nextMemberId, nextSubscriptionId, isDuplicateKeyError } = require("../utils/sequence");
+const sequence = require("../utils/sequence");
 const { normalizePhone, assertPhoneAvailable, replyIfConflict } = require("../utils/identityUniqueness");
 const { startMemberImport, getMemberImport } = require("../services/memberImportRunner");
 const { resolveSalesAssignee, ensureSalesManagerAssignments } = require("../utils/salesAssignment");
 const { resolveCoachAssignee, ensureHeadCoachAssignments } = require("../utils/coachAssignment");
 const { sanitizePlainText } = require("../utils/sanitizeText");
-const { validateNoOverlappingSubscription, resolveNextPackageStart, closeRefundedSubscription, isClosedSubscription } = require("../utils/subscriptionUtils");
+const { validateNoOverlappingSubscription, resolveNextPackageStart, closeRefundedSubscription, findActiveSubscription, currentPackageSubscription, latestOpenSubscription, isForfeitedCancellation, isTransferredAway } = require("../utils/subscriptionUtils");
+const { setPackageTransferFee } = require("../utils/packageTransferFee");
 const { buildPackageSnapshot, resolveSubscriptionPackage } = require("../utils/packageSnapshot");
 const { generateBarcode } = require("../utils/barcodeHelper");
 const { publishLive } = require("../utils/liveEvents");
 const logger = require("../utils/logger");
 const mongoose = require("mongoose");
 
-// ─── Helper: get purchased package terms from last subscription ───────────────
+// ─── Helper: purchased terms of the package that covers right now ─────────────
 const getCurrentPackage = (member) => {
-    if (!member.subscriptions || !member.subscriptions.length) return null;
-    const last = member.subscriptions[member.subscriptions.length - 1];
-    if (isClosedSubscription(last)) return null;
-    return resolveSubscriptionPackage(last);
+    const current = currentPackageSubscription(member?.subscriptions);
+    if (!current) return null;
+    return resolveSubscriptionPackage(current);
 };
+
+function finiteNumber(value) {
+    const amount = Number(value);
+    return Number.isFinite(amount) ? amount : null;
+}
+
+function endOpenFreezes(member, at, userId) {
+    for (const freeze of member.freeze || []) {
+        if (!freeze.endedBy && new Date(freeze.endDate) > at) {
+            freeze.endDate = at;
+            freeze.endedBy = userId;
+        }
+    }
+}
+
+/** After the latest sale is voided, keep a package that still covers today. */
+function settleMembershipAfterPackageRefund(member, now, userId) {
+    if (findActiveSubscription(member.subscriptions, now)) {
+        member.status = "active";
+        member.isMember = true;
+        return;
+    }
+
+    if ((member.subscriptions || []).length <= 1) {
+        member.status = "guest";
+        member.isMember = false;
+    } else {
+        member.status = "expired";
+        member.isMember = true;
+    }
+    endOpenFreezes(member, now, userId);
+}
 
 const refId = (value) => {
     if (!value) return null;
@@ -94,6 +126,7 @@ const hydrateMemberRefs = async (member, { userlogLimit = null, summary = false 
             addUser(sub.createdBy);
             addUser(sub.approvedBy);
             addUser(sub.salesManager);
+            addUser(sub.cancelledBy);
         }
         for (const note of member.notes || []) addUser(note.createdBy);
         for (const note of member.couch_notes || []) addUser(note.createdBy);
@@ -136,6 +169,7 @@ const hydrateMemberRefs = async (member, { userlogLimit = null, summary = false 
         sub.createdBy = fillUser(sub.createdBy);
         sub.approvedBy = fillUser(sub.approvedBy);
         sub.salesManager = fillUser(sub.salesManager);
+        sub.cancelledBy = fillUser(sub.cancelledBy);
     }
     for (const note of member.notes || []) note.createdBy = fillUser(note.createdBy);
     for (const note of member.couch_notes || []) note.createdBy = fillUser(note.createdBy);
@@ -168,13 +202,13 @@ const validateCoachAssignee = async (CoachId) => {
 };
 
 // ─── Helper: generate next systemId (everyone, starts at 100) ────────────────
-const generateSystemId = () => nextSystemId();
+const generateSystemId = () => sequence.nextSystemId();
 
 // ─── Helper: generate next memberId (subscribers only, starts at 100) ────────
-const generateMemberId = () => nextMemberId();
+const generateMemberId = () => sequence.nextMemberId();
 
 // ─── Helper: generate next subscriptionId (global counter, starts at 100) ────
-const generateSubscriptionId = () => nextSubscriptionId();
+const generateSubscriptionId = () => sequence.nextSubscriptionId();
 
 // ─── Helper: calculate subscription end date ─────────────────────────────────
 const calcEndDate = (startDate, duration) => {
@@ -329,7 +363,7 @@ const createMember = async (req, res) => {
         res.status(201).json({ message: packageId ? "Member created" : "Guest added", member });
     } catch (error) {
         if (replyIfConflict(res, error)) return;
-        if (isDuplicateKeyError(error, ["systemId", "memberId"])) {
+        if (sequence.isDuplicateKeyError(error, ["systemId", "memberId"])) {
             return res.status(409).json({ message: "Member ID conflict, please retry" });
         }
         res.status(500).json({ message: error.message });
@@ -351,7 +385,7 @@ async function createMemberRecord(personData, maxAttempts = 5) {
             }
             return await Member.create(personData);
         } catch (error) {
-            if (isDuplicateKeyError(error, ["systemId", "memberId"]) && attempt < maxAttempts - 1) {
+            if (sequence.isDuplicateKeyError(error, ["systemId", "memberId"]) && attempt < maxAttempts - 1) {
                 continue;
             }
             throw error;
@@ -678,21 +712,35 @@ const checkInMember = async (req, res) => {
                 status: "active",
                 "subscriptions.0": { $exists: true },
                 $expr: {
-                    $and: [
-                        { $gte: [{ $arrayElemAt: ["$subscriptions.endDate", -1] }, now] },
-                        { $ne: [{ $arrayElemAt: ["$subscriptions.refunded", -1] }, true] },
-                        { $ne: [{ $arrayElemAt: ["$subscriptions.cancelled", -1] }, true] },
-                        { $ne: [{ $arrayElemAt: ["$subscriptions.subscriptionStatus", -1] }, "cancelled"] },
-                        { $lte: [{ $ifNull: [{ $arrayElemAt: ["$subscriptions.refundAmount", -1] }, 0] }, 0] },
+                    $gt: [
+                        {
+                            $size: {
+                                $filter: {
+                                    input: { $ifNull: ["$subscriptions", []] },
+                                    as: "sub",
+                                    cond: {
+                                        $and: [
+                                            { $lte: ["$$sub.startDate", now] },
+                                            { $gt: ["$$sub.endDate", now] },
+                                            { $ne: ["$$sub.refunded", true] },
+                                            { $ne: ["$$sub.cancelled", true] },
+                                            { $ne: ["$$sub.subscriptionStatus", "cancelled"] },
+                                            { $lte: [{ $ifNull: ["$$sub.refundAmount", 0] }, 0] },
+                                        ],
+                                    },
+                                },
+                            },
+                        },
+                        0,
                     ],
                 },
             },
             { $push: { userlog: entry } },
-            { new: false, projection: { name: 1, systemId: 1, status: 1, subscriptions: { $slice: -1 } } }
+            { new: false, projection: { name: 1, systemId: 1, status: 1, subscriptions: 1 } }
         ).lean();
 
         if (updated) {
-            const currentSub = updated.subscriptions?.at(-1);
+            const currentSub = findActiveSubscription(updated.subscriptions, now);
             const pkgName = currentSub?.packageSnapshot?.name || null;
             publishLive(req.user.tenantId, {
                 type: "check-in",
@@ -718,23 +766,19 @@ const checkInMember = async (req, res) => {
         }
 
         const hasSubscriptions = Array.isArray(member.subscriptions) && member.subscriptions.length > 0;
-        const currentSub = hasSubscriptions ? member.subscriptions[member.subscriptions.length - 1] : null;
+        const currentSub = findActiveSubscription(member.subscriptions, now);
         const currentPkg = currentSub?.packageSnapshot || currentSub?.package || null;
-        const isCancelledSub = Boolean(currentSub) && isClosedSubscription(currentSub);
 
-        if (member.status === "guest" || !member.isMember || !hasSubscriptions || !currentPkg || isCancelledSub) {
-            const isGuest = member.status === "guest" || !member.isMember || isCancelledSub;
-            const message = isGuest
-                ? "Cannot check in — this member is a guest and does not have a package"
-                : "Cannot check in — this member does not have a package";
-            return res.status(400).json({ message });
-        }
-
-        const isExpiredStatus = member.status === "expired";
-        const isEndDatePassed = currentSub.endDate && new Date(currentSub.endDate) < now;
-
-        if (isExpiredStatus || (isEndDatePassed && member.status !== "frozen")) {
-            if (member.status !== "expired") {
+        if (!currentSub || !currentPkg) {
+            const isGuest = member.status === "guest" || !member.isMember;
+            if (isGuest || !hasSubscriptions) {
+                return res.status(400).json({
+                    message: isGuest
+                        ? "Cannot check in — this member is a guest and does not have a package"
+                        : "Cannot check in — this member does not have a package",
+                });
+            }
+            if (member.status !== "expired" && member.status !== "frozen") {
                 member.status = "expired";
                 await member.save();
             }
@@ -786,6 +830,8 @@ const checkInMember = async (req, res) => {
                 return res.status(400).json({ message: "Cannot check in — this member has an expired package" });
             }
 
+            member.status = "active";
+        } else if (member.status === "expired") {
             member.status = "active";
         }
 
@@ -2560,7 +2606,8 @@ const refund = async (req, res) => {
             });
         }
 
-        if (refund_amount == null || refund_amount <= 0) {
+        const refundAmount = finiteNumber(refund_amount);
+        if (refundAmount == null || refundAmount <= 0) {
             return res.status(400).json({
                 message: "Please enter a valid refund amount"
             });
@@ -2584,19 +2631,29 @@ const refund = async (req, res) => {
         }
 
         const lastSubscription = member.subscriptions[member.subscriptions.length - 1];
-        const alreadyRefunded = lastSubscription.refundAmount || 0;
-        const maxRefundable = lastSubscription.pricePaid - alreadyRefunded;
+        if (isTransferredAway(lastSubscription)) {
+            return res.status(400).json({
+                message: "This package was transferred and the member is not entitled to a refund"
+            });
+        }
+        if (isForfeitedCancellation(lastSubscription)) {
+            return res.status(400).json({
+                message: "This package was cancelled and the member is not entitled to a refund"
+            });
+        }
+        const pricePaid = finiteNumber(lastSubscription.pricePaid) ?? 0;
+        const alreadyRefunded = finiteNumber(lastSubscription.refundAmount) ?? 0;
+        const maxRefundable = pricePaid - alreadyRefunded;
         const currency = req.tenant?.settings?.locale?.currency || "EGP";
 
-        if (refund_amount <= 0 || refund_amount > maxRefundable) {
+        if (refundAmount > maxRefundable) {
             return res.status(400).json({
                 message: `Refund amount exceeds the refundable amount. Max refundable: ${maxRefundable} ${currency}`
             });
         }
 
-        // Store refund on the subscription — subscriptionSalePrice() subtracts it automatically
-        // so all revenue calculations (getSalesManagerRevenue, getSalesRevenue, etc.) reflect the deduction
-        const newRefundTotal = alreadyRefunded + Number(refund_amount);
+        const firstRefund = alreadyRefunded <= 0 && !lastSubscription.refunded;
+        const newRefundTotal = alreadyRefunded + refundAmount;
         lastSubscription.refundAmount = newRefundTotal;
         lastSubscription.refundReason = reason || null;
         lastSubscription.refundedBy   = req.user.id;
@@ -2611,41 +2668,43 @@ const refund = async (req, res) => {
         if (typeof member.markModified === "function") member.markModified("subscriptions");
 
         const refundAt = lastSubscription.refundedAt;
-        for (const freeze of member.freeze || []) {
-            if (!freeze.endedBy && new Date(freeze.endDate) > refundAt) {
-                freeze.endDate = refundAt;
-                freeze.endedBy = req.user.id;
+        settleMembershipAfterPackageRefund(member, refundAt, req.user.id);
+
+        if (firstRefund) {
+            const freePt = Number(lastSubscription.packageSnapshot?.free_pt_sessions) || 0;
+            if (freePt > 0) {
+                member.PT_sessions = Math.max(0, (member.PT_sessions || 0) - freePt);
             }
         }
 
-        // Determine new member status. A refunded package grants nothing.
-        const priorValidSubs = member.subscriptions
-            .slice(0, -1)
-            .filter((s) => !isClosedSubscription(s));
-
-        if (priorValidSubs.length === 0) {
-            member.status = "guest";
-            member.isMember = false;
-        } else {
-            member.status = "expired";
-            // isMember stays true
-        }
-
-        // Reclaim unused free PT sessions
-        const freePt = lastSubscription.packageSnapshot?.free_pt_sessions || 0;
-        if (freePt > 0) {
-            member.PT_sessions = Math.max(0, (member.PT_sessions || 0) - freePt);
-        }
-
-        // Log the refund+cancellation
         const pkgName = lastSubscription.packageSnapshot?.name || "Package";
+        const reasonText = reason ? `: ${reason}` : "";
+        member.userlog = member.userlog || [];
         member.userlog.push({
             type: "other",
-            text: `Package refunded and cancelled: ${pkgName}`,
+            text: firstRefund
+                ? `Package refunded and cancelled: ${pkgName}. Refund ${refundAmount} ${currency}${reasonText}`
+                : `Additional package refund: ${pkgName}. Refund ${refundAmount} ${currency}${reasonText}`,
             createdBy: req.user.id,
         });
 
         await member.save();
+
+        await writeAudit({
+            action: "package_refunded",
+            actor: req.user.id,
+            actorRole: req.user.role,
+            targetType: "member",
+            targetId: member._id,
+            meta: {
+                packageName: pkgName,
+                refundAmount,
+                totalRefunded: newRefundTotal,
+                reason: reason || null,
+                currency,
+            },
+            req,
+        });
 
         res.status(200).json({
             message: "Amount refunded successfully",
@@ -2661,6 +2720,365 @@ const refund = async (req, res) => {
     }
 };
 
+const cancelPackage = async (req, res) => {
+    try {
+        const memberID = req.params?.memberId || req.body.memberID;
+        const reason = String(req.body?.reason || "").trim();
+
+        if (!memberID) {
+            return res.status(400).json({ message: "Please enter the member ID" });
+        }
+        if (!reason) {
+            return res.status(400).json({ message: "A cancellation reason is required" });
+        }
+        if (reason.length > 500) {
+            return res.status(400).json({ message: "Cancellation reason is too long" });
+        }
+
+        const member = await Member.findById(memberID);
+        if (!member) {
+            return res.status(404).json({ message: "Invalid member ID" });
+        }
+
+        const cancelForbidden = forbidIfOutOfLocationScope(req, member);
+        if (cancelForbidden) return sendMemberScopeError(res, cancelForbidden);
+
+        if (!member.subscriptions?.length) {
+            return res.status(400).json({ message: "Member has no subscriptions" });
+        }
+
+        const now = new Date();
+        const target = findActiveSubscription(member.subscriptions, now)
+            || latestOpenSubscription(member.subscriptions);
+        if (!target) {
+            return res.status(400).json({ message: "There is no open package to cancel" });
+        }
+
+        target.cancelled = true;
+        target.cancelledAt = now;
+        target.cancelledBy = req.user.id;
+        target.cancelReason = reason;
+        target.subscriptionStatus = "cancelled";
+        closeRefundedSubscription(target, now);
+        if (typeof member.markModified === "function") member.markModified("subscriptions");
+
+        settleMembershipAfterPackageRefund(member, now, req.user.id);
+
+        const freePt = Number(target.packageSnapshot?.free_pt_sessions) || 0;
+        if (freePt > 0) {
+            member.PT_sessions = Math.max(0, (member.PT_sessions || 0) - freePt);
+        }
+
+        const pkgName = target.packageSnapshot?.name || "Package";
+        const currency = req.tenant?.settings?.locale?.currency || "EGP";
+        member.userlog = member.userlog || [];
+        member.userlog.push({
+            type: "other",
+            text: `Package cancelled without refund: ${pkgName}. Reason: ${reason}`,
+            createdBy: req.user.id,
+        });
+
+        await member.save();
+
+        await writeAudit({
+            action: "package_cancelled",
+            actor: req.user.id,
+            actorRole: req.user.role,
+            targetType: "member",
+            targetId: member._id,
+            meta: {
+                packageName: pkgName,
+                reason,
+                refundAmount: 0,
+                pricePaid: finiteNumber(target.pricePaid) ?? 0,
+                currency,
+            },
+            req,
+        });
+
+        res.status(200).json({
+            message: "Package cancelled. No refund is due.",
+            member,
+        });
+    } catch (error) {
+        res.status(500).json({
+            message: "Server error",
+            error: error.message,
+        });
+    }
+};
+
+function plainPackageSnapshot(sub) {
+    const snap = sub?.packageSnapshot;
+    if (!snap) return null;
+    if (typeof snap.toObject === "function") return snap.toObject();
+    return { ...snap };
+}
+
+function membershipSnapshot(member) {
+    return {
+        memberId: member.memberId ?? null,
+        barcode: member.barcode ?? null,
+        isMember: Boolean(member.isMember),
+        status: member.status,
+        freezeDaysUsed: member.freezeDaysUsed || 0,
+        invitationsUsed: member.invitationsUsed || 0,
+        subscriptionCount: (member.subscriptions || []).length,
+        userlogCount: (member.userlog || []).length,
+    };
+}
+
+function restoreMembership(member, snap) {
+    member.memberId = snap.memberId;
+    member.barcode = snap.barcode;
+    member.isMember = snap.isMember;
+    member.status = snap.status;
+    member.freezeDaysUsed = snap.freezeDaysUsed;
+    member.invitationsUsed = snap.invitationsUsed;
+    member.subscriptions = (member.subscriptions || []).slice(0, snap.subscriptionCount);
+    member.userlog = (member.userlog || []).slice(0, snap.userlogCount);
+    if (typeof member.markModified === "function") {
+        member.markModified("subscriptions");
+        member.markModified("userlog");
+    }
+}
+
+const transferPackage = async (req, res) => {
+    let createdRecipientId = null;
+    let recipient = null;
+    let recipientBefore = null;
+    let donorSaved = false;
+
+    try {
+        const memberID = req.params?.memberId || req.body.memberID;
+        if (!memberID) {
+            return res.status(400).json({ message: "Please enter the member ID" });
+        }
+
+        const transferFee = finiteNumber(req.body?.transferFee);
+        if (transferFee == null || transferFee < 0) {
+            return res.status(400).json({ message: "Enter a valid transfer fee" });
+        }
+
+        const recipientSystemId = String(req.body?.recipientSystemId || "").trim();
+        const newName = String(req.body?.name || "").trim();
+        const newPhones = String(req.body?.phones || "").trim();
+        const creating = !recipientSystemId;
+        if (creating && (!newName || !newPhones)) {
+            return res.status(400).json({ message: "Enter a system ID or the new person's name and phone" });
+        }
+
+        const gender = req.body?.gender || null;
+        if (gender && !["male", "female"].includes(gender)) {
+            return res.status(400).json({ message: "Gender must be male or female" });
+        }
+
+        const donor = await Member.findById(memberID);
+        if (!donor) {
+            return res.status(404).json({ message: "Invalid member ID" });
+        }
+        const donorForbidden = forbidIfOutOfLocationScope(req, donor);
+        if (donorForbidden) return sendMemberScopeError(res, donorForbidden);
+        if (donor.isBlocked) {
+            return res.status(403).json({ message: "Cannot transfer a package — member is blocked" });
+        }
+        if (donor.status === "frozen") {
+            return res.status(400).json({ message: "A frozen membership cannot be transferred. End the freeze first." });
+        }
+
+        const now = new Date();
+        const target = findActiveSubscription(donor.subscriptions, now);
+        if (!target) {
+            return res.status(400).json({ message: "There is no current package to transfer" });
+        }
+
+        if (creating) {
+            const phoneKey = await assertPhoneAvailable(newPhones);
+            const salesAssignee = await resolveSalesAssignee(null);
+            const personData = {
+                systemId: await generateSystemId(),
+                name: newName,
+                phones: newPhones,
+                phoneKey,
+                gender,
+                birthdate: req.body?.birthdate || null,
+                locationId: donor.locationId || null,
+                createdBy: req.user.id,
+                assignedSales: salesAssignee,
+                status: "guest",
+                isMember: false,
+                subscriptions: [],
+                userlog: [],
+            };
+            recipient = await createMemberRecord(personData);
+            createdRecipientId = recipient._id;
+        } else {
+            recipient = await findMemberByIdentifier(recipientSystemId);
+            if (!recipient) {
+                return res.status(404).json({ message: "No person found with that system ID" });
+            }
+            const recipientForbidden = forbidIfOutOfLocationScope(req, recipient);
+            if (recipientForbidden) return sendMemberScopeError(res, recipientForbidden);
+            if (String(recipient._id) === String(donor._id)) {
+                return res.status(400).json({ message: "Choose a different person" });
+            }
+            if (recipient.memberId != null) {
+                return res.status(400).json({ message: "This person already has a membership and cannot receive a transferred package" });
+            }
+            if (recipient.isBlocked) {
+                return res.status(403).json({ message: "This person is blocked" });
+            }
+            if (latestOpenSubscription(recipient.subscriptions)) {
+                return res.status(400).json({ message: "This person already has a package" });
+            }
+        }
+
+        const startDate = new Date(target.startDate);
+        const endDate = new Date(target.endDate);
+        const packageId = refId(target.package) || target.package;
+        const snapshot = plainPackageSnapshot(target);
+        const subscriptionId = await generateSubscriptionId();
+        const pkgName = snapshot?.name || "Package";
+        const currency = req.tenant?.settings?.locale?.currency || "EGP";
+        recipientBefore = createdRecipientId ? null : membershipSnapshot(recipient);
+
+        if (!recipient.memberId) {
+            recipient.memberId = await generateMemberId();
+            recipient.barcode = generateBarcode(recipient.memberId);
+        }
+        recipient.isMember = true;
+        recipient.status = "active";
+        recipient.freezeDaysUsed = donor.freezeDaysUsed || 0;
+        recipient.invitationsUsed = donor.invitationsUsed || 0;
+        recipient.subscriptions = recipient.subscriptions || [];
+        recipient.userlog = recipient.userlog || [];
+        recipient.subscriptions.push({
+            subscriptionId,
+            package: packageId,
+            packageSnapshot: snapshot,
+            startDate,
+            endDate,
+            pricePaid: 0,
+            discountPercent: Number(target.discountPercent) || 0,
+            isRenewal: false,
+            isUpgrade: false,
+            createdBy: req.user.id,
+            approvedBy: req.user.id,
+            transferredFrom: donor._id,
+            transferredFromName: donor.name,
+            transferredAt: now,
+            transferredBy: req.user.id,
+        });
+        recipient.userlog.push({
+            type: "other",
+            text: `Package received by transfer from ${donor.name} (S${donor.systemId}): ${pkgName}`,
+            createdBy: req.user.id,
+        });
+        if (typeof recipient.markModified === "function") recipient.markModified("subscriptions");
+
+        await recipient.save();
+
+        target.cancelled = true;
+        target.cancelledAt = now;
+        target.cancelledBy = req.user.id;
+        target.subscriptionStatus = "cancelled";
+        target.transferredTo = recipient._id;
+        target.transferredToName = recipient.name;
+        target.transferFee = transferFee;
+        target.transferredAt = now;
+        target.transferredBy = req.user.id;
+        closeRefundedSubscription(target, now);
+        if (typeof donor.markModified === "function") donor.markModified("subscriptions");
+
+        settleMembershipAfterPackageRefund(donor, now, req.user.id);
+        donor.userlog = donor.userlog || [];
+        donor.userlog.push({
+            type: "other",
+            text: `Package transferred to ${recipient.name} (S${recipient.systemId}). Transfer fee ${transferFee} ${currency}`,
+            createdBy: req.user.id,
+        });
+
+        try {
+            await donor.save();
+            donorSaved = true;
+        } catch (saveError) {
+            if (createdRecipientId) {
+                await Member.deleteOne({ _id: createdRecipientId });
+            } else if (recipientBefore) {
+                restoreMembership(recipient, recipientBefore);
+                await recipient.save();
+            }
+            throw saveError;
+        }
+
+        if (recipient.assignedSales && createdRecipientId) {
+            try {
+                await notifyMemberAssigned({
+                    recipientId: recipient.assignedSales,
+                    member: recipient,
+                    actorId: req.user.id,
+                });
+            } catch (notifyError) {
+                logger.error("transfer", "Failed to notify sales assignee", { error: notifyError.message });
+            }
+        }
+
+        publishLive(req.user.tenantId, {
+            type: "member",
+            message: `${pkgName} transferred from ${donor.name} to ${recipient.name}`,
+            systemId: recipient.systemId,
+            memberName: recipient.name,
+            status: recipient.status,
+            packageName: pkgName,
+        });
+
+        let defaultFeeSaved = false;
+        if (req.body?.saveAsDefault) {
+            try {
+                await setPackageTransferFee(req.user?.tenantId, transferFee);
+                defaultFeeSaved = true;
+            } catch (feeError) {
+                logger.error("transfer", "Failed to save the gym transfer fee", { error: feeError.message });
+            }
+        }
+
+        await writeAudit({
+            action: "package_transferred",
+            actor: req.user.id,
+            actorRole: req.user.role,
+            targetType: "member",
+            targetId: donor._id,
+            meta: {
+                packageName: pkgName,
+                transferFee,
+                pricePaid: finiteNumber(target.pricePaid) ?? 0,
+                currency,
+                recipientId: String(recipient._id),
+                recipientName: recipient.name,
+                recipientSystemId: recipient.systemId,
+            },
+            req,
+        });
+
+        res.status(200).json({
+            message: `Package transferred to ${recipient.name}. Transfer fee ${transferFee} ${currency} charged to ${donor.name}.`,
+            member: donor,
+            recipient,
+            defaultFeeSaved,
+        });
+    } catch (error) {
+        if (createdRecipientId && !donorSaved) {
+            try { await Member.deleteOne({ _id: createdRecipientId }); } catch { /* already removed */ }
+        }
+        if (replyIfConflict(res, error)) return;
+        const status = Number(error.statusCode) || 500;
+        if (status !== 500) {
+            return res.status(status).json({ message: error.message });
+        }
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 const refundPT_Sessions = async (req, res) => {
     try {
         const memberID = req.params?.memberId || req.body.memberID;
@@ -2670,7 +3088,8 @@ const refundPT_Sessions = async (req, res) => {
             return res.status(400).json({ message: "Please enter the member ID" });
         }
 
-        if (refund_amount == null || refund_amount <= 0) {
+        const refundAmount = finiteNumber(refund_amount);
+        if (refundAmount == null || refundAmount <= 0) {
             return res.status(400).json({ message: "Please enter a valid refund amount" });
         }
 
@@ -2687,35 +3106,59 @@ const refundPT_Sessions = async (req, res) => {
         }
 
         const lastSub = member.pt_subscriptions[member.pt_subscriptions.length - 1];
-        const alreadyRefunded = lastSub.refundAmount || 0;
-        const maxRefundable   = lastSub.pricePaid - alreadyRefunded;
+        const pricePaid = finiteNumber(lastSub.pricePaid) ?? 0;
+        const alreadyRefunded = finiteNumber(lastSub.refundAmount) ?? 0;
+        const maxRefundable   = pricePaid - alreadyRefunded;
         const currency        = req.tenant?.settings?.locale?.currency || "EGP";
 
-        if (refund_amount > maxRefundable) {
+        if (refundAmount > maxRefundable) {
             return res.status(400).json({
                 message: `Refund amount exceeds the refundable amount. Max refundable: ${maxRefundable} ${currency}`
             });
         }
 
-        lastSub.refundAmount = alreadyRefunded + Number(refund_amount);
+        const firstRefund = alreadyRefunded <= 0 && !lastSub.refunded;
+        lastSub.refundAmount = alreadyRefunded + refundAmount;
         lastSub.refundReason = reason || null;
         lastSub.refundedBy   = req.user.id;
         lastSub.refundedAt   = new Date();
         lastSub.refunded     = true;
         closeRefundedSubscription(lastSub, lastSub.refundedAt);
-        const packSessions = Number(lastSub.sessions) || 0;
-        member.PT_sessions = Math.max(
-            member.used_PT_sessions || 0,
-            (member.PT_sessions || 0) - packSessions
-        );
+        if (firstRefund) {
+            const packSessions = Number(lastSub.sessions) || 0;
+            member.PT_sessions = Math.max(
+                member.used_PT_sessions || 0,
+                (member.PT_sessions || 0) - packSessions
+            );
+        }
         if (typeof member.markModified === "function") member.markModified("pt_subscriptions");
-        // member.userlog.push({
-        //     type: "other",
-        //     text: `PT sessions refund of ${refund_amount} EGP issued${reason ? `: ${reason}` : ""}`,
-        //     createdBy: req.user.id,
-        // });
+        const reasonText = reason ? `: ${reason}` : "";
+        member.userlog = member.userlog || [];
+        member.userlog.push({
+            type: "other",
+            text: firstRefund
+                ? `PT sessions refunded and cancelled. Refund ${refundAmount} ${currency}${reasonText}`
+                : `Additional PT refund. Refund ${refundAmount} ${currency}${reasonText}`,
+            createdBy: req.user.id,
+        });
 
         await member.save();
+
+        await writeAudit({
+            action: "pt_refunded",
+            actor: req.user.id,
+            actorRole: req.user.role,
+            targetType: "member",
+            targetId: member._id,
+            meta: {
+                refundAmount,
+                totalRefunded: lastSub.refundAmount,
+                sessions: Number(lastSub.sessions) || 0,
+                reason: reason || null,
+                currency,
+            },
+            req,
+        });
 
         res.status(200).json({
             message: "PT sessions refund issued successfully",
@@ -2847,5 +3290,7 @@ module.exports = {
     getTodayCoachTransfers,
     addPT_sessions,
     refund,
+    cancelPackage,
+    transferPackage,
     refundPT_Sessions
 };

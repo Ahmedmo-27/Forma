@@ -136,9 +136,18 @@ function actualFor(objective, days) {
     return null;
 }
 
-async function refreshObjectives(days, now) {
+async function refreshObjectives(allDays, now) {
     const objectives = await Objective.find({ archived: false });
+    const cache = new Map([["all", allDays || []]]);
     for (const objective of objectives) {
+        const key = objective.locationKey || "all";
+        if (!cache.has(key)) {
+            const { loadDays, scopeFromLocationKey } = require("../../controllers/biController");
+            cache.set(key, await loadDays(400, scopeFromLocationKey(key)));
+        }
+        const days = cache.get(key) || [];
+        const focus = days[days.length - 1];
+        if (!focus) continue;
         const actual = actualFor(objective, days);
         if (actual == null) continue;
         const pace = paceStatus({
@@ -153,7 +162,6 @@ async function refreshObjectives(days, now) {
         objective.behindStreak = pace.behind ? (objective.behindStreak || 0) + 1 : 0;
         if (!objective.archived) objective.status = pace.status;
         await objective.save();
-        const focus = days[days.length - 1];
         await ObjectiveProgress.findOneAndUpdate(
             { objectiveId: objective._id, localDate: focus.localDate },
             {
@@ -171,17 +179,25 @@ async function refreshObjectives(days, now) {
     }
 }
 
-async function refreshInsights(storedDays) {
+async function refreshInsights(storedDays, locationId = null) {
     if (!storedDays.length) return [];
     const focus = storedDays[storedDays.length - 1];
     const recent = storedDays.filter((day) => day.localDate > addLocalDays(focus.localDate, -30));
     const prior = storedDays.filter((day) => day.localDate <= addLocalDays(focus.localDate, -30) && day.localDate > addLocalDays(focus.localDate, -120));
     const drafts = evaluateInsights({ focus, recentDays: recent, priorDays: prior });
     const week = weekKey(focus.localDate);
+    const loc = locationId ? String(locationId) : null;
     for (const draft of drafts) {
-        const existing = await Insight.findOne({ ruleKey: draft.ruleKey, weekKey: week });
+        const ruleKey = loc ? `${draft.ruleKey}@${loc}` : draft.ruleKey;
+        const existing = await Insight.findOne({ ruleKey, weekKey: week });
         if (existing) continue;
-        await Insight.create({ ...draft, weekKey: week, status: "new" });
+        await Insight.create({
+            ...draft,
+            ruleKey,
+            weekKey: week,
+            status: "new",
+            locationId: loc,
+        });
     }
     return drafts;
 }
@@ -254,7 +270,14 @@ async function snapshotTenant(tenant, { dateKeys, now = new Date(), dryRun = fal
         $or: [{ locationId: null }, { locationId: { $exists: false } }],
     }).sort({ localDate: 1 }).limit(400).lean();
     await refreshObjectives(stored, now);
-    await refreshInsights(stored);
+    await refreshInsights(stored, null);
+    for (const loc of locations) {
+        const branchStored = await TenantMetricSnapshot.find({
+            grain: "day",
+            locationId: loc._id,
+        }).sort({ localDate: 1 }).limit(400).lean();
+        await refreshInsights(branchStored, loc._id);
+    }
     return { timeZone, days: computed.days, dryRun: false };
 }
 

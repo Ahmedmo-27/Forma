@@ -362,11 +362,14 @@ export default function AccessControl({ defaultTab = 'staff' }) {
   const savedRoleList = roleAccess && Object.prototype.hasOwnProperty.call(roleAccess, defaultRoleChoice)
     ? roleAccess[defaultRoleChoice]
     : null;
-  const roleBase = savedRoleList || roleDefaults[defaultRoleChoice] || [];
+  const roleBase = useMemo(
+    () => savedRoleList || roleDefaults[defaultRoleChoice] || [],
+    [savedRoleList, roleDefaults, defaultRoleChoice],
+  );
 
   useEffect(() => {
     setRoleDraft(Array.isArray(roleBase) ? [...roleBase] : []);
-  }, [defaultRoleChoice, roleAccess, roleDefaults]);
+  }, [roleBase]);
 
   useEffect(() => {
     const saved = roleLocationAccess?.[defaultRoleChoice];

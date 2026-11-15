@@ -128,6 +128,9 @@ export default function AuditPage() {
             <option value="lifetime_price_changed">Lifetime price changed</option>
             <option value="entitlement_policy_updated">Entitlement policy</option>
             <option value="package_assigned">Package assigned</option>
+            <option value="package_refunded">Package refunded</option>
+            <option value="package_cancelled">Package cancelled</option>
+            <option value="pt_refunded">PT refunded</option>
             <option value="member_created">Member created</option>
             <option value="member_frozen">Member frozen</option>
           </Select>

@@ -2,14 +2,16 @@ const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
 const { allowRoles } = require("../middleware/accessMiddleware");
+const { requireFeature } = require("../middleware/featureGating");
 const validate = require("../middleware/validate");
-const { tenantSettingsSchema } = require("../validation/schemas");
+const { tenantSettingsSchema, packageTransferFeeSchema } = require("../validation/schemas");
 const { uploadSinglePhoto } = require("../config/multer");
 const { cacheResponse } = require("../middleware/apiCache");
 const { autoInvalidate } = require("../utils/cacheInvalidator");
 const {
     getMyTenant,
     updateMyTenantSettings,
+    updatePackageTransferFee,
     uploadTenantLogo,
     updateRoleAccess,
 } = require("../controllers/tenantController");
@@ -27,6 +29,16 @@ router.put("/access/:role", allowRoles("access_control", "Owner", "General Manag
 
 // PATCH /api/tenant/me — Owner only
 router.patch("/me", allowRoles("settings", "Owner"), validate(tenantSettingsSchema), autoInvalidate(["tenant"]), updateMyTenantSettings);
+
+// PATCH /api/tenant/package-transfer-fee — Owner, Accountant, General Manager
+router.patch(
+    "/package-transfer-fee",
+    allowRoles("package_transfers", "Owner", "Accountant", "General Manager"),
+    requireFeature("accounting"),
+    validate(packageTransferFeeSchema),
+    autoInvalidate(["tenant"]),
+    updatePackageTransferFee
+);
 
 // POST /api/tenant/me/logo — Owner only
 router.post("/me/logo", allowRoles("settings", "Owner"), uploadSinglePhoto("logoFile"), autoInvalidate(["tenant"]), uploadTenantLogo);

@@ -71,12 +71,12 @@ export default function OwnerTeams() {
   useLocationEffect(() => { load(); }, [load]);
   useLocationEffect(() => { setPage(1); }, []);
 
-  const currentList = {
+  const currentList = useMemo(() => ({
     sales:        salesTeam,
     coach:        coachTeam,
     accountant:   accountants,
     receptionist: receptionists,
-  }[tab] ?? [];
+  }[tab] ?? []), [tab, salesTeam, coachTeam, accountants, receptionists]);
 
   const totalPages = Math.max(1, Math.ceil(currentList.length / pageSize));
 

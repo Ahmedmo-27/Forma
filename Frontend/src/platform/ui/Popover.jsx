@@ -25,10 +25,10 @@ export function Popover({
     onOpenChange?.(next);
   };
 
-  const close = () => {
+  const close = useCallback(() => {
     if (!isControlled) setInternalIsOpen(false);
     onOpenChange?.(false);
-  };
+  }, [isControlled, onOpenChange]);
 
   const updatePosition = useCallback(() => {
     if (!triggerRef.current) return;
@@ -122,7 +122,7 @@ export function Popover({
       window.removeEventListener("scroll", handleScrollOrResize, true);
       window.removeEventListener("resize", handleScrollOrResize);
     };
-  }, [isOpen, updatePosition]);
+  }, [isOpen, updatePosition, close]);
 
   return (
     <>

@@ -14,6 +14,8 @@ const insightSchema = new mongoose.Schema(
         status: { type: String, enum: ["new", "seen", "dismissed", "actioned"], default: "new" },
         dismissReason: { type: String, default: null },
         objectiveId: { type: mongoose.Schema.Types.ObjectId, ref: "Objective", default: null },
+        // null = All locations. A branch id keeps that insight off every other branch.
+        locationId: { type: mongoose.Schema.Types.ObjectId, ref: "Location", default: null },
     },
     { timestamps: true }
 );

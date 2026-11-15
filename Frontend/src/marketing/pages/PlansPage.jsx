@@ -66,7 +66,7 @@ export default function PlansPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  const prices = data?.prices || [];
+  const prices = useMemo(() => data?.prices || [], [data]);
   const durationOptions = useMemo(() => buildDurationOptions(prices), [prices]);
 
   useEffect(() => {

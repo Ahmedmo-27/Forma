@@ -323,31 +323,6 @@ export default function AssigningTasksPage() {
     return counts;
   }, [members]);
 
-  const filteredTemplateCounts = useMemo(() => {
-    const counts = {
-      active: 0, expired: 0, frozen: 0, guest: 0,
-      transferred: 0, endingSoon: 0,
-    };
-    const now = new Date();
-    const in30d = new Date(now.getTime() + 30 * 86400000);
-
-    filtered.forEach((m) => {
-      if (m.status === 'active') counts.active += 1;
-      else if (m.status === 'expired') counts.expired += 1;
-      else if (m.status === 'frozen') counts.frozen += 1;
-      else if (m.status === 'guest') counts.guest += 1;
-
-      if (Array.isArray(m.userlog) && m.userlog.some((l) => l.type === 'assign')) counts.transferred += 1;
-
-      const sub = m.subscriptions?.[m.subscriptions.length - 1];
-      if (sub?.endDate) {
-        const end = new Date(sub.endDate);
-        if (end >= now && end <= in30d) counts.endingSoon += 1;
-      }
-    });
-    return counts;
-  }, [filtered]);
-
   const setQuickPeriod = (preset) => {
     const now = new Date();
     if (preset === 'clear') {

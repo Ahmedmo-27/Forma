@@ -34,7 +34,7 @@ function toObjectIdList(ids) {
 const ROLE_OK = {
     members: ["Owner", "General Manager", "Accountant", "Sales Manager", "Sales", "Receptionist", "Coach", "Head Coach"],
     checkin: ["Owner", "General Manager", "Receptionist", "Sales Manager", "Sales"],
-    pt_tracking: ["Owner", "General Manager", "Coach", "Head Coach", "Accountant"],
+    pt_tracking: ["Owner", "General Manager", "Sales Manager", "Coach", "Head Coach", "Accountant"],
     accounting: ["Owner", "General Manager", "Accountant", "Sales Manager"],
     funnels: ["Owner", "General Manager", "Sales Manager", "Sales", "Accountant"],
     exec_analytics: ["Owner", "General Manager", "Accountant", "Sales Manager", "Head Coach"],
@@ -53,6 +53,93 @@ function privateCache(res) {
     res.set("Cache-Control", "private, max-age=60");
 }
 
+function medianOf(values) {
+    if (!values?.length) return null;
+    const sorted = [...values].sort((a, b) => a - b);
+    const mid = Math.floor(sorted.length / 2);
+    if (sorted.length % 2) return sorted[mid];
+    return Math.round((sorted[mid - 1] + sorted[mid]) / 2);
+}
+
+function sumNumericFields(target, source) {
+    for (const [key, value] of Object.entries(source || {})) {
+        if (typeof value === "number") target[key] = (Number(target[key]) || 0) + value;
+        else if (target[key] == null) target[key] = value;
+    }
+    return target;
+}
+
+function mergeNamedRows(lists) {
+    const map = new Map();
+    for (const row of lists || []) {
+        if (!row || row.key == null) continue;
+        const id = String(row.key);
+        const current = map.get(id);
+        if (!current) {
+            map.set(id, { ...row });
+            continue;
+        }
+        sumNumericFields(current, row);
+    }
+    return [...map.values()];
+}
+
+function mergeMemberLists(left, right, cap = 200) {
+    const seen = new Set();
+    const rows = [];
+    for (const row of [...(left || []), ...(right || [])]) {
+        const id = String(row?.id || row?.systemId || "");
+        if (id && seen.has(id)) continue;
+        if (id) seen.add(id);
+        rows.push(row);
+        if (rows.length >= cap) break;
+    }
+    return rows;
+}
+
+/** Navbar scope → which snapshot rows to read. Never substitutes the gym-wide rollup for a branch. */
+function locationKeyFromScope(locationScope) {
+    if (locationScope?.mode === "one" && locationScope.locationId) return String(locationScope.locationId);
+    if (locationScope?.mode === "subset" && locationScope.locationIds?.length) {
+        return locationScope.locationIds.map(String).sort().join(",");
+    }
+    return "all";
+}
+
+function scopeFromLocationKey(key) {
+    if (!key || key === "all") return { mode: "unrestricted", selected: "all" };
+    if (String(key).includes(",")) {
+        return { mode: "subset", selected: "all", locationIds: String(key).split(",").filter(Boolean) };
+    }
+    return { mode: "one", selected: String(key), locationId: String(key) };
+}
+
+function insightLocationClause(locationScope) {
+    if (locationScope?.mode === "one" && locationScope.locationId) {
+        const oid = toObjectId(locationScope.locationId);
+        return { locationId: oid || { $in: [] } };
+    }
+    if (locationScope?.mode === "subset" && locationScope.locationIds?.length) {
+        return { locationId: { $in: toObjectIdList(locationScope.locationIds) } };
+    }
+    return { $or: [{ locationId: null }, { locationId: { $exists: false } }] };
+}
+
+function insightMatchesScope(row, locationScope) {
+    const clause = insightLocationClause(locationScope);
+    if (clause.$or) return row?.locationId == null;
+    if (clause.locationId?.$in) {
+        return clause.locationId.$in.some((id) => String(id) === String(row?.locationId));
+    }
+    return String(row?.locationId || "") === String(clause.locationId || "");
+}
+
+function objectiveMatchesScope(objective, locationScope) {
+    const key = locationKeyFromScope(locationScope);
+    const stored = objective?.locationKey || "all";
+    return key === "all" ? stored === "all" : stored === key;
+}
+
 function mergeBranchSnapshotDays(rows, limit) {
     const byDate = new Map();
     for (const row of rows) {
@@ -63,59 +150,79 @@ function mergeBranchSnapshotDays(rows, limit) {
                 ...row,
                 locationId: null,
                 metrics: { ...(row.metrics || {}) },
-                hours: Array.isArray(row.hours) ? [...row.hours] : row.hours,
+                hours: Array.isArray(row.hours) ? [...row.hours] : [],
+                samples: {
+                    firstNoteHours: [...(row.samples?.firstNoteHours || [])],
+                    renewalPiasters: [...(row.samples?.renewalPiasters || [])],
+                },
+                segments: {
+                    byActivity: [...(row.segments?.byActivity || [])],
+                    byPackage: [...(row.segments?.byPackage || [])],
+                    byAssignee: [...(row.segments?.byAssignee || [])],
+                    byCoach: [...(row.segments?.byCoach || [])],
+                },
+                lists: { ...(row.lists || {}) },
+                pending: { ...(row.pending || {}) },
+                quality: { ...(row.quality || {}) },
             });
             continue;
         }
-        const metrics = existing.metrics || {};
-        for (const [k, v] of Object.entries(row.metrics || {})) {
-            if (typeof v === "number") {
-                metrics[k] = (Number(metrics[k]) || 0) + v;
-            } else if (metrics[k] == null) {
-                metrics[k] = v;
-            }
-        }
-        existing.metrics = metrics;
-        if (Array.isArray(existing.hours) && Array.isArray(row.hours)) {
+        sumNumericFields(existing.metrics, row.metrics);
+        sumNumericFields(existing.pending, row.pending);
+        sumNumericFields(existing.quality, row.quality);
+        if (Array.isArray(row.hours)) {
             const len = Math.max(existing.hours.length, row.hours.length);
             existing.hours = Array.from({ length: len }, (_, i) =>
                 (Number(existing.hours[i]) || 0) + (Number(row.hours[i]) || 0)
             );
         }
+        existing.samples.firstNoteHours = [...existing.samples.firstNoteHours, ...(row.samples?.firstNoteHours || [])].slice(0, 500);
+        existing.samples.renewalPiasters = [...existing.samples.renewalPiasters, ...(row.samples?.renewalPiasters || [])].slice(0, 500);
+        existing.segments.byActivity = mergeNamedRows([...(existing.segments.byActivity || []), ...(row.segments?.byActivity || [])]);
+        existing.segments.byPackage = mergeNamedRows([...(existing.segments.byPackage || []), ...(row.segments?.byPackage || [])]);
+        existing.segments.byAssignee = mergeNamedRows([...(existing.segments.byAssignee || []), ...(row.segments?.byAssignee || [])]);
+        existing.segments.byCoach = mergeNamedRows([...(existing.segments.byCoach || []), ...(row.segments?.byCoach || [])]);
+        const lists = existing.lists || {};
+        for (const name of ["expiring", "atRisk", "declining", "dormant", "ptExpiring", "frozenDue"]) {
+            lists[name] = mergeMemberLists(lists[name], row.lists?.[name]);
+        }
+        existing.lists = lists;
     }
     return [...byDate.values()]
         .sort((a, b) => String(a.localDate).localeCompare(String(b.localDate)))
-        .slice(-limit);
+        .slice(-limit)
+        .map((day) => {
+            day.metrics.medianHoursToNote = medianOf(day.samples?.firstNoteHours);
+            day.metrics.medianRenewalPiasters = medianOf(day.samples?.renewalPiasters);
+            return day;
+        });
+}
+
+async function latestDays(filter, limit) {
+    const rows = await TenantMetricSnapshot.find(filter).sort({ localDate: -1 }).limit(limit).lean();
+    return rows.reverse();
 }
 
 async function loadDays(limit = 120, locationScope = null) {
-    const filter = { grain: "day" };
-    // Single branch → that branch's snapshots
+    const grain = { grain: "day" };
     if (locationScope?.mode === "one" && locationScope.locationId) {
         const oid = toObjectId(locationScope.locationId);
         if (!oid) return [];
-        filter.locationId = oid;
-        return TenantMetricSnapshot.find(filter).sort({ localDate: 1 }).limit(limit).lean();
+        return latestDays({ ...grain, locationId: oid }, limit);
     }
-    // Restricted staff viewing "all" → sum per-branch snapshots for granted locations
     if (locationScope?.mode === "subset" && Array.isArray(locationScope.locationIds) && locationScope.locationIds.length) {
         const oids = toObjectIdList(locationScope.locationIds);
+        if (!oids.length) return [];
         const rows = await TenantMetricSnapshot.find({
-            grain: "day",
+            ...grain,
             locationId: { $in: oids },
         }).sort({ localDate: 1 }).lean();
-        if (rows.length) {
-            return mergeBranchSnapshotDays(rows, limit);
-        }
-        // Fallback until per-branch snapshots exist
-        return TenantMetricSnapshot.find({
-            grain: "day",
-            $or: [{ locationId: null }, { locationId: { $exists: false } }],
-        }).sort({ localDate: 1 }).limit(limit).lean();
+        return mergeBranchSnapshotDays(rows, limit);
     }
-    // Unrestricted / all → tenant-wide rollup
-    filter.$or = [{ locationId: null }, { locationId: { $exists: false } }];
-    return TenantMetricSnapshot.find(filter).sort({ localDate: 1 }).limit(limit).lean();
+    return latestDays({
+        ...grain,
+        $or: [{ locationId: null }, { locationId: { $exists: false } }],
+    }, limit);
 }
 
 /** Merge per-branch cohort docs: sum sizes, weighted-average retention cells. */
@@ -392,7 +499,11 @@ async function getFunnel(req, res, next) {
 async function getInsights(req, res, next) {
     try {
         privateCache(res);
-        const rows = await Insight.find({ role: { $in: [req.user.role, "Owner"] }, status: { $ne: "dismissed" } })
+        const rows = await Insight.find({
+            role: { $in: [req.user.role, "Owner"] },
+            status: { $ne: "dismissed" },
+            ...insightLocationClause(req.locationScope),
+        })
             .sort({ impact: -1 })
             .limit(20)
             .lean();
@@ -408,7 +519,7 @@ async function getInsights(req, res, next) {
 async function dismissInsight(req, res, next) {
     try {
         const row = await Insight.findById(req.params.id);
-        if (!row) throw new NotFoundError("Insight not found");
+        if (!row || !insightMatchesScope(row, req.locationScope)) throw new NotFoundError("Insight not found");
         row.status = "dismissed";
         row.dismissReason = String(req.body?.reason || "").slice(0, 300);
         await row.save();
@@ -421,7 +532,11 @@ async function dismissInsight(req, res, next) {
 async function listObjectives(req, res, next) {
     try {
         privateCache(res);
-        const objectives = await Objective.find({ archived: false }).sort({ deadline: 1 }).lean();
+        const key = locationKeyFromScope(req.locationScope);
+        const locationClause = key === "all"
+            ? { $or: [{ locationKey: "all" }, { locationKey: null }, { locationKey: { $exists: false } }] }
+            : { locationKey: key };
+        const objectives = await Objective.find({ archived: false, ...locationClause }).sort({ deadline: 1 }).lean();
         const objectiveIds = objectives.map((row) => row._id);
         const progress = objectiveIds.length
             ? await ObjectiveProgress.find({ objectiveId: { $in: objectiveIds } }).sort({ localDate: -1 }).limit(500).lean()
@@ -534,6 +649,7 @@ async function createObjective(req, res, next) {
             ownerRole: req.body?.ownerRole || req.user.role,
             cadence: req.body?.cadence === "monthly" ? "monthly" : "weekly",
             targetSource,
+            locationKey: locationKeyFromScope(req.locationScope),
             status: "on_track",
         });
         res.status(201).json({ objective });
@@ -545,7 +661,7 @@ async function createObjective(req, res, next) {
 async function updateObjective(req, res, next) {
     try {
         const objective = await Objective.findById(req.params.id);
-        if (!objective) throw new NotFoundError("Objective not found");
+        if (!objective || !objectiveMatchesScope(objective, req.locationScope)) throw new NotFoundError("Objective not found");
         if (req.body?.target != null) {
             if (objective.targetSource) {
                 throw new ConflictError("This goal follows the rep quotas. Change those on the team page.");
@@ -573,7 +689,7 @@ async function updateObjective(req, res, next) {
 async function insightToObjective(req, res, next) {
     try {
         const row = await Insight.findById(req.params.id);
-        if (!row) throw new NotFoundError("Insight not found");
+        if (!row || !insightMatchesScope(row, req.locationScope)) throw new NotFoundError("Insight not found");
         const templateByHref = {
             expiring: "grow_renewals",
             heatmap: "fill_quiet_hours",
@@ -647,4 +763,9 @@ module.exports = {
     exportMetric,
     rebuild,
     canSee,
+    loadDays,
+    locationKeyFromScope,
+    scopeFromLocationKey,
+    insightLocationClause,
+    mergeBranchSnapshotDays,
 };

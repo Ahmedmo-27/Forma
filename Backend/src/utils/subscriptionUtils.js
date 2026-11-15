@@ -8,6 +8,26 @@ function isClosedSubscription(sub) {
     return Boolean(sub.refunded || sub.cancelled || sub.subscriptionStatus === "cancelled");
 }
 
+/** Cancelled for cause: the sale stays, and the member is not entitled to a refund. */
+function isForfeitedCancellation(sub) {
+    if (!sub) return false;
+    if (sub.refunded || Number(sub.refundAmount) > 0) return false;
+    return Boolean(String(sub.cancelReason || "").trim());
+}
+
+/** The package was given to someone else. The original member is not refunded. */
+function isTransferredAway(sub) {
+    return Boolean(sub?.transferredTo);
+}
+
+/**
+ * Package that should drive access limits and the profile.
+ * Prefer the row that covers now. Otherwise the latest row that was not refunded or cancelled.
+ */
+function currentPackageSubscription(subscriptions, now = new Date()) {
+    return findActiveSubscription(subscriptions, now) || latestOpenSubscription(subscriptions);
+}
+
 /** Latest subscription that is still a real package. */
 function latestOpenSubscription(subscriptions) {
     const list = subscriptions || [];
@@ -104,9 +124,12 @@ function closeRefundedSubscription(subscription, refundedAt = new Date()) {
 
 module.exports = {
     findActiveSubscription,
+    currentPackageSubscription,
     onOrAfterCalendarDay,
     validateNoOverlappingSubscription,
     isClosedSubscription,
+    isForfeitedCancellation,
+    isTransferredAway,
     latestOpenSubscription,
     resolveNextPackageStart,
     closeRefundedSubscription,

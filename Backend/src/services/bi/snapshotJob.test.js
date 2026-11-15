@@ -50,4 +50,23 @@ describe("bi snapshot job", () => {
         findOne.mockRestore();
         create.mockRestore();
     });
+
+    it("stores a branch insight under that location, separate from the gym-wide rule", async () => {
+        const locationId = "aaaaaaaaaaaaaaaaaaaaaaaa";
+        vi.spyOn(Insight, "findOne").mockResolvedValue(null);
+        const create = vi.spyOn(Insight, "create").mockResolvedValue({});
+        const focus = day("2026-04-01", {}, {
+            lists: { atRisk: Array.from({ length: 8 }, () => ({ quiet: true, expiring: true })) },
+        });
+
+        await refreshInsights([focus], locationId);
+
+        expect(create).toHaveBeenCalledWith(expect.objectContaining({
+            ruleKey: `renewals_quiet@${locationId}`,
+            locationId,
+            weekKey: "2026-W14",
+        }));
+        Insight.findOne.mockRestore();
+        create.mockRestore();
+    });
 });

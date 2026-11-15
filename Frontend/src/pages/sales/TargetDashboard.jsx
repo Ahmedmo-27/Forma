@@ -635,6 +635,9 @@ function SalesSubscriptionsContent() {
                     {(Number(e.subscription.refundAmount) > 0 || e.subscription.refunded) && (
                       <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>Refunded</span>
                     )}
+                    {e.subscription.cancelReason && !(Number(e.subscription.refundAmount) > 0 || e.subscription.refunded) && (
+                      <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>Cancelled</span>
+                    )}
                     {e.subscription.discountPercent > 0 && (
                       <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--amber)', fontWeight: 600 }}>-{e.subscription.discountPercent}%</span>
                     )}

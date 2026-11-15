@@ -72,6 +72,7 @@ export default function TenantSettings() {
   const [countryCode, setCountryCode] = useState('20');
   const [timezone, setTimezone] = useState('Africa/Cairo');
   const [language, setLanguage] = useState('en');
+  const [packageTransferFee, setPackageTransferFee] = useState('0');
   const [activities, setActivities] = useState(KNOWN_ACTIVITIES);
   const [customActivity, setCustomActivity] = useState('');
 
@@ -102,6 +103,7 @@ export default function TenantSettings() {
         setTimezone(tenant.settings.locale.timezone || 'Africa/Cairo');
         setLanguage(tenant.settings.locale.language || 'en');
       }
+      setPackageTransferFee(String(tenant.settings.packageTransferFee ?? 0));
       if (tenant.settings.enabledActivities?.length > 0) {
         setActivities(tenant.settings.enabledActivities);
       }
@@ -270,6 +272,12 @@ export default function TenantSettings() {
       return;
     }
 
+    const transferFee = Number(packageTransferFee);
+    if (!Number.isFinite(transferFee) || transferFee < 0) {
+      toast.error('Enter a valid package transfer fee');
+      return;
+    }
+
     setSaving(true);
     try {
       const payload = {
@@ -283,6 +291,7 @@ export default function TenantSettings() {
           timezone: timezone.trim() || 'Africa/Cairo',
           language: language.trim() || 'en',
         },
+        packageTransferFee: transferFee,
         enabledActivities: activities,
         settings: {
           branding: {
@@ -295,6 +304,7 @@ export default function TenantSettings() {
             timezone: timezone.trim() || 'Africa/Cairo',
             language: language.trim() || 'en',
           },
+          packageTransferFee: transferFee,
           enabledActivities: activities,
         },
       };
@@ -833,6 +843,15 @@ export default function TenantSettings() {
                   <option value="en">English (US)</option>
                   <option value="ar">العربية (Arabic)</option>
                 </Select>
+
+                <Input
+                  label="Package transfer fee"
+                  type="number"
+                  min="0"
+                  value={packageTransferFee}
+                  onChange={e => setPackageTransferFee(e.target.value)}
+                  hint="Default fee charged to the original member when their current package is transferred. Staff can change it on each transfer."
+                />
               </div>
             </Card>
 

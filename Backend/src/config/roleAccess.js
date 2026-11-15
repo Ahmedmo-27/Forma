@@ -46,6 +46,7 @@ const FEATURE_AREA = {
     accounting_dashboard: "accounting",
     contracts: "accounting",
     refunds: "accounting",
+    package_transfers: "accounting",
     package_approvals: "exception_approvals",
     reports: "reports",
     coach_dashboard: "coaching",

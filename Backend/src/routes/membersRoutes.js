@@ -53,6 +53,8 @@ const {
     unblockMember,
     addPT_sessions,
     refund,
+    cancelPackage,
+    transferPackage,
     refundPT_Sessions,
     bulkImportMembers,
     getMemberImportJob,
@@ -128,5 +130,7 @@ router.get("/by/:memberId", allowRoles("member_profile", "Receptionist", "Owner"
 
 router.post("/:memberId/pt-sessions", protect, allowAnyFeature(["accounting_dashboard", "assign_pt"], "Owner", "Accountant", "Coach", "Head Coach"), requireFeature("pt_tracking"), autoInvalidate(["members", "revenue"]), addPT_sessions);
 router.post("/:memberId/refund", protect, allowRoles("refunds", "Owner", "Accountant"), requireFeature("accounting"), autoInvalidate(["members", "revenue", "contracts"]), refund);
+router.post("/:memberId/cancel-package", protect, allowRoles("refunds", "Owner", "Accountant"), requireFeature("accounting"), autoInvalidate(["members", "revenue", "contracts"]), cancelPackage);
+router.post("/:memberId/transfer-package", protect, allowRoles("package_transfers", "Owner", "Accountant", "General Manager"), requireFeature("accounting"), autoInvalidate(["members", "revenue", "contracts"]), transferPackage);
 router.post("/:memberId/refund_pt", protect, allowRoles("refunds", "Owner", "Accountant"), requireFeature("accounting"), autoInvalidate(["members", "revenue", "contracts"]), refundPT_Sessions);
 module.exports = router;

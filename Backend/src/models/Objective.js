@@ -26,6 +26,8 @@ const objectiveSchema = new mongoose.Schema(
         targetSource: { type: String, default: null },
         archived: { type: Boolean, default: false },
         behindStreak: { type: Number, default: 0 },
+        // "all", one location id, or a sorted comma-joined set of location ids.
+        locationKey: { type: String, default: "all" },
     },
     { timestamps: true }
 );

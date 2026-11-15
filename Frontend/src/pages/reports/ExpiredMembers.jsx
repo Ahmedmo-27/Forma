@@ -163,7 +163,7 @@ export default function ExpiredMembers() {
     } finally {
       setLoading(false);
     }
-  }, [fromDate, toDate, salesMan, trainerName, packageId, type, status, categories, gender]);
+  }, [fromDate, toDate, salesMan, trainerName, packageId, type, status, gender]);
 
   const ACTIVITY_TYPES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 

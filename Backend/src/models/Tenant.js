@@ -98,6 +98,7 @@ const tenantSettingsSchema = new mongoose.Schema(
         },
         whatsapp: { type: whatsappSettingsSchema, default: () => ({}) },
         featureConfig: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
+        packageTransferFee: { type: Number, default: 0, min: 0 },
     },
     { _id: false }
 );

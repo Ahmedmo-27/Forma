@@ -3,7 +3,8 @@ import mongoose from "mongoose";
 import Member from "../models/Member.js";
 import User from "../models/User.js";
 import PackageExceptionRequest from "../models/PackageExceptionRequest.js";
-import { refund } from "../controllers/memberController.js";
+import { refund, cancelPackage, refundPT_Sessions } from "../controllers/memberController.js";
+import AuditLog from "../models/AuditLog.js";
 import { updateExceptionStatus } from "../controllers/packageExceptionController.js";
 import { loginUser, getTeamsPage } from "../controllers/userController.js";
 import bcrypt from "bcryptjs";
@@ -11,6 +12,7 @@ import bcrypt from "bcryptjs";
 describe("Tenant-Side Audit Fixes", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
+        vi.spyOn(AuditLog, "create").mockResolvedValue({});
         process.env.JWT_SECRET = "test-secret-key-12345";
     });
 
@@ -126,6 +128,345 @@ describe("Tenant-Side Audit Fixes", () => {
             expect(mockMember.subscriptions[1].cancelled).toBe(true);
             expect(mockMember.subscriptions[1].subscriptionStatus).toBe("cancelled");
             expect(mockMember.save).toHaveBeenCalled();
+        });
+
+        it("rejects a non-numeric refund amount", async () => {
+            const findById = vi.spyOn(Member, "findById");
+            const req = {
+                body: { memberID: new mongoose.Types.ObjectId().toString(), refund_amount: "abc" },
+                user: { id: "user123" },
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await refund(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({ message: "Please enter a valid refund amount" });
+            expect(findById).not.toHaveBeenCalled();
+        });
+
+        it("keeps the member active when an earlier package still covers today", async () => {
+            const memberId = new mongoose.Types.ObjectId().toString();
+            const now = Date.now();
+            const previousEnd = new Date(now + 20 * 86400000);
+            const freeze = { endDate: new Date(now + 5 * 86400000), endedBy: null };
+            const previous = {
+                pricePaid: 1000,
+                refundAmount: 0,
+                startDate: new Date(now - 10 * 86400000),
+                endDate: previousEnd,
+                packageSnapshot: { name: "Basic" },
+            };
+            const upgrade = {
+                pricePaid: 1500,
+                refundAmount: 0,
+                startDate: new Date(now - 86400000),
+                endDate: new Date(now + 40 * 86400000),
+                isUpgrade: true,
+                packageSnapshot: { name: "Gold", free_pt_sessions: 2 },
+            };
+            const mockMember = {
+                _id: memberId,
+                status: "active",
+                isMember: true,
+                subscriptions: [previous, upgrade],
+                freeze: [freeze],
+                PT_sessions: 6,
+                userlog: [],
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            vi.spyOn(Member, "findById").mockResolvedValue(mockMember);
+
+            const req = {
+                body: { memberID: memberId, refund_amount: 200, reason: "Upgrade reversed" },
+                user: { id: "user123", role: "Owner" },
+                tenant: { settings: { locale: { currency: "EGP" } } },
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await refund(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(mockMember.status).toBe("active");
+            expect(mockMember.isMember).toBe(true);
+            expect(previous.endDate).toBe(previousEnd);
+            expect(previous.refundAmount).toBe(0);
+            expect(upgrade.refunded).toBe(true);
+            expect(upgrade.cancelled).toBe(true);
+            expect(upgrade.subscriptionStatus).toBe("cancelled");
+            expect(mockMember.PT_sessions).toBe(4);
+            expect(freeze.endedBy).toBeNull();
+            expect(mockMember.userlog[0].text).toContain("200 EGP");
+            expect(AuditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+                action: "package_refunded",
+                meta: expect.objectContaining({ refundAmount: 200, packageName: "Gold" }),
+            }));
+        });
+
+        it("subtracts free PT sessions only on the first refund of the only package", async () => {
+            const memberId = new mongoose.Types.ObjectId().toString();
+            const mockMember = {
+                _id: memberId,
+                status: "active",
+                isMember: true,
+                subscriptions: [{
+                    pricePaid: 1000,
+                    refundAmount: 0,
+                    packageSnapshot: { name: "Solo", free_pt_sessions: 4 },
+                    startDate: new Date(Date.now() - 86400000),
+                    endDate: new Date(Date.now() + 20 * 86400000),
+                }],
+                PT_sessions: 10,
+                userlog: [],
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            vi.spyOn(Member, "findById").mockResolvedValue(mockMember);
+
+            const req = {
+                body: { memberID: memberId, refund_amount: 200 },
+                user: { id: "user123", role: "Accountant" },
+                tenant: { settings: { locale: { currency: "EGP" } } },
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await refund(req, res);
+            req.body.refund_amount = 100;
+            await refund(req, res);
+
+            expect(mockMember.status).toBe("guest");
+            expect(mockMember.isMember).toBe(false);
+            expect(mockMember.PT_sessions).toBe(6);
+            expect(mockMember.subscriptions[0].refundAmount).toBe(300);
+            expect(mockMember.userlog).toHaveLength(2);
+            expect(mockMember.userlog[1].text).toContain("100 EGP");
+        });
+
+        it("rejects a refund after the package was cancelled without one", async () => {
+            const memberId = new mongoose.Types.ObjectId().toString();
+            const mockMember = {
+                _id: memberId,
+                status: "expired",
+                subscriptions: [{
+                    pricePaid: 1000,
+                    refundAmount: 0,
+                    refunded: false,
+                    cancelled: true,
+                    subscriptionStatus: "cancelled",
+                    cancelReason: "Misconduct at the gym",
+                }],
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            vi.spyOn(Member, "findById").mockResolvedValue(mockMember);
+
+            const req = {
+                body: { memberID: memberId, refund_amount: 1000 },
+                user: { id: "user123", role: "Owner" },
+                tenant: { settings: { locale: { currency: "EGP" } } },
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await refund(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({
+                message: "This package was cancelled and the member is not entitled to a refund",
+            });
+            expect(mockMember.subscriptions[0].refundAmount).toBe(0);
+            expect(mockMember.save).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("memberController.cancelPackage", () => {
+        it("requires a reason", async () => {
+            const req = {
+                body: { memberID: new mongoose.Types.ObjectId().toString(), reason: "   " },
+                user: { id: "user123", role: "Owner" },
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await cancelPackage(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith({ message: "A cancellation reason is required" });
+        });
+
+        it("cancels the open package, keeps the sale, and ends access", async () => {
+            const memberId = new mongoose.Types.ObjectId().toString();
+            const endDate = new Date(Date.now() + 20 * 86400000);
+            const freeze = { endDate: new Date(Date.now() + 5 * 86400000), endedBy: null };
+            const subscription = {
+                pricePaid: 1000,
+                refundAmount: 0,
+                refunded: false,
+                startDate: new Date(Date.now() - 86400000),
+                endDate,
+                packageSnapshot: { name: "Gold", free_pt_sessions: 3 },
+            };
+            const mockMember = {
+                _id: memberId,
+                status: "active",
+                isMember: true,
+                subscriptions: [subscription],
+                freeze: [freeze],
+                PT_sessions: 8,
+                userlog: [],
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            vi.spyOn(Member, "findById").mockResolvedValue(mockMember);
+
+            const req = {
+                params: { memberId },
+                body: { reason: "Repeated misconduct at the gym" },
+                user: { id: "user123", role: "Owner" },
+                tenant: { settings: { locale: { currency: "EGP" } } },
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await cancelPackage(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(subscription.pricePaid).toBe(1000);
+            expect(subscription.refundAmount).toBe(0);
+            expect(subscription.refunded).toBe(false);
+            expect(subscription.cancelled).toBe(true);
+            expect(subscription.subscriptionStatus).toBe("cancelled");
+            expect(subscription.cancelReason).toBe("Repeated misconduct at the gym");
+            expect(subscription.cancelledBy).toBe("user123");
+            expect(new Date(subscription.endDate).getTime()).toBeLessThanOrEqual(Date.now());
+            expect(mockMember.status).toBe("guest");
+            expect(mockMember.isMember).toBe(false);
+            expect(mockMember.PT_sessions).toBe(5);
+            expect(freeze.endedBy).toBe("user123");
+            expect(mockMember.userlog[0].text).toContain("without refund");
+            expect(AuditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+                action: "package_cancelled",
+                meta: expect.objectContaining({
+                    packageName: "Gold",
+                    reason: "Repeated misconduct at the gym",
+                    refundAmount: 0,
+                    pricePaid: 1000,
+                }),
+            }));
+        });
+
+        it("leaves an earlier covering package active", async () => {
+            const memberId = new mongoose.Types.ObjectId().toString();
+            const previousEnd = new Date(Date.now() + 20 * 86400000);
+            const previous = {
+                pricePaid: 800,
+                refundAmount: 0,
+                startDate: new Date(Date.now() - 10 * 86400000),
+                endDate: previousEnd,
+                packageSnapshot: { name: "Basic" },
+            };
+            const current = {
+                pricePaid: 1500,
+                refundAmount: 0,
+                startDate: new Date(Date.now() - 86400000),
+                endDate: new Date(Date.now() + 40 * 86400000),
+                packageSnapshot: { name: "Gold" },
+            };
+            const mockMember = {
+                _id: memberId,
+                status: "active",
+                isMember: true,
+                subscriptions: [previous, current],
+                freeze: [],
+                PT_sessions: 0,
+                userlog: [],
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            vi.spyOn(Member, "findById").mockResolvedValue(mockMember);
+
+            const req = {
+                params: { memberId },
+                body: { reason: "Caused problems at the gym" },
+                user: { id: "user123", role: "Accountant" },
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await cancelPackage(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(mockMember.status).toBe("active");
+            expect(previous.cancelled).toBeUndefined();
+            expect(previous.endDate).toBe(previousEnd);
+            expect(current.subscriptionStatus).toBe("cancelled");
+            expect(current.pricePaid).toBe(1500);
+            expect(current.refundAmount).toBe(0);
+        });
+    });
+
+    describe("memberController.refundPT_Sessions", () => {
+        it("removes pack sessions once and logs each refund", async () => {
+            const memberId = new mongoose.Types.ObjectId().toString();
+            const mockMember = {
+                _id: memberId,
+                pt_subscriptions: [{
+                    pricePaid: 500,
+                    sessions: 8,
+                    refundAmount: 0,
+                    endDate: new Date(Date.now() + 20 * 86400000),
+                }],
+                PT_sessions: 12,
+                used_PT_sessions: 3,
+                userlog: [],
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            vi.spyOn(Member, "findById").mockResolvedValue(mockMember);
+
+            const req = {
+                body: { memberID: memberId, refund_amount: 100, reason: "Unused sessions" },
+                user: { id: "user123", role: "Owner" },
+                tenant: { settings: { locale: { currency: "EGP" } } },
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await refundPT_Sessions(req, res);
+            req.body.refund_amount = 50;
+            await refundPT_Sessions(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(200);
+            expect(mockMember.PT_sessions).toBe(4);
+            expect(mockMember.pt_subscriptions[0].refundAmount).toBe(150);
+            expect(mockMember.pt_subscriptions[0].refunded).toBe(true);
+            expect(mockMember.userlog).toHaveLength(2);
+            expect(mockMember.userlog[0].text).toContain("100 EGP");
+            expect(mockMember.userlog[0].text).toContain("Unused sessions");
+            expect(AuditLog.create).toHaveBeenCalledWith(expect.objectContaining({
+                action: "pt_refunded",
+                meta: expect.objectContaining({ refundAmount: 100 }),
+            }));
         });
     });
 

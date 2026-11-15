@@ -41,6 +41,7 @@ export const CATALOG_KEYS = [
     "contracts",
     "package_approvals",
     "refunds",
+    "package_transfers",
     "coach_dashboard",
     "coach_members",
     "coach_checkin",
@@ -81,6 +82,7 @@ export const EXPECTED_KEYS = {
         "contracts",
         "package_approvals",
         "refunds",
+        "package_transfers",
         "coach_transfer",
         "owner_dashboard",
         "teams_overview",
@@ -115,6 +117,7 @@ export const EXPECTED_KEYS = {
         "contracts",
         "package_approvals",
         "refunds",
+        "package_transfers",
         "coach_dashboard",
         "coach_members",
         "coach_checkin",
@@ -206,6 +209,7 @@ export const EXPECTED_KEYS = {
         "contracts",
         "package_approvals",
         "refunds",
+        "package_transfers",
     ],
 };
 

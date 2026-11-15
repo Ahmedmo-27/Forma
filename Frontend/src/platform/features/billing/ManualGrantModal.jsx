@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Dialog,
   Button,
@@ -32,8 +32,11 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
     enabled: open,
   });
 
-  const tenants = tenantsData || [];
-  const plans = Array.isArray(plansData) ? plansData : [];
+  const tenants = useMemo(() => tenantsData || [], [tenantsData]);
+  const plans = useMemo(
+    () => (Array.isArray(plansData) ? plansData : []),
+    [plansData],
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -43,6 +46,8 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
     setReason("");
     setError(null);
     setPlanKey(plans[0]?.key || "basic");
+    // Reset only when the dialog opens. A later plan-list load is handled below.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   useEffect(() => {
@@ -50,7 +55,7 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
     if (!plans.some((plan) => plan.key === planKey)) {
       setPlanKey(plans[0].key);
     }
-  }, [plansData, planKey]);
+  }, [plans, planKey]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

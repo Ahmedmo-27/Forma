@@ -204,7 +204,18 @@ const subscriptionSchema = new mongoose.Schema({
     cancelled: { type: Boolean, default: false },
     cancelledAt: { type: Date, default: null },
     cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    // Set only when the package is cancelled with no refund. Refunds leave this empty.
+    cancelReason: { type: String, default: null, trim: true, maxlength: 500 },
     subscriptionStatus: { type: String, enum: ["active", "cancelled", "expired"], default: "active" },
+    // Package moved to someone else. The original sale stays; the fee is extra.
+    transferredTo: { type: mongoose.Schema.Types.ObjectId, ref: "Member", default: null },
+    transferredToName: { type: String, default: null, trim: true },
+    // Package received from someone else. pricePaid stays 0 so the sale is not counted twice.
+    transferredFrom: { type: mongoose.Schema.Types.ObjectId, ref: "Member", default: null },
+    transferredFromName: { type: String, default: null, trim: true },
+    transferFee: { type: Number, default: 0, min: 0 },
+    transferredAt: { type: Date, default: null },
+    transferredBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
 }, { timestamps: true });
 
 const memberSchema = new mongoose.Schema({

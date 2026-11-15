@@ -14,7 +14,6 @@ export function useDetailCrumb(label) {
 
   useEffect(() => {
     // The shell breadcrumb sits above the route, so the page publishes its title after it renders.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDetailLabel(label || null);
     return () => setDetailLabel(null);
   }, [label, setDetailLabel]);

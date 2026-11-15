@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Mail, Plus } from "lucide-react";
 import {
@@ -55,7 +55,7 @@ export default function CampaignsPage() {
     queryFn: () => apiGetCampaignTemplates().then((response) => response.data),
   });
 
-  const templates = templateData?.templates || [];
+  const templates = useMemo(() => templateData?.templates || [], [templateData]);
   const statuses = templateData?.statuses || Object.keys(STATUS_LABELS);
 
   const { data, isLoading } = useQuery({

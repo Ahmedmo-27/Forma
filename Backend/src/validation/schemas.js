@@ -322,6 +322,7 @@ const tenantSettingsSchema = z.object({
         accessToken: z.string().trim().nullable().optional(),
     }).optional(),
     featureConfig: z.record(z.string(), z.any()).optional(),
+    packageTransferFee: z.coerce.number().min(0).optional(),
     settings: z.object({
         branding: z.object({
             logoKey: z.string().nullable().optional(),
@@ -349,7 +350,12 @@ const tenantSettingsSchema = z.object({
             accessToken: z.string().trim().nullable().optional(),
         }).optional(),
         featureConfig: z.record(z.string(), z.any()).optional(),
+        packageTransferFee: z.coerce.number().min(0).optional(),
     }).optional(),
+});
+
+const packageTransferFeeSchema = z.object({
+    packageTransferFee: z.coerce.number().min(0),
 });
 
 const createTenantSchema = z.object({
@@ -432,6 +438,7 @@ module.exports = {
     createTenantSchema,
     updateTenantSchema,
     tenantSettingsSchema,
+    packageTransferFeeSchema,
     updateEntitlementPolicySchema,
     planPriceSchema,
     publicSignupSchema,

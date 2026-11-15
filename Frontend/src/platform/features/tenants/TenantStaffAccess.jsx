@@ -86,8 +86,8 @@ export default function TenantStaffAccess({ tenantId }) {
     },
   });
 
-  const users = staffQuery.data || [];
-  const groups = accessQuery.data?.groups || [];
+  const users = useMemo(() => staffQuery.data || [], [staffQuery.data]);
+  const groups = useMemo(() => accessQuery.data?.groups || [], [accessQuery.data]);
   const selected = users.find((person) => person._id === selectedId) || null;
 
   useEffect(() => {

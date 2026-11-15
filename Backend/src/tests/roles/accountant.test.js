@@ -23,6 +23,7 @@ describe("Accountant", () => {
             "contracts",
             "package_approvals",
             "refunds",
+            "package_transfers",
         ]);
         expectAreas("Accountant", ["members", "sales", "whatsapp", "accounting", "exception_approvals"]);
         expectList("Accountant", "all");

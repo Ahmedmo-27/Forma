@@ -71,6 +71,7 @@ function cairoDayBounds(dateFrom, dateTo, timeZone = CAIRO_ZONE) {
 }
 
 const { resolveSubscriptionPackage } = require("./packageSnapshot");
+const { currentPackageSubscription } = require("./subscriptionUtils");
 
 function getCurrentSubscription(member) {
     const subs = member.subscriptions;
@@ -79,7 +80,7 @@ function getCurrentSubscription(member) {
 }
 
 function getCurrentPackage(member) {
-    const sub = getCurrentSubscription(member);
+    const sub = currentPackageSubscription(member?.subscriptions);
     return resolveSubscriptionPackage(sub);
 }
 
@@ -102,7 +103,8 @@ function subscriptionSalePrice(sub) {
         price = Number(resolved?.price) || 0;
     }
     const refund = Number(sub.refundAmount) || 0;
-    return Math.max(0, price - refund);
+    const transferFee = Number(sub.transferFee) || 0;
+    return Math.max(0, price - refund) + Math.max(0, transferFee);
 }
 
 function memberPrice(member) {

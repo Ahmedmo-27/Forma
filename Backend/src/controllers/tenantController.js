@@ -22,6 +22,7 @@ const { encryptSecret } = require("../utils/tenantCrypto");
 const { writeAudit } = require("../utils/audit");
 const { assertAllowedLogo, MIME_TO_EXT } = require("../utils/fileMagic");
 const { BILLING_CURRENCY } = require("../config/currency");
+const { setPackageTransferFee } = require("../utils/packageTransferFee");
 const { countMonthlyWhatsAppMessages } = require("../utils/whatsappTracking");
 
 function sanitizeTenantResponse(tenant, plan, usage = {}) {
@@ -207,6 +208,16 @@ const getMyTenant = async (req, res) => {
  * PATCH /api/tenant/me
  * Allows Owner to update branding, locale, enabled activities, and WhatsApp credentials.
  */
+const updatePackageTransferFee = async (req, res) => {
+    try {
+        const fee = await setPackageTransferFee(req.user?.tenantId, req.body?.packageTransferFee);
+        res.json({ message: "Transfer fee updated", packageTransferFee: fee });
+    } catch (error) {
+        const status = Number(error.statusCode) || 500;
+        res.status(status).json({ message: error.message || "Server error" });
+    }
+};
+
 const updateMyTenantSettings = async (req, res) => {
     try {
         const tenantId = req.user?.tenantId;
@@ -276,6 +287,14 @@ const updateMyTenantSettings = async (req, res) => {
                 ...featureConfig,
             };
             tenant.markModified("settings.featureConfig");
+        }
+
+        if (raw.packageTransferFee != null && raw.packageTransferFee !== "") {
+            const fee = Number(raw.packageTransferFee);
+            if (!Number.isFinite(fee) || fee < 0) {
+                return res.status(400).json({ message: "Enter a valid transfer fee" });
+            }
+            tenant.settings.packageTransferFee = fee;
         }
 
         tenant.markModified("settings");
@@ -466,6 +485,7 @@ const updateRoleAccess = async (req, res) => {
 module.exports = {
     getMyTenant,
     updateMyTenantSettings,
+    updatePackageTransferFee,
     uploadTenantLogo,
     updateRoleAccess,
     sanitizeTenantResponse,

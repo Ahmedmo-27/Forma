@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { Card, CardHeader, Badge, Table, EmptyState, fmtDate, fmtDateTime, Btn, Modal, Input, Select, Spinner, ConfirmDialog, Switch, Alert, toLocalDateString } from '../../../components/ui';
-import { getPackages, getMemberPendingException, createPackageException, updatePackageExceptionStatus, assignPackage, createPackage, addPTSessions, refundMember, refundPTSessions } from '../../../api/endpoints';
+import { Card, CardHeader, Badge, Table, EmptyState, fmtDate, fmtDateTime, Btn, Modal, Input, Textarea, Select, Spinner, ConfirmDialog, Switch, Alert, toLocalDateString } from '../../../components/ui';
+import { getPackages, getMemberPendingException, createPackageException, updatePackageExceptionStatus, assignPackage, createPackage, addPTSessions, refundMember, refundPTSessions, cancelMemberPackage, transferMemberPackage } from '../../../api/endpoints';
 import CatalogPackageForm, { EMPTY_PACKAGE_FORM, validatePackageForm, packageFormToPayload } from '../../../components/PackageForm';
 import PackageAcceptModal from '../../../components/accounting/PackageAcceptModal';
 import { useTenant } from '../../../context/TenantContext';
 import { useTourReveal } from '../../../tutorials/walkthrough-context';
 import useLocationEffect from '../../../hooks/useLocationEffect';
-import { Ban, Banknote, Calendar, CornerDownLeft } from 'lucide-react';
+import { ArrowLeftRight, Ban, Banknote, Calendar, CircleOff, CornerDownLeft } from 'lucide-react';
 
 const ACTIVITY_TYPES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 const DURATIONS = ['1 month', '3 months', '6 months', '1 year'];
@@ -22,6 +22,15 @@ function isClosedSubscription(sub) {
   if (!sub) return true;
   if (Number(sub.refundAmount) > 0) return true;
   return Boolean(sub.refunded || sub.cancelled || sub.subscriptionStatus === 'cancelled');
+}
+
+function isForfeitedCancellation(sub) {
+  if (!sub || sub.refunded || Number(sub.refundAmount) > 0) return false;
+  return Boolean(String(sub.cancelReason || '').trim());
+}
+
+function isTransferredAway(sub) {
+  return Boolean(sub?.transferredTo);
 }
 
 function defaultPackageStart(member) {
@@ -80,14 +89,12 @@ function PTSessionsContent({ member, user, onRefresh }) {
   const [ptRefunding, setPTRefunding]             = useState(false);
 
   const canAdd = ['Owner', 'Accountant', 'Coach', 'Head Coach'].includes(user?.role);
-  const canRefund = ['Owner', 'Accountant'].includes(user?.role);
+  const canRefund = ['Owner', 'Accountant', 'General Manager'].includes(user?.role);
 
   const ptSubs = member.pt_subscriptions ?? [];
-  const latestSub = ptSubs.at(-1);
-  // Consider sessions "active" only if the last PT subscription is not refunded
-  const isLatestRefunded = latestSub?.refunded === true || (latestSub?.refundAmount ?? 0) > 0;
-  const totalSessions = isLatestRefunded ? 0 : (member.PT_sessions ?? 0);
-  const usedSessions  = isLatestRefunded ? 0 : (member.used_PT_sessions ?? 0);
+  const latestSub = [...ptSubs].reverse().find((sub) => !(sub.refunded === true || Number(sub.refundAmount) > 0)) || null;
+  const totalSessions = member.PT_sessions ?? 0;
+  const usedSessions  = member.used_PT_sessions ?? 0;
   const remaining     = totalSessions - usedSessions;
   const ptStart = member.PT_sessions_startDate;
   const ptEnd   = member.PT_sessions_expDate;
@@ -224,7 +231,7 @@ function PTSessionsContent({ member, user, onRefresh }) {
                         padding: '2px 8px', borderRadius: 4,
                       }}><CornerDownLeft size={12} aria-hidden /> Refunded</span>
                       {sub.refundAmount > 0 && (
-                        <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 600 }}>−EGP {sub.refundAmount}</span>
+                        <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 600 }}>−{currency} {sub.refundAmount}</span>
                       )}
                     </div>
                   ) : (
@@ -291,7 +298,7 @@ function PTSessionsContent({ member, user, onRefresh }) {
         </>}
       >
         <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 14, lineHeight: 1.6 }}>
-          Refund will be recorded against the last PT subscription for <strong>{member.name}</strong>.
+          Any amount cancels the last PT pack for <strong>{member.name}</strong>. Sessions from that pack are removed once. Another refund on the same sale only returns money still left.
         </p>
         {(() => {
           const lastPTSub = member.pt_subscriptions?.at(-1);
@@ -302,7 +309,7 @@ function PTSessionsContent({ member, user, onRefresh }) {
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', marginBottom: 14, fontSize: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ color: 'var(--t4)', fontWeight: 600 }}>Price Paid</span>
-                <span style={{ fontWeight: 700 }}>{pricePaidVal} EGP</span>
+                <span style={{ fontWeight: 700 }}>{pricePaidVal} {currency}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ color: 'var(--t4)', fontWeight: 600 }}>Sessions</span>
@@ -311,12 +318,12 @@ function PTSessionsContent({ member, user, onRefresh }) {
               {alreadyRefunded > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ color: 'var(--t4)', fontWeight: 600 }}>Already Refunded</span>
-                  <span style={{ color: 'var(--red)', fontWeight: 700 }}>{alreadyRefunded} EGP</span>
+                  <span style={{ color: 'var(--red)', fontWeight: 700 }}>{alreadyRefunded} {currency}</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 4 }}>
                 <span style={{ color: 'var(--t4)', fontWeight: 600 }}>Max Refundable</span>
-                <span style={{ color: 'var(--green)', fontWeight: 700 }}>{maxRefund} EGP</span>
+                <span style={{ color: 'var(--green)', fontWeight: 700 }}>{maxRefund} {currency}</span>
               </div>
             </div>
           );
@@ -341,7 +348,8 @@ function PTSessionsContent({ member, user, onRefresh }) {
 
 // ── Packages Sub-tab (original content) ───────────────────────────────────────
 function PackagesContent({ member, user, onRefresh }) {
-  const { currency = 'EGP' } = useTenant() || {};
+  const { currency = 'EGP', tenant } = useTenant() || {};
+  const defaultTransferFee = tenant?.settings?.packageTransferFee ?? 0;
   const [pending, setPending] = useState(null);
   const [loadingPending, setLoadingPending] = useState(true);
   const [showAddPackage, setShowAddPackage] = useState(false);
@@ -356,6 +364,19 @@ function PackagesContent({ member, user, onRefresh }) {
   const [refundAmount, setRefundAmount]       = useState('');
   const [refundReason, setRefundReason]       = useState('');
   const [refunding, setRefunding]             = useState(false);
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [cancelReason, setCancelReason]       = useState('');
+  const [cancelling, setCancelling]           = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferFee, setTransferFee] = useState('');
+  const [saveAsDefault, setSaveAsDefault] = useState(false);
+  const [recipientMode, setRecipientMode] = useState('existing');
+  const [recipientSystemId, setRecipientSystemId] = useState('');
+  const [newName, setNewName] = useState('');
+  const [newPhone, setNewPhone] = useState('');
+  const [newGender, setNewGender] = useState('');
+  const [newBirthdate, setNewBirthdate] = useState('');
+  const [transferring, setTransferring] = useState(false);
 
   const isSalesManager = user?.role === 'Sales Manager';
   const isAccountant = user?.role === 'Accountant';
@@ -363,6 +384,7 @@ function PackagesContent({ member, user, onRefresh }) {
   const isGM = user?.role === 'General Manager';
   const canAddPackage = isSalesManager || isAccountant || isOwner || isGM;
   const canRefund = isOwner || isAccountant || isGM;
+  const canTransfer = isOwner || isAccountant || isGM;
   const memberKey = member.systemId ?? member._id;
 
   const fetchPending = useCallback(async () => {
@@ -401,6 +423,61 @@ function PackagesContent({ member, user, onRefresh }) {
     } finally { setRefunding(false); }
   };
 
+  const openTransfer = () => {
+    setTransferFee(String(defaultTransferFee ?? 0));
+    setSaveAsDefault(false);
+    setRecipientMode('existing');
+    setRecipientSystemId('');
+    setNewName('');
+    setNewPhone('');
+    setNewGender('');
+    setNewBirthdate('');
+    setShowTransferModal(true);
+  };
+
+  const handleTransferPackage = async () => {
+    const fee = Number(transferFee);
+    if (!Number.isFinite(fee) || fee < 0) { toast.error('Enter a valid transfer fee'); return; }
+    const payload = { transferFee: fee, saveAsDefault };
+    if (recipientMode === 'existing') {
+      if (!recipientSystemId.trim()) { toast.error('Enter a system ID'); return; }
+      payload.recipientSystemId = recipientSystemId.trim();
+    } else {
+      if (!newName.trim() || !newPhone.trim()) { toast.error('Name and phone are required'); return; }
+      payload.name = newName.trim();
+      payload.phones = newPhone.trim();
+      if (newGender) payload.gender = newGender;
+      if (newBirthdate) payload.birthdate = newBirthdate;
+    }
+    setTransferring(true);
+    try {
+      const res = await transferMemberPackage(member._id, payload);
+      toast.success(res.data.message ?? 'Package transferred');
+      if (saveAsDefault && res.data.defaultFeeSaved === false) {
+        toast.error('The package moved, but the gym default fee was not saved.');
+      }
+      setShowTransferModal(false);
+      onRefresh?.();
+    } catch (e) {
+      toast.error(e.response?.data?.message ?? 'Transfer failed.');
+    } finally { setTransferring(false); }
+  };
+
+  const handleCancelPackage = async () => {
+    const reason = cancelReason.trim();
+    if (!reason) { toast.error('A cancellation reason is required'); return; }
+    setCancelling(true);
+    try {
+      const res = await cancelMemberPackage(member._id, reason);
+      toast.success(res.data.message ?? 'Package cancelled');
+      setShowCancelModal(false);
+      setCancelReason('');
+      onRefresh?.();
+    } catch (e) {
+      toast.error(e.response?.data?.message ?? 'Cancellation failed.');
+    } finally { setCancelling(false); }
+  };
+
   const handleReview = async () => {
     if (!confirm) return;
     setActionLoading(true);
@@ -437,19 +514,21 @@ function PackagesContent({ member, user, onRefresh }) {
 
   const subs    = member.subscriptions ?? [];
   const now = new Date();
-  const latest = subs.at(-1);
-  const latestIsOpen = !isClosedSubscription(latest);
-  const activeSub = latestIsOpen && latest?.startDate && new Date(latest.startDate) <= now && new Date(latest.endDate) >= now
-    ? latest
-    : null;
-  const canUpgrade = canAddPackage && !loadingPending && !member.isBlocked
-    && latestIsOpen && latest?.endDate && new Date(latest.endDate) > now;
+  const activeSub = [...subs].reverse().find((s) => {
+    if (isClosedSubscription(s) || !s?.startDate || !s?.endDate) return false;
+    return new Date(s.startDate) <= now && new Date(s.endDate) > now;
+  }) || null;
+  const canUpgrade = canAddPackage && !loadingPending && !member.isBlocked && Boolean(activeSub);
   const lastSub = activeSub;
   const pkg     = purchasedPkg(lastSub);
 
   // Find upcoming/scheduled package (start date is in the future)
   const upcomingSub = subs.find(s => !isClosedSubscription(s) && new Date(s.startDate) > now);
   const upcomingPkg = purchasedPkg(upcomingSub);
+  const cancellableSub = activeSub || upcomingSub;
+  const lastSale = subs.at(-1);
+  const lastSaleForfeited = isForfeitedCancellation(lastSale);
+  const lastSaleTransferred = isTransferredAway(lastSale);
 
   const details = pkg ? [
     { label: 'Package',          value: pkg.name },
@@ -464,7 +543,7 @@ function PackagesContent({ member, user, onRefresh }) {
     { label: 'Invitation Slots', value: `${pkg.invitationLimit ?? 0}` },
     { label: 'Renewal Discount', value: pkg.renewalDiscountPercent ? `${pkg.renewalDiscountPercent}%` : 'None' },
     { label: 'Exception',        value: pkg.hasException ? 'Yes' : 'No' },
-    { label: 'Type',             value: lastSub.isUpgrade ? 'Upgrade' : lastSub.isRenewal ? 'Renewal' : 'New subscription' },
+    { label: 'Type',             value: lastSub.transferredFrom ? `Received by transfer from ${lastSub.transferredFromName || 'another member'}` : lastSub.isUpgrade ? 'Upgrade' : lastSub.isRenewal ? 'Renewal' : 'New subscription' },
     { label: 'Sold By',          value: lastSub.createdBy?.name },
     { label: 'Status',           value: <Badge status={member.status} /> },
   ] : [];
@@ -506,8 +585,14 @@ function PackagesContent({ member, user, onRefresh }) {
       <Card>
         <CardHeader title="Active Package">
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            {canRefund && (member.subscriptions?.length ?? 0) > 0 && (
+            {canRefund && (member.subscriptions?.length ?? 0) > 0 && !lastSaleForfeited && !lastSaleTransferred && (
               <Btn variant="outline" size="xs" onClick={() => setShowRefundModal(true)}><Banknote size={14} aria-hidden /> Refund</Btn>
+            )}
+            {canTransfer && activeSub && member.status !== 'frozen' && !member.isBlocked && (
+              <Btn variant="outline" size="xs" onClick={openTransfer}><ArrowLeftRight size={14} aria-hidden /> Transfer</Btn>
+            )}
+            {canRefund && cancellableSub && (
+              <Btn variant="outline" size="xs" onClick={() => setShowCancelModal(true)}><CircleOff size={14} aria-hidden /> Cancel package</Btn>
             )}
             {canUpgrade && (
               <Btn variant="outline" size="xs" onClick={() => { setPackageMode('upgrade'); setShowAddPackage(true); }}>Upgrade</Btn>
@@ -589,11 +674,14 @@ function PackagesContent({ member, user, onRefresh }) {
           <CardHeader title={`Subscription History (${subs.length})`} />
         </div>
         {!subs.length ? <EmptyState message="No subscriptions on record" /> :
-          <Table headers={['Sub #', 'Package', 'Activity', 'Duration', 'Created At', 'Start', 'End', 'Price', 'Discount', 'Exception', 'Renewal', 'Refund']}>
+          <Table headers={['Sub #', 'Package', 'Activity', 'Duration', 'Created At', 'Start', 'End', 'Price', 'Discount', 'Exception', 'Renewal', 'Outcome']}>
             {[...subs].reverse().map((s, i) => {
               const isRefunded = s.refundAmount > 0;
+              const isTransferred = isTransferredAway(s);
+              const isReceived = Boolean(s.transferredFrom);
+              const isCancelled = isForfeitedCancellation(s);
               return (
-              <tr key={s._id ?? i} className="tbl-row" style={{ borderBottom: '1px solid var(--border)', background: isRefunded ? 'var(--red-bg)' : 'transparent' }}>
+              <tr key={s._id ?? i} className="tbl-row" style={{ borderBottom: '1px solid var(--border)', background: isRefunded || isCancelled || isTransferred ? 'var(--red-bg)' : 'transparent' }}>
                 <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}>{s.subscriptionId ?? '—'}</td>
                 <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{purchasedPkg(s)?.name ?? '—'}</td>
                 <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}>{purchasedPkg(s)?.activityType ?? '—'}</td>
@@ -604,11 +692,13 @@ function PackagesContent({ member, user, onRefresh }) {
                 <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700 }}>
                   {isRefunded ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                      <span style={{ textDecoration: 'line-through', color: 'var(--t4)', fontWeight: 400 }}>EGP {s.pricePaid}</span>
-                      <span style={{ color: 'var(--green)' }}>EGP {s.pricePaid - s.refundAmount}</span>
+                      <span style={{ textDecoration: 'line-through', color: 'var(--t4)', fontWeight: 400 }}>{currency} {s.pricePaid}</span>
+                      <span style={{ color: 'var(--green)' }}>{currency} {s.pricePaid - s.refundAmount}</span>
                     </div>
+                  ) : isReceived ? (
+                    <span style={{ color: 'var(--t3)' }}>Received</span>
                   ) : (
-                    <span style={{ color: 'var(--green)' }}>EGP {s.pricePaid}</span>
+                    <span style={{ color: 'var(--green)' }}>{currency} {s.pricePaid}</span>
                   )}
                 </td>
                 <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}>{s.discountPercent ? `${s.discountPercent}%` : '—'}</td>
@@ -626,7 +716,42 @@ function PackagesContent({ member, user, onRefresh }) {
                       }}>
                         <CornerDownLeft size={12} aria-hidden /> Refunded
                       </span>
-                      <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 600 }}>−EGP {s.refundAmount}</span>
+                      <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 600 }}>−{currency} {s.refundAmount}</span>
+                    </div>
+                  ) : isTransferred ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 220 }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 11, fontWeight: 700,
+                        background: 'var(--red-bg)', color: 'var(--red)',
+                        border: '1px solid var(--red-bd)',
+                        padding: '2px 8px', borderRadius: 4,
+                        width: 'fit-content',
+                      }}>
+                        <ArrowLeftRight size={12} aria-hidden /> Transferred
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--t2)', lineHeight: 1.4 }}>
+                        To {s.transferredToName || 'another person'} · fee {currency} {s.transferFee ?? 0}
+                      </span>
+                    </div>
+                  ) : isReceived ? (
+                    <span style={{ fontSize: 11, color: 'var(--t2)' }}>
+                      From {s.transferredFromName || 'another member'}
+                    </span>
+                  ) : isCancelled ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, maxWidth: 220 }}>
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                        fontSize: 11, fontWeight: 700,
+                        background: 'var(--red-bg)', color: 'var(--red)',
+                        border: '1px solid var(--red-bd)',
+                        padding: '2px 8px', borderRadius: 4,
+                        width: 'fit-content',
+                      }}>
+                        <CircleOff size={12} aria-hidden /> Cancelled
+                      </span>
+                      <span style={{ fontSize: 11, color: 'var(--red)', fontWeight: 600 }}>No refund</span>
+                      <span style={{ fontSize: 11, color: 'var(--t2)', lineHeight: 1.4 }}>{s.cancelReason}</span>
                     </div>
                   ) : (
                     <span style={{ fontSize: 11, color: 'var(--t4)' }}>—</span>
@@ -639,6 +764,53 @@ function PackagesContent({ member, user, onRefresh }) {
         }
       </Card>
 
+      <Modal open={showTransferModal} onClose={() => !transferring && setShowTransferModal(false)} title="Transfer package" size="md"
+        footer={<>
+          <Btn variant="ghost" size="sm" onClick={() => setShowTransferModal(false)} disabled={transferring}>Back</Btn>
+          <Btn size="sm" onClick={handleTransferPackage} disabled={transferring}>
+            {transferring ? <Spinner size="sm" /> : 'Transfer package'}
+          </Btn>
+        </>}
+      >
+        <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 14, lineHeight: 1.6 }}>
+          Move the time left on <strong>{pkg?.name || 'the current package'}</strong> to someone who is not already a member. It keeps the same terms and ends on <strong>{fmtDate(activeSub?.endDate)}</strong>. <strong>{member.name}</strong> loses the package and pays the transfer fee. The original sale is not refunded.
+        </p>
+        <Input
+          label={`Transfer fee (${currency})`}
+          type="number"
+          min="0"
+          value={transferFee}
+          onChange={e => setTransferFee(e.target.value)}
+        />
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--t2)', margin: '8px 0 14px' }}>
+          <input type="checkbox" checked={saveAsDefault} onChange={e => setSaveAsDefault(e.target.checked)} />
+          Save as gym default
+        </label>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+          <Btn type="button" size="xs" variant={recipientMode === 'existing' ? 'primary' : 'outline'} onClick={() => setRecipientMode('existing')}>System ID</Btn>
+          <Btn type="button" size="xs" variant={recipientMode === 'new' ? 'primary' : 'outline'} onClick={() => setRecipientMode('new')}>New person</Btn>
+        </div>
+        {recipientMode === 'existing' ? (
+          <Input
+            label="System ID *"
+            value={recipientSystemId}
+            onChange={e => setRecipientSystemId(e.target.value)}
+            placeholder="S100 or 100"
+          />
+        ) : (
+          <div className="grid-2-form">
+            <Input label="Full name *" value={newName} onChange={e => setNewName(e.target.value)} />
+            <Input label="Phone *" value={newPhone} onChange={e => setNewPhone(e.target.value)} />
+            <Select label="Gender" value={newGender} onChange={e => setNewGender(e.target.value)}>
+              <option value="">— Select —</option>
+              <option value="male">Male</option>
+              <option value="female">Female</option>
+            </Select>
+            <Input label="Birthdate" type="date" value={newBirthdate} onChange={e => setNewBirthdate(e.target.value)} />
+          </div>
+        )}
+      </Modal>
+
       {/* Refund Package Modal */}
       <Modal open={showRefundModal} onClose={() => !refunding && setShowRefundModal(false)} title="Refund Package" size="sm"
         footer={<>
@@ -649,7 +821,7 @@ function PackagesContent({ member, user, onRefresh }) {
         </>}
       >
         <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 14, lineHeight: 1.6 }}>
-          Refund will be deducted from the last subscription's revenue. Member status will be set back to <strong>guest</strong>.
+          Any amount cancels the last package. If an earlier package still covers today, the member stays active. Otherwise they become expired, or guest when this was their only package. Another refund on the same sale only returns money still left.
         </p>
         {(() => {
           const lastSub = member.subscriptions?.at(-1);
@@ -660,12 +832,12 @@ function PackagesContent({ member, user, onRefresh }) {
             <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', marginBottom: 14, fontSize: 12 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                 <span style={{ color: 'var(--t4)', fontWeight: 600 }}>Price Paid</span>
-                <span style={{ fontWeight: 700 }}>{pricePaid} EGP</span>
+                <span style={{ fontWeight: 700 }}>{pricePaid} {currency}</span>
               </div>
               {alreadyRefunded > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
                   <span style={{ color: 'var(--t4)', fontWeight: 600 }}>Already Refunded</span>
-                  <span style={{ color: 'var(--red)', fontWeight: 700 }}>{alreadyRefunded} EGP</span>
+                  <span style={{ color: 'var(--red)', fontWeight: 700 }}>{alreadyRefunded} {currency}</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 4 }}>
@@ -681,6 +853,23 @@ function PackagesContent({ member, user, onRefresh }) {
         <Input label="Reason (optional)"
           value={refundReason} onChange={e => setRefundReason(e.target.value)}
           placeholder="e.g. Member cancelled" />
+      </Modal>
+
+      <Modal open={showCancelModal} onClose={() => !cancelling && setShowCancelModal(false)} title="Cancel package" size="sm"
+        footer={<>
+          <Btn variant="ghost" size="sm" onClick={() => setShowCancelModal(false)} disabled={cancelling}>Back</Btn>
+          <Btn variant="danger" size="sm" onClick={handleCancelPackage} disabled={cancelling}>
+            {cancelling ? <Spinner size="sm" /> : 'Cancel package'}
+          </Btn>
+        </>}
+      >
+        <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 14, lineHeight: 1.6 }}>
+          Cancel <strong>{purchasedPkg(cancellableSub)?.name || 'the current package'}</strong> for <strong>{member.name}</strong>. Access ends immediately and the amount already paid stays on the sale. This member is not entitled to a refund.
+        </p>
+        <Textarea label="Reason *"
+          value={cancelReason} onChange={e => setCancelReason(e.target.value)}
+          maxLength={500}
+          placeholder="e.g. Repeated misconduct at the gym" />
       </Modal>
 
       {showAddPackage && (

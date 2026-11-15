@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
@@ -27,7 +27,10 @@ export default function SalesRequests() {
   const [salesReps, setSalesReps] = useState([]);
   const isManager = ['Sales Manager', 'Owner'].includes(user?.role);
 
-  const repParams = repFilter !== 'all' ? { requestedBy: repFilter } : {};
+  const repParams = useMemo(
+    () => (repFilter !== 'all' ? { requestedBy: repFilter } : {}),
+    [repFilter],
+  );
 
   const fetchPending = useCallback(async () => {
     setLoadingPending(true);
@@ -37,7 +40,7 @@ export default function SalesRequests() {
       setPendingPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
     } catch { toast.error('Failed to load pending requests.'); }
     finally { setLoadingPending(false); }
-  }, [pendingPage, repFilter]);
+  }, [pendingPage, repParams]);
 
   const fetchResolved = useCallback(async () => {
     setLoadingResolved(true);
@@ -47,7 +50,7 @@ export default function SalesRequests() {
       setResolvedPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
     } catch { toast.error('Failed to load request history.'); }
     finally { setLoadingResolved(false); }
-  }, [resolvedPage, repFilter]);
+  }, [resolvedPage, repParams]);
 
   const fetchRequests = useCallback(() => {
     fetchPending();

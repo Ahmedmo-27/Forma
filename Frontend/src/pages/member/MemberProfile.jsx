@@ -2,12 +2,11 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
-import { useTenant } from '../../context/TenantContext';
 import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Tabs, Badge, Btn, Spinner, Skeleton, Modal, Input, fmtDateTime } from '../../components/ui';
-import { getMemberProfile, checkInMember, blockMember, unblockMember, refundMember } from '../../api/endpoints';
+import { getMemberProfile, checkInMember, blockMember, unblockMember } from '../../api/endpoints';
 import ProfilePhotoUpload from '../../components/ProfilePhotoUpload';
 import MemberQrButton from '../../components/MemberQrButton';
 import { formatSystemId } from '../../lib/systemId';
@@ -34,6 +33,24 @@ import {
   User,
 } from 'lucide-react';
 
+function isClosedSubscription(sub) {
+  if (!sub) return true;
+  if (Number(sub.refundAmount) > 0) return true;
+  return Boolean(sub.refunded || sub.cancelled || sub.subscriptionStatus === 'cancelled');
+}
+
+function coveringSubscription(subscriptions, now = new Date()) {
+  const list = subscriptions || [];
+  for (let i = list.length - 1; i >= 0; i -= 1) {
+    const sub = list[i];
+    if (!sub?.startDate || !sub?.endDate || isClosedSubscription(sub)) continue;
+    const start = new Date(sub.startDate);
+    const end = new Date(sub.endDate);
+    if (start <= now && end > now) return sub;
+  }
+  return null;
+}
+
 const TABS = [
   { id: 'dashboard',   label: 'Dashboard' },
   { id: 'personal',    label: 'Personal Info' },
@@ -51,7 +68,6 @@ export default function MemberProfile() {
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
-  const { currency = 'EGP' } = useTenant() || {};
   const { multiEnabled, selectedLocationId, locations } = useLocationScope();
   const navigate = useNavigate();
   const [data, setData]         = useState(null);
@@ -63,12 +79,6 @@ export default function MemberProfile() {
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [blockReason, setBlockReason]       = useState('');
   const [blocking, setBlocking]             = useState(false);
-
-  // Refund
-  const [showRefundModal, setShowRefundModal] = useState(false);
-  const [refundAmount, setRefundAmount]       = useState('');
-  const [refundReason, setRefundReason]       = useState('');
-  const [refunding, setRefunding]             = useState(false);
 
   usePageTitle(data?.member?.name ?? 'Profile');
 
@@ -160,27 +170,9 @@ export default function MemberProfile() {
     finally { setBlocking(false); }
   };
 
-  const handleRefund = async () => {
-    const amount = Number(refundAmount);
-    if (!amount || amount <= 0) { toast.error('Enter a valid refund amount'); return; }
-    setRefunding(true);
-    try {
-      const res = await refundMember(member._id, amount, refundReason.trim() || undefined);
-      toast.success(res.data.message ?? 'Refund issued successfully');
-      setShowRefundModal(false);
-      setRefundAmount('');
-      setRefundReason('');
-      fetchProfile();
-    } catch (e) { toast.error(e.response?.data?.message ?? 'Refund failed.'); }
-    finally { setRefunding(false); }
-  };
-
   const member = data?.member;
   const stats  = data?.stats;
-  const latestSub = member?.subscriptions?.at(-1);
-  const currentSub = latestSub && !(Number(latestSub.refundAmount) > 0 || latestSub.refunded || latestSub.cancelled || latestSub.subscriptionStatus === 'cancelled')
-    ? latestSub
-    : null;
+  const currentSub = coveringSubscription(member?.subscriptions);
   const currentPkg = currentSub?.packageSnapshot ?? currentSub?.package;
   const isGuest = member?.status === 'guest' || member?.isMember === false;
   const hasMemberId = member?.memberId != null && String(member.memberId).trim() !== '';
@@ -272,58 +264,6 @@ export default function MemberProfile() {
           </>
         )}
       </div>
-
-      {/* ── Refund Modal ────────────────────────────────────────── */}
-      <Modal open={showRefundModal} onClose={() => !refunding && setShowRefundModal(false)} title="Issue Refund" size="sm"
-        footer={<>
-          <Btn variant="ghost" size="sm" onClick={() => setShowRefundModal(false)} disabled={refunding}>Cancel</Btn>
-          <Btn variant="danger" size="sm" onClick={handleRefund} disabled={refunding}>
-            {refunding ? <Spinner size="sm" /> : 'Confirm Refund'}
-          </Btn>
-        </>}
-      >
-        <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 14, lineHeight: 1.6 }}>
-          Refund will be deducted from the member's last subscription revenue. Member status will be set back to <strong>guest</strong>.
-        </p>
-        {member && (() => {
-          const lastSub = member.subscriptions?.at(-1);
-          const pricePaid = lastSub?.pricePaid ?? 0;
-          const alreadyRefunded = lastSub?.refundAmount ?? 0;
-          const maxRefund = pricePaid - alreadyRefunded;
-          return (
-            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', marginBottom: 14, fontSize: 12 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                <span style={{ color: 'var(--t4)', fontWeight: 600 }}>Price Paid</span>
-                <span style={{ color: 'var(--t1)', fontWeight: 700 }}>{pricePaid} {currency}</span>
-              </div>
-              {alreadyRefunded > 0 && (
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <span style={{ color: 'var(--t4)', fontWeight: 600 }}>Already Refunded</span>
-                  <span style={{ color: 'var(--red)', fontWeight: 700 }}>{alreadyRefunded} {currency}</span>
-                </div>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 4 }}>
-                <span style={{ color: 'var(--t4)', fontWeight: 600 }}>Max Refundable</span>
-                <span style={{ color: 'var(--green)', fontWeight: 700 }}>{maxRefund} {currency}</span>
-              </div>
-            </div>
-          );
-        })()}
-        <Input
-          label={`Refund Amount (${currency}) *`}
-          type="number"
-          min="1"
-          value={refundAmount}
-          onChange={e => setRefundAmount(e.target.value)}
-          placeholder="Enter amount to refund"
-        />
-        <Input
-          label="Reason (optional)"
-          value={refundReason}
-          onChange={e => setRefundReason(e.target.value)}
-          placeholder="e.g. Member cancelled, duplicate payment"
-        />
-      </Modal>
 
       {/* ── Block Modal ─────────────────────────────────────────── */}
       <Modal open={showBlockModal} onClose={() => setShowBlockModal(false)} title="Block Member" size="sm"
