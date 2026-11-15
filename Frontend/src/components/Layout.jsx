@@ -378,7 +378,7 @@ export default function Layout({ children }) {
             <span className="nav-logo-text" style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '2px', textTransform: 'uppercase' }}>{displayName}</span>
           </div>
 
-          <div className="nav-location-switcher" style={{ flexShrink: 0, marginLeft: 4 }}>
+          <div className="nav-location-switcher" data-walkthrough="location-switcher" style={{ flexShrink: 0, marginLeft: 4 }}>
             <LocationSwitcher />
           </div>
 

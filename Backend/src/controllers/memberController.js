@@ -1382,6 +1382,11 @@ const addInvitation = async (req, res) => {
             if (req.file?.path) fs.unlink(req.file.path, () => {});
             return res.status(400).json({ message: "Invited person name is required" });
         }
+        const phone = typeof invitedPhone === "string" ? invitedPhone.trim() : "";
+        if (!phone) {
+            if (req.file?.path) fs.unlink(req.file.path, () => {});
+            return res.status(400).json({ message: "Invited phone is required" });
+        }
 
         const memberDoc = await findMember(memberId);
         if (!memberDoc) {
@@ -1425,7 +1430,7 @@ const addInvitation = async (req, res) => {
 
         member.invitations.push({
             invitedName:  invitedName.trim(),
-            invitedPhone: invitedPhone || null,
+            invitedPhone: phone,
             idFile:       idFileName,
             usedAt:       new Date(),
             createdBy:    req.user.id

@@ -83,12 +83,7 @@ const addAlertSchema = z.object({
 
 const invitationSchema = z.object({
     invitedName: z.string().trim().min(1).max(120),
-    invitedPhone: z
-        .string()
-        .trim()
-        .max(40)
-        .optional()
-        .transform((v) => (v && v.length ? v : null)),
+    invitedPhone: z.string().trim().min(5, "Invited phone is required").max(40),
 });
 
 const assignPackageSchema = z.object({

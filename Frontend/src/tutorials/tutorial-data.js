@@ -121,6 +121,14 @@ export const tutorialSections = [
             '',
             '#mob-search-btn',
           ),
+          {
+            title: 'Branch',
+            description: 'When this gym has more than one location, this list limits members, check-ins, and reports to the branch you pick. All locations shows every branch you are allowed to see.',
+            target: 'location-switcher',
+            route: '',
+            fallback: '[data-walkthrough="tab-nav"]',
+            feature: 'multi_branches',
+          },
           step(
             'Guides',
             'This question mark opens the guide list again. Each tour only includes pages you are allowed to use.',
@@ -388,8 +396,8 @@ export const tutorialSections = [
       },
       {
         id: 'sales-requests',
-        title: 'Package requests',
-        subtitle: 'Ask for a package change, or approve one',
+        title: 'Assignment requests',
+        subtitle: 'Ask to be assigned a member, or approve that request',
         badge: 'Sales',
         roles: SALES_ROLES,
         access: ['approve_requests', 'request_assignment', 'request_takeover'],
@@ -397,13 +405,13 @@ export const tutorialSections = [
         steps: [
           step(
             'Request queue',
-            'Sales reps submit a request from here. Managers review the same queue and approve or reject it.',
+            'A sales rep enters a system ID and asks for that member to be assigned to them. Managers accept or reject from the same list. Package prices and freezes are a different queue, under exception requests.',
             'requests-header',
             '/sales/requests',
           ),
           step(
             'Review the list',
-            'Each row shows who asked, for which member, and whether it is still waiting. Managers can filter by rep.',
+            'Each row shows who asked, for which member, and whether it is still waiting. Managers can filter by rep. Pending rows can be accepted or rejected.',
             'requests-board',
             '/sales/requests',
           ),
@@ -617,9 +625,32 @@ export const tutorialSections = [
           ),
           step(
             'Who arrived',
-            'Coaches see people transferred to them. Head Coaches see every coach transfer from today.',
+            'Coaches see people transferred to them. Head Coaches see every coach transfer from today. This is a staff handoff, not moving a paid package to another member.',
             'transfers-board',
             '/coach/my-transfers',
+          ),
+        ],
+      },
+      {
+        id: 'coach-attendance',
+        title: 'Peak attendance',
+        subtitle: 'When members usually arrive, so you can staff the floor',
+        badge: 'Coaching',
+        roles: ['Head Coach'],
+        access: 'coach_attendance',
+        keywords: ['attendance', 'heatmap', 'busy hours', 'shifts', 'check-ins'],
+        steps: [
+          step(
+            'Attendance',
+            'This heatmap is front-desk check-ins from the last 8 weeks, by weekday and hour. Use it to plan coach shifts. A single member’s visits stay on that member’s check-in history.',
+            'report-header',
+            '/coach/attendance',
+          ),
+          step(
+            'Read the grid',
+            'Darker cells are busier hours. Empty hours stay on the grid so the quiet parts of the day are still visible.',
+            'report-body',
+            '/coach/attendance',
           ),
         ],
       },
@@ -1018,7 +1049,7 @@ export const tutorialSections = [
         badge: 'Admin',
         roles: ['Owner'],
         access: 'settings',
-        keywords: ['settings', 'branding', 'logo', 'locale', 'plan'],
+        keywords: ['settings', 'branding', 'logo', 'locale', 'plan', 'locations', 'branches', 'transfer fee'],
         steps: [
           step(
             'Gym settings',
@@ -1034,9 +1065,15 @@ export const tutorialSections = [
           ),
           step(
             'Locale',
-            'Currency, timezone, and the activities this gym offers are set on this tab.',
+            'Currency, timezone, language, the activities this gym sells, and the default package transfer fee are set on this tab. Staff can still change the fee on an individual transfer.',
             'settings-locale',
             '/owner/settings?tab=locale',
+          ),
+          step(
+            'Locations',
+            'Each gym starts with one location. Gold and Platinum plans can add branches here, up to the plan’s branch limit. The name and map link are what staff see when they pick a branch.',
+            'settings-locations',
+            '/owner/settings?tab=locations',
           ),
           {
             title: 'WhatsApp for the gym',
@@ -1099,7 +1136,13 @@ export const tutorialSections = [
           ),
           memberStep(
             'Edit the record',
-            'Owners, managers, and reception can update details. Sales managers and the owner can assign a sales rep. Phone numbers stay hidden when your account is not allowed to see them.',
+            'Owners, managers, reception, sales, and accountants can update the details their role allows. A sales manager, the owner, or reception (when nobody is assigned yet) can assign a sales rep. The owner, general manager, head coach, and sales manager can assign or switch a coach.',
+            'member-panel',
+            'personal',
+          ),
+          memberStep(
+            'Phone and WhatsApp',
+            'Phone numbers stay hidden when your account is not allowed to see them. When a number is visible, you can open WhatsApp or send a saved template.',
             'member-panel',
             'personal',
           ),
@@ -1108,23 +1151,23 @@ export const tutorialSections = [
       {
         id: 'member-packages',
         title: 'Member packages',
-        subtitle: 'See the membership on file and, if you can, add or refund one',
+        subtitle: 'See the membership on file, then add, upgrade, refund, cancel, or transfer it',
         badge: 'Members',
         roles: PROFILE_ROLES,
         access: 'member_profile',
         feature: 'packages',
-        keywords: ['package', 'subscription', 'renew', 'refund'],
+        keywords: ['package', 'subscription', 'renew', 'upgrade', 'refund', 'cancel', 'transfer'],
         steps: [
           memberStep(
             'Packages tab',
-            'Open Packages on the member to see the current membership and personal training sessions.',
+            'Open Packages on the member to see the current membership, a package scheduled to start later, and the full history.',
             'member-tabs',
             'packages',
           ),
           memberStep(
-            'Add or refund',
-            'Owners and accountants can add a package or issue a refund. Sales managers request a change instead of applying a special price themselves.',
-            'member-panel',
+            'Which action to use',
+            'Add Package starts or renews a membership. Upgrade replaces the current one with a different plan. Refund returns money and closes the last sale. Cancel package ends access immediately and keeps the money. Transfer moves the time left to another person and charges a fee. Sales managers request a package instead of setting a special price themselves.',
+            'package-actions',
             'packages',
           ),
           {
@@ -1146,6 +1189,95 @@ export const tutorialSections = [
             roles: PACKAGE_ACTOR_ROLES,
             reveal: 'add-package',
           },
+        ],
+      },
+      {
+        id: 'cancel-package',
+        title: 'Cancel a package',
+        subtitle: 'End a membership immediately and keep the money already paid',
+        badge: 'Members',
+        roles: ['Owner', 'Accountant', 'General Manager'],
+        access: 'refunds',
+        feature: 'accounting',
+        keywords: ['cancel', 'cancel package', 'cancel subscription', 'forfeit', 'no refund', 'misconduct'],
+        steps: [
+          memberStep(
+            'Open Packages',
+            'Cancel package sits on the member’s Packages tab, next to Refund and Transfer. It is available on the current membership or on a package that has not started yet.',
+            'package-subtabs',
+            'packages',
+          ),
+          memberStep(
+            'Cancel, not refund',
+            'Refund returns money and closes the last sale. Cancel package does not return money. Access ends immediately, the sale stays on the books, and history shows Cancelled with the reason you enter. A reason is required.',
+            'cancel-package-btn',
+            'packages',
+          ),
+          {
+            ...memberStep(
+              'Reason',
+              'Write why the membership is ending, for example repeated misconduct. Confirming cancel package removes access at once. This member is not entitled to a refund. Free personal-training sessions that came with the package are removed as well.',
+              'cancel-package-form',
+              'packages',
+            ),
+            reveal: 'cancel-package',
+          },
+        ],
+      },
+      {
+        id: 'transfer-package',
+        title: 'Transfer a package',
+        subtitle: 'Move the time left on a membership to another person',
+        badge: 'Members',
+        roles: ['Owner', 'Accountant', 'General Manager'],
+        access: 'package_transfers',
+        feature: 'accounting',
+        keywords: ['transfer package', 'transfer membership', 'transfer fee', 'another member', 'recipient'],
+        steps: [
+          memberStep(
+            'Open Packages',
+            'Transfer is on the member’s Packages tab. It moves the current package only. A frozen membership has to be unfrozen first, and a blocked member cannot transfer.',
+            'package-subtabs',
+            'packages',
+          ),
+          memberStep(
+            'What moves',
+            'The recipient keeps the same terms and the same end date. The original member loses the package and pays the transfer fee. The original sale is not refunded. This is not the same as handing the member to another sales rep or coach.',
+            'transfer-package-btn',
+            'packages',
+          ),
+          {
+            ...memberStep(
+              'Fee and recipient',
+              'The fee starts from the gym default in Settings, and you can change it for this transfer. Save as gym default keeps that amount for next time. System ID is for someone already in the gym who is not a member and has no package. New person creates them with a name and phone. Someone who already has a membership cannot receive the package.',
+              'transfer-package-form',
+              'packages',
+            ),
+            reveal: 'transfer-package',
+          },
+        ],
+      },
+      {
+        id: 'private-sessions',
+        title: 'Private sessions',
+        subtitle: 'Add personal-training sessions and refund a session pack',
+        badge: 'Members',
+        roles: PROFILE_ROLES,
+        access: 'member_profile',
+        keywords: ['pt', 'private sessions', 'personal training', 'sessions', 'refund sessions'],
+        steps: [
+          memberStep(
+            'Private Sessions',
+            'On Packages, the Private Sessions sub-tab is separate from the membership. It shows sessions bought, used, remaining, and when they expire.',
+            'package-subtabs',
+            'packages',
+          ),
+          memberStep(
+            'Add or refund sessions',
+            'Owners, accountants, coaches, and the head coach can add a pack: number of sessions, start date, duration in months, and price paid. Owners, accountants, and the general manager can refund the last pack. A refund returns money still left on that sale and removes those sessions once.',
+            'pt-sessions-panel',
+            'packages',
+          ),
         ],
       },
       {
@@ -1395,7 +1527,7 @@ export const tutorialSections = [
         steps: [
           step(
             'Transfer one member',
-            'Use a system ID when you already know who to move and do not want the full task sheet.',
+            'Use a system ID when you already know who to reassign and do not want the full task sheet. This changes the sales rep or coach. It does not move the paid package to another member.',
             'quick-transfer-header',
             '/management/quick-transfer',
           ),

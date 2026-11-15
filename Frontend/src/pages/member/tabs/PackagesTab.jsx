@@ -5,7 +5,7 @@ import { getPackages, getMemberPendingException, createPackageException, updateP
 import CatalogPackageForm, { EMPTY_PACKAGE_FORM, validatePackageForm, packageFormToPayload } from '../../../components/PackageForm';
 import PackageAcceptModal from '../../../components/accounting/PackageAcceptModal';
 import { useTenant } from '../../../context/TenantContext';
-import { useTourReveal } from '../../../tutorials/walkthrough-context';
+import { useTourReveal, useWalkthrough } from '../../../tutorials/walkthrough-context';
 import useLocationEffect from '../../../hooks/useLocationEffect';
 import { ArrowLeftRight, Ban, Banknote, Calendar, CircleOff, CornerDownLeft } from 'lucide-react';
 
@@ -41,12 +41,24 @@ function defaultPackageStart(member) {
 }
 
 export default function PackagesTab({ member, user, onRefresh }) {
+  const { isActive, currentStep } = useWalkthrough();
   const [tab, setTab] = useState('packages'); // 'packages' | 'pt-sessions'
+
+  useEffect(() => {
+    if (!isActive || !currentStep) return undefined;
+    const showSessions = currentStep.target === 'pt-sessions-panel' || currentStep.reveal === 'pt-sessions';
+    const showPackages = currentStep.memberTab === 'packages'
+      && currentStep.target !== 'package-subtabs'
+      && !showSessions;
+    if (!showSessions && !showPackages) return undefined;
+    const frame = requestAnimationFrame(() => setTab(showSessions ? 'pt-sessions' : 'packages'));
+    return () => cancelAnimationFrame(frame);
+  }, [isActive, currentStep]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* Sub-tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
+      <div data-walkthrough="package-subtabs" style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
         {[
           { id: 'packages', label: 'Packages' },
           { id: 'pt-sessions', label: 'Private Sessions' },
@@ -161,7 +173,7 @@ function PTSessionsContent({ member, user, onRefresh }) {
   ] : [];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+    <div data-walkthrough="pt-sessions-panel" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
       {/* Active Sessions Card */}
       <Card>
@@ -377,6 +389,17 @@ function PackagesContent({ member, user, onRefresh }) {
   const [newGender, setNewGender] = useState('');
   const [newBirthdate, setNewBirthdate] = useState('');
   const [transferring, setTransferring] = useState(false);
+  useTourReveal('cancel-package', () => setShowCancelModal(true), () => setShowCancelModal(false));
+  useTourReveal(
+    'transfer-package',
+    () => {
+      setTransferFee(String(defaultTransferFee ?? 0));
+      setSaveAsDefault(false);
+      setRecipientMode('existing');
+      setShowTransferModal(true);
+    },
+    () => setShowTransferModal(false),
+  );
 
   const isSalesManager = user?.role === 'Sales Manager';
   const isAccountant = user?.role === 'Accountant';
@@ -584,15 +607,19 @@ function PackagesContent({ member, user, onRefresh }) {
 
       <Card>
         <CardHeader title="Active Package">
-          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          <div data-walkthrough="package-actions" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {canRefund && (member.subscriptions?.length ?? 0) > 0 && !lastSaleForfeited && !lastSaleTransferred && (
               <Btn variant="outline" size="xs" onClick={() => setShowRefundModal(true)}><Banknote size={14} aria-hidden /> Refund</Btn>
             )}
             {canTransfer && activeSub && member.status !== 'frozen' && !member.isBlocked && (
-              <Btn variant="outline" size="xs" onClick={openTransfer}><ArrowLeftRight size={14} aria-hidden /> Transfer</Btn>
+              <span data-walkthrough="transfer-package-btn">
+                <Btn variant="outline" size="xs" onClick={openTransfer}><ArrowLeftRight size={14} aria-hidden /> Transfer</Btn>
+              </span>
             )}
             {canRefund && cancellableSub && (
-              <Btn variant="outline" size="xs" onClick={() => setShowCancelModal(true)}><CircleOff size={14} aria-hidden /> Cancel package</Btn>
+              <span data-walkthrough="cancel-package-btn">
+                <Btn variant="outline" size="xs" onClick={() => setShowCancelModal(true)}><CircleOff size={14} aria-hidden /> Cancel package</Btn>
+              </span>
             )}
             {canUpgrade && (
               <Btn variant="outline" size="xs" onClick={() => { setPackageMode('upgrade'); setShowAddPackage(true); }}>Upgrade</Btn>
@@ -772,6 +799,7 @@ function PackagesContent({ member, user, onRefresh }) {
           </Btn>
         </>}
       >
+        <div data-walkthrough="transfer-package-form">
         <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 14, lineHeight: 1.6 }}>
           Move the time left on <strong>{pkg?.name || 'the current package'}</strong> to someone who is not already a member. It keeps the same terms and ends on <strong>{fmtDate(activeSub?.endDate)}</strong>. <strong>{member.name}</strong> loses the package and pays the transfer fee. The original sale is not refunded.
         </p>
@@ -809,6 +837,7 @@ function PackagesContent({ member, user, onRefresh }) {
             <Input label="Birthdate" type="date" value={newBirthdate} onChange={e => setNewBirthdate(e.target.value)} />
           </div>
         )}
+        </div>
       </Modal>
 
       {/* Refund Package Modal */}
@@ -863,6 +892,7 @@ function PackagesContent({ member, user, onRefresh }) {
           </Btn>
         </>}
       >
+        <div data-walkthrough="cancel-package-form">
         <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 14, lineHeight: 1.6 }}>
           Cancel <strong>{purchasedPkg(cancellableSub)?.name || 'the current package'}</strong> for <strong>{member.name}</strong>. Access ends immediately and the amount already paid stays on the sale. This member is not entitled to a refund.
         </p>
@@ -870,6 +900,7 @@ function PackagesContent({ member, user, onRefresh }) {
           value={cancelReason} onChange={e => setCancelReason(e.target.value)}
           maxLength={500}
           placeholder="e.g. Repeated misconduct at the gym" />
+        </div>
       </Modal>
 
       {showAddPackage && (

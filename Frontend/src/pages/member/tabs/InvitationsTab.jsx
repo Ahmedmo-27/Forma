@@ -32,7 +32,8 @@ export default function InvitationsTab({ member, user, onRefresh }) {
     if (!trimmedName) { toast.error('Name is required.'); return; }
     if (trimmedName.length > 120) { toast.error('Name must not exceed 120 characters.'); return; }
     const trimmedPhone = phone.trim();
-    if (trimmedPhone && !isValidPhone(trimmedPhone)) {
+    if (!trimmedPhone) { toast.error('Phone is required.'); return; }
+    if (!isValidPhone(trimmedPhone)) {
       toast.error('Phone must be 5–40 characters and contain valid phone digits.');
       return;
     }
@@ -48,7 +49,7 @@ export default function InvitationsTab({ member, user, onRefresh }) {
     try {
       const fd = new FormData();
       fd.append('invitedName', trimmedName);
-      if (trimmedPhone) fd.append('invitedPhone', trimmedPhone);
+      fd.append('invitedPhone', trimmedPhone);
       if (file) fd.append('idFile', file);
       await addInvitation(member.systemId, fd);
       toast.success('Invitation recorded.'); setName(''); setPhone(''); setFile(null); onRefresh();
@@ -89,7 +90,7 @@ export default function InvitationsTab({ member, user, onRefresh }) {
           : <>
               <div className="grid-2-form" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 12px' }}>
                 <Input label="Invited Name *" value={name}  onChange={e => setName(e.target.value)}  placeholder="Full name" />
-                <Input label="Phone"          value={phone} onChange={e => setPhone(e.target.value)} placeholder="Optional" />
+                <Input label="Phone *"        value={phone} onChange={e => setPhone(e.target.value)} placeholder="Mobile number" />
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 5 }}>ID Photo / File <span style={{ fontWeight: 400, color: 'var(--t4)' }}>(optional, image or PDF, up to 15 MB)</span></label>
