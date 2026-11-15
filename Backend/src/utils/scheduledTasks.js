@@ -1,5 +1,6 @@
 const Member = require("../models/Member");
 const logger = require("./logger");
+const { isClosedSubscription } = require("./subscriptionUtils");
 const { runAsPlatform, runWithTenant } = require("../context/tenantContext");
 
 /**
@@ -69,8 +70,8 @@ async function processFreezeCycles() {
                     .sort((a, b) => new Date(b.startDate) - new Date(a.startDate))[0];
 
                 if (!activeFreeze) {
-                    // No active freeze record but status is frozen — fix it
-                    member.status = "active";
+                    const currentSub = member.subscriptions?.at(-1);
+                    member.status = isClosedSubscription(currentSub) ? "expired" : "active";
                     await member.save();
                     unfrozenCount++;
                     continue;
@@ -78,11 +79,18 @@ async function processFreezeCycles() {
 
                 const freezeEnd = new Date(activeFreeze.endDate);
                 if (freezeEnd <= now) {
+                    const currentSub = member.subscriptions?.at(-1);
+                    if (isClosedSubscription(currentSub)) {
+                        member.status = "expired";
+                        await member.save();
+                        unfrozenCount++;
+                        continue;
+                    }
+
                     // Freeze period has ended — reactivate
                     member.status = "active";
 
                     // Extend subscription by the freeze duration
-                    const currentSub = member.subscriptions?.at(-1);
                     if (currentSub) {
                         const freezeStart = new Date(activeFreeze.startDate);
                         const frozenDays = Math.ceil((freezeEnd - freezeStart) / 86400000);

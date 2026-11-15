@@ -55,8 +55,8 @@ function buildRepStatsFromMembers(members, repId) {
     for (const sub of member.subscriptions || []) {
       const saleDate = sub.startDate || sub.createdAt;
       if (!isCurrentMonth(saleDate)) continue;
-      const price = Number(sub.pricePaid ?? sub.packageSnapshot?.price ?? sub.package?.price ?? 0);
-      if (Number.isFinite(price) && price > 0) stats.monthlyRevenue += price;
+      const price = contractNetRevenue(sub);
+      if (price > 0) stats.monthlyRevenue += price;
     }
   }
 

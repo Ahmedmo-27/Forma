@@ -71,14 +71,14 @@ describe("member list filters", () => {
             dateTo: "2026-05-31",
             dateField: "endDate",
             transferType: "bulk",
-            unassignedSales: "true",
-            unassignedCoach: "true",
+            assignedSales: "507f1f77bcf86cd799439011",
+            currentCouch: "507f1f77bcf86cd799439012",
         });
 
         expect(periodFilter["subscriptions.endDate"].$gte).toEqual(new Date("2026-05-01"));
         expect(periodFilter.userlog).toEqual({ $elemMatch: { type: "assign", text: /bulk/i } });
-        expect(periodFilter.assignedSales).toBeNull();
-        expect(periodFilter.current_couch).toBeNull();
+        expect(periodFilter.assignedSales).toBe("507f1f77bcf86cd799439011");
+        expect(periodFilter.current_couch).toBe("507f1f77bcf86cd799439012");
 
         const neverFilter = buildMemberListFilter({ transferType: "never" });
         expect(neverFilter["userlog.type"]).toEqual({ $ne: "assign" });

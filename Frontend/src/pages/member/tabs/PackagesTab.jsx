@@ -19,19 +19,16 @@ const EMPTY_FORM = {
 };
 
 function isClosedSubscription(sub) {
-  return !sub || sub.refunded || sub.cancelled || sub.subscriptionStatus === 'cancelled';
-}
-
-function latestStartedSubscription(subs, now) {
-  const started = (subs || []).filter((sub) => !isClosedSubscription(sub) && sub.startDate && new Date(sub.startDate) <= now);
-  return started.length ? started[started.length - 1] : null;
+  if (!sub) return true;
+  if (Number(sub.refundAmount) > 0) return true;
+  return Boolean(sub.refunded || sub.cancelled || sub.subscriptionStatus === 'cancelled');
 }
 
 function defaultPackageStart(member) {
-  const currentSub = member.subscriptions?.at(-1);
-  if (isClosedSubscription(currentSub)) return '';
-  const currentEnd = currentSub?.endDate ? new Date(currentSub.endDate) : null;
-  return (currentEnd && currentEnd > new Date()) ? toLocalDateString(currentEnd) : '';
+  const open = [...(member.subscriptions || [])].reverse().find((sub) => !isClosedSubscription(sub));
+  if (!open?.endDate) return '';
+  const currentEnd = new Date(open.endDate);
+  return currentEnd > new Date() ? toLocalDateString(currentEnd) : '';
 }
 
 export default function PackagesTab({ member, user, onRefresh }) {
@@ -440,15 +437,18 @@ function PackagesContent({ member, user, onRefresh }) {
 
   const subs    = member.subscriptions ?? [];
   const now = new Date();
-  const activeSub = latestStartedSubscription(subs, now) || subs.at(-1);
-  const latestOpen = [...subs].reverse().find((sub) => !isClosedSubscription(sub));
+  const latest = subs.at(-1);
+  const latestIsOpen = !isClosedSubscription(latest);
+  const activeSub = latestIsOpen && latest?.startDate && new Date(latest.startDate) <= now && new Date(latest.endDate) >= now
+    ? latest
+    : null;
   const canUpgrade = canAddPackage && !loadingPending && !member.isBlocked
-    && latestOpen?.endDate && new Date(latestOpen.endDate) > now;
+    && latestIsOpen && latest?.endDate && new Date(latest.endDate) > now;
   const lastSub = activeSub;
   const pkg     = purchasedPkg(lastSub);
 
   // Find upcoming/scheduled package (start date is in the future)
-  const upcomingSub = subs.find(s => new Date(s.startDate) > now);
+  const upcomingSub = subs.find(s => !isClosedSubscription(s) && new Date(s.startDate) > now);
   const upcomingPkg = purchasedPkg(upcomingSub);
 
   const details = pkg ? [

@@ -225,7 +225,7 @@ export default function OwnerDashboard() {
                           <div style={{ fontSize: 11, color: 'var(--t4)' }}>{c.package?.name} · {fmtDate(c.startDate)}</div>
                         </div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)', flexShrink: 0 }}>
-                          {fmt(c.pricePaid)} EGP
+                          {fmt(c.netPaid ?? c.pricePaid)} EGP
                         </div>
                       </div>
                     ))}

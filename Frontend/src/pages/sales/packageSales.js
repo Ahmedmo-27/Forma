@@ -11,6 +11,13 @@ export function entryPackageKey(entry) {
   return `name:${name}|${duration}`;
 }
 
+export function subscriptionNet(sub) {
+  if (sub?.netPaid != null && sub.netPaid !== '') return Math.max(0, Number(sub.netPaid) || 0);
+  const paid = Number(sub?.pricePaid) || 0;
+  const refund = Math.max(0, Number(sub?.refundAmount) || 0);
+  return Math.max(0, paid - refund);
+}
+
 export function summarizePackages(entries) {
   const map = new Map();
   for (const entry of entries) {
@@ -24,7 +31,7 @@ export function summarizePackages(entries) {
       revenue: 0,
     };
     current.count += 1;
-    current.revenue += Number(entry.subscription?.pricePaid) || 0;
+    current.revenue += subscriptionNet(entry.subscription);
     map.set(key, current);
   }
   return [...map.values()].sort((a, b) => b.revenue - a.revenue || b.count - a.count || a.label.localeCompare(b.label));

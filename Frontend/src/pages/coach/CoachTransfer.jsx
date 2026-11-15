@@ -47,9 +47,7 @@ export default function CoachTransfer() {
 
   // Client-side filtering — ALL members shown
   const filtered = members.filter(m => {
-    if (filter === 'unassigned-coach') {
-      if (m.current_couch) return false;
-    } else if (filter !== 'all') {
+    if (filter !== 'all') {
       const coachId = m.current_couch?._id || m.current_couch;
       if (String(coachId) !== filter) return false;
     }
@@ -190,7 +188,6 @@ export default function CoachTransfer() {
 
           <MenuSelect value={filter} onChange={e => setFilter(e.target.value)} style={{ minWidth: 200 }} aria-label="Filter members by coach">
             <option value="all">All members ({members.length})</option>
-            <option value="unassigned-coach">No coach assigned</option>
             {coaches.map(c => <option key={c._id} value={c._id}>Coach: {c.name}</option>)}
           </MenuSelect>
 

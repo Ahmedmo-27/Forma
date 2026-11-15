@@ -4,6 +4,7 @@ import {
   filterByPackage,
   packageLabel,
   sharePercent,
+  subscriptionNet,
   summarizePackages,
 } from "./packageSales";
 
@@ -54,6 +55,16 @@ describe("packages sold on the targets page", () => {
       "PT 8 · 8 sessions",
       "Walk-in · 1 day",
     ]);
+  });
+
+  it("counts a refunded sale at the amount kept, not the original price", () => {
+    expect(subscriptionNet({ pricePaid: 1000, refundAmount: 1000 })).toBe(0);
+    expect(subscriptionNet({ pricePaid: 1000, refundAmount: 250 })).toBe(750);
+    const stats = summarizePackages([
+      entry(gold, 1000),
+      { subscription: { package: gold, pricePaid: 1000, refundAmount: 1000 } },
+    ]);
+    expect(stats[0].revenue).toBe(1000);
   });
 
   it("rounds each package share of the range total", () => {

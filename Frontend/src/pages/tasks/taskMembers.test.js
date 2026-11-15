@@ -16,6 +16,8 @@ import {
   rowsForExport,
   salesName,
   salesmanName,
+  coachName,
+  primaryByRole,
   smsUrl,
   taskPermissions,
   toggleId,
@@ -82,6 +84,18 @@ describe("tasks member groups", () => {
     expect(filterMembers(rows, "202").map((row) => row._id)).toEqual(["b"]);
     expect(filterMembers(rows, "manager sara").map((row) => row._id)).toEqual(["a", "b"]);
     expect(filterMembers(rows, "coach hana").map((row) => row._id)).toEqual(["a", "b", "c"]);
+  });
+
+  it("shows the head coach when a member has no coach", () => {
+    const open = { _id: "d", name: "Open", current_couch: null, phones: "", subscriptions: [] };
+    const head = { _id: "h1", name: "Hana Head", role: "Head Coach", createdAt: "2024-01-01" };
+    const newer = { _id: "h2", name: "Newer", role: "Head Coach", createdAt: "2025-01-01" };
+    expect(coachName(open, head)).toBe("Hana Head");
+    expect(coachName(open)).toBe("");
+    expect(coachName(rows[0], head)).toBe("Coach Hana");
+    expect(primaryByRole([newer, head, { role: "Coach", name: "Ali" }], "Head Coach")).toEqual(head);
+    expect(filterMembers([open, rows[0]], "hana head").map((row) => row._id)).toEqual([]);
+    expect(filterMembersAdvanced([open], { search: "hana head", headCoach: head }).map((row) => row._id)).toEqual(["d"]);
   });
 
   it("shows a sales manager in the salesman column", () => {
@@ -264,15 +278,18 @@ describe("tasks member groups", () => {
     expect(filterMembersAdvanced(list, { transferType: "coach" })[0]._id).toBe("m3");
   });
 
-  it("filters members by unassigned sales and unassigned coach", () => {
+  it("keeps empty assignees with the sales manager and head coach", () => {
+    const salesManager = { _id: "sm", name: "Sara", role: "Sales Manager" };
+    const headCoach = { _id: "hc", name: "Hana", role: "Head Coach" };
     const list = [
-      { _id: "m1", name: "Has Both", assignedSales: "rep1", current_couch: "coach1" },
-      { _id: "m2", name: "No Sales", assignedSales: null, current_couch: "coach1" },
-      { _id: "m3", name: "No Coach", assignedSales: "rep1", current_couch: null },
+      { _id: "m1", name: "Has Both", assignedSales: { _id: "rep1", role: "Sales" }, current_couch: { _id: "c1", role: "Coach" } },
+      { _id: "m2", name: "No Sales", assignedSales: null, current_couch: { _id: "c1", role: "Coach" } },
+      { _id: "m3", name: "No Coach", assignedSales: { _id: "rep1", role: "Sales" }, current_couch: null },
+      { _id: "m4", name: "Managers", assignedSales: { _id: "sm", role: "Sales Manager" }, current_couch: { _id: "hc", role: "Head Coach" } },
     ];
 
-    expect(filterMembersAdvanced(list, { kind: "unassigned_sales" }).map((m) => m._id)).toEqual(["m2"]);
-    expect(filterMembersAdvanced(list, { kind: "unassigned_coach" }).map((m) => m._id)).toEqual(["m3"]);
+    expect(filterMembersAdvanced(list, { kind: "sales_manager", salesManager }).map((m) => m._id)).toEqual(["m2", "m4"]);
+    expect(filterMembersAdvanced(list, { kind: "head_coach", headCoach }).map((m) => m._id)).toEqual(["m3", "m4"]);
   });
 
   it("filters created tasks for assigners by role, person, member and period", () => {
@@ -556,8 +573,8 @@ describe("tasks member groups", () => {
       expect(ids).toContain("last_30");
       expect(ids).toContain("status_active");
       expect(ids).toContain("status_expired");
-      expect(ids).toContain("unassigned_sales");
-      expect(ids).toContain("unassigned_coach");
+      expect(ids).not.toContain("unassigned_sales");
+      expect(ids).not.toContain("unassigned_coach");
       expect(ids).toContain("never_transferred");
     });
 
@@ -620,22 +637,6 @@ describe("tasks member groups", () => {
       expiredIds.forEach((id) => {
         const found = membersList.find((m) => m._id === id);
         expect(found.status).toBe("expired");
-      });
-    });
-
-    it("selects members by assignment templates (unassigned sales and coach)", () => {
-      const unassignedSales = applySelectionTemplate(membersList, "unassigned_sales");
-      expect(unassignedSales.length).toBeGreaterThan(0);
-      unassignedSales.forEach((id) => {
-        const found = membersList.find((m) => m._id === id);
-        expect(found.assignedSales).toBeNull();
-      });
-
-      const unassignedCoach = applySelectionTemplate(membersList, "unassigned_coach");
-      expect(unassignedCoach.length).toBeGreaterThan(0);
-      unassignedCoach.forEach((id) => {
-        const found = membersList.find((m) => m._id === id);
-        expect(found.current_couch).toBeNull();
       });
     });
 

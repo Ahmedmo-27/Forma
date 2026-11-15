@@ -18,7 +18,7 @@ import {
   CircleDot, Dumbbell, MessageCircle, RefreshCw, UserRound, Users,
 } from 'lucide-react';
 import {
-  filterMembersAdvanced, packageName, columnValue,
+  filterMembersAdvanced, packageName, columnValue, coachName, salesmanName, primaryByRole,
   taskPermissions, toggleId, toggleIds,
 } from './taskMembers';
 import { formatSystemId } from '../../lib/systemId';
@@ -83,6 +83,8 @@ function TaskFilterResults({ filters }) {
   // ── Reference Data ──
   const [salesUsers, setSalesUsers] = useState([]);
   const [coaches, setCoaches] = useState([]);
+  const [headCoach, setHeadCoach] = useState(null);
+  const [salesManager, setSalesManager] = useState(null);
 
   // ── Members Data ──
   const [members, setMembers] = useState([]);
@@ -121,11 +123,17 @@ function TaskFilterResults({ filters }) {
   // ── Load reference data (re-fetch when branch changes) ──
   useLocationEffect(() => {
     getSalesUsers()
-      .then((res) => setSalesUsers(res.data.salesUsers ?? []))
+      .then((res) => {
+        const users = res.data.salesUsers ?? [];
+        setSalesUsers(users);
+        setSalesManager(primaryByRole(users, 'Sales Manager'));
+      })
       .catch(() => {});
     getCoachTeam()
       .then((res) => {
-        setCoaches((res.data.team ?? []).filter((p) => p.role === 'Coach'));
+        const team = res.data.team ?? [];
+        setCoaches(team.filter((p) => p.role === 'Coach'));
+        setHeadCoach(primaryByRole(team, 'Head Coach'));
       })
       .catch(() => {});
   }, []);
@@ -165,8 +173,10 @@ function TaskFilterResults({ filters }) {
       transferType: transferTypeFilter,
       packageId: packageFilter,
       gender: genderFilter,
+      headCoach,
+      salesManager,
     });
-  }, [members, search, statusFilter, kind, personId, dateField, dateFrom, dateTo, transferTypeFilter, packageFilter, genderFilter]);
+  }, [members, search, statusFilter, kind, personId, dateField, dateFrom, dateTo, transferTypeFilter, packageFilter, genderFilter, headCoach, salesManager]);
 
   // ── Pagination ──
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
@@ -186,8 +196,8 @@ function TaskFilterResults({ filters }) {
     if (statusFilter !== 'all') parts.push(`Status: ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}`);
     if (kind === 'sales') parts.push(personId ? `Sales Rep: (selected)` : 'By Sales Rep');
     else if (kind === 'coach') parts.push(personId ? `Coach: (selected)` : 'By Coach');
-    else if (kind === 'unassigned_sales') parts.push('Unassigned Sales');
-    else if (kind === 'unassigned_coach') parts.push('Unassigned Coach');
+    else if (kind === 'sales_manager') parts.push('Assigned to Sales Manager');
+    else if (kind === 'head_coach') parts.push('Assigned to Head Coach');
     if (packageFilter !== 'all') parts.push('Package: (selected)');
     if (genderFilter !== 'all') parts.push(`Gender: ${genderFilter.charAt(0).toUpperCase() + genderFilter.slice(1)}`);
     if (transferTypeFilter !== 'all') {
@@ -514,10 +524,10 @@ function TaskFilterResults({ filters }) {
                             {member.phones || '—'}
                           </td>
                           <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                            {member.assignedSales?.name || <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
+                            {salesmanName(member, salesManager) || '—'}
                           </td>
                           <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                            {member.current_couch?.name || <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
+                            {coachName(member, headCoach) || '—'}
                           </td>
                           <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
                             {packageName(member) || '—'}

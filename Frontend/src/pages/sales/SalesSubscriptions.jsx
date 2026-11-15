@@ -6,6 +6,7 @@ import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, EmptyState, Avatar, fmtDate, toLocalDateString, StatCardSkeleton, Table } from '../../components/ui';
 import { getSalesMySubscriptions } from '../../api/endpoints';
+import { subscriptionNet } from './packageSales';
 import { ClipboardList } from 'lucide-react';
 
 const fmt   = (n) => Number(n ?? 0).toLocaleString('en-EG');
@@ -135,7 +136,10 @@ export default function SalesSubscriptions() {
                       )}
                     </td>
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--green)', fontSize: 13, whiteSpace: 'nowrap' }}>
-                      {fmt(e.subscription.pricePaid)} EGP
+                      {fmt(subscriptionNet(e.subscription))} EGP
+                      {(Number(e.subscription.refundAmount) > 0 || e.subscription.refunded) && (
+                        <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>Refunded</span>
+                      )}
                       {e.subscription.discountPercent > 0 && (
                         <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--amber)', fontWeight: 600 }}>-{e.subscription.discountPercent}%</span>
                       )}

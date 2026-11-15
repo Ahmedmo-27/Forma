@@ -2,7 +2,7 @@ const Member = require("../models/Member");
 const PackageExceptionRequest = require("../models/PackageExceptionRequest");
 const User = require("../models/User");
 const { parsePagination, buildPagination } = require("../utils/pagination");
-const { isSameDay, zonedMidnightUtc, addLocalDays, CAIRO_ZONE } = require("../utils/revenueUtils");
+const { isSameDay, zonedMidnightUtc, addLocalDays, CAIRO_ZONE, subscriptionSalePrice } = require("../utils/revenueUtils");
 const { resolveSubscriptionPackage } = require("../utils/packageSnapshot");
 
 const FINANCE_ROLES = ["Accountant", "Owner", "General Manager", "Sales Manager"];
@@ -113,6 +113,7 @@ const getContracts = async (req, res) => {
                 if (!inDateRange(addedAt, dateFrom, dateTo, timeZone)) return;
 
                 const purchasedPkg = resolveSubscriptionPackage(sub);
+                const refundAmount = Number(sub.refundAmount) || 0;
                 contracts.push({
                     _id: sub._id,
                     subscriptionId: sub.subscriptionId,
@@ -128,6 +129,9 @@ const getContracts = async (req, res) => {
                     startDate: sub.startDate,
                     endDate: sub.endDate,
                     pricePaid: sub.pricePaid,
+                    refundAmount,
+                    refunded: Boolean(sub.refunded) || refundAmount > 0 || sub.cancelled === true,
+                    netPaid: subscriptionSalePrice(sub),
                     discountPercent: sub.discountPercent,
                     isRenewal: sub.isRenewal,
                     hasException: purchasedPkg?.hasException ?? false,
@@ -142,7 +146,7 @@ const getContracts = async (req, res) => {
         contracts.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
         const total = contracts.length;
-        const totalRevenue = contracts.reduce((sum, c) => sum + (c.pricePaid || 0), 0);
+        const totalRevenue = contracts.reduce((sum, c) => sum + (c.netPaid || 0), 0);
         const pageItems = contracts.slice(skip, skip + limit);
 
         const currency = req.tenant?.settings?.locale?.currency || "EGP";

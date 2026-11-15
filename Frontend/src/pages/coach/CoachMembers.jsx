@@ -130,7 +130,7 @@ export default function CoachMembers() {
                   </td>
                   {isManager && (
                     <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
-                      {m.current_couch?.name ?? <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
+                      {m.current_couch?.name || (isManager ? user?.name : '—')}
                     </td>
                   )}
                   <td style={{ padding: '10px 14px' }}><Badge status={m.couch_subscription_status || 'guest'} /></td>

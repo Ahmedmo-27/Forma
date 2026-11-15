@@ -8,6 +8,7 @@ import {
   SearchInput, Avatar, Select, Input, Pagination, formatSystemId, MenuSelect,
 } from '../../components/ui';
 import { getAllMembers, getSalesUsers, bulkTransferSalesReps, switchSalesRep } from '../../api/endpoints';
+import { primaryByRole } from '../tasks/taskMembers';
 
 const PAGE_SIZE = 25;
 
@@ -61,9 +62,7 @@ export default function Transfer() {
 
   // Client-side filtering
   const filtered = members.filter(m => {
-    if (repFilter === 'unassigned') {
-      if (m.assignedSales) return false;
-    } else if (repFilter !== 'all') {
+    if (repFilter !== 'all') {
       const repId = m.assignedSales?._id || m.assignedSales;
       if (String(repId) !== repFilter) return false;
     }
@@ -87,7 +86,7 @@ export default function Transfer() {
   const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
   const repName = (rep) => {
-    if (!rep) return 'Unassigned';
+    if (!rep) return primaryByRole(salesUsers, 'Sales Manager')?.name || '—';
     return typeof rep === 'object' ? rep.name : salesUsers.find((s) => s._id === rep)?.name ?? '—';
   };
 
@@ -258,7 +257,6 @@ export default function Transfer() {
             {/* Rep filter dropdown */}
             <MenuSelect value={repFilter} onChange={(e) => setRepFilter(e.target.value)} style={{ minWidth: 220 }} aria-label="Filter by sales rep">
               <option value="all">All members</option>
-              <option value="unassigned">Unassigned only</option>
               {salesUsers.map((s) => (
                 <option key={s._id} value={s._id}>{s.name} ({s.role})</option>
               ))}

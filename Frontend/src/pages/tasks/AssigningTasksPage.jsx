@@ -17,7 +17,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import {
   EXPORT_COLUMNS, buildExcel, columnsForExport,
-  columnValue, taskPermissions, toggleId, toggleIds, canUserReceiveTasks, formatTaskDateTime,
+  columnValue, coachName, salesmanName, primaryByRole, withDefaultCoach, withDefaultSales, taskPermissions, toggleId, toggleIds, canUserReceiveTasks, formatTaskDateTime,
   filterMembersAdvanced, packageName, toLocalDateString,
   SELECTION_TEMPLATES, applySelectionTemplate, invertSelection,
 } from './taskMembers';
@@ -72,12 +72,13 @@ export default function AssigningTasksPage() {
   // ── Reference Data ──
   const [salesUsers, setSalesUsers] = useState([]);
   const [coaches, setCoaches] = useState([]);
+  const [headCoach, setHeadCoach] = useState(null);
   const [allPackages, setAllPackages] = useState([]);
 
   // ── Assigner Schedule & Filter State ──
   const [kind, setKind] = useState(() => (
-    user?.role === 'Head Coach' ? 'unassigned_coach' : 'all'
-  )); // 'all' | 'sales' | 'coach' | 'unassigned_sales' | 'unassigned_coach'
+    user?.role === 'Head Coach' ? 'head_coach' : 'all'
+  )); // 'all' | 'sales' | 'coach' | 'sales_manager' | 'head_coach'
   const [personId, setPersonId] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [transferTypeFilter, setTransferTypeFilter] = useState('all');
@@ -180,7 +181,9 @@ export default function AssigningTasksPage() {
     getSalesUsers().then((res) => setSalesUsers(res.data.salesUsers ?? [])).catch(() => {});
     getCoachTeam()
       .then((res) => {
-        setCoaches((res.data.team ?? []).filter((person) => person.role === 'Coach'));
+        const team = res.data.team ?? [];
+        setCoaches(team.filter((person) => person.role === 'Coach'));
+        setHeadCoach(primaryByRole(team, 'Head Coach'));
       })
       .catch(() => {});
     getPackages({ limit: 100 })
@@ -208,17 +211,36 @@ export default function AssigningTasksPage() {
   const people = kind === 'sales'
     ? salesUsers.filter((person) => person.role === 'Sales')
     : coaches;
+  const salesManager = useMemo(
+    () => primaryByRole(salesUsers, 'Sales Manager'),
+    [salesUsers],
+  );
 
   const showMembers = useCallback(async (currentKind, currentPerson) => {
+    const scopeParams = {};
+    if (currentKind === 'sales' && currentPerson) scopeParams.assignedSales = currentPerson;
+    else if (currentKind === 'coach' && currentPerson) scopeParams.currentCouch = currentPerson;
+    else if (currentKind === 'sales_manager') {
+      if (!salesManager?._id) {
+        setMembers([]);
+        setLoaded(false);
+        setLoading(false);
+        return;
+      }
+      scopeParams.assignedSales = salesManager._id;
+    } else if (currentKind === 'head_coach') {
+      if (!headCoach?._id) {
+        setMembers([]);
+        setLoaded(false);
+        setLoading(false);
+        return;
+      }
+      scopeParams.currentCouch = headCoach._id;
+    }
+
     setLoading(true);
     setLoaded(true);
     try {
-      const scopeParams = {};
-      if (currentKind === 'sales' && currentPerson) scopeParams.assignedSales = currentPerson;
-      else if (currentKind === 'coach' && currentPerson) scopeParams.currentCouch = currentPerson;
-      else if (currentKind === 'unassigned_sales') scopeParams.unassignedSales = 'true';
-      else if (currentKind === 'unassigned_coach') scopeParams.unassignedCoach = 'true';
-
       const list = await loadAssigned(scopeParams);
       setMembers(list);
       setSelected(new Set());
@@ -228,7 +250,7 @@ export default function AssigningTasksPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [salesManager, headCoach]);
 
   useLocationEffect(() => {
     if (activeTab === 'schedule') {
@@ -255,8 +277,10 @@ export default function AssigningTasksPage() {
       transferType: transferTypeFilter,
       packageId: packageFilter,
       gender: genderFilter,
+      headCoach,
+      salesManager,
     });
-  }, [members, search, statusFilter, kind, personId, dateField, dateFrom, dateTo, transferTypeFilter, packageFilter, genderFilter]);
+  }, [members, search, statusFilter, kind, personId, dateField, dateFrom, dateTo, transferTypeFilter, packageFilter, genderFilter, headCoach, salesManager]);
 
   // Reset page to 1 whenever any filter changes
   useEffect(() => {
@@ -302,7 +326,6 @@ export default function AssigningTasksPage() {
   const filteredTemplateCounts = useMemo(() => {
     const counts = {
       active: 0, expired: 0, frozen: 0, guest: 0,
-      unassignedSales: 0, unassignedCoach: 0,
       transferred: 0, endingSoon: 0,
     };
     const now = new Date();
@@ -314,8 +337,6 @@ export default function AssigningTasksPage() {
       else if (m.status === 'frozen') counts.frozen += 1;
       else if (m.status === 'guest') counts.guest += 1;
 
-      if (!m.assignedSales) counts.unassignedSales += 1;
-      if (!m.current_couch) counts.unassignedCoach += 1;
       if (Array.isArray(m.userlog) && m.userlog.some((l) => l.type === 'assign')) counts.transferred += 1;
 
       const sub = m.subscriptions?.[m.subscriptions.length - 1];
@@ -583,7 +604,11 @@ export default function AssigningTasksPage() {
       toast.error('No members to export');
       return;
     }
-    downloadExcel(`tasks-schedule-${toLocalDateString(new Date())}.xls`, cols, filtered);
+    downloadExcel(
+      `tasks-schedule-${toLocalDateString(new Date())}.xls`,
+      cols,
+      filtered.map((member) => withDefaultSales(withDefaultCoach(member, headCoach), salesManager)),
+    );
     toast.success(`Exported ${filtered.length} rows to Excel`);
   };
 
@@ -664,7 +689,7 @@ export default function AssigningTasksPage() {
                 {/* Row 1: Search & Scope Primary Toolbar */}
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
                   {/* View Scope Select */}
-                  <div style={{ flex: '0 0 auto', width: 210, minWidth: 170 }}>
+                  <div style={{ flex: '0 0 auto', width: 280, minWidth: 240 }}>
                     <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
                       View Scope
                     </label>
@@ -680,8 +705,8 @@ export default function AssigningTasksPage() {
                       <option value="all">All Gym Members</option>
                       {canSalesman && <option value="sales">By Sales Rep</option>}
                       {canCoach && <option value="coach">By Coach</option>}
-                      {canSalesman && <option value="unassigned_sales">Unassigned Sales</option>}
-                      {canCoach && <option value="unassigned_coach">Unassigned Coach</option>}
+                      {canSalesman && <option value="sales_manager">Assigned to Sales Manager</option>}
+                      {canCoach && <option value="head_coach">Assigned to Head Coach</option>}
                     </MenuSelect>
                   </div>
 
@@ -1016,32 +1041,6 @@ export default function AssigningTasksPage() {
                                 </button>
                               </div>
                             </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleApplyTemplate('unassigned_sales')}
-                              style={{
-                                padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)',
-                                background: 'var(--bg)', color: 'var(--t1)', fontSize: 12, cursor: 'pointer',
-                                display: 'flex', justifyContent: 'space-between', textAlign: 'left',
-                              }}
-                            >
-                              <span>No Sales Rep Assigned</span>
-                              <span style={{ fontWeight: 700 }}>{filteredTemplateCounts.unassignedSales}</span>
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() => handleApplyTemplate('unassigned_coach')}
-                              style={{
-                                padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)',
-                                background: 'var(--bg)', color: 'var(--t1)', fontSize: 12, cursor: 'pointer',
-                                display: 'flex', justifyContent: 'space-between', textAlign: 'left',
-                              }}
-                            >
-                              <span>No Coach Assigned</span>
-                              <span style={{ fontWeight: 700 }}>{filteredTemplateCounts.unassignedCoach}</span>
-                            </button>
 
                             <button
                               type="button"
@@ -1425,12 +1424,12 @@ export default function AssigningTasksPage() {
                               )}
                               {(visibleKeys.includes('salesman') || visibleKeys.includes('sales')) && (
                                 <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                                  {member.assignedSales?.name || <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
+                                  {salesmanName(member, salesManager) || '—'}
                                 </td>
                               )}
                               {visibleKeys.includes('coach') && (
                                 <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                                  {member.current_couch?.name || <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
+                                  {coachName(member, headCoach) || '—'}
                                 </td>
                               )}
                               {visibleKeys.includes('package') && (

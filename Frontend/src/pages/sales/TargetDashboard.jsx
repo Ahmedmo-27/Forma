@@ -6,8 +6,9 @@ import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, CardHeader, EmptyState, Badge, Avatar, fmtDate, toLocalDateString, DashboardSkeleton, StatCardSkeleton, Table, Skeleton, MenuSelect } from '../../components/ui';
 import { getSalesManagerRevenue, getSubscriptionsByDate, getSalesUsers, getCoachTeam, getAllMembers, getPackages } from '../../api/endpoints';
+import { primaryByRole } from '../tasks/taskMembers';
 import {
-  buildPackageOptions, filterByPackage, sharePercent, summarizePackages,
+  buildPackageOptions, filterByPackage, sharePercent, subscriptionNet, summarizePackages,
 } from './packageSales';
 import { ClipboardList, Dumbbell, Package } from 'lucide-react';
 
@@ -419,7 +420,7 @@ function SalesSubscriptionsContent() {
   const packageStats = summarizePackages(allEntries);
   const packageOptions = buildPackageOptions(packages, packageStats, packageId);
   const entries = filterByPackage(allEntries, packageId);
-  const totalRevenue = entries.reduce((s, e) => s + (Number(e.subscription.pricePaid) || 0), 0);
+  const totalRevenue = entries.reduce((s, e) => s + subscriptionNet(e.subscription), 0);
   const newCount     = entries.filter(e => !e.subscription.isRenewal).length;
   const renewalCount = entries.filter(e =>  e.subscription.isRenewal).length;
   const packageRevenueTotal = packageStats.reduce((s, p) => s + p.revenue, 0);
@@ -630,7 +631,10 @@ function SalesSubscriptionsContent() {
                     )}
                   </td>
                   <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--green)', fontSize: 13, whiteSpace: 'nowrap' }}>
-                    {fmt(e.subscription.pricePaid)} EGP
+                    {fmt(subscriptionNet(e.subscription))} EGP
+                    {(Number(e.subscription.refundAmount) > 0 || e.subscription.refunded) && (
+                      <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>Refunded</span>
+                    )}
                     {e.subscription.discountPercent > 0 && (
                       <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--amber)', fontWeight: 600 }}>-{e.subscription.discountPercent}%</span>
                     )}
@@ -671,14 +675,16 @@ function SalesSubscriptionsContent() {
 // ── Coach Sessions Content ────────────────────────────────────────────────────
 function CoachSessionsContent() {
   const navigate = useNavigate();
-  const [coaches, setCoaches]   = useState([]);
+  const [team, setTeam] = useState([]);
+  const coaches = team.filter((person) => person.role === 'Coach');
+  const headCoach = primaryByRole(team, 'Head Coach');
   const [coachId, setCoachId]   = useState('');
   const [members, setMembers]   = useState([]);
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
     getCoachTeam()
-      .then(r => setCoaches((r.data.team ?? []).filter(u => u.role === 'Coach')))
+      .then(r => setTeam(r.data.team ?? []))
       .catch(() => {});
   }, []);
 
@@ -790,14 +796,14 @@ function CoachSessionsContent() {
                       </div>
                     </td>
                     <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
-                      {m.current_couch?.name ?? <span style={{ color: 'var(--t4)' }}>Unassigned</span>}
+                      {m.current_couch?.name || headCoach?.name || '—'}
                     </td>
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--blue)' }}>{m.PT_sessions || 0}</td>
                     <td style={{ padding: '10px 14px', color: 'var(--t2)' }}>{m.used_PT_sessions || 0}</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: remaining > 0 ? 'var(--green)' : 'var(--red)' }}>{remaining}</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--green)' }}>
-                      {m.pt_subscriptions?.reduce((s, sub) => s + (sub.pricePaid || 0), 0)
-                        ? `EGP ${m.pt_subscriptions.reduce((s, sub) => s + (sub.pricePaid || 0), 0).toLocaleString()}`
+                      {m.pt_subscriptions?.reduce((s, sub) => s + subscriptionNet(sub), 0)
+                        ? `EGP ${m.pt_subscriptions.reduce((s, sub) => s + subscriptionNet(sub), 0).toLocaleString()}`
                         : '—'}
                     </td>
                     <td style={{ padding: '10px 14px' }}>
@@ -814,7 +820,7 @@ function CoachSessionsContent() {
                 <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--t2)' }}>{usedSessions}</td>
                 <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--green)' }}>{remainingSessions}</td>
                 <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--green)' }}>
-                  EGP {ptMembers.reduce((s, m) => s + (m.pt_subscriptions?.reduce((a, sub) => a + (sub.pricePaid || 0), 0) || 0), 0).toLocaleString()}
+                  EGP {ptMembers.reduce((s, m) => s + (m.pt_subscriptions?.reduce((a, sub) => a + subscriptionNet(sub), 0) || 0), 0).toLocaleString()}
                 </td>
                 <td />
               </tr>

@@ -1,5 +1,9 @@
 const User = require("../models/User");
 const Member = require("../models/Member");
+const { getTenantId } = require("../context/tenantContext");
+
+const recentSalesAssign = new Map();
+const ASSIGN_INTERVAL_MS = 15_000;
 
 /**
  * Oldest sales manager in the gym is the primary assignee.
@@ -68,8 +72,33 @@ async function assignOpenMembersToSalesManager(options = {}) {
     };
 }
 
+/**
+ * Backfill members who still have no sales rep. A rep set at creation or by
+ * transfer is left alone. Member lists are cached, so this runs on cache misses.
+ */
+async function ensureSalesManagerAssignments() {
+    const tenantId = getTenantId() || "global";
+    const now = Date.now();
+    if (now - (recentSalesAssign.get(tenantId) || 0) < ASSIGN_INTERVAL_MS) {
+        return { skipped: true, updated: 0 };
+    }
+    recentSalesAssign.set(tenantId, now);
+    try {
+        const result = await assignOpenMembersToSalesManager();
+        if (result.updated > 0 && getTenantId()) {
+            const { invalidateTenantCache } = require("./cacheInvalidator");
+            invalidateTenantCache(getTenantId(), "members");
+        }
+        return result;
+    } catch (error) {
+        recentSalesAssign.delete(tenantId);
+        return { updated: 0, error: error.message };
+    }
+}
+
 module.exports = {
     primarySalesManager,
     resolveSalesAssignee,
     assignOpenMembersToSalesManager,
+    ensureSalesManagerAssignments,
 };

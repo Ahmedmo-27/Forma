@@ -32,6 +32,11 @@ describe("revenueUtils — payment-record revenue", () => {
         ).toBe(1800);
     });
 
+    it("subscriptionSalePrice subtracts a refund from the amount that counts toward targets", () => {
+        expect(subscriptionSalePrice({ pricePaid: 1800, refundAmount: 1800, package: { price: 9999 } })).toBe(0);
+        expect(subscriptionSalePrice({ pricePaid: 1800, refundAmount: 300, package: { price: 9999 } })).toBe(1500);
+    });
+
     it("subscriptionSalePrice falls back to packageSnapshot when pricePaid is missing", () => {
         expect(
             subscriptionSalePrice({

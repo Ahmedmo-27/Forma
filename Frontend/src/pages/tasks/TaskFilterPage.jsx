@@ -254,8 +254,8 @@ export default function TaskFilterPage() {
                       <option value="all">All Gym Members</option>
                       <option value="sales">By Sales Rep</option>
                       <option value="coach">By Coach</option>
-                      <option value="unassigned_sales">Unassigned Sales</option>
-                      <option value="unassigned_coach">Unassigned Coach</option>
+                      <option value="sales_manager">Assigned to Sales Manager</option>
+                      <option value="head_coach">Assigned to Head Coach</option>
                     </MenuSelect>
                   </div>
                   {(kind === 'sales' || kind === 'coach') && (

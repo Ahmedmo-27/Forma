@@ -136,7 +136,12 @@ export default function ContractHistory() {
                         <div style={{ fontSize: 10, color: 'var(--amber)', fontWeight: 600, marginTop: 2 }}>Exception</div>
                       )}
                     </td>
-                    <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: 'var(--green)' }}>EGP {c.pricePaid}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: 'var(--green)' }}>
+                      EGP {c.netPaid ?? c.pricePaid}
+                      {c.refunded && (
+                        <div style={{ fontSize: 10, color: 'var(--red)', fontWeight: 600, marginTop: 2 }}>Refunded</div>
+                      )}
+                    </td>
                     <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{fmtDate(c.startDate)}</td>
                     <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{c.salesManager?.name ?? '—'}</td>
                     <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{c.approvedBy?.name ?? '—'}</td>

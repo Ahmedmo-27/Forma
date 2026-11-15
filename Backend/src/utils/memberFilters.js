@@ -15,8 +15,6 @@ function buildMemberListFilter({
     recent,
     expiringSoon,
     currentCouch,
-    unassignedSales,
-    unassignedCoach,
     dateFrom,
     dateTo,
     dateField,
@@ -41,16 +39,11 @@ function buildMemberListFilter({
         filter.isBlocked = { $ne: true };
     }
 
-    if (unassignedSales === "true" || unassignedSales === true) {
-        filter.$or = filter.$or || [];
-        filter.assignedSales = null;
-    } else if (assignedSales && assignedSales !== "null" && assignedSales !== "undefined") {
+    if (assignedSales && assignedSales !== "null" && assignedSales !== "undefined") {
         filter.assignedSales = assignedSales;
     }
 
-    if (unassignedCoach === "true" || unassignedCoach === true) {
-        filter.current_couch = null;
-    } else if (currentCouch && currentCouch !== "null" && currentCouch !== "undefined") {
+    if (currentCouch && currentCouch !== "null" && currentCouch !== "undefined") {
         filter.current_couch = currentCouch;
     }
 

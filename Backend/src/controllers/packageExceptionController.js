@@ -12,6 +12,7 @@ const {
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const { writeAudit } = require("../utils/audit");
 const { buildPackageSnapshot } = require("../utils/packageSnapshot");
+const { resolveNextPackageStart, validateNoOverlappingSubscription } = require("../utils/subscriptionUtils");
 const { nextMemberId, nextSubscriptionId } = require("../utils/sequence");
 
 const calcEndDate = (startDate, duration) => {
@@ -92,9 +93,27 @@ const applyApprovedException = async (request, reviewerId) => {
     }
 
     const upgrading = Boolean(request.isUpgrade);
-    const startDate = upgrading
-        ? new Date()
-        : (request.startDate ? new Date(request.startDate) : new Date());
+    const now = new Date();
+    const resolvedStart = resolveNextPackageStart({
+        subscriptions: member.subscriptions,
+        startDate: upgrading ? now : request.startDate,
+        upgrade: upgrading,
+        now,
+    });
+    if (resolvedStart.error) {
+        const error = new Error(resolvedStart.error);
+        error.statusCode = 400;
+        throw error;
+    }
+    const overlapError = upgrading
+        ? null
+        : validateNoOverlappingSubscription(member.subscriptions, resolvedStart.start, now);
+    if (overlapError) {
+        const error = new Error(overlapError);
+        error.statusCode = 400;
+        throw error;
+    }
+    const startDate = resolvedStart.start;
     const endDate = calcEndDate(startDate, request.duration);
     const subscriptionId = await generateSubscriptionId();
     const hadSubscription = member.subscriptions?.length > 0;
@@ -189,8 +208,24 @@ const createException = async (req, res) => {
 
         const proposer = await User.findById(req.user.id).select("name");
         const packageName = name ?? basePkg.name;
-        const isException = Boolean(req.body.hasException);
+        const now = new Date();
         const upgrading = Boolean(upgrade);
+        const resolvedStart = resolveNextPackageStart({
+            subscriptions: member.subscriptions,
+            startDate: upgrading ? now : startDate,
+            upgrade: upgrading,
+            now,
+        });
+        if (resolvedStart.error) {
+            return res.status(400).json({ message: resolvedStart.error });
+        }
+        const overlapError = upgrading
+            ? null
+            : validateNoOverlappingSubscription(member.subscriptions, resolvedStart.start, now);
+        if (overlapError) {
+            return res.status(400).json({ message: overlapError });
+        }
+        const isException = Boolean(req.body.hasException);
         const notificationMessage = upgrading
             ? `${proposer?.name || "Sales Manager"} requested an upgrade to ${packageName} for ${member.name}`
             : isException
@@ -212,7 +247,7 @@ const createException = async (req, res) => {
             description: description ?? basePkg.description,
             pricePaid: pricePaid ?? price ?? basePkg.price,
             discountPercent: discountPercent ?? 0,
-            startDate: upgrading ? new Date() : (startDate ? new Date(startDate) : new Date()),
+            startDate: resolvedStart.start,
             isUpgrade: upgrading,
             reason: reason ?? null,
             notificationMessage,
@@ -305,6 +340,9 @@ const updateExceptionStatus = async (req, res) => {
                 await PackageExceptionRequest.findByIdAndUpdate(request._id, {
                     $set: { status: "pending", reviewedBy: null, reviewNote: null },
                 });
+                if (applyError.statusCode === 400) {
+                    return res.status(400).json({ message: applyError.message });
+                }
                 throw applyError;
             }
         }

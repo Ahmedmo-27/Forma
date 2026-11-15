@@ -82,8 +82,20 @@ export function personName(value) {
   return '';
 }
 
-export function salesmanName(member) {
-  return personName(member?.assignedSales);
+export function salesmanName(member, salesManager = null) {
+  return personName(member?.assignedSales) || personName(salesManager) || salesManager?.name || '';
+}
+
+export function withDefaultSales(member, salesManager) {
+  if (!salesManager?.name || personName(member?.assignedSales)) return member;
+  return {
+    ...member,
+    assignedSales: {
+      _id: salesManager._id,
+      name: salesManager.name,
+      role: salesManager.role || 'Sales Manager',
+    },
+  };
 }
 
 export function salesName(member) {
@@ -92,8 +104,33 @@ export function salesName(member) {
   return personName(latestSubscription(member)?.salesManager);
 }
 
-export function coachName(member) {
-  return personName(member?.current_couch);
+export function coachName(member, headCoach = null) {
+  return personName(member?.current_couch) || personName(headCoach) || headCoach?.name || '';
+}
+
+/** Open members belong to the head coach, the same way open sales belong to the sales manager. */
+export function withDefaultCoach(member, headCoach) {
+  if (!headCoach?.name || personName(member?.current_couch)) return member;
+  return {
+    ...member,
+    current_couch: {
+      _id: headCoach._id,
+      name: headCoach.name,
+      role: headCoach.role || 'Head Coach',
+    },
+  };
+}
+
+/** Oldest person with this role. Matches the backend primary-assignee order. */
+export function primaryByRole(people, role) {
+  return (people || [])
+    .filter((person) => person?.role === role)
+    .sort((a, b) => {
+      const aTime = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const bTime = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (aTime !== bTime) return aTime - bTime;
+      return String(a._id || '').localeCompare(String(b._id || ''));
+    })[0] || null;
 }
 
 export function packageName(member) {
@@ -335,6 +372,13 @@ export function transferSummary(member) {
   return latest.text || 'Transferred';
 }
 
+function belongsToAssignee(value, person) {
+  if (!person?._id) return false;
+  const id = value && typeof value === 'object' ? value._id : value;
+  if (!id) return true;
+  return String(id) === String(person._id);
+}
+
 export function filterMembersAdvanced(members = [], filters = {}) {
   const {
     search = '',
@@ -348,6 +392,8 @@ export function filterMembersAdvanced(members = [], filters = {}) {
     packageId = 'all',
     gender = 'all',
     source = 'all',
+    headCoach = null,
+    salesManager = null,
   } = filters;
 
   const q = String(search || '').trim().toLowerCase();
@@ -365,10 +411,10 @@ export function filterMembersAdvanced(members = [], filters = {}) {
     }
 
     // 2. Kind / Assignee Filter
-    if (kind === 'unassigned_sales') {
-      if (member.assignedSales) return false;
-    } else if (kind === 'unassigned_coach') {
-      if (member.current_couch) return false;
+    if (kind === 'sales_manager') {
+      if (salesManager && !belongsToAssignee(member.assignedSales, salesManager)) return false;
+    } else if (kind === 'head_coach') {
+      if (headCoach && !belongsToAssignee(member.current_couch, headCoach)) return false;
     } else if (kind === 'sales') {
       if (personId) {
         const assignedId = member.assignedSales?._id || member.assignedSales;
@@ -466,7 +512,7 @@ export function filterMembersAdvanced(members = [], filters = {}) {
       const mid = String(member.memberId ?? '').toLowerCase();
       const sName = salesmanName(member).toLowerCase();
       const smName = salesName(member).toLowerCase();
-      const cName = coachName(member).toLowerCase();
+      const cName = coachName(member, headCoach).toLowerCase();
       const transferText = logs.map((l) => l.text).join(' ').toLowerCase();
 
       return (
@@ -738,9 +784,6 @@ export const SELECTION_TEMPLATES = [
   { id: 'status_frozen', label: 'Frozen members only', shortLabel: 'Frozen Only', group: 'Member Status' },
   { id: 'status_guest', label: 'Guest members only', shortLabel: 'Guest Only', group: 'Member Status' },
 
-  // Assignment & Transfer Templates
-  { id: 'unassigned_sales', label: 'Unassigned Sales Rep', shortLabel: 'No Sales Rep', group: 'Assignment' },
-  { id: 'unassigned_coach', label: 'Unassigned Coach', shortLabel: 'No Coach', group: 'Assignment' },
   { id: 'never_transferred', label: 'Never transferred before', shortLabel: 'Never Transferred', group: 'Transfer Status' },
   { id: 'transferred_before', label: 'Previously transferred', shortLabel: 'Transferred Before', group: 'Transfer Status' },
 
@@ -811,12 +854,6 @@ export function applySelectionTemplate(members = [], templateId, options = {}) {
 
     case 'status_guest':
       return list.filter((m) => String(m.status || '').toLowerCase() === 'guest').map((m) => m._id);
-
-    case 'unassigned_sales':
-      return list.filter((m) => !m.assignedSales || (typeof m.assignedSales === 'object' && !m.assignedSales._id && !m.assignedSales.name)).map((m) => m._id);
-
-    case 'unassigned_coach':
-      return list.filter((m) => !m.current_couch || (typeof m.current_couch === 'object' && !m.current_couch._id && !m.current_couch.name)).map((m) => m._id);
 
     case 'never_transferred':
       return list.filter((m) => {

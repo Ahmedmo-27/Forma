@@ -1,14 +1,36 @@
 /**
- * Find a subscription that is currently active (start <= now < end).
+ * A refund, of any amount, voids the whole package. Cancelled rows are void too.
+ * Those rows do not grant access and do not hold the calendar.
+ */
+function isClosedSubscription(sub) {
+    if (!sub) return true;
+    if (Number(sub.refundAmount) > 0) return true;
+    return Boolean(sub.refunded || sub.cancelled || sub.subscriptionStatus === "cancelled");
+}
+
+/** Latest subscription that is still a real package. */
+function latestOpenSubscription(subscriptions) {
+    const list = subscriptions || [];
+    for (let i = list.length - 1; i >= 0; i -= 1) {
+        if (!isClosedSubscription(list[i])) return list[i];
+    }
+    return null;
+}
+
+/**
+ * Find the latest subscription that is currently active (start <= now < end).
+ * Refunded and cancelled rows are skipped, even when their end date is still in the future.
  */
 function findActiveSubscription(subscriptions, now = new Date()) {
-    return (subscriptions || []).find((sub) => {
-        if (!sub?.startDate || !sub?.endDate) return false;
-        if (sub.refunded || sub.cancelled || sub.subscriptionStatus === "cancelled") return false;
+    const list = subscriptions || [];
+    for (let i = list.length - 1; i >= 0; i -= 1) {
+        const sub = list[i];
+        if (!sub?.startDate || !sub?.endDate || isClosedSubscription(sub)) continue;
         const start = new Date(sub.startDate);
         const end = new Date(sub.endDate);
-        return start <= now && end > now;
-    });
+        if (start <= now && end > now) return sub;
+    }
+    return null;
 }
 
 /**
@@ -37,11 +59,6 @@ function validateNoOverlappingSubscription(subscriptions, proposedStart, now = n
     return null;
 }
 
-function isClosedSubscription(sub) {
-    if (!sub) return true;
-    return Boolean(sub.refunded || sub.cancelled || sub.subscriptionStatus === "cancelled");
-}
-
 /**
  * Choose the start of the next package.
  * A refunded or cancelled subscription does not hold the calendar.
@@ -52,11 +69,8 @@ function resolveNextPackageStart({ subscriptions, startDate, upgrade = false, no
         return { start: new Date(now), error: null };
     }
 
-    const list = subscriptions || [];
-    const currentSub = list.length ? list[list.length - 1] : null;
-    const currentEndDate = !isClosedSubscription(currentSub) && currentSub?.endDate
-        ? new Date(currentSub.endDate)
-        : null;
+    const currentSub = latestOpenSubscription(subscriptions);
+    const currentEndDate = currentSub?.endDate ? new Date(currentSub.endDate) : null;
 
     if (startDate) {
         const start = new Date(startDate);
@@ -93,6 +107,7 @@ module.exports = {
     onOrAfterCalendarDay,
     validateNoOverlappingSubscription,
     isClosedSubscription,
+    latestOpenSubscription,
     resolveNextPackageStart,
     closeRefundedSubscription,
 };

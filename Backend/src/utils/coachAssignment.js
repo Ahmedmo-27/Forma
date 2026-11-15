@@ -1,5 +1,9 @@
 const User = require("../models/User");
 const Member = require("../models/Member");
+const { getTenantId } = require("../context/tenantContext");
+
+const recentCoachAssign = new Map();
+const ASSIGN_INTERVAL_MS = 15_000;
 
 /**
  * Oldest head coach in the gym is the primary assignee.
@@ -68,8 +72,33 @@ async function assignOpenMembersToHeadCoach(options = {}) {
     };
 }
 
+/**
+ * Backfill members who still have no coach. Member lists are cached, so this
+ * runs on cache misses and stays quiet for a few seconds per gym.
+ */
+async function ensureHeadCoachAssignments() {
+    const tenantId = getTenantId() || "global";
+    const now = Date.now();
+    if (now - (recentCoachAssign.get(tenantId) || 0) < ASSIGN_INTERVAL_MS) {
+        return { skipped: true, updated: 0 };
+    }
+    recentCoachAssign.set(tenantId, now);
+    try {
+        const result = await assignOpenMembersToHeadCoach();
+        if (result.updated > 0 && getTenantId()) {
+            const { invalidateTenantCache } = require("./cacheInvalidator");
+            invalidateTenantCache(getTenantId(), "members");
+        }
+        return result;
+    } catch (error) {
+        recentCoachAssign.delete(tenantId);
+        return { updated: 0, error: error.message };
+    }
+}
+
 module.exports = {
     primaryHeadCoach,
     resolveCoachAssignee,
     assignOpenMembersToHeadCoach,
+    ensureHeadCoachAssignments,
 };

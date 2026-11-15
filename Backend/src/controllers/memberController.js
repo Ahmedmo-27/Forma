@@ -41,10 +41,10 @@ const { writeAudit } = require("../utils/audit");
 const { nextSystemId, nextMemberId, nextSubscriptionId, isDuplicateKeyError } = require("../utils/sequence");
 const { normalizePhone, assertPhoneAvailable, replyIfConflict } = require("../utils/identityUniqueness");
 const { startMemberImport, getMemberImport } = require("../services/memberImportRunner");
-const { resolveSalesAssignee } = require("../utils/salesAssignment");
-const { resolveCoachAssignee } = require("../utils/coachAssignment");
+const { resolveSalesAssignee, ensureSalesManagerAssignments } = require("../utils/salesAssignment");
+const { resolveCoachAssignee, ensureHeadCoachAssignments } = require("../utils/coachAssignment");
 const { sanitizePlainText } = require("../utils/sanitizeText");
-const { validateNoOverlappingSubscription, resolveNextPackageStart, closeRefundedSubscription } = require("../utils/subscriptionUtils");
+const { validateNoOverlappingSubscription, resolveNextPackageStart, closeRefundedSubscription, isClosedSubscription } = require("../utils/subscriptionUtils");
 const { buildPackageSnapshot, resolveSubscriptionPackage } = require("../utils/packageSnapshot");
 const { generateBarcode } = require("../utils/barcodeHelper");
 const { publishLive } = require("../utils/liveEvents");
@@ -55,7 +55,7 @@ const mongoose = require("mongoose");
 const getCurrentPackage = (member) => {
     if (!member.subscriptions || !member.subscriptions.length) return null;
     const last = member.subscriptions[member.subscriptions.length - 1];
-    if (last.refunded || last.cancelled || last.subscriptionStatus === "cancelled") return null;
+    if (isClosedSubscription(last)) return null;
     return resolveSubscriptionPackage(last);
 };
 
@@ -382,6 +382,11 @@ function memberListSort(query = {}) {
 
 const getAllMembers = async (req, res) => {
     try {
+        // Empty sales and coach fields belong to the sales manager and head coach.
+        // A rep or coach already stored on the member is left alone.
+        await ensureSalesManagerAssignments();
+        await ensureHeadCoachAssignments();
+
         // Detect global-search / "all" call (frontend passes limit=10000)
         const isGlobalSearch = parseInt(req.query.limit, 10) >= 1000;
 
@@ -397,8 +402,6 @@ const getAllMembers = async (req, res) => {
             recent:          req.query.recent,
             expiringSoon:    req.query.expiringSoon,
             currentCouch:    req.query.currentCouch,
-            unassignedSales: req.query.unassignedSales,
-            unassignedCoach: req.query.unassignedCoach,
             dateFrom:        req.query.dateFrom,
             dateTo:          req.query.dateTo,
             dateField:       req.query.dateField,
@@ -675,9 +678,12 @@ const checkInMember = async (req, res) => {
                 status: "active",
                 "subscriptions.0": { $exists: true },
                 $expr: {
-                    $gte: [
-                        { $arrayElemAt: ["$subscriptions.endDate", -1] },
-                        now,
+                    $and: [
+                        { $gte: [{ $arrayElemAt: ["$subscriptions.endDate", -1] }, now] },
+                        { $ne: [{ $arrayElemAt: ["$subscriptions.refunded", -1] }, true] },
+                        { $ne: [{ $arrayElemAt: ["$subscriptions.cancelled", -1] }, true] },
+                        { $ne: [{ $arrayElemAt: ["$subscriptions.subscriptionStatus", -1] }, "cancelled"] },
+                        { $lte: [{ $ifNull: [{ $arrayElemAt: ["$subscriptions.refundAmount", -1] }, 0] }, 0] },
                     ],
                 },
             },
@@ -714,9 +720,7 @@ const checkInMember = async (req, res) => {
         const hasSubscriptions = Array.isArray(member.subscriptions) && member.subscriptions.length > 0;
         const currentSub = hasSubscriptions ? member.subscriptions[member.subscriptions.length - 1] : null;
         const currentPkg = currentSub?.packageSnapshot || currentSub?.package || null;
-        const isCancelledSub = currentSub
-            ? (currentSub.refunded || currentSub.cancelled || currentSub.subscriptionStatus === "cancelled")
-            : false;
+        const isCancelledSub = Boolean(currentSub) && isClosedSubscription(currentSub);
 
         if (member.status === "guest" || !member.isMember || !hasSubscriptions || !currentPkg || isCancelledSub) {
             const isGuest = member.status === "guest" || !member.isMember || isCancelledSub;
@@ -2604,11 +2608,20 @@ const refund = async (req, res) => {
         lastSubscription.cancelledBy = req.user.id;
         lastSubscription.subscriptionStatus = "cancelled";
         closeRefundedSubscription(lastSubscription, lastSubscription.refundedAt);
+        if (typeof member.markModified === "function") member.markModified("subscriptions");
 
-        // Determine new member status
+        const refundAt = lastSubscription.refundedAt;
+        for (const freeze of member.freeze || []) {
+            if (!freeze.endedBy && new Date(freeze.endDate) > refundAt) {
+                freeze.endDate = refundAt;
+                freeze.endedBy = req.user.id;
+            }
+        }
+
+        // Determine new member status. A refunded package grants nothing.
         const priorValidSubs = member.subscriptions
             .slice(0, -1)
-            .filter(s => !s.refunded && !s.cancelled && s.subscriptionStatus !== "cancelled");
+            .filter((s) => !isClosedSubscription(s));
 
         if (priorValidSubs.length === 0) {
             member.status = "guest";
@@ -2689,6 +2702,13 @@ const refundPT_Sessions = async (req, res) => {
         lastSub.refundedBy   = req.user.id;
         lastSub.refundedAt   = new Date();
         lastSub.refunded     = true;
+        closeRefundedSubscription(lastSub, lastSub.refundedAt);
+        const packSessions = Number(lastSub.sessions) || 0;
+        member.PT_sessions = Math.max(
+            member.used_PT_sessions || 0,
+            (member.PT_sessions || 0) - packSessions
+        );
+        if (typeof member.markModified === "function") member.markModified("pt_subscriptions");
         // member.userlog.push({
         //     type: "other",
         //     text: `PT sessions refund of ${refund_amount} EGP issued${reason ? `: ${reason}` : ""}`,

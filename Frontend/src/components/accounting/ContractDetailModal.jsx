@@ -57,6 +57,9 @@ export default function ContractDetailModal({ contract, open, onClose }) {
             : (contract.member?.name ?? '—')
         } />
         <DetailRow label="Contract #" value={contract.subscriptionId ?? '—'} />
+        <DetailRow label="Price Paid" value={contract.pricePaid != null ? contract.pricePaid : '—'} />
+        <DetailRow label="Refund" value={Number(contract.refundAmount) > 0 ? contract.refundAmount : '—'} />
+        <DetailRow label="Net" value={contract.netPaid ?? contract.pricePaid ?? '—'} />
         <DetailRow label="Date Added" value={fmtDateTime(contract.createdAt)} />
         <DetailRow label="Processed By" value={contract.approvedBy?.name} />
       </div>

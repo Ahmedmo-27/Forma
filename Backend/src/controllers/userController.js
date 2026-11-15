@@ -28,8 +28,6 @@ const {
     isSameDay,
     buildMonthlyMap,
     cairoDayBounds,
-    memberPrice,
-    getCurrentSubscription,
     subscriptionSalePrice,
 } = require("../utils/revenueUtils");
 const { resolveSubscriptionPackage } = require("../utils/packageSnapshot");
@@ -365,12 +363,12 @@ const getSalesUsers = async (req, res) => {
     try {
         const salesUsers = await User.find(
             { role: { $in: ["Sales", "Sales Manager"] } },
-            "name role _id allowedLocationIds canAccessAllLocations"
+            "name role _id createdAt allowedLocationIds canAccessAllLocations"
         ).sort({ name: 1 }).lean();
 
         res.status(200).json({
             salesUsers: filterUsersByLocationScope(salesUsers, req.tenant, req.locationScope)
-                .map(({ _id, name, role }) => ({ _id, name, role })),
+                .map(({ _id, name, role, createdAt }) => ({ _id, name, role, createdAt })),
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -441,25 +439,27 @@ const getSalesRevenue = async (req, res) => {
         let totalRevenue = 0;
 
         members.forEach((member) => {
-            const price = memberPrice(member);
-            if (!price) return;
+            for (const sub of member.subscriptions || []) {
+                const price = subscriptionSalePrice(sub);
+                if (!price) continue;
 
-            const sub = getCurrentSubscription(member);
-            const saleDate = sub?.createdAt || member.createdAt;
+                const saleDate = sub.startDate || sub.createdAt;
+                if (!saleDate) continue;
 
-            totalRevenue += price;
-            const key = monthKey(saleDate);
+                totalRevenue += price;
+                const key = monthKey(saleDate);
 
-            if (monthlyMap[key]) {
-                monthlyMap[key].revenue += price;
-                monthlyMap[key].salesCount += 1;
-            }
+                if (monthlyMap[key]) {
+                    monthlyMap[key].revenue += price;
+                    monthlyMap[key].salesCount += 1;
+                }
 
-            if (isInMonth(saleDate, currentYear, currentMonth)) {
-                currentMonthRevenue += price;
-            }
-            if (isInMonth(saleDate, lastMonthYear, lastMonth)) {
-                lastMonthRevenue += price;
+                if (isInMonth(saleDate, currentYear, currentMonth)) {
+                    currentMonthRevenue += price;
+                }
+                if (isInMonth(saleDate, lastMonthYear, lastMonth)) {
+                    lastMonthRevenue += price;
+                }
             }
         });
 
@@ -639,13 +639,13 @@ function buildRepStats(members, repId, now = new Date()) {
         const statKey = STATUS_STAT_KEYS[member.status];
         if (statKey) stats[statKey] += 1;
 
-        const price = memberPrice(member);
-        if (!price) return;
-
-        const sub = getCurrentSubscription(member);
-        const saleDate = sub?.createdAt || member.createdAt;
-        if (monthKey(saleDate) === currentMonthKey) {
-            stats.monthlyRevenue += price;
+        for (const sub of member.subscriptions || []) {
+            const price = subscriptionSalePrice(sub);
+            if (!price) continue;
+            const saleDate = sub.startDate || sub.createdAt;
+            if (monthKey(saleDate) === currentMonthKey) {
+                stats.monthlyRevenue += price;
+            }
         }
     });
 
@@ -1013,6 +1013,9 @@ const getSubscriptionsByDate = async (req, res) => {
                             startDate:       sub.startDate,
                             endDate:         sub.endDate,
                             pricePaid:       sub.pricePaid,
+                            refundAmount:    Number(sub.refundAmount) || 0,
+                            refunded:        Boolean(sub.refunded) || Number(sub.refundAmount) > 0,
+                            netPaid:         subscriptionSalePrice(sub),
                             discountPercent: sub.discountPercent,
                             isRenewal:       sub.isRenewal,
                         },
@@ -1023,7 +1026,7 @@ const getSubscriptionsByDate = async (req, res) => {
 
         entries.sort((a, b) => new Date(b.subscription.startDate) - new Date(a.subscription.startDate));
 
-        const totalRevenue = entries.reduce((s, e) => s + (e.subscription.pricePaid || 0), 0);
+        const totalRevenue = entries.reduce((s, e) => s + (e.subscription.netPaid || 0), 0);
 
         res.json({
             dateFrom,
@@ -1087,6 +1090,9 @@ const getSalesMySubscriptions = async (req, res) => {
                             startDate:       sub.startDate,
                             endDate:         sub.endDate,
                             pricePaid:       sub.pricePaid,
+                            refundAmount:    Number(sub.refundAmount) || 0,
+                            refunded:        Boolean(sub.refunded) || Number(sub.refundAmount) > 0,
+                            netPaid:         subscriptionSalePrice(sub),
                             discountPercent: sub.discountPercent,
                             isRenewal:       sub.isRenewal,
                         },
@@ -1101,7 +1107,7 @@ const getSalesMySubscriptions = async (req, res) => {
             dateFrom,
             dateTo,
             count: entries.length,
-            totalRevenue: entries.reduce((s, e) => s + (e.subscription.pricePaid || 0), 0),
+            totalRevenue: entries.reduce((s, e) => s + (e.subscription.netPaid || 0), 0),
             entries,
         });
     } catch (error) {
