@@ -27,6 +27,7 @@ const {
     getTenants,
     getTenantDetail,
     onboardTenant,
+    updateTenantPurpose,
     updateTenantLifecycle,
     addTenantNote,
     deleteTenantNote,
@@ -174,6 +175,7 @@ router.get("/tenants/:id/staff", requirePlatformPermission(PERMISSIONS.TENANTS_R
 router.get("/tenants/:id/staff/:userId/access", requirePlatformPermission(PERMISSIONS.TENANTS_READ), getTenantStaffAccess);
 router.put("/tenants/:id/staff/:userId/access", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), updateTenantStaffAccess);
 router.patch("/tenants/:id/lifecycle", requirePlatformPermission(PERMISSIONS.TENANTS_LIFECYCLE), autoInvalidate(["tenants", "analytics"], "platform"), updateTenantLifecycle);
+router.patch("/tenants/:id/purpose", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), autoInvalidate(["tenants"], "platform"), updateTenantPurpose);
 router.post("/tenants/:id/notes", requirePlatformPermission(PERMISSIONS.TENANTS_NOTES), addTenantNote);
 router.delete("/tenants/:id/notes/:noteId", requirePlatformPermission(PERMISSIONS.TENANTS_NOTES), deleteTenantNote);
 router.patch("/tenants/:id/tags", requirePlatformPermission(PERMISSIONS.TENANTS_NOTES), updateTenantTags);

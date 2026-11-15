@@ -55,6 +55,7 @@ const SETTINGS_TABS = ['branding', 'locale', 'whatsapp', 'locations', 'plan'];
 export default function TenantSettings() {
   usePageTitle('Gym Settings');
   const { tenant, refreshTenant, applyTenant, applyBranding, loading: tenantLoading } = useTenant();
+  const brandingLocked = Boolean(tenant?.brandingLocked || tenant?.purpose === 'showcase');
   const [searchParams] = useSearchParams();
   const settingsTab = searchParams.get('tab');
 
@@ -110,12 +111,15 @@ export default function TenantSettings() {
     }
   }, [tenant]);
 
-  // Live preview effect: immediately inject chosen palette into actual UI document variables
+  // Live preview. Showcase tenants stay on Forma's palette; local edits are not applied.
   useEffect(() => {
-    if (palette && applyBranding) {
-      applyBranding({ palette });
+    if (!applyBranding) return;
+    if (brandingLocked) {
+      if (tenant?.settings?.branding) applyBranding(tenant.settings.branding);
+      return;
     }
-  }, [palette, applyBranding]);
+    if (palette) applyBranding({ palette });
+  }, [palette, applyBranding, brandingLocked, tenant]);
 
   // If user navigates away without saving, restore saved branding
   useEffect(() => {
@@ -216,6 +220,7 @@ export default function TenantSettings() {
   };
 
   const handleColorChange = (key, rawValue) => {
+    if (brandingLocked) return;
     setPalette(prev => ({
       ...prev,
       [key]: rawValue,
@@ -223,6 +228,7 @@ export default function TenantSettings() {
   };
 
   const handleColorBlur = (key) => {
+    if (brandingLocked) return;
     const raw = palette[key];
     const normalized = normalizeHexColor(raw);
     if (normalized) {
@@ -234,12 +240,14 @@ export default function TenantSettings() {
   };
 
   const handleResetPalette = () => {
+    if (brandingLocked) return;
     setPalette(savedPalette);
     if (applyBranding) applyBranding({ palette: savedPalette });
     toast.success('Reset to saved palette');
   };
 
   const handleDefaultPalette = () => {
+    if (brandingLocked) return;
     setPalette(DEFAULT_PALETTE);
     if (applyBranding) applyBranding({ palette: DEFAULT_PALETTE });
     toast.success('Starter gym palette restored. Save settings to keep it.');
@@ -280,10 +288,11 @@ export default function TenantSettings() {
 
     setSaving(true);
     try {
+      const paletteForSave = brandingLocked ? undefined : normalizedPalette;
       const payload = {
         branding: {
           displayName: displayName.trim() || undefined,
-          palette: normalizedPalette,
+          ...(paletteForSave ? { palette: paletteForSave } : {}),
         },
         locale: {
           currency: currency.trim() || 'EGP',
@@ -296,7 +305,7 @@ export default function TenantSettings() {
         settings: {
           branding: {
             displayName: displayName.trim() || undefined,
-            palette: normalizedPalette,
+            ...(paletteForSave ? { palette: paletteForSave } : {}),
           },
           locale: {
             currency: currency.trim() || 'EGP',
@@ -312,9 +321,11 @@ export default function TenantSettings() {
       const res = await updateTenantMe(payload);
       const nextTenant = res.data?.tenant;
       if (nextTenant) applyTenant(nextTenant);
-      if (applyBranding) applyBranding({ palette: normalizedPalette });
-      setPalette(normalizedPalette);
-      setSavedPalette(normalizedPalette);
+      if (!brandingLocked) {
+        if (applyBranding) applyBranding({ palette: normalizedPalette });
+        setPalette(normalizedPalette);
+        setSavedPalette(normalizedPalette);
+      }
       toast.success('Gym settings saved successfully!');
       await refreshTenant();
     } catch (err) {
@@ -511,17 +522,19 @@ export default function TenantSettings() {
                     Theme Palette & Live Preview
                   </h3>
                   <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--t3)' }}>
-                    These colors belong to this gym. They update the workspace when you save. Forma keeps its own navy and cream on the sign-in screen and the platform console.
+                    {brandingLocked
+                      ? 'This test workspace uses Forma’s navy and cream so you can picture your own gym on it. These colors stay locked.'
+                      : 'These colors belong to this gym. They update the workspace when you save. Forma keeps its own navy and cream on the sign-in screen and the platform console.'}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <Btn variant="outline" size="sm" onClick={handleResetPalette} disabled={saving}>
+                  <Btn variant="outline" size="sm" onClick={handleResetPalette} disabled={saving || brandingLocked}>
                     Revert to Saved
                   </Btn>
-                  <Btn variant="ghost" size="sm" onClick={handleDefaultPalette} disabled={saving}>
+                  <Btn variant="ghost" size="sm" onClick={handleDefaultPalette} disabled={saving || brandingLocked}>
                     Default Theme
                   </Btn>
-                  <Btn variant="primary" size="sm" onClick={handleSaveSettings} disabled={saving}>
+                  <Btn variant="primary" size="sm" onClick={handleSaveSettings} disabled={saving || brandingLocked}>
                     {saving ? <><Spinner size="sm" /> Saving…</> : 'Save Palette'}
                   </Btn>
                 </div>
@@ -545,17 +558,20 @@ export default function TenantSettings() {
                         <input
                           type="color"
                           value={pickerValue}
+                          disabled={brandingLocked}
                           onChange={e => handleColorChange(c.key, e.target.value.toUpperCase())}
                           style={{
                             width: 40, height: 36,
                             border: '1px solid #D1D5DB', borderRadius: 6,
-                            cursor: 'pointer', padding: 2, background: '#fff',
+                            cursor: brandingLocked ? 'not-allowed' : 'pointer',
+                            padding: 2, background: '#fff',
                           }}
                           title={`Pick ${c.label}`}
                         />
                         <input
                           type="text"
                           value={palette[c.key] ?? ''}
+                          disabled={brandingLocked}
                           onChange={e => handleColorChange(c.key, e.target.value)}
                           onBlur={() => handleColorBlur(c.key)}
                           placeholder={c.default}
@@ -713,7 +729,9 @@ export default function TenantSettings() {
                   </div>
 
                   <p style={{ margin: 0, fontSize: 13, color: palette.text, opacity: 0.85, lineHeight: 1.5 }}>
-                    Adjusting the color pickers or hex codes above immediately updates this preview, the navigation bar above, and the actual live application layout.
+                    {brandingLocked
+                      ? 'This preview is Forma’s navy and cream. Color pickers stay locked on a showcase workspace.'
+                      : 'Adjusting the color pickers or hex codes above immediately updates this preview, the navigation bar above, and the actual live application layout.'}
                   </p>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
@@ -797,7 +815,11 @@ export default function TenantSettings() {
 
                 <div style={{ marginTop: 12, fontSize: 12, color: palette.text, opacity: 0.75, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <Check size={14} aria-hidden style={{ color: palette.icon || DEFAULT_PALETTE.icon }} />
-                  <span>Colors chosen here update the workspace immediately. Click Save Palette to keep them.</span>
+                  <span>
+                    {brandingLocked
+                      ? 'Forma’s colors stay on this workspace. Name and logo can still be updated above.'
+                      : 'Colors chosen here update the workspace immediately. Click Save Palette to keep them.'}
+                  </span>
                 </div>
               </div>
             </Card>

@@ -216,7 +216,14 @@ export default function TenantsListPage() {
     {
       key: "status",
       header: "Status",
-      render: (t) => <StatusPill status={t.status} />,
+      render: (t) => (
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <StatusPill status={t.status} />
+          {t.purpose === "showcase" && (
+            <Badge variant="accent" size="sm">Showcase</Badge>
+          )}
+        </div>
+      ),
     },
     {
       key: "owner",

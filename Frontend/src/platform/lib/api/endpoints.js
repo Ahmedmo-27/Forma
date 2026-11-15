@@ -51,6 +51,9 @@ export const apiUpdateTenantStaffAccess = (id, userId, features, signal) =>
 export const apiOnboardTenant = (data, signal) =>
   platformClient.post("/tenants", data, { signal });
 
+export const apiUpdateTenantPurpose = (id, purpose, signal) =>
+  platformClient.patch(`/tenants/${id}/purpose`, { purpose }, { signal });
+
 export const apiUpdateTenantLifecycle = (id, data, signal) =>
   platformClient.patch(`/tenants/${id}/lifecycle`, data, { signal });
 

@@ -20,6 +20,7 @@ import {
   apiAddTenantNote,
   apiDeleteTenantNote,
   apiUpdateTenantTags,
+  apiUpdateTenantPurpose,
   apiPurgeTenant,
   apiCreateImpersonationSession,
   apiExportTenantData,
@@ -63,9 +64,11 @@ export default function TenantDetailPage() {
   const [purgeModal, setPurgeModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [overridesModalOpen, setOverridesModalOpen] = useState(false);
+  const [purposeModalOpen, setPurposeModalOpen] = useState(false);
 
   // Permissions
   const canLifecycle = usePermission("tenants.lifecycle");
+  const canWrite = usePermission("tenants.write");
   const canPurge = usePermission("tenants.purge");
   const canSupport = usePermission("support.impersonate_read");
   const canNotes = usePermission("tenants.notes");
@@ -166,6 +169,27 @@ export default function TenantDetailPage() {
       refetch();
     } catch (err) {
       platformToast.error(err.message || "Failed to remove tag");
+    }
+  };
+
+  const isShowcase = tenant?.purpose === "showcase";
+
+  const handleConfirmPurpose = async () => {
+    setActionLoading(true);
+    try {
+      const next = isShowcase ? "customer" : "showcase";
+      await apiUpdateTenantPurpose(id, next);
+      platformToast.success(
+        next === "showcase"
+          ? "Showcase theme locked to Forma navy and cream"
+          : "Gym branding unlocked"
+      );
+      setPurposeModalOpen(false);
+      refetch();
+    } catch (err) {
+      platformToast.error(err.message || "Failed to update showcase theme");
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -311,6 +335,9 @@ export default function TenantDetailPage() {
             </h1>
             <CopyChip value={tenant.slug} prefix="/" />
             <StatusPill status={tenant.status} />
+            {tenant.purpose === "showcase" && (
+              <Badge variant="accent" size="sm">Showcase</Badge>
+            )}
             <Badge variant={isLifetime ? "success" : "neutral"} size="sm">
               {durationLabel}
             </Badge>
@@ -319,6 +346,16 @@ export default function TenantDetailPage() {
 
         {/* Header Action Buttons */}
         <div className="flex items-center gap-2 flex-wrap shrink-0">
+          {canWrite && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setPurposeModalOpen(true)}
+            >
+              {isShowcase ? "Unlock gym branding" : "Mark as showcase"}
+            </Button>
+          )}
+
           {canSupport && (
             <Button
               size="sm"
@@ -854,6 +891,27 @@ export default function TenantDetailPage() {
           </div>
         </TabContent>
       </Tabs>
+
+      <ConfirmDialog
+        isOpen={purposeModalOpen}
+        onClose={() => setPurposeModalOpen(false)}
+        onConfirm={handleConfirmPurpose}
+        title={isShowcase ? `Unlock branding for ${tenant.name}` : `Mark ${tenant.name} as a showcase tenant`}
+        description={
+          isShowcase
+            ? "Staff can edit this gym’s colors again. The palette saved before the showcase lock is restored."
+            : "Everyone in this workspace sees Forma’s navy and cream. Color editing stays locked so a prospect cannot replace it."
+        }
+        impactSummary={
+          isShowcase
+            ? "The stored gym palette is written back and branding unlocks."
+            : "The current gym palette is stored, then replaced with Forma’s navy and cream."
+        }
+        confirmLabel={isShowcase ? "Unlock branding" : "Lock showcase theme"}
+        variant="primary"
+        requireReason={false}
+        loading={actionLoading}
+      />
 
       {/* Lifecycle Mutation Dialog */}
       <ConfirmDialog

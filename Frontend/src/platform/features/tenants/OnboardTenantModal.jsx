@@ -4,6 +4,7 @@ import { Dialog } from "../../ui/Dialog";
 import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Input";
 import { Select } from "../../ui/Select";
+import { Checkbox } from "../../ui/Checkbox";
 import { Callout } from "../../ui/Callout";
 import { CopyChip } from "../../ui/CopyChip";
 import { apiOnboardTenant, apiGetPlans } from "../../lib/api/endpoints";
@@ -27,6 +28,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
     trialDays: 14,
     amountPaid: 0,
     currency: "EGP",
+    showcase: false,
   });
 
   useEffect(() => {
@@ -44,6 +46,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
         trialDays: 14,
         amountPaid: 0,
         currency: "EGP",
+        showcase: false,
       });
 
       apiGetPlans()
@@ -122,6 +125,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
         trialDays: trial,
         amountPaid: paid,
         intervalCount,
+        purpose: form.showcase ? "showcase" : "customer",
       });
 
       platformToast.success(`Gym '${res.data.tenant.name}' successfully onboarded!`);
@@ -313,6 +317,13 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
             onChange={(e) => setForm({ ...form, intervalCount: e.target.value })}
           />
         </div>
+
+        <Checkbox
+          label="Showcase / test tenant"
+          description="Locks the workspace to Forma’s navy and cream so a prospect can picture their gym on your brand. They cannot change those colors."
+          checked={form.showcase}
+          onCheckedChange={(checked) => setForm((prev) => ({ ...prev, showcase: checked }))}
+        />
       </form>
     </Dialog>
   );

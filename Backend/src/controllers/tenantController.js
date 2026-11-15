@@ -24,6 +24,7 @@ const { assertAllowedLogo, MIME_TO_EXT } = require("../utils/fileMagic");
 const { BILLING_CURRENCY } = require("../config/currency");
 const { setPackageTransferFee } = require("../utils/packageTransferFee");
 const { countMonthlyWhatsAppMessages } = require("../utils/whatsappTracking");
+const { isShowcaseTenant, publicBranding } = require("../utils/showcasePalette");
 
 function sanitizeTenantResponse(tenant, plan, usage = {}) {
     const effectiveFeatures = getEffectiveFeatures(tenant, plan);
@@ -65,6 +66,8 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
         name: tenant.name,
         slug: tenant.slug,
         status: tenant.status,
+        purpose: tenant.purpose === "showcase" ? "showcase" : "customer",
+        brandingLocked: isShowcaseTenant(tenant),
         trialEndsAt: isLifetime ? null : tenant.trialEndsAt,
         currentPeriodEnd: isLifetime ? null : tenant.currentPeriodEnd,
         billing: {
@@ -90,7 +93,7 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
             whatsappMonthlyMessages: usage.whatsappMonthlyMessages ?? 0,
         },
         settings: {
-            branding: tenant.settings?.branding || {},
+            branding: publicBranding(tenant),
             locale: {
                 timezone: "Africa/Cairo",
                 language: "en",
@@ -232,22 +235,33 @@ const updateMyTenantSettings = async (req, res) => {
         const raw = req.body.settings ? { ...req.body.settings, ...req.body } : req.body;
         const { branding, locale, enabledActivities, whatsapp, featureConfig } = raw;
 
-        if (branding) {
+        let brandingInput = branding;
+        if (isShowcaseTenant(tenant) && brandingInput && typeof brandingInput === "object") {
+            const { palette: _ignoredPalette, ...rest } = brandingInput;
+            brandingInput = rest;
+        }
+
+        if (brandingInput && Object.keys(brandingInput).length > 0) {
             const currentBranding = tenant.settings?.branding?.toObject?.()
                 || tenant.settings?.branding
                 || {};
             const nextBranding = {
                 ...currentBranding,
-                ...branding,
+                ...brandingInput,
             };
-            if (branding.logoKey === undefined) {
+            if (brandingInput.logoKey === undefined) {
                 nextBranding.logoKey = currentBranding.logoKey ?? null;
             }
-            if (branding.palette) {
+            if (brandingInput.palette) {
                 nextBranding.palette = {
                     ...(currentBranding.palette || {}),
-                    ...branding.palette,
+                    ...brandingInput.palette,
                 };
+            } else {
+                nextBranding.palette = currentBranding.palette;
+            }
+            if (currentBranding.savedPalette !== undefined) {
+                nextBranding.savedPalette = currentBranding.savedPalette;
             }
             tenant.settings.branding = nextBranding;
             tenant.markModified("settings.branding");

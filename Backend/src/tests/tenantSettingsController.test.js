@@ -6,6 +6,7 @@ import User from "../models/User";
 import * as tenantContext from "../context/tenantContext";
 import * as audit from "../utils/audit";
 import { updateMyTenantSettings } from "../controllers/tenantController";
+import { applyShowcasePurpose, SHOWCASE_PALETTE } from "../utils/showcasePalette";
 
 describe("updateMyTenantSettings controller", () => {
     let mockTenant;
@@ -83,6 +84,8 @@ describe("updateMyTenantSettings controller", () => {
         expect(mockTenant.settings.branding.displayName).toBe("New Gym Name");
         expect(mockTenant.settings.branding.palette.primary).toBe("#FF0000");
         expect(mockTenant.settings.branding.palette.secondary).toBe("#00FF00");
+        expect(jsonMock.mock.calls[0][0].tenant.settings.branding.palette.primary).toBe("#FF0000");
+        expect(jsonMock.mock.calls[0][0].tenant.brandingLocked).toBe(false);
         expect(mockTenant.markModified).toHaveBeenCalledWith("settings.branding");
         expect(mockTenant.markModified).toHaveBeenCalledWith("settings");
         expect(mockTenant.save).toHaveBeenCalled();
@@ -119,6 +122,66 @@ describe("updateMyTenantSettings controller", () => {
         expect(mockTenant.settings.branding.palette.text).toBe("#999999");
         expect(mockTenant.save).toHaveBeenCalled();
         expect(jsonMock).toHaveBeenCalled();
+    });
+
+    it("ignores a palette update on a showcase tenant and returns Forma's navy", async () => {
+        mockTenant.purpose = "showcase";
+        const req = {
+            user: { tenantId, id: userId, role: "Owner" },
+            body: {
+                branding: {
+                    displayName: "Prospect Gym",
+                    palette: {
+                        primary: "#FF0000",
+                        background: "#FFFFFF",
+                    },
+                },
+            },
+        };
+
+        const jsonMock = vi.fn();
+        const res = {
+            json: jsonMock,
+            status: vi.fn().mockReturnThis(),
+        };
+
+        await updateMyTenantSettings(req, res);
+
+        expect(res.status).not.toHaveBeenCalledWith(500);
+        expect(mockTenant.settings.branding.displayName).toBe("Prospect Gym");
+        expect(mockTenant.settings.branding.palette.primary).toBe("#44298C");
+        const returned = jsonMock.mock.calls[0][0].tenant;
+        expect(returned.brandingLocked).toBe(true);
+        expect(returned.purpose).toBe("showcase");
+        expect(returned.settings.branding.palette.primary).toBe(SHOWCASE_PALETTE.primary);
+        expect(returned.settings.branding.palette.background).toBe("#FCF3E2");
+        expect(returned.settings.branding.savedPalette).toBeUndefined();
+    });
+
+    it("stores the gym palette while a showcase lock is on and restores it when unlocked", () => {
+        const tenant = {
+            purpose: "customer",
+            settings: {
+                branding: {
+                    displayName: "Acme",
+                    palette: { primary: "#FF0000", text: "#111111" },
+                },
+            },
+            markModified: vi.fn(),
+        };
+
+        applyShowcasePurpose(tenant, "showcase");
+        expect(tenant.purpose).toBe("showcase");
+        expect(tenant.settings.branding.palette.primary).toBe("#142843");
+        expect(tenant.settings.branding.palette.background).toBe("#FCF3E2");
+        expect(tenant.settings.branding.savedPalette.primary).toBe("#FF0000");
+        expect(tenant.settings.branding.displayName).toBe("Acme");
+
+        applyShowcasePurpose(tenant, "customer");
+        expect(tenant.purpose).toBe("customer");
+        expect(tenant.settings.branding.palette.primary).toBe("#FF0000");
+        expect(tenant.settings.branding.palette.text).toBe("#111111");
+        expect(tenant.settings.branding.savedPalette).toBeNull();
     });
 
     it("correctly updates locale currency and countryCode", async () => {

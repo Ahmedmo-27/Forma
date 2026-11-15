@@ -13,7 +13,10 @@ const brandingSchema = new mongoose.Schema(
             accent: { type: String, default: "#6D47CC" },
             background: { type: String, default: "#F4F5F7" },
             text: { type: String, default: "#111827" },
+            icon: { type: String, default: "#44298C" },
         },
+        // Gym palette stashed while purpose is "showcase", restored when unlocked.
+        savedPalette: { type: mongoose.Schema.Types.Mixed, default: null },
     },
     { _id: false }
 );
@@ -122,6 +125,13 @@ const tenantSchema = new mongoose.Schema(
             type: String,
             enum: ["trial", "active", "past_due", "suspended", "cancelled"],
             default: "trial",
+            index: true,
+        },
+        // "showcase" locks the workspace to Forma's navy and cream for test accounts.
+        purpose: {
+            type: String,
+            enum: ["customer", "showcase"],
+            default: "customer",
             index: true,
         },
         planId: {

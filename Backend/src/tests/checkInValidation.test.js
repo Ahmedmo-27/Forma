@@ -242,6 +242,7 @@ describe("Check-in validation & package enforcement", () => {
             freezeDaysUsed: 0,
             subscriptions: [{
                 packageSnapshot: { name: "Standard 3M" },
+                startDate: new Date(Date.now() - 86400000 * 10),
                 endDate: futureEnd,
             }],
             userlog: [],

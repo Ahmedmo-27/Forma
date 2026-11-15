@@ -17,6 +17,8 @@ const mailer = require("../services/mailer");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const { BILLING_CURRENCY } = require("../config/currency");
 const { WHATSAPP_AUDIT_ACTIONS, startOfMonth } = require("../utils/whatsappTracking");
+const { SHOWCASE_PALETTE, applyShowcasePurpose } = require("../utils/showcasePalette");
+const { invalidateTenantCache } = require("../utils/cacheInvalidator");
 const logger = require("../utils/logger");
 
 const RESERVED_SLUGS = new Set([
@@ -176,6 +178,7 @@ async function getTenants(req, res) {
                     currentPeriodEnd: t.currentPeriodEnd,
                     mrrContribution,
                     tags: t.tags || [],
+                    purpose: t.purpose === "showcase" ? "showcase" : "customer",
                     lastActivityAt: t.lastActivityAt || t.updatedAt,
                     createdAt: t.createdAt,
                 };
@@ -258,6 +261,7 @@ async function getTenantDetail(req, res) {
                 name: tenant.name,
                 slug: tenant.slug,
                 status: tenant.status,
+                purpose: tenant.purpose === "showcase" ? "showcase" : "customer",
                 plan: tenant.planId,
                 owner: tenant.ownerUserId,
                 billing: tenant.billing,
@@ -317,7 +321,10 @@ async function onboardTenant(req, res) {
             amountPaid = 0,
             tags = [],
             settings = {},
+            purpose,
         } = req.body;
+
+        const isShowcase = purpose === "showcase";
 
         if (!name || !slug || !ownerName || !ownerEmail) {
             return res.status(400).json({ message: "name, slug, ownerName, and ownerEmail are required" });
@@ -385,8 +392,12 @@ async function onboardTenant(req, res) {
             currentPeriodEnd,
             billing,
             tags,
+            purpose: isShowcase ? "showcase" : "customer",
             settings: {
-                branding: settings.branding || {},
+                branding: {
+                    ...(settings.branding || {}),
+                    ...(isShowcase ? { palette: { ...SHOWCASE_PALETTE } } : {}),
+                },
                 locale: {
                     ...(settings.locale || {}),
                     currency: BILLING_CURRENCY,
@@ -490,6 +501,7 @@ async function onboardTenant(req, res) {
                 name: tenant.name,
                 slug: tenant.slug,
                 status: tenant.status,
+                purpose: tenant.purpose === "showcase" ? "showcase" : "customer",
                 planKey: plan.key,
                 cycle: tenant.billing.cycle,
             },
@@ -873,10 +885,72 @@ async function bulkTenantActions(req, res) {
     }
 }
 
+/**
+ * Mark or unmark a tenant as a locked Forma showcase workspace.
+ * PATCH /api/platform/tenants/:id/purpose
+ * Body: { purpose: "showcase" | "customer" }
+ */
+async function updateTenantPurpose(req, res) {
+    try {
+        const purpose = req.body?.purpose;
+        if (purpose !== "showcase" && purpose !== "customer") {
+            return res.status(400).json({ message: "purpose must be showcase or customer" });
+        }
+
+        const tenant = await Tenant.findById(req.params.id);
+        if (!tenant || tenant.isSoftDeleted) {
+            return res.status(404).json({ message: "Tenant not found" });
+        }
+
+        const previous = tenant.purpose === "showcase" ? "showcase" : "customer";
+        applyShowcasePurpose(tenant, purpose);
+        await tenant.save();
+        invalidateTenantCache(tenant._id, "tenant");
+
+        try {
+            await AuditLog.create({
+                tenantId: tenant._id,
+                action: "tenant_status_updated",
+                actor: req.platformUser.id,
+                actorRole: "PlatformUser",
+                targetType: "tenant",
+                targetId: tenant._id.toString(),
+                meta: {
+                    action: "tenant_purpose_updated",
+                    from: previous,
+                    to: tenant.purpose,
+                    tenantName: tenant.name,
+                    updatedBy: req.platformUser.email,
+                },
+            });
+        } catch (auditErr) {
+            logger.error("platform", "updateTenantPurpose audit failed", {
+                tenantId: String(tenant._id),
+                error: auditErr.message,
+            });
+        }
+
+        res.json({
+            message: tenant.purpose === "showcase"
+                ? "Showcase theme locked to Forma navy and cream"
+                : "Gym branding unlocked",
+            tenant: {
+                id: tenant._id,
+                purpose: tenant.purpose,
+                brandingLocked: tenant.purpose === "showcase",
+            },
+        });
+    } catch (err) {
+        logger.error("platform", "updateTenantPurpose error", { error: err.message });
+        res.status(500).json({ message: "Server error", error: err.message });
+    }
+}
+
 module.exports = {
     getTenants,
     getTenantDetail,
     onboardTenant,
+    updateTenantPurpose,
     updateTenantLifecycle,
     addTenantNote,
     deleteTenantNote,
