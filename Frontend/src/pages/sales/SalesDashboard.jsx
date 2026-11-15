@@ -63,6 +63,16 @@ function buildRepStatsFromMembers(members, repId) {
   return stats;
 }
 
+function contractRefundAmount(sub) {
+  return Math.max(0, Number(sub?.refundAmount) || 0);
+}
+
+/** Net collected on this contract: price paid minus the refund stored on the subscription. */
+function contractNetRevenue(sub) {
+  const paid = Number(sub?.pricePaid) || 0;
+  return Math.max(0, paid - contractRefundAmount(sub));
+}
+
 function normalizeRepStats(apiStats = {}) {
   return {
     total: Number(apiStats.total ?? 0) || 0,
@@ -182,7 +192,7 @@ export default function SalesDashboard() {
       }
     });
   });
-  const todayRevenue = todaySubscriptions.reduce((sum, e) => sum + (e.subscription.pricePaid || 0), 0);
+  const todayRevenue = todaySubscriptions.reduce((sum, e) => sum + contractNetRevenue(e.subscription), 0);
 
   // Filter check-ins: Sales sees only their own, Manager sees all
   const myCheckIns = isManager
@@ -732,7 +742,11 @@ export default function SalesDashboard() {
                   <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t2)' }}>Total Revenue</span>
                   <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--green)' }}>{fmt(todayRevenue)} EGP</span>
                 </div>
-                {todaySubscriptions.map((entry, i) => (
+                {todaySubscriptions.map((entry, i) => {
+                  const paid = Number(entry.subscription.pricePaid) || 0;
+                  const refunded = contractRefundAmount(entry.subscription);
+                  const net = contractNetRevenue(entry.subscription);
+                  return (
                   <div key={i}
                     onClick={() => { setShowTodaySubs(false); navigate(`/members/${entry.member.systemId}`); }}
                     style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 18px', borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
@@ -751,14 +765,31 @@ export default function SalesDashboard() {
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>
-                        {fmt(entry.subscription.pricePaid)} EGP
+                        {fmt(net)} EGP
                       </div>
-                      <div style={{ fontSize: 10, color: 'var(--t4)' }}>
+                      {refunded > 0 && (
+                        <div style={{ marginTop: 3, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+                          <span style={{ fontSize: 10, color: 'var(--t4)', textDecoration: 'line-through' }}>
+                            {fmt(paid)} EGP
+                          </span>
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center',
+                            fontSize: 10, fontWeight: 700, lineHeight: 1.3,
+                            background: 'var(--red-bg)', color: 'var(--red)',
+                            border: '1px solid var(--red-bd)',
+                            padding: '2px 6px', borderRadius: 4,
+                          }}>
+                            Refunded {fmt(refunded)} EGP
+                          </span>
+                        </div>
+                      )}
+                      <div style={{ fontSize: 10, color: 'var(--t4)', marginTop: refunded > 0 ? 3 : 0 }}>
                         {entry.subscription.isRenewal ? 'Renewal' : 'New'}
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
