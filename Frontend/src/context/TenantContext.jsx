@@ -6,6 +6,26 @@ import {  normalizeHexColor } from '../lib/validation';
 const TenantContext = createContext(null);
 
 const DEFAULT_ACTIVITIES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
+const FORMA_PALETTE = {
+  navbar: '#142843',
+  primary: '#142843',
+  secondary: '#1E3A5F',
+  accent: '#1E3A5F',
+  background: '#FCF3E2',
+  text: '#142843',
+  icon: '#142843',
+};
+const LEAP_STARTER = new Set(['#44298c', '#1e1535', '#5b38ba', '#6d47cc', '#160f2a', '#f4f5f7']);
+
+function workspacePalette(palette) {
+  if (!palette) return FORMA_PALETTE;
+  const primary = String(palette.primary || '').trim().toLowerCase();
+  const navbar = String(palette.navbar || '').trim().toLowerCase();
+  if ((!primary && !navbar) || LEAP_STARTER.has(primary) || LEAP_STARTER.has(navbar)) {
+    return FORMA_PALETTE;
+  }
+  return palette;
+}
 const EMPTY_OBJECT = {};
 const EMPTY_LIST = [];
 
@@ -27,7 +47,7 @@ export function TenantProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   const applyBranding = useCallback((branding) => {
-    const palette = branding?.palette;
+    const palette = workspacePalette(branding?.palette);
     if (!palette) {
       clearBrandingOverrides();
       return;
@@ -86,6 +106,9 @@ export function TenantProvider({ children }) {
           branding: {
             ...(prev?.settings?.branding || {}),
             ...(tenantData.settings?.branding || {}),
+            palette: workspacePalette(
+              tenantData.settings?.branding?.palette || prev?.settings?.branding?.palette
+            ),
           },
         };
       }

@@ -72,11 +72,13 @@ async function migrateToMultitenant(options = {}) {
                         branding: {
                             displayName: "Leap Gym",
                             palette: {
-                                primary: "#44298C",
-                                secondary: "#5B38BA",
-                                accent: "#6D47CC",
-                                background: "#F4F5F7",
-                                text: "#111827",
+                                navbar: "#142843",
+                                primary: "#142843",
+                                secondary: "#1E3A5F",
+                                accent: "#1E3A5F",
+                                background: "#FCF3E2",
+                                text: "#142843",
+                                icon: "#142843",
                             },
                         },
                         locale: {

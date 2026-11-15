@@ -44,7 +44,8 @@ function isSrvLookupError(err) {
     err.code === "ECONNREFUSED" ||
     err.code === "ENOTFOUND" ||
     err.code === "ESERVFAIL" ||
-    err.message?.includes("querySrv")
+    err.message?.includes("querySrv") ||
+    err.message?.includes("queryTxt")
   );
 }
 

@@ -15,6 +15,24 @@ const SHOWCASE_PALETTE = Object.freeze({
 
 const PALETTE_KEYS = Object.keys(SHOWCASE_PALETTE);
 
+const LEAP_STARTER = new Set([
+    "#44298c",
+    "#1e1535",
+    "#5b38ba",
+    "#6d47cc",
+    "#160f2a",
+    "#f4f5f7",
+]);
+
+function isLeapStarterPalette(palette) {
+    if (!palette || typeof palette !== "object") return true;
+    const src = palette.toObject?.() || palette;
+    const primary = String(src.primary || "").trim().toLowerCase();
+    const navbar = String(src.navbar || "").trim().toLowerCase();
+    if (!primary && !navbar) return true;
+    return LEAP_STARTER.has(primary) || LEAP_STARTER.has(navbar);
+}
+
 function isShowcaseTenant(tenant) {
     return tenant?.purpose === "showcase";
 }
@@ -43,11 +61,13 @@ function plainBranding(branding) {
  */
 function publicBranding(tenant) {
     const branding = plainBranding(tenant?.settings?.branding);
-    if (!isShowcaseTenant(tenant)) return branding;
-    return {
-        ...branding,
-        palette: { ...SHOWCASE_PALETTE },
-    };
+    if (isShowcaseTenant(tenant) || isLeapStarterPalette(branding.palette)) {
+        return {
+            ...branding,
+            palette: { ...SHOWCASE_PALETTE },
+        };
+    }
+    return branding;
 }
 
 /**
@@ -84,6 +104,7 @@ function applyShowcasePurpose(tenant, purpose) {
 module.exports = {
     SHOWCASE_PALETTE,
     isShowcaseTenant,
+    isLeapStarterPalette,
     paletteSnapshot,
     publicBranding,
     applyShowcasePurpose,

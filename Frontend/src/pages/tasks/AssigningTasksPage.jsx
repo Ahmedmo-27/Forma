@@ -1042,7 +1042,7 @@ export default function AssigningTasksPage() {
                       marginTop: 4,
                       padding: '16px 18px',
                       borderRadius: 10,
-                      background: 'var(--bg, #F4F5F7)',
+                      background: 'var(--bg, #FCF3E2)',
                       border: '1px solid var(--border)',
                       display: 'flex',
                       flexDirection: 'column',

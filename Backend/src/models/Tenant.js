@@ -7,13 +7,13 @@ const brandingSchema = new mongoose.Schema(
         logoKey: { type: String, default: null }, // Storage key, e.g. "tenant-123/branding/logo.png"
         displayName: { type: String, default: null },
         palette: {
-            navbar: { type: String, default: "#1E1535" },
-            primary: { type: String, default: "#44298C" },
-            secondary: { type: String, default: "#5B38BA" },
-            accent: { type: String, default: "#6D47CC" },
-            background: { type: String, default: "#F4F5F7" },
-            text: { type: String, default: "#111827" },
-            icon: { type: String, default: "#44298C" },
+            navbar: { type: String, default: "#142843" },
+            primary: { type: String, default: "#142843" },
+            secondary: { type: String, default: "#1E3A5F" },
+            accent: { type: String, default: "#1E3A5F" },
+            background: { type: String, default: "#FCF3E2" },
+            text: { type: String, default: "#142843" },
+            icon: { type: String, default: "#142843" },
         },
         // Gym palette stashed while purpose is "showcase", restored when unlocked.
         savedPalette: { type: mongoose.Schema.Types.Mixed, default: null },

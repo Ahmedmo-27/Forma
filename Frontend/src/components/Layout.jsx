@@ -60,7 +60,7 @@ function LocationSwitcher({ compact = false }) {
 }
 
 const NAVBAR_BG = 'var(--nav-bg, var(--navy))';   /* complements the logo */
-const TAB_BG    = 'var(--nav-tab-bg, #160F2A)';   /* slightly darker/cooler for the tab row */
+const TAB_BG    = 'var(--nav-tab-bg, var(--nav-bg))';
 
 function ini(name = '') {
   return name.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
@@ -534,7 +534,7 @@ export default function Layout({ children }) {
         {showMobileSearch && (
           <div className="fade-up" style={{
             padding: '10px 16px 14px',
-            background: '#160F2A',
+            background: 'var(--nav-tab-bg, var(--nav-bg))',
             borderTop: '1px solid rgba(255,255,255,0.08)',
           }}>
             <GlobalSearch />
@@ -627,7 +627,7 @@ export default function Layout({ children }) {
         position: 'fixed', bottom: 0, left: 0, right: 0,
         height: 'calc(60px + env(safe-area-inset-bottom, 0px))',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-        background: 'color-mix(in srgb, var(--nav-bg, #1a1230) 96%, transparent)',
+        background: 'color-mix(in srgb, var(--nav-bg) 96%, transparent)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         borderTop: '1px solid rgba(255,255,255,0.10)',

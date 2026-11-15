@@ -48,8 +48,8 @@ async function buildCheckInCard(member, code, gymName) {
   ctx.fillRect(0, 0, cardCanvas.width, cardCanvas.height);
 
   const brand = getComputedStyle(document.documentElement);
-  const navy = brand.getPropertyValue('--navy').trim() || '#44298C';
-  const nav = brand.getPropertyValue('--nav-bg').trim() || '#1E1535';
+  const navy = brand.getPropertyValue('--navy').trim() || '#142843';
+  const nav = brand.getPropertyValue('--nav-bg').trim() || '#142843';
   const headerLabel = `${gymName || "Check-In"}`.slice(0, 28);
 
   // Header Banner

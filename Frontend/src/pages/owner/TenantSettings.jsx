@@ -29,23 +29,23 @@ import { Check, LayoutDashboard, Package, Plus, RefreshCw, Users } from 'lucide-
 const KNOWN_ACTIVITIES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 
 const DEFAULT_PALETTE = {
-  navbar: '#1E1535',
-  primary: '#44298C',
-  secondary: '#5B38BA',
-  accent: '#6D47CC',
-  background: '#F4F5F7',
-  text: '#111827',
-  icon: '#44298C',
+  navbar: '#142843',
+  primary: '#142843',
+  secondary: '#1E3A5F',
+  accent: '#1E3A5F',
+  background: '#FCF3E2',
+  text: '#142843',
+  icon: '#142843',
 };
 
 const PALETTE_FIELDS = [
-  { key: 'navbar', label: 'Nav Bar / Header', default: '#1E1535', hint: 'Top navigation bar, mobile drawer, and bottom nav' },
-  { key: 'primary', label: 'Primary Brand', default: '#44298C', hint: 'Main buttons, active focus rings, and primary highlights' },
-  { key: 'secondary', label: 'Secondary / Sub-nav', default: '#5B38BA', hint: 'Sub-nav active pills and secondary action buttons' },
-  { key: 'accent', label: 'Accent Highlight', default: '#6D47CC', hint: 'Special badges, active tags, and accent chips' },
-  { key: 'background', label: 'Page Background', default: '#F4F5F7', hint: 'Workspace surface and canvas background' },
-  { key: 'text', label: 'Primary Text', default: '#111827', hint: 'Headings, labels, and readable body text' },
-  { key: 'icon', label: 'Icon Color', default: '#44298C', hint: 'Lucide SVG icons on cards, empty states, and feature lists' },
+  { key: 'navbar', label: 'Nav Bar / Header', default: '#142843', hint: 'Top navigation bar, mobile drawer, and bottom nav' },
+  { key: 'primary', label: 'Primary Brand', default: '#142843', hint: 'Main buttons, active focus rings, and primary highlights' },
+  { key: 'secondary', label: 'Secondary / Sub-nav', default: '#1E3A5F', hint: 'Sub-nav active pills and secondary action buttons' },
+  { key: 'accent', label: 'Accent Highlight', default: '#1E3A5F', hint: 'Special badges, active tags, and accent chips' },
+  { key: 'background', label: 'Page Background', default: '#FCF3E2', hint: 'Workspace surface and canvas background' },
+  { key: 'text', label: 'Primary Text', default: '#142843', hint: 'Headings, labels, and readable body text' },
+  { key: 'icon', label: 'Icon Color', default: '#142843', hint: 'Lucide SVG icons on cards, empty states, and feature lists' },
 ];
 
 import LocationsSettingsPanel from './LocationsSettingsPanel';
@@ -250,7 +250,7 @@ export default function TenantSettings() {
     if (brandingLocked) return;
     setPalette(DEFAULT_PALETTE);
     if (applyBranding) applyBranding({ palette: DEFAULT_PALETTE });
-    toast.success('Starter gym palette restored. Save settings to keep it.');
+    toast.success('Forma palette restored. Save settings to keep it.');
   };
 
   const handleSaveSettings = async (e) => {
@@ -267,7 +267,7 @@ export default function TenantSettings() {
         if (color) {
           const norm = normalizeHexColor(color);
           if (!norm) {
-            toast.error(`Invalid hex color format for ${key}: "${color}". Example: #44298C`);
+            toast.error(`Invalid hex color format for ${key}: "${color}". Example: #142843`);
             return;
           }
           normalizedPalette[key] = norm;
@@ -485,7 +485,7 @@ export default function TenantSettings() {
                   width: 90, height: 90, borderRadius: 16,
                   border: '1px solid #E5E7EB',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: palette.background || '#F4F5F7',
+                  background: palette.background || '#FCF3E2',
                   overflow: 'hidden', flexShrink: 0,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                 }}>

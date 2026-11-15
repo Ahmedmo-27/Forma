@@ -5,23 +5,22 @@
 @import "./platform/styles/platform-tokens.css";
 
 /* ═══════════════════════════════════════════════════════════════
-   Tenant workspace defaults
-   Gyms replace these from Settings. Forma’s navy and cream live
-   on the sign-in screens and in the platform console tokens.
+   Workspace defaults — Forma navy and cream.
+   A gym can replace these from Settings.
 ═══════════════════════════════════════════════════════════════ */
 :root {
   /* Navigation Bar */
-  --nav-bg:     #1E1535;
-  --nav-tab-bg: #160F2A;
+  --nav-bg:     #142843;
+  --nav-tab-bg: #102037;
 
-  /* Brand — starter gym palette, not Forma */
-  --navy:       #44298C;
-  --navy-2:     #5B38BA;
-  --navy-3:     #6D47CC;
-  --accent:     #6D47CC;
+  /* Brand */
+  --navy:       #142843;
+  --navy-2:     #1E3A5F;
+  --navy-3:     #1E3A5F;
+  --accent:     #1E3A5F;
 
   /* Page surfaces */
-  --bg:         #F4F5F7;
+  --bg:         #FCF3E2;
   --card:       #FFFFFF;
   --card-hover: #F9FAFB;
 
@@ -30,13 +29,13 @@
   --border-md:  #D1D5DB;
 
   /* Text */
-  --t1: #111827;
+  --t1: #142843;
   --t2: #374151;
   --t3: #6B7280;
   --t4: #9CA3AF;
 
   /* Decorative Lucide / UI icons (Settings → Icon Color) */
-  --icon: #44298C;
+  --icon: #142843;
 
   /* Semantic */
   --green:      #16a34a;
@@ -56,8 +55,8 @@
   --slate-bd:   #e2e8f0;
 
   /* keep --blue mapped so old refs don't break */
-  --blue:       #44298C;
-  --blue-dark:  #5B38BA;
+  --blue:       #142843;
+  --blue-dark:  #1E3A5F;
 }
 
 /* Brand-toned Lucide icons (use className="brand-icon" or inherit from parent color: var(--icon)) */
