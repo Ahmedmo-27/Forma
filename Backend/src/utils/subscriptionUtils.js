@@ -37,8 +37,62 @@ function validateNoOverlappingSubscription(subscriptions, proposedStart, now = n
     return null;
 }
 
+function isClosedSubscription(sub) {
+    if (!sub) return true;
+    return Boolean(sub.refunded || sub.cancelled || sub.subscriptionStatus === "cancelled");
+}
+
+/**
+ * Choose the start of the next package.
+ * A refunded or cancelled subscription does not hold the calendar.
+ * An upgrade starts now and leaves the previous row untouched.
+ */
+function resolveNextPackageStart({ subscriptions, startDate, upgrade = false, now = new Date() } = {}) {
+    if (upgrade) {
+        return { start: new Date(now), error: null };
+    }
+
+    const list = subscriptions || [];
+    const currentSub = list.length ? list[list.length - 1] : null;
+    const currentEndDate = !isClosedSubscription(currentSub) && currentSub?.endDate
+        ? new Date(currentSub.endDate)
+        : null;
+
+    if (startDate) {
+        const start = new Date(startDate);
+        if (currentEndDate && currentEndDate > now) {
+            const startDay = new Date(start);
+            startDay.setHours(0, 0, 0, 0);
+            const endDay = new Date(currentEndDate);
+            endDay.setHours(0, 0, 0, 0);
+            if (startDay < endDay) {
+                return {
+                    start: null,
+                    error: `Start date must be on or after the current package end date (${currentEndDate.toISOString().slice(0, 10)})`,
+                };
+            }
+        }
+        return { start, error: null };
+    }
+
+    const start = (currentEndDate && currentEndDate > now) ? new Date(currentEndDate) : new Date(now);
+    return { start, error: null };
+}
+
+/** A refund closes a still-open term at the refund time. Price fields stay as they are. */
+function closeRefundedSubscription(subscription, refundedAt = new Date()) {
+    if (!subscription?.endDate) return subscription;
+    if (new Date(subscription.endDate) > refundedAt) {
+        subscription.endDate = refundedAt;
+    }
+    return subscription;
+}
+
 module.exports = {
     findActiveSubscription,
     onOrAfterCalendarDay,
     validateNoOverlappingSubscription,
+    isClosedSubscription,
+    resolveNextPackageStart,
+    closeRefundedSubscription,
 };

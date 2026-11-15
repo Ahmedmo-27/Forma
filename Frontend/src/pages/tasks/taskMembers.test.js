@@ -84,9 +84,9 @@ describe("tasks member groups", () => {
     expect(filterMembers(rows, "coach hana").map((row) => row._id)).toEqual(["a", "b", "c"]);
   });
 
-  it("keeps a sales manager out of the salesman column", () => {
+  it("shows a sales manager in the salesman column", () => {
     const managed = rows[1];
-    expect(salesmanName(managed)).toBe("");
+    expect(salesmanName(managed)).toBe("Manager Sara");
     expect(salesName(managed)).toBe("Manager Sara");
     expect(memberPhone(managed)).toBe("");
     expect(salesName(rows[0])).toBe("Manager Sara");

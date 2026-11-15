@@ -18,6 +18,22 @@ const EMPTY_FORM = {
   description: '', pricePaid: '', discountPercent: '0', startDate: '', reason: '',
 };
 
+function isClosedSubscription(sub) {
+  return !sub || sub.refunded || sub.cancelled || sub.subscriptionStatus === 'cancelled';
+}
+
+function latestStartedSubscription(subs, now) {
+  const started = (subs || []).filter((sub) => !isClosedSubscription(sub) && sub.startDate && new Date(sub.startDate) <= now);
+  return started.length ? started[started.length - 1] : null;
+}
+
+function defaultPackageStart(member) {
+  const currentSub = member.subscriptions?.at(-1);
+  if (isClosedSubscription(currentSub)) return '';
+  const currentEnd = currentSub?.endDate ? new Date(currentSub.endDate) : null;
+  return (currentEnd && currentEnd > new Date()) ? toLocalDateString(currentEnd) : '';
+}
+
 export default function PackagesTab({ member, user, onRefresh }) {
   const [tab, setTab] = useState('packages'); // 'packages' | 'pt-sessions'
 
@@ -332,6 +348,7 @@ function PackagesContent({ member, user, onRefresh }) {
   const [pending, setPending] = useState(null);
   const [loadingPending, setLoadingPending] = useState(true);
   const [showAddPackage, setShowAddPackage] = useState(false);
+  const [packageMode, setPackageMode] = useState('add');
   useTourReveal('add-package', () => setShowAddPackage(true), () => setShowAddPackage(false));
   const [showAcceptModal, setShowAcceptModal] = useState(false);
   const [confirm, setConfirm] = useState(null);
@@ -422,15 +439,11 @@ function PackagesContent({ member, user, onRefresh }) {
   const purchasedPkg = (sub) => sub?.packageSnapshot ?? sub?.package;
 
   const subs    = member.subscriptions ?? [];
-  // Show the currently active subscription (startDate <= now <= endDate), fallback to last one
   const now = new Date();
-  const activeSub = subs.find(s => 
-    new Date(s.startDate) <= now && 
-    new Date(s.endDate) >= now && 
-    !s.refunded && 
-    !s.cancelled && 
-    s.subscriptionStatus !== 'cancelled'
-  ) || subs.at(-1);
+  const activeSub = latestStartedSubscription(subs, now) || subs.at(-1);
+  const latestOpen = [...subs].reverse().find((sub) => !isClosedSubscription(sub));
+  const canUpgrade = canAddPackage && !loadingPending && !member.isBlocked
+    && latestOpen?.endDate && new Date(latestOpen.endDate) > now;
   const lastSub = activeSub;
   const pkg     = purchasedPkg(lastSub);
 
@@ -451,7 +464,7 @@ function PackagesContent({ member, user, onRefresh }) {
     { label: 'Invitation Slots', value: `${pkg.invitationLimit ?? 0}` },
     { label: 'Renewal Discount', value: pkg.renewalDiscountPercent ? `${pkg.renewalDiscountPercent}%` : 'None' },
     { label: 'Exception',        value: pkg.hasException ? 'Yes' : 'No' },
-    { label: 'Type',             value: lastSub.isRenewal ? 'Renewal' : 'New subscription' },
+    { label: 'Type',             value: lastSub.isUpgrade ? 'Upgrade' : lastSub.isRenewal ? 'Renewal' : 'New subscription' },
     { label: 'Sold By',          value: lastSub.createdBy?.name },
     { label: 'Status',           value: <Badge status={member.status} /> },
   ] : [];
@@ -496,9 +509,12 @@ function PackagesContent({ member, user, onRefresh }) {
             {canRefund && (member.subscriptions?.length ?? 0) > 0 && (
               <Btn variant="outline" size="xs" onClick={() => setShowRefundModal(true)}><Banknote size={14} aria-hidden /> Refund</Btn>
             )}
+            {canUpgrade && (
+              <Btn variant="outline" size="xs" onClick={() => { setPackageMode('upgrade'); setShowAddPackage(true); }}>Upgrade</Btn>
+            )}
             {canAddPackage && !loadingPending && !member.isBlocked && (
               <span data-walkthrough="add-package-btn">
-                <Btn size="xs" onClick={() => setShowAddPackage(true)}>{isSalesManager ? '+ Request Package' : '+ Add Package'}</Btn>
+                <Btn size="xs" onClick={() => { setPackageMode('add'); setShowAddPackage(true); }}>{isSalesManager ? '+ Request Package' : '+ Add Package'}</Btn>
               </span>
             )}
           </div>
@@ -597,7 +613,7 @@ function PackagesContent({ member, user, onRefresh }) {
                 </td>
                 <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}>{s.discountPercent ? `${s.discountPercent}%` : '—'}</td>
                 <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}>{purchasedPkg(s)?.hasException ? 'Yes' : '—'}</td>
-                <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}>{s.isRenewal ? 'Yes' : '—'}</td>
+                <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}>{s.isUpgrade ? 'Upgrade' : s.isRenewal ? 'Yes' : '—'}</td>
                 <td style={{ padding: '10px 14px' }}>
                   {isRefunded ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -676,6 +692,7 @@ function PackagesContent({ member, user, onRefresh }) {
           isSalesManager={isSalesManager}
           isAccountant={isAccountant}
           isOwner={isOwner}
+          upgrade={packageMode === 'upgrade'}
           onSuccess={() => { setShowAddPackage(false); fetchPending(); onRefresh?.(); }}
           onReview={(id, status) => setConfirm({ id, status: status === 'declined' ? 'rejected' : status })}
         />
@@ -721,7 +738,7 @@ const PACKAGE_TERM_KEYS = new Set([
   'freezeLimitDays', 'invitationLimit', 'renewalDiscountPercent',
 ]);
 
-function PackageFormFields({ form, set, readOnly, makeException, allEditable }) {
+function PackageFormFields({ form, set, readOnly, makeException, allEditable, lockStartDate }) {
   const { currency = 'EGP' } = useTenant() || {};
   const fieldDisabled = (key) => {
     if (readOnly) return true;
@@ -745,7 +762,7 @@ function PackageFormFields({ form, set, readOnly, makeException, allEditable }) 
       <Input label="Freeze Limit (days)" type="number" value={form.freezeLimitDays} onChange={e => set?.('freezeLimitDays', e.target.value)} disabled={fieldDisabled('freezeLimitDays')} readOnly={readOnly} />
       <Input label="Invitation Slots" type="number" value={form.invitationLimit} onChange={e => set?.('invitationLimit', e.target.value)} disabled={fieldDisabled('invitationLimit')} readOnly={readOnly} />
       <Input label="Renewal Discount %" type="number" min="0" max="100" value={form.renewalDiscountPercent} onChange={e => set?.('renewalDiscountPercent', e.target.value)} disabled={fieldDisabled('renewalDiscountPercent')} readOnly={readOnly} />
-      <Input label="Start Date" type="date" value={form.startDate} onChange={e => set?.('startDate', e.target.value)} hint={allEditable ? 'Defaults to current package end date if active, otherwise today' : undefined} disabled={fieldDisabled('startDate')} readOnly={readOnly} />
+      <Input label="Start Date" type="date" value={form.startDate} onChange={e => set?.('startDate', e.target.value)} hint={lockStartDate ? 'Upgrade starts today. The current package keeps its end date and price.' : allEditable ? 'Defaults to current package end date if active, otherwise today' : undefined} disabled={lockStartDate || fieldDisabled('startDate')} readOnly={readOnly || lockStartDate} />
       {!readOnly && !allEditable && (
         <div style={{ gridColumn: '1 / -1' }}>
           <Input label="Reason" value={form.reason} onChange={e => set?.('reason', e.target.value)} placeholder="Why is this exception needed?" disabled={fieldDisabled('reason')} />
@@ -755,7 +772,7 @@ function PackageFormFields({ form, set, readOnly, makeException, allEditable }) 
   );
 }
 
-function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSalesManager, isAccountant, isOwner, onSuccess, onReview }) {
+function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSalesManager, isAccountant, isOwner, onSuccess, onReview, upgrade = false }) {
   const { currency = 'EGP' } = useTenant() || {};
   const [packages, setPackages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -775,16 +792,13 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
   useLocationEffect(() => {
     if (!open) return;
     setMakeException(false);
-    // Pre-fill start date with current package end date if active
-    const currentSub = member.subscriptions?.at(-1);
-    const currentEnd = currentSub?.endDate ? new Date(currentSub.endDate) : null;
-    const defaultStart = (currentEnd && currentEnd > new Date()) ? toLocalDateString(currentEnd) : '';
+    const defaultStart = upgrade ? toLocalDateString(new Date()) : defaultPackageStart(member);
     setForm({ ...EMPTY_FORM, startDate: defaultStart });
     setShowCreatePackage(false);
     setCreateForm(EMPTY_PACKAGE_FORM);
     setCreateErrors({});
     loadPackages();
-  }, [open, loadPackages, member]);
+  }, [open, loadPackages, member, upgrade]);
 
   const set = (k, v) => setForm(f => {
     const updated = { ...f, [k]: v };
@@ -888,10 +902,11 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
         description: form.description || null,
         pricePaid: Number(form.pricePaid),
         discountPercent: Number(form.discountPercent) || 0,
-        startDate: form.startDate || undefined,
+        startDate: upgrade ? toLocalDateString(new Date()) : (form.startDate || undefined),
         reason: form.reason?.trim() || null,
+        upgrade,
       });
-      toast.success('Package request sent to accountant for approval.');
+      toast.success(upgrade ? 'Upgrade request sent to accountant for approval.' : 'Package request sent to accountant for approval.');
       onSuccess();
     } catch (e) {
       toast.error(e.response?.data?.message ?? 'Failed.');
@@ -930,9 +945,10 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
         renewalDiscountPercent: Number(form.renewalDiscountPercent) || 0,
         pricePaid: Number(form.pricePaid),
         discountPercent: Number(form.discountPercent) || 0,
-        startDate: form.startDate || undefined,
+        startDate: upgrade ? toLocalDateString(new Date()) : (form.startDate || undefined),
+        upgrade,
       });
-      toast.success('Package assigned.');
+      toast.success(upgrade ? 'Package upgraded.' : 'Package assigned.');
       onSuccess();
     } catch (e) {
       toast.error(e.response?.data?.message ?? 'Failed.');
@@ -972,18 +988,20 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
     }
 
     return (
-      <Modal open={open} onClose={onClose} title="Add Package" size="lg"
+      <Modal open={open} onClose={onClose} title={upgrade ? "Upgrade Package" : "Add Package"} size="lg"
         footer={
           <>
             <Btn variant="ghost" size="sm" onClick={onClose}>Cancel</Btn>
             <Btn size="sm" onClick={handleAccountantSubmit} disabled={loading || !form.basePackageId || !form.name?.trim() || !form.duration || form.pricePaid === ''}>
-              {loading ? <Spinner size="sm" /> : 'Assign Package'}
+              {loading ? <Spinner size="sm" /> : upgrade ? 'Upgrade Package' : 'Assign Package'}
             </Btn>
           </>
         }>
         <div data-walkthrough="add-package-form">
         <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16, lineHeight: 1.6 }}>
-          Assign a package to <strong>{member.name}</strong>. Select a base package to pre-fill, then enter or adjust all terms before assigning.
+          {upgrade
+            ? <>Upgrade <strong>{member.name}</strong> to a new package starting today. The current package keeps its end date and price.</>
+            : <>Assign a package to <strong>{member.name}</strong>. Select a base package to pre-fill, then enter or adjust all terms before assigning.</>}
         </p>
         <Select
           label="Base Package *"
@@ -996,7 +1014,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
         </Select>
         {form.basePackageId && (
           <div style={{ marginTop: 16 }}>
-            <PackageFormFields form={form} set={set} allEditable />
+            <PackageFormFields form={form} set={set} allEditable lockStartDate={upgrade} />
           </div>
         )}
         </div>
@@ -1007,12 +1025,12 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
   // Sales Manager: request only — never assigns directly
   return (
     <>
-    <Modal open={open} onClose={onClose} title="Request Package" size="lg"
+    <Modal open={open} onClose={onClose} title={upgrade ? 'Request Upgrade' : 'Request Package'} size="lg"
       footer={
         <>
           <Btn variant="ghost" size="sm" onClick={onClose}>Cancel</Btn>
           <Btn size="sm" onClick={handleSalesManagerSubmit} disabled={loading || !form.basePackageId || pending}>
-            {loading ? <Spinner size="sm" /> : 'Submit for Approval'}
+            {loading ? <Spinner size="sm" /> : upgrade ? 'Submit Upgrade' : 'Submit for Approval'}
           </Btn>
         </>
       }>
@@ -1021,7 +1039,9 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
         <Alert type="warning">This member already has a pending package request awaiting accountant approval.</Alert>
       )}
       <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16, lineHeight: 1.6 }}>
-        Request a package for <strong>{member.name}</strong>. The accountant must approve before it is assigned. Turn on <strong>Make Exception</strong> to customize terms.
+        {upgrade
+          ? <>Request an upgrade for <strong>{member.name}</strong> starting today. The accountant must approve it. The current package keeps its end date and price.</>
+          : <>Request a package for <strong>{member.name}</strong>. The accountant must approve before it is assigned. Turn on <strong>Make Exception</strong> to customize terms.</>}
       </p>
 
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginBottom: form.basePackageId ? 0 : 16 }}>
@@ -1055,7 +1075,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
               disabled={!!pending}
             />
           </div>
-          <PackageFormFields form={form} set={set} readOnly={false} makeException={makeException} />
+          <PackageFormFields form={form} set={set} readOnly={false} makeException={makeException} lockStartDate={upgrade} />
         </div>
       )}
       </div>

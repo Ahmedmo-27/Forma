@@ -48,6 +48,7 @@ const packageExceptionRequestSchema = new mongoose.Schema({
     pricePaid: { type: Number, required: true },
     discountPercent: { type: Number, default: 0, min: 0, max: 100 },
     startDate: { type: Date, default: () => new Date() },
+    isUpgrade: { type: Boolean, default: false },
 
     reason: { type: String, default: null },
 

@@ -103,6 +103,10 @@ const assignPackageSchema = z.object({
     pricePaid: z.coerce.number().positive("Price paid must be greater than zero"),
     discountPercent: z.coerce.number().min(0).max(100).optional(),
     startDate: z.string().max(40).nullable().optional(),
+    upgrade: z.preprocess(
+        (v) => v === true || v === "true" || v === 1 || v === "1",
+        z.boolean()
+    ).optional(),
 });
 
 const createExceptionSchema = z.object({
@@ -124,6 +128,10 @@ const createExceptionSchema = z.object({
     discountPercent: z.coerce.number().min(0).max(100).optional(),
     startDate: z.string().max(40).nullable().optional(),
     reason: z.string().trim().max(1000).nullable().optional(),
+    upgrade: z.preprocess(
+        (v) => v === true || v === "true" || v === 1 || v === "1",
+        z.boolean()
+    ).optional(),
 });
 
 const exceptionStatusSchema = z.object({

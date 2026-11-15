@@ -42,8 +42,9 @@ const { nextSystemId, nextMemberId, nextSubscriptionId, isDuplicateKeyError } = 
 const { normalizePhone, assertPhoneAvailable, replyIfConflict } = require("../utils/identityUniqueness");
 const { startMemberImport, getMemberImport } = require("../services/memberImportRunner");
 const { resolveSalesAssignee } = require("../utils/salesAssignment");
+const { resolveCoachAssignee } = require("../utils/coachAssignment");
 const { sanitizePlainText } = require("../utils/sanitizeText");
-const { validateNoOverlappingSubscription } = require("../utils/subscriptionUtils");
+const { validateNoOverlappingSubscription, resolveNextPackageStart, closeRefundedSubscription } = require("../utils/subscriptionUtils");
 const { buildPackageSnapshot, resolveSubscriptionPackage } = require("../utils/packageSnapshot");
 const { generateBarcode } = require("../utils/barcodeHelper");
 const { publishLive } = require("../utils/liveEvents");
@@ -233,12 +234,15 @@ const createMember = async (req, res) => {
 
         const systemId = await generateSystemId();
         const salesAssignee = await resolveSalesAssignee(assignedSales || null);
-        let coachAssignee = null;
+        let coachAssigneeId = null;
         if (coachId) {
-            coachAssignee = await validateCoachAssignee(coachId);
+            const coachAssignee = await validateCoachAssignee(coachId);
             if (!coachAssignee) {
                 return res.status(400).json({ message: "Invalid coach — user not found or not a coach role" });
             }
+            coachAssigneeId = coachAssignee._id;
+        } else {
+            coachAssigneeId = await resolveCoachAssignee(null);
         }
         const loc = await resolveMemberLocationId(req, bodyLocationId);
         if (loc.error) {
@@ -256,8 +260,8 @@ const createMember = async (req, res) => {
             birthdate:     birthdate     || null,
             source:        source        || null,
             assignedSales: salesAssignee,
-            current_couch: coachAssignee ? coachAssignee._id : null,
-            couch_subscription_status: coachAssignee ? "active" : undefined,
+            current_couch: coachAssigneeId || null,
+            couch_subscription_status: coachAssigneeId ? "active" : undefined,
             locationId:    loc.locationId,
             createdBy:     req.user.id
         };
@@ -1709,6 +1713,7 @@ const assignPackage = async (req, res) => {
             discountPercent,
             startDate,
             ptSessionsExpDate,
+            upgrade,
         } = req.body;
 
         if (!packageId) {
@@ -1801,29 +1806,23 @@ const assignPackage = async (req, res) => {
             snapshotSource = exceptionPkg;
         }
 
-        const currentSub = member.subscriptions?.at(-1);
-        const currentEndDate = currentSub?.endDate ? new Date(currentSub.endDate) : null;
         const now = new Date();
+        const upgrading = Boolean(upgrade);
 
-        // Start date logic:
-        let start;
-        if (startDate) {
-            start = new Date(startDate);
-            // Compare dates only (ignore time) — start date must be on or after end date
-            if (currentEndDate && currentEndDate > now) {
-                const startDay = new Date(start); startDay.setHours(0,0,0,0);
-                const endDay = new Date(currentEndDate); endDay.setHours(0,0,0,0);
-                if (startDay < endDay) {
-                    return res.status(400).json({
-                        message: `Start date must be on or after the current package end date (${currentEndDate.toISOString().slice(0, 10)})`
-                    });
-                }
-            }
-        } else {
-            start = (currentEndDate && currentEndDate > now) ? currentEndDate : now;
+        const resolvedStart = resolveNextPackageStart({
+            subscriptions: member.subscriptions,
+            startDate,
+            upgrade: upgrading,
+            now,
+        });
+        if (resolvedStart.error) {
+            return res.status(400).json({ message: resolvedStart.error });
         }
+        const start = resolvedStart.start;
 
-        const overlapError = validateNoOverlappingSubscription(member.subscriptions, start, now);
+        const overlapError = upgrading
+            ? null
+            : validateNoOverlappingSubscription(member.subscriptions, start, now);
         if (overlapError) {
             return res.status(400).json({ message: overlapError });
         }
@@ -1854,6 +1853,7 @@ const assignPackage = async (req, res) => {
             pricePaid: Number(pricePaid),
             discountPercent: Number(discountPercent) || 0,
             isRenewal: hadSubscription,
+            isUpgrade: upgrading,
             createdBy: req.user.id,
             approvedBy: req.user.id,
             salesManager: null,
@@ -1863,11 +1863,12 @@ const assignPackage = async (req, res) => {
             member.freezeDaysUsed = 0;
             member.invitationsUsed = 0;
         }
+        const assignmentLabel = upgrading ? "upgraded" : "assigned";
         member.userlog.push({
             type: hadSubscription ? "renewal" : "other",
             text: packageTermsDiffer(basePkg, terms)
-                ? `Package assigned (exception): ${packageName}`
-                : `Package assigned: ${packageName}`,
+                ? `Package ${assignmentLabel} (exception): ${packageName}`
+                : `Package ${assignmentLabel}: ${packageName}`,
             createdBy: req.user.id,
         });
 
@@ -2602,6 +2603,7 @@ const refund = async (req, res) => {
         lastSubscription.cancelledAt = new Date();
         lastSubscription.cancelledBy = req.user.id;
         lastSubscription.subscriptionStatus = "cancelled";
+        closeRefundedSubscription(lastSubscription, lastSubscription.refundedAt);
 
         // Determine new member status
         const priorValidSubs = member.subscriptions

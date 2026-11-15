@@ -160,6 +160,10 @@ const subscriptionSchema = new mongoose.Schema({
         type: Boolean,
         default: false
     },
+    isUpgrade: {
+        type: Boolean,
+        default: false
+    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",

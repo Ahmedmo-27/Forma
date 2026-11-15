@@ -91,7 +91,10 @@ const applyApprovedException = async (request, reviewerId) => {
         };
     }
 
-    const startDate = request.startDate ? new Date(request.startDate) : new Date();
+    const upgrading = Boolean(request.isUpgrade);
+    const startDate = upgrading
+        ? new Date()
+        : (request.startDate ? new Date(request.startDate) : new Date());
     const endDate = calcEndDate(startDate, request.duration);
     const subscriptionId = await generateSubscriptionId();
     const hadSubscription = member.subscriptions?.length > 0;
@@ -106,6 +109,7 @@ const applyApprovedException = async (request, reviewerId) => {
         pricePaid: request.pricePaid,
         discountPercent: request.discountPercent ?? 0,
         isRenewal: hadSubscription,
+        isUpgrade: upgrading,
         createdBy: request.proposedBy,
         approvedBy: reviewerId,
         salesManager: request.proposedBy,
@@ -128,9 +132,11 @@ const applyApprovedException = async (request, reviewerId) => {
     member.PT_sessions = (member.PT_sessions || 0) + freePtSessions;
     member.userlog.push({
         type: hadSubscription ? "renewal" : "other",
-        text: request.hasException
-            ? `Package exception approved by accountant (${packageName})`
-            : `Package request approved by accountant (${packageName})`,
+        text: upgrading
+            ? `Package upgraded: ${packageName}`
+            : request.hasException
+                ? `Package exception approved by accountant (${packageName})`
+                : `Package request approved by accountant (${packageName})`,
         createdBy: reviewerId,
     });
 
@@ -156,6 +162,7 @@ const createException = async (req, res) => {
             discountPercent,
             startDate,
             reason,
+            upgrade,
         } = req.body;
 
         if (!memberId || !basePackageId) {
@@ -183,9 +190,12 @@ const createException = async (req, res) => {
         const proposer = await User.findById(req.user.id).select("name");
         const packageName = name ?? basePkg.name;
         const isException = Boolean(req.body.hasException);
-        const notificationMessage = isException
-            ? `${proposer?.name || "Sales Manager"} added package ${packageName} with exception to member ${member.name}`
-            : `${proposer?.name || "Sales Manager"} requested package ${packageName} for member ${member.name}`;
+        const upgrading = Boolean(upgrade);
+        const notificationMessage = upgrading
+            ? `${proposer?.name || "Sales Manager"} requested an upgrade to ${packageName} for ${member.name}`
+            : isException
+                ? `${proposer?.name || "Sales Manager"} added package ${packageName} with exception to member ${member.name}`
+                : `${proposer?.name || "Sales Manager"} requested package ${packageName} for member ${member.name}`;
 
         const request = await PackageExceptionRequest.create({
             member: member._id,
@@ -202,7 +212,8 @@ const createException = async (req, res) => {
             description: description ?? basePkg.description,
             pricePaid: pricePaid ?? price ?? basePkg.price,
             discountPercent: discountPercent ?? 0,
-            startDate: startDate ? new Date(startDate) : new Date(),
+            startDate: upgrading ? new Date() : (startDate ? new Date(startDate) : new Date()),
+            isUpgrade: upgrading,
             reason: reason ?? null,
             notificationMessage,
         });

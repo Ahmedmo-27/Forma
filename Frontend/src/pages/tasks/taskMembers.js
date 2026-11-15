@@ -83,9 +83,7 @@ export function personName(value) {
 }
 
 export function salesmanName(member) {
-  const assigned = member?.assignedSales;
-  if (!assigned || assigned.role === 'Sales Manager') return '';
-  return personName(assigned);
+  return personName(member?.assignedSales);
 }
 
 export function salesName(member) {

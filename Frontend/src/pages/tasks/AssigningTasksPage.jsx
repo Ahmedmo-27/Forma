@@ -314,7 +314,7 @@ export default function AssigningTasksPage() {
       else if (m.status === 'frozen') counts.frozen += 1;
       else if (m.status === 'guest') counts.guest += 1;
 
-      if (!m.assignedSales || m.assignedSales?.role === 'Sales Manager') counts.unassignedSales += 1;
+      if (!m.assignedSales) counts.unassignedSales += 1;
       if (!m.current_couch) counts.unassignedCoach += 1;
       if (Array.isArray(m.userlog) && m.userlog.some((l) => l.type === 'assign')) counts.transferred += 1;
 

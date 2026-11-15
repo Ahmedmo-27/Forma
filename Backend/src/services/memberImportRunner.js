@@ -4,6 +4,7 @@ const MemberImportJob = require("../models/MemberImportJob");
 const { runWithTenant, runAsPlatform, getTenantId } = require("../context/tenantContext");
 const { reserveSystemIds, systemIdFloor } = require("../utils/sequence");
 const { resolveSalesAssignee } = require("../utils/salesAssignment");
+const { resolveCoachAssignee } = require("../utils/coachAssignment");
 const { invalidateTenantCache } = require("../utils/cacheInvalidator");
 const logger = require("../utils/logger");
 const {
@@ -48,7 +49,7 @@ function rememberError(bucket, entry) {
     if (bucket.samples.length < MAX_STORED_ERRORS) bucket.samples.push(entry);
 }
 
-async function importChunk(slice, { userId, salesAssignee, seenPhones, floor }) {
+async function importChunk(slice, { userId, salesAssignee, coachAssignee, seenPhones, floor }) {
     const outcome = { created: 0, skipped: 0, errors: { count: 0, samples: [] }, processed: slice.length };
     const candidates = [];
 
@@ -97,6 +98,8 @@ async function importChunk(slice, { userId, salesAssignee, seenPhones, floor }) 
         isMember: false,
         source: "data entry",
         assignedSales: salesAssignee || null,
+        current_couch: coachAssignee || null,
+        couch_subscription_status: coachAssignee ? "active" : undefined,
         createdBy: userId,
     }));
 
@@ -127,6 +130,7 @@ async function saveProgress(jobId, fields) {
 
 async function runJob(jobId, rows, userId) {
     const salesAssignee = await resolveSalesAssignee(null);
+    const coachAssignee = await resolveCoachAssignee(null);
     const top = await Member.findOne({ systemId: { $type: "number" } })
         .sort({ systemId: -1 })
         .select("systemId")
@@ -148,7 +152,7 @@ async function runJob(jobId, rows, userId) {
             chunkCount: parts,
         });
 
-        const outcome = await importChunk(slice, { userId, salesAssignee, seenPhones, floor });
+        const outcome = await importChunk(slice, { userId, salesAssignee, coachAssignee, seenPhones, floor });
         createdCount += outcome.created;
         skippedCount += outcome.skipped;
         errorCount += outcome.errors.count;

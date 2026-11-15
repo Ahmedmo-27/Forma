@@ -141,12 +141,16 @@ async function processFreezeCycles() {
 async function assignOpenMembers() {
     const Tenant = require("../models/Tenant");
     const { assignOpenMembersToSalesManager } = require("./salesAssignment");
+    const { assignOpenMembersToHeadCoach } = require("./coachAssignment");
     try {
         const tenants = await runAsPlatform(() => Tenant.find().select("_id slug").lean());
         for (const tenant of tenants) {
             await runWithTenant(
                 { tenantId: String(tenant._id), tenantSlug: tenant.slug },
-                () => assignOpenMembersToSalesManager()
+                async () => {
+                    await assignOpenMembersToSalesManager();
+                    await assignOpenMembersToHeadCoach();
+                }
             );
         }
     } catch (error) {
