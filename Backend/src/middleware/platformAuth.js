@@ -22,11 +22,10 @@ function getPlatformSecret() {
  * Checks account status and session revocation (tokenVersion).
  * Automatically wraps downstream execution in runAsPlatform().
  */
+const { readPlatformToken } = require("../utils/authCookies");
+
 async function protectPlatform(req, res, next) {
-    let token;
-    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
-        token = req.headers.authorization.split(" ")[1];
-    }
+    const token = readPlatformToken(req);
 
     if (!token) {
         return res.status(401).json({ message: "Platform authentication required: no token provided" });

@@ -348,9 +348,11 @@ const loginUser = async (req, res) => {
             formattedUser.tenantId = effectiveTenantId;
         }
 
+        const { setTenantAuthCookie } = require("../utils/authCookies");
+        setTenantAuthCookie(res, token);
+
         res.json({
             message: "Login successful",
-            token,
             user: formattedUser,
         });
     } catch (error) {
@@ -1591,9 +1593,16 @@ const updateMyProfile = async (req, res) => {
     }
 };
 
+const logoutUser = async (req, res) => {
+    const { clearTenantAuthCookie } = require("../utils/authCookies");
+    clearTenantAuthCookie(res);
+    res.json({ message: "Logged out" });
+};
+
 module.exports = {
     registerUser,
     loginUser,
+    logoutUser,
     getSalesUsers,
     getReceptionists,
     getSalesRevenue,

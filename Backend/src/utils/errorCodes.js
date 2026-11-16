@@ -350,7 +350,7 @@ const ERROR_CODES = {
     category: "files",
     retryable: true,
     message: "The uploaded file format is not supported.",
-    userAction: "Upload a valid file (.jpg, .png, .pdf, or .xlsx).",
+    userAction: "Upload a valid file (.jpg, .png, .pdf, or .csv).",
   },
   UPLOAD_MAGIC_MISMATCH: {
     code: "UPLOAD_MAGIC_MISMATCH",

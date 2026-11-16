@@ -1,9 +1,10 @@
 const rateLimit = require("express-rate-limit");
+const { PUBLIC_SIGNUP_MAX, PUBLIC_SIGNUP_WINDOW_MS } = require("./rateLimitBudgets");
 
 /** Strict limiter for POST /api/public/signup — blocks signup spam. */
 const publicSignupLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 10,
+    windowMs: PUBLIC_SIGNUP_WINDOW_MS,
+    max: PUBLIC_SIGNUP_MAX,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res, _next, options) => {

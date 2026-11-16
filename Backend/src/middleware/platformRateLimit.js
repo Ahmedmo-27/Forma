@@ -4,9 +4,12 @@ const rateLimit = require("express-rate-limit");
  * Strict rate limiter for platform authentication endpoints.
  * 15 requests per 15 minutes window per IP.
  */
+const PLATFORM_AUTH_WINDOW_MS = 15 * 60 * 1000;
+const PLATFORM_AUTH_LIMIT = 15;
+
 const platformAuthLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    limit: 15,
+    windowMs: PLATFORM_AUTH_WINDOW_MS,
+    limit: PLATFORM_AUTH_LIMIT,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res, _next, options) => {
@@ -27,4 +30,8 @@ const platformAuthLimiter = rateLimit({
     },
 });
 
-module.exports = { platformAuthLimiter };
+module.exports = {
+    platformAuthLimiter,
+    PLATFORM_AUTH_WINDOW_MS,
+    PLATFORM_AUTH_LIMIT,
+};

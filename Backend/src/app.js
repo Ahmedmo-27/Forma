@@ -96,7 +96,7 @@ app.use(cors({
         "X-Requested-With",
     ],
     exposedHeaders: ["X-Request-Id"],
-    credentials: false,
+    credentials: true,
     maxAge: 86400,
 }));
 

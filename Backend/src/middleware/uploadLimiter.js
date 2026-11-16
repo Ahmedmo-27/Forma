@@ -1,9 +1,10 @@
 const rateLimit = require("express-rate-limit");
+const { UPLOAD_WRITE_MAX, UPLOAD_WRITE_WINDOW_MS } = require("./rateLimitBudgets");
 
 /** Limits multipart upload endpoints (photos, national IDs, invitation files). */
 const uploadLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 10,
+    windowMs: UPLOAD_WRITE_WINDOW_MS,
+    max: UPLOAD_WRITE_MAX,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res, _next, options) => {

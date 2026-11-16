@@ -290,10 +290,15 @@ const updatePlanSchema = createPlanSchema.partial();
 
 const tenantSlugSchema = z.string().trim().min(2).max(50).toLowerCase().regex(/^[a-z0-9-]+$/, "Slug must only contain lowercase alphanumeric characters and dashes");
 
+const brandingDisplayName = z.preprocess(
+    (v) => (v == null || v === "" ? v : sanitizePlainText(String(v)).slice(0, 120) || null),
+    z.string().nullable().optional()
+);
+
 const tenantSettingsSchema = z.object({
     branding: z.object({
         logoKey: z.string().nullable().optional(),
-        displayName: z.string().nullable().optional(),
+        displayName: brandingDisplayName,
         palette: z.object({
             navbar: z.string().optional(),
             primary: z.string().optional(),
@@ -321,7 +326,7 @@ const tenantSettingsSchema = z.object({
     settings: z.object({
         branding: z.object({
             logoKey: z.string().nullable().optional(),
-            displayName: z.string().nullable().optional(),
+            displayName: brandingDisplayName,
             palette: z.object({
                 navbar: z.string().optional(),
                 primary: z.string().optional(),

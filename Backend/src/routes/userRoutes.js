@@ -3,6 +3,7 @@ const router = express.Router();
 const {
     registerUser,
     loginUser,
+    logoutUser,
     getSalesRevenue,
     getSalesManagerRevenue,
     getSalesUsers,
@@ -49,6 +50,7 @@ const { locationScopeOptional } = require("../middleware/locationScope");
 
 // Public auth — rate limited + validated
 router.post("/login", loginLimiter, validate(loginSchema), loginUser);
+router.post("/logout", logoutUser);
 router.post("/setup-password", setupPasswordLimiter, validate(setupPasswordSchema), setupPassword);
 router.post("/forgot-password", forgotPasswordLimiter, validate(forgotPasswordSchema), forgotPassword);
 

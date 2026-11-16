@@ -1,7 +1,8 @@
 /**
  * Sensitive fields that must NEVER appear in logs or client-facing errors.
  */
-const SENSITIVE_KEY_REGEX = /^(password|newPassword|confirmPassword|currentPassword|token|refreshToken|tempToken|authorization|secret|secretEncrypted|jwtSecret|nationalId|national_id|phones|phone|mobile|cardNumber|cvv|creditCard)$/i;
+const SENSITIVE_KEY_REGEX =
+  /^(password|newPassword|confirmPassword|currentPassword|token|refreshToken|tempToken|authorization|secret|secretEncrypted|jwtSecret|accessToken|apiKey|api_key|accessKeyId|secretAccessKey|r2Secret|brevoApiKey|nationalId|national_id|phones|phone|mobile|cardNumber|cvv|creditCard)$/i;
 
 function sanitizeForLog(data, depth = 0) {
   if (depth > 5) return "[MaxDepth]";

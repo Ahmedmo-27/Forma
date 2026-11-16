@@ -140,10 +140,11 @@ async function login(req, res) {
         await user.save();
 
         const tokens = generateTokens(user);
+        const { setPlatformAuthCookies } = require("../utils/authCookies");
+        setPlatformAuthCookies(res, tokens);
 
         return res.json({
             message: "Authentication successful",
-            ...tokens,
             user: {
                 id: user._id,
                 name: user.name,
@@ -164,7 +165,8 @@ async function login(req, res) {
  */
 async function refreshToken(req, res) {
     try {
-        const { refreshToken: rawRefresh } = req.body;
+        const { readPlatformRefreshToken, setPlatformAuthCookies } = require("../utils/authCookies");
+        const rawRefresh = readPlatformRefreshToken(req);
         if (!rawRefresh) {
             return res.status(400).json({ message: "Refresh token is required" });
         }
@@ -185,10 +187,17 @@ async function refreshToken(req, res) {
         }
 
         const tokens = generateTokens(user);
-        res.json(tokens);
+        setPlatformAuthCookies(res, tokens);
+        res.json({ message: "Token refreshed" });
     } catch (err) {
         return res.status(401).json({ message: "Invalid or expired refresh token" });
     }
+}
+
+async function logout(req, res) {
+    const { clearPlatformAuthCookies } = require("../utils/authCookies");
+    clearPlatformAuthCookies(res);
+    res.json({ message: "Logged out" });
 }
 
 /**
@@ -219,5 +228,6 @@ async function getMe(req, res) {
 module.exports = {
     login,
     refreshToken,
+    logout,
     getMe,
 };

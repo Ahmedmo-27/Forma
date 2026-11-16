@@ -48,8 +48,9 @@ const RESERVED_SLUGS = new Set([
 async function getSiteConfig(req, res) {
     try {
         const site = await publicSiteService.getPublicSiteSetting();
+        const { readPlatformToken } = require("../utils/authCookies");
         const { canPreview, previewAs } = await publicSiteService.resolveCanPreview(
-            req.headers.authorization
+            readPlatformToken(req)
         );
         res.json({
             published: site.published,

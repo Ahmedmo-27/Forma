@@ -89,9 +89,12 @@ async function createImpersonationSession(req, res) {
                 { expiresIn: "30m" }
             );
 
+            const { setTenantAuthCookie } = require("../utils/authCookies");
+            setTenantAuthCookie(res, token);
+
             res.json({
                 message: `Impersonation session initiated for ${tenant.name} (${mode})`,
-                token,
+                redirectPath: "/members",
                 session: {
                     mode,
                     expiresInMinutes: 30,

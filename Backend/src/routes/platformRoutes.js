@@ -12,6 +12,7 @@ const { autoInvalidate } = require("../utils/cacheInvalidator");
 const {
     login,
     refreshToken,
+    logout,
     getMe,
 } = require("../controllers/platformAuthController");
 
@@ -124,6 +125,7 @@ router.use(platformIpAllowlist);
 // ==========================================
 router.post("/auth/login", platformAuthLimiter, login);
 router.post("/auth/refresh", platformAuthLimiter, refreshToken);
+router.post("/auth/logout", logout);
 
 // ==========================================
 // 2. Protected Platform Routes

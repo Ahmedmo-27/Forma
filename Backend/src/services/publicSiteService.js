@@ -62,13 +62,13 @@ async function setPublicSiteSetting({ published, message, actor }) {
 }
 
 /**
- * Optional Bearer platform JWT → canPreview if active super_admin.
+ * Optional platform JWT (Bearer or cookie) → canPreview if active super_admin.
  */
-async function resolveCanPreview(authorizationHeader) {
-    if (!authorizationHeader || !authorizationHeader.startsWith("Bearer ")) {
-        return { canPreview: false, previewAs: null };
+async function resolveCanPreview(tokenOrAuthorizationHeader) {
+    let token = tokenOrAuthorizationHeader;
+    if (token && String(token).startsWith("Bearer ")) {
+        token = String(token).slice(7).trim();
     }
-    const token = authorizationHeader.slice(7).trim();
     if (!token) return { canPreview: false, previewAs: null };
 
     try {

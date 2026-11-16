@@ -1,6 +1,11 @@
 const rateLimit = require("express-rate-limit");
 
 const WINDOW_MS = 15 * 60 * 1000;
+const LIMITS = {
+    login: 10,
+    forgotPassword: 5,
+    setupPassword: 10,
+};
 
 function buildLimiter({ max, message }) {
     return rateLimit({
@@ -28,20 +33,22 @@ function buildLimiter({ max, message }) {
 
 /** Strict limiter for POST /api/users/login — blocks credential stuffing. */
 const loginLimiter = buildLimiter({
-    max: 10,
+    max: LIMITS.login,
     message: "Too many login attempts, try again in 15 minutes",
 });
 
 const forgotPasswordLimiter = buildLimiter({
-    max: 5,
+    max: LIMITS.forgotPassword,
     message: "Too many password reset requests, try again in 15 minutes",
 });
 
 const setupPasswordLimiter = buildLimiter({
-    max: 10,
+    max: LIMITS.setupPassword,
     message: "Too many password setup attempts, try again in 15 minutes",
 });
 
 module.exports = loginLimiter;
 module.exports.forgotPasswordLimiter = forgotPasswordLimiter;
 module.exports.setupPasswordLimiter = setupPasswordLimiter;
+module.exports.WINDOW_MS = WINDOW_MS;
+module.exports.LIMITS = LIMITS;
