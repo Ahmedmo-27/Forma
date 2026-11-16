@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { login as loginApi } from '../api/endpoints';
 import api from '../api/axios';
+import WorkspaceBoot from '../components/WorkspaceBoot';
 
 const AuthContext = createContext(null);
 
@@ -104,8 +105,11 @@ export function AuthProvider({ children }) {
       .catch(() => {});
   }, []);
 
-  // Don't render children until token is verified — prevents flash of protected content
-  if (!checked) return null;
+  // Don't render children until token is verified — prevents flash of protected content.
+  // A stored session stays on the neutral cover so the Forma palette never paints first.
+  if (!checked) {
+    return localStorage.getItem('ff_token') ? <WorkspaceBoot /> : null;
+  }
 
   return (
     <AuthContext.Provider value={{ user, signIn, signOut, refreshUser }}>

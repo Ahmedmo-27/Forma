@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useLayoutEffect, useCallback, useRef } from 'react';
 import { getTenantMe } from '../api/endpoints';
 import { useAuth } from './AuthContext';
 import {  normalizeHexColor } from '../lib/validation';
+import WorkspaceBoot from '../components/WorkspaceBoot';
 
 const TenantContext = createContext(null);
 
@@ -29,6 +30,11 @@ function workspacePalette(palette) {
 const EMPTY_OBJECT = {};
 const EMPTY_LIST = [];
 
+function signedInUserId(user) {
+  if (!user) return null;
+  return String(user._id || user.id || 'signed-in');
+}
+
 function clearBrandingOverrides() {
   const root = document.documentElement;
   [
@@ -43,8 +49,12 @@ function clearBrandingOverrides() {
 
 export function TenantProvider({ children }) {
   const { user } = useAuth();
+  const userId = signedInUserId(user);
+  const userIdRef = useRef(userId);
+  userIdRef.current = userId;
   const [tenant, setTenant] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [paletteUserId, setPaletteUserId] = useState(null);
 
   const applyBranding = useCallback((branding) => {
     const palette = workspacePalette(branding?.palette);
@@ -121,21 +131,33 @@ export function TenantProvider({ children }) {
   }, [applyBranding]);
 
   const fetchTenant = useCallback(async () => {
-    if (!user) {
+    const requestUserId = signedInUserId(user);
+    if (!requestUserId) {
       setTenant(null);
       clearBrandingOverrides();
+      setPaletteUserId(null);
       setLoading(false);
       return;
     }
     try {
       const res = await getTenantMe();
+      if (userIdRef.current !== requestUserId) return;
       applyTenant(res.data?.tenant || res.data);
     } catch (err) {
       console.warn('[TenantContext] Failed to load tenant details', err.message);
     } finally {
-      setLoading(false);
+      if (userIdRef.current === requestUserId) {
+        setPaletteUserId(requestUserId);
+        setLoading(false);
+      }
     }
   }, [user, applyTenant]);
+
+  useLayoutEffect(() => {
+    if (userId) return;
+    clearBrandingOverrides();
+    setPaletteUserId(null);
+  }, [userId]);
 
   useEffect(() => {
     fetchTenant();
@@ -183,9 +205,11 @@ export function TenantProvider({ children }) {
     effectiveAccess: tenant?.effectiveAccess || EMPTY_LIST,
   };
 
+  const brandingPending = Boolean(userId) && paletteUserId !== userId;
+
   return (
     <TenantContext.Provider value={value}>
-      {children}
+      {brandingPending ? <WorkspaceBoot /> : children}
     </TenantContext.Provider>
   );
 }
