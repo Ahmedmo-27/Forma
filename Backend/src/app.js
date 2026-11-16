@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const cookieParser = require("cookie-parser");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const path = require("path");
@@ -106,6 +107,7 @@ app.use(cors({
     maxAge: 86400,
 }));
 
+app.use(cookieParser());
 app.use(express.json({ limit: "100kb" }));
 app.use(sanitizeRequest);
 app.use(requestId);

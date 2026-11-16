@@ -6,6 +6,7 @@ const logger = require("../utils/logger");
 const { runWithTenant, runAsPlatform } = require("../context/tenantContext");
 const { getAuthContext, setAuthContext } = require("./authContextCache");
 const { getEffectiveFeatures } = require("../models/Tenant");
+const { readTenantToken } = require("../utils/authCookies");
 
 function attachPlanFeatures(req) {
     const plan = req.plan && Array.isArray(req.plan.features)
@@ -15,8 +16,9 @@ function attachPlanFeatures(req) {
 }
 
 /**
- * Verifies Bearer JWT, validates tenant status, reloads user from DB,
- * and initializes AsyncLocalStorage tenant context for all downstream operations.
+ * Verifies tenant JWT (Authorization Bearer or forma_tenant cookie), validates
+ * tenant status, reloads user from DB, and initializes AsyncLocalStorage tenant
+ * context for all downstream operations.
  */
 const ACTIVITY_GAP_MS = 15 * 60 * 1000;
 const activityTouches = new Map();
@@ -47,11 +49,7 @@ function touchTenantActivity(tenantId) {
 }
 
 const protect = async (req, res, next) => {
-    let token;
-
-    if (req.headers.authorization && req.headers.authorization.startsWith("Bearer")) {
-        token = req.headers.authorization.split(" ")[1];
-    }
+    const token = readTenantToken(req);
 
     if (!token) {
         logger.auth("warn", "Auth middleware: no token", {
