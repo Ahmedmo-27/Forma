@@ -66,7 +66,6 @@ export function TenantProvider({ children }) {
   const [tenant, setTenant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paletteUserId, setPaletteUserId] = useState(null);
-  const fetchGen = useRef(0);
 
   const applyBranding = useCallback((branding) => {
     const palette = workspacePalette(branding?.palette);
