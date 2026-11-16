@@ -9,14 +9,11 @@ const platformAxios = axios.create({
     "Content-Type": "application/json",
   },
   timeout: 20000,
+  withCredentials: true,
 });
 
 platformAxios.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("leap_platform_token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
     config.headers["X-Request-Id"] = `req_${crypto.randomUUID().slice(0, 8)}`;
     return config;
   },

@@ -21,12 +21,11 @@ export function subscribeLiveEvents(onEvent, onStatus) {
   async function connect() {
     while (!stopped) {
       try {
-        const token = localStorage.getItem('ff_token');
         const tenantSlug = localStorage.getItem('ff_tenant_slug');
         const res = await fetch(`${apiBaseURL}/members/live`, {
+          credentials: 'include',
           headers: {
             Accept: 'text/event-stream',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
             ...(tenantSlug ? { 'X-Tenant-Slug': tenantSlug } : {}),
           },
           signal: controller.signal,

@@ -1,21 +1,12 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { apiGetMe } from "../api/endpoints";
-import { clearWwwPreviewCookie, setWwwPreviewCookie } from "../../../marketing/previewCookie";
+import platformClient from "../api/client";
+import { clearWwwPreviewCookie } from "../../../marketing/previewCookie";
 
 const PlatformAuthContext = createContext(null);
 
-const STORAGE_TOKEN = "leap_platform_token";
-const STORAGE_REFRESH = "leap_platform_refresh_token";
 const STORAGE_USER = "leap_platform_user";
 const STORAGE_IMPERSONATION = "leap_impersonation_meta";
-
-function syncWwwPreviewCookie(token, user) {
-  if (token && user?.role === "super_admin") {
-    setWwwPreviewCookie(token);
-  } else {
-    clearWwwPreviewCookie();
-  }
-}
 
 export function PlatformAuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -27,7 +18,6 @@ export function PlatformAuthProvider({ children }) {
     }
   });
 
-  const [token, setToken] = useState(() => localStorage.getItem(STORAGE_TOKEN));
   const [loading, setLoading] = useState(true);
 
   const [impersonation, setImpersonation] = useState(() => {
@@ -39,13 +29,7 @@ export function PlatformAuthProvider({ children }) {
     }
   });
 
-  // Verify and sync current platform identity on load
   useEffect(() => {
-    if (!token) {
-      setLoading(false);
-      return;
-    }
-
     let active = true;
     apiGetMe()
       .then((res) => {
@@ -55,7 +39,11 @@ export function PlatformAuthProvider({ children }) {
         }
       })
       .catch(() => {
-        // Handled by 401 interceptor
+        if (!active) return;
+        setUser(null);
+        localStorage.removeItem(STORAGE_USER);
+        localStorage.removeItem("leap_platform_token");
+        localStorage.removeItem("leap_platform_refresh_token");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -64,37 +52,29 @@ export function PlatformAuthProvider({ children }) {
     return () => {
       active = false;
     };
-  }, [token]);
+  }, []);
 
   const loginSuccess = useCallback((authData) => {
-    const { token: nextToken, refreshToken, user: nextUser } = authData;
-
-    setToken(nextToken);
+    const { user: nextUser } = authData;
     setUser(nextUser);
-
-    localStorage.setItem(STORAGE_TOKEN, nextToken);
-    if (refreshToken) {
-      localStorage.setItem(STORAGE_REFRESH, refreshToken);
-    }
     if (nextUser) {
       localStorage.setItem(STORAGE_USER, JSON.stringify(nextUser));
     }
-    syncWwwPreviewCookie(nextToken, nextUser);
+    localStorage.removeItem("leap_platform_token");
+    localStorage.removeItem("leap_platform_refresh_token");
+    clearWwwPreviewCookie();
   }, []);
 
-  // Keep www preview cookie aligned after refresh / me sync
-  useEffect(() => {
-    syncWwwPreviewCookie(token, user);
-  }, [token, user]);
-
-  const logout = useCallback(() => {
-    localStorage.removeItem(STORAGE_TOKEN);
-    localStorage.removeItem(STORAGE_REFRESH);
+  const logout = useCallback(async () => {
+    try {
+      await platformClient.post("/auth/logout", {}, { skipGlobalError: true });
+    } catch (_) {}
     localStorage.removeItem(STORAGE_USER);
     localStorage.removeItem(STORAGE_IMPERSONATION);
+    localStorage.removeItem("leap_platform_token");
+    localStorage.removeItem("leap_platform_refresh_token");
     clearWwwPreviewCookie();
 
-    setToken(null);
     setUser(null);
     setImpersonation(null);
 
@@ -106,17 +86,20 @@ export function PlatformAuthProvider({ children }) {
     localStorage.setItem(STORAGE_IMPERSONATION, JSON.stringify(impersonationData));
   }, []);
 
-  const exitImpersonation = useCallback(() => {
+  const exitImpersonation = useCallback(async () => {
     setImpersonation(null);
     localStorage.removeItem(STORAGE_IMPERSONATION);
-    localStorage.removeItem("token"); // clear tenant token
+    try {
+      const { default: api } = await import("../../../api/axios");
+      await api.post("/users/logout", {}, { skipGlobalError: true });
+    } catch (_) {}
   }, []);
 
   const value = {
     user,
-    token,
+    token: null,
     loading,
-    isAuthenticated: Boolean(token && user),
+    isAuthenticated: Boolean(user),
     loginSuccess,
     logout,
     impersonation,

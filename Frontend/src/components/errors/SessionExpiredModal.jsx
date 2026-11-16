@@ -35,23 +35,30 @@ export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess }) {
 
     try {
       if (isPlatform) {
-        const res = await axios.post(`${apiOrigin}/api/platform/auth/login`, {
-          email,
-          password,
-        });
-        localStorage.setItem("leap_platform_token", res.data.token);
-        if (res.data.refreshToken) {
-          localStorage.setItem("leap_platform_refresh_token", res.data.refreshToken);
+        const res = await axios.post(
+          `${apiOrigin}/api/platform/auth/login`,
+          { email, password },
+          { withCredentials: true }
+        );
+        if (res.data?.user) {
+          localStorage.setItem("leap_platform_user", JSON.stringify(res.data.user));
         }
+        localStorage.removeItem("leap_platform_token");
+        localStorage.removeItem("leap_platform_refresh_token");
       } else {
         const tenantSlug = localStorage.getItem("ff_tenant_slug");
-        const res = await axios.post(`${apiOrigin}/api/users/login`, {
-          email,
-          password,
-          gymSlug: tenantSlug,
-        });
-        localStorage.setItem("ff_token", res.data.token);
-        localStorage.setItem("ff_user", JSON.stringify(res.data));
+        const res = await axios.post(
+          `${apiOrigin}/api/users/login`,
+          {
+            email,
+            password,
+            gymSlug: tenantSlug,
+          },
+          { withCredentials: true }
+        );
+        const user = res.data?.user || res.data;
+        localStorage.setItem("ff_user", JSON.stringify(user));
+        localStorage.removeItem("ff_token");
       }
 
       onClose();

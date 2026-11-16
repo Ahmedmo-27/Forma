@@ -3,6 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import {
   apiGetTenants,
   apiGetAuditLogs,
+  apiCreateImpersonationSession,
+  apiExportTenantData,
 } from "../../lib/api/endpoints";
 import { usePlatformAuth } from "../../lib/auth/AuthContext";
 import { usePlatformRole } from "../../lib/auth/PermissionContext";
@@ -72,9 +74,18 @@ export default function SupportPage() {
     setError(null);
 
     try {
-      await startImpersonation(selectedTenantId, mode, reason.trim());
+      const res = await apiCreateImpersonationSession({
+        tenantId: selectedTenantId,
+        mode,
+        reason: reason.trim() || "Support console investigation",
+      });
+      startImpersonation({
+        tenant: res.data.session?.tenant,
+        mode: res.data.session?.mode || mode,
+      });
       platformToast.success("Secure impersonation session activated (30m countdown)");
       setReason("");
+      window.open(res.data.redirectPath || "/members", "_blank");
     } catch (err) {
       setError(err.normalized?.message || err.response?.data?.error?.message || err.response?.data?.message || err?.message || "Failed to initiate impersonation session");
     } finally {
@@ -82,13 +93,30 @@ export default function SupportPage() {
     }
   };
 
-  const handleExportData = (e) => {
+  const handleExportData = async (e) => {
     e.preventDefault();
     if (!exportTenantId) return;
     setExporting(true);
-    window.open(`/api/platform/support/tenants/${exportTenantId}/export`, "_blank");
-    platformToast.success("Sanitized tenant JSON archive export dispatched");
-    setExporting(false);
+    try {
+      const res = await apiExportTenantData(exportTenantId);
+      const dataStr =
+        "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(res.data, null, 2));
+      const downloadAnchor = document.createElement("a");
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `tenant-export-${exportTenantId}-${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      platformToast.success("Sanitized tenant JSON archive exported");
+    } catch (err) {
+      platformToast.error(
+        err.normalized?.message ||
+          err.response?.data?.message ||
+          "Export failed"
+      );
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (

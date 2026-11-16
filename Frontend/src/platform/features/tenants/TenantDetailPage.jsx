@@ -223,14 +223,12 @@ export default function TenantDetailPage() {
       });
 
       startImpersonation({
-        token: res.data.token,
-        tenant: { id: tenant._id, name: tenant.name, slug: tenant.slug },
-        mode: "read_only",
+        tenant: res.data.session?.tenant || { id: tenant._id, name: tenant.name, slug: tenant.slug },
+        mode: res.data.session?.mode || "read_only",
       });
 
-      localStorage.setItem("token", res.data.token);
       platformToast.success(`Read-only session initiated for ${tenant.name}.`);
-      window.open("/members", "_blank");
+      window.open(res.data.redirectPath || "/members", "_blank");
     } catch (err) {
       platformToast.error(err.message || "Failed to start impersonation");
     }

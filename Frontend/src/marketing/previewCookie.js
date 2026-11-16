@@ -4,18 +4,12 @@ function isFormaOfficialHost(hostname = window.location.hostname) {
   return hostname === "forma-official.com" || hostname.endsWith(".forma-official.com");
 }
 
-/** Share platform JWT with www.* so super_admin can preview unpublished marketing. */
-export function setWwwPreviewCookie(token) {
-  if (!token || typeof document === "undefined") return;
-  const parts = [
-    `${COOKIE_NAME}=${encodeURIComponent(token)}`,
-    "Path=/",
-    "SameSite=Lax",
-    `Max-Age=${60 * 60 * 12}`,
-  ];
-  if (window.location.protocol === "https:") parts.push("Secure");
-  if (isFormaOfficialHost()) parts.push("Domain=.forma-official.com");
-  document.cookie = parts.join("; ");
+/**
+ * Legacy helper — platform session is now an httpOnly cookie shared via Domain=.BASE_DOMAIN.
+ * Clearing removes any old JS-readable preview JWT cookie.
+ */
+export function setWwwPreviewCookie() {
+  // no-op: unpublished www preview uses forma_platform httpOnly cookie + withCredentials
 }
 
 export function clearWwwPreviewCookie() {
@@ -27,13 +21,8 @@ export function clearWwwPreviewCookie() {
   }
 }
 
+/** @deprecated Prefer cookie session via withCredentials; always returns null. */
 export function readWwwPreviewToken() {
-  if (typeof document === "undefined") return null;
-  const match = document.cookie.match(new RegExp(`(?:^|; )${COOKIE_NAME}=([^;]*)`));
-  if (match?.[1]) return decodeURIComponent(match[1]);
-  try {
-    return localStorage.getItem("leap_platform_token");
-  } catch {
-    return null;
-  }
+  clearWwwPreviewCookie();
+  return null;
 }

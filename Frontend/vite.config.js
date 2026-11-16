@@ -31,5 +31,22 @@ export default defineConfig(({ mode }) => {
       tailwindcss(),
       react(),
     ],
+    server: backendOrigin
+      ? {
+          proxy: {
+            '/api': {
+              target: backendOrigin,
+              changeOrigin: true,
+              cookieDomainRewrite: '',
+            },
+            '/uploads': {
+              target: backendOrigin,
+              changeOrigin: true,
+              cookieDomainRewrite: '',
+            },
+            '/health': { target: backendOrigin, changeOrigin: true },
+          },
+        }
+      : undefined,
   }
 })

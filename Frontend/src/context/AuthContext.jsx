@@ -16,44 +16,25 @@ function _parseUser() {
 
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
-  const [checked, setChecked] = useState(false); // true once token is verified
+  const [checked, setChecked] = useState(false); // true once session is verified
 
-  // On mount — check for impersonation query token and verify stored token
+  // On mount — verify cookie session via /users/me
   useEffect(() => {
-    try {
-      const params = new URLSearchParams(window.location.search);
-      const impToken = params.get('impersonation_token');
-      if (impToken) {
-        localStorage.setItem('ff_token', impToken);
-        const cleanUrl = window.location.pathname + window.location.hash;
-        window.history.replaceState({}, document.title, cleanUrl);
-      }
-    } catch (_) {}
-
-    const token = localStorage.getItem('ff_token');
-    if (!token) {
-      setChecked(true);
-      return;
-    }
-    api.get('/users/me')
+    const cached = _parseUser();
+    api.get('/users/me', { skipGlobalError: true })
       .then(res => {
-        // Token is valid — use fresh user data from backend
         const u = res.data;
         localStorage.setItem('ff_user', JSON.stringify(u));
+        if (u.tenantSlug) localStorage.setItem('ff_tenant_slug', u.tenantSlug);
         setUser(u);
       })
       .catch((err) => {
-        // Only wipe credentials on actual 401 unauthenticated response
         if (err.response?.status === 401) {
-          localStorage.removeItem('ff_token');
           localStorage.removeItem('ff_user');
+          localStorage.removeItem('ff_token');
           setUser(null);
-        } else {
-          // If network is offline or 5xx, preserve cached user from localStorage
-          try {
-            const cached = localStorage.getItem('ff_user');
-            if (cached) setUser(JSON.parse(cached));
-          } catch (_) {}
+        } else if (cached) {
+          setUser(cached);
         }
       })
       .finally(() => setChecked(true));
@@ -69,9 +50,9 @@ export function AuthProvider({ children }) {
 
     try {
       const res = await loginApi(username, password);
-      const { token, user: u } = res.data;
-      localStorage.setItem('ff_token', token);
+      const { user: u } = res.data;
       localStorage.setItem('ff_user', JSON.stringify(u));
+      localStorage.removeItem('ff_token');
       if (u.tenantSlug) {
         localStorage.setItem('ff_tenant_slug', u.tenantSlug);
       }
@@ -92,7 +73,10 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const signOut = useCallback(() => {
+  const signOut = useCallback(async () => {
+    try {
+      await api.post('/users/logout', {}, { skipGlobalError: true });
+    } catch (_) {}
     localStorage.removeItem('ff_token');
     localStorage.removeItem('ff_user');
     localStorage.removeItem('ff_tenant_slug');
@@ -100,15 +84,17 @@ export function AuthProvider({ children }) {
   }, []);
 
   const refreshUser = useCallback(() => {
-    api.get('/users/me')
-      .then(res => setUser(res.data))
+    api.get('/users/me', { skipGlobalError: true })
+      .then(res => {
+        localStorage.setItem('ff_user', JSON.stringify(res.data));
+        setUser(res.data);
+      })
       .catch(() => {});
   }, []);
 
-  // Don't render children until token is verified — prevents flash of protected content.
-  // A stored session stays on the neutral cover so the Forma palette never paints first.
+  // Don't render children until session is checked — prevents flash of protected content.
   if (!checked) {
-    return localStorage.getItem('ff_token') ? <WorkspaceBoot /> : null;
+    return user || localStorage.getItem('ff_user') ? <WorkspaceBoot /> : null;
   }
 
   return (

@@ -9,6 +9,7 @@ export const platformClient = axios.create({
     "Content-Type": "application/json",
   },
   timeout: 30000,
+  withCredentials: true,
 });
 
 // Normalized error parser backwards-compatible wrapper
@@ -26,13 +27,9 @@ export function normalizeApiError(err) {
   };
 }
 
-// Request Interceptor: Injects platform authorization token and Request ID
+// Request Interceptor: Request ID only (auth via httpOnly cookie)
 platformClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("leap_platform_token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
     config.headers["X-Request-Id"] = `req_${crypto.randomUUID().slice(0, 8)}`;
     // Callers sometimes pass a body or options object in the signal slot.
     // Axios requires a real AbortSignal and throws if addEventListener is missing.
@@ -44,7 +41,7 @@ platformClient.interceptors.request.use(
   (error) => Promise.reject(normalizeApiError(error))
 );
 
-// Response Interceptor: 401 handling, refresh token rotation, and 403 authorization
+// Response Interceptor: 401 handling, cookie refresh, and 403 authorization
 let isRefreshing = false;
 let failedQueue = [];
 
@@ -69,15 +66,9 @@ platformClient.interceptors.response.use(
       // Avoid looping on auth endpoints
       if (
         originalRequest?.url?.includes("/auth/login") ||
-        originalRequest?.url?.includes("/auth/refresh")
+        originalRequest?.url?.includes("/auth/refresh") ||
+        originalRequest?.url?.includes("/auth/logout")
       ) {
-        return Promise.reject(normalized);
-      }
-
-      const refreshToken = localStorage.getItem("leap_platform_refresh_token");
-      if (!refreshToken) {
-        handleLogoutRedirect();
-        emitErrorEvent(normalized, { modal: true });
         return Promise.reject(normalized);
       }
 
@@ -85,10 +76,7 @@ platformClient.interceptors.response.use(
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
         })
-          .then((token) => {
-            originalRequest.headers.Authorization = `Bearer ${token}`;
-            return platformClient(originalRequest);
-          })
+          .then(() => platformClient(originalRequest))
           .catch((err) => Promise.reject(normalizeApiError(err)));
       }
 
@@ -96,19 +84,13 @@ platformClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const refreshRes = await axios.post(
+        await axios.post(
           `${platformClient.defaults.baseURL}/auth/refresh`,
-          { refreshToken }
+          {},
+          { withCredentials: true }
         );
 
-        const { token: newToken, refreshToken: newRefreshToken } = refreshRes.data;
-        localStorage.setItem("leap_platform_token", newToken);
-        if (newRefreshToken) {
-          localStorage.setItem("leap_platform_refresh_token", newRefreshToken);
-        }
-
-        processQueue(null, newToken);
-        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        processQueue(null, true);
         return platformClient(originalRequest);
       } catch (refreshErr) {
         processQueue(refreshErr, null);
@@ -129,9 +111,9 @@ platformClient.interceptors.response.use(
 );
 
 function handleLogoutRedirect() {
+  localStorage.removeItem("leap_platform_user");
   localStorage.removeItem("leap_platform_token");
   localStorage.removeItem("leap_platform_refresh_token");
-  localStorage.removeItem("leap_platform_user");
 
   const path = window.location.pathname;
   if (path.startsWith("/platform") && !path.includes("/login")) {
