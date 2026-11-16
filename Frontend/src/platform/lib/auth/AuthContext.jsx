@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import { apiGetMe } from "../api/endpoints";
 import platformClient from "../api/client";
 import { clearWwwPreviewCookie } from "../../../marketing/previewCookie";
@@ -19,6 +19,8 @@ export function PlatformAuthProvider({ children }) {
   });
 
   const [loading, setLoading] = useState(true);
+  // Bumped on login so an in-flight boot /auth/me 401 cannot wipe a fresh session.
+  const sessionEpoch = useRef(0);
 
   const [impersonation, setImpersonation] = useState(() => {
     try {
@@ -31,22 +33,24 @@ export function PlatformAuthProvider({ children }) {
 
   useEffect(() => {
     let active = true;
+    const epoch = sessionEpoch.current;
     apiGetMe()
       .then((res) => {
-        if (active && res.data?.user) {
+        if (!active || epoch !== sessionEpoch.current) return;
+        if (res.data?.user) {
           setUser(res.data.user);
           localStorage.setItem(STORAGE_USER, JSON.stringify(res.data.user));
         }
       })
       .catch(() => {
-        if (!active) return;
+        if (!active || epoch !== sessionEpoch.current) return;
         setUser(null);
         localStorage.removeItem(STORAGE_USER);
         localStorage.removeItem("leap_platform_token");
         localStorage.removeItem("leap_platform_refresh_token");
       })
       .finally(() => {
-        if (active) setLoading(false);
+        if (active && epoch === sessionEpoch.current) setLoading(false);
       });
 
     return () => {
@@ -56,6 +60,8 @@ export function PlatformAuthProvider({ children }) {
 
   const loginSuccess = useCallback((authData) => {
     const { user: nextUser } = authData;
+    sessionEpoch.current += 1;
+    setLoading(false);
     setUser(nextUser);
     if (nextUser) {
       localStorage.setItem(STORAGE_USER, JSON.stringify(nextUser));

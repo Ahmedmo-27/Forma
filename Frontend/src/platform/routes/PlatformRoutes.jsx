@@ -24,7 +24,7 @@ import LogsPage from "../features/system/LogsPage";
 import DesignSystemPage from "../features/design-system/DesignSystemPage";
 
 function ProtectedShellRoute() {
-  const { token, loading } = usePlatformAuth();
+  const { isAuthenticated, loading } = usePlatformAuth();
 
   if (loading) {
     return (
@@ -34,7 +34,7 @@ function ProtectedShellRoute() {
     );
   }
 
-  if (!token) {
+  if (!isAuthenticated) {
     return <Navigate to="/platform/login" replace />;
   }
 
