@@ -86,32 +86,52 @@ export function visibleNavItems(user, hasFeature = () => true) {
     ) return false;
     return true;
   });
-  const seen = new Set(visible.map((item) => item.to));
+  const seenPaths = new Set(visible.map((item) => item.to));
+  const seenLabels = new Set(visible.map((item) => navLabelKey(item.label)));
+  const markSeen = (item) => {
+    seenPaths.add(item.to);
+    seenLabels.add(navLabelKey(item.label));
+  };
   const canSeeAnalytics = ANALYTICS_ROLES.includes(user?.role) && hasAccess(user, ['reports', 'owner_dashboard', 'accounting_dashboard', 'sales_dashboard']);
-  if (canSeeAnalytics && hasFeature('members') && !seen.has('/analytics')) {
-    seen.add('/analytics');
-    const contactsAt = visible.findIndex((item) => item.to === '/contacts');
+  if (canSeeAnalytics && hasFeature('members') && !seenPaths.has('/analytics')) {
     const analytics = { to: '/analytics', label: 'Analytics' };
+    markSeen(analytics);
+    const contactsAt = visible.findIndex((item) => item.to === '/contacts');
     if (contactsAt >= 0) visible.splice(contactsAt, 0, analytics);
     else visible.push(analytics);
   }
   const platinumAnalytics = hasFeature('exec_analytics') || hasFeature('funnels') || hasFeature('business_intelligence');
-  if (user?.role === 'Accountant' && platinumAnalytics && !seen.has('/reports')) {
-    seen.add('/reports');
-    visible.push({ to: '/reports', label: 'Reports', access: 'reports' });
+  if (user?.role === 'Accountant' && platinumAnalytics && !seenPaths.has('/reports')) {
+    const reports = { to: '/reports', label: 'Reports', access: 'reports' };
+    markSeen(reports);
+    visible.push(reports);
   }
-  if (['Owner', 'General Manager', 'Sales Manager'].includes(user?.role) && hasAccess(user, 'access_control') && !seen.has('/owner/access') && !seen.has('/management/access')) {
-    seen.add('/owner/access');
-    const contactsAt = visible.findIndex((item) => item.to === '/contacts');
+  if (['Owner', 'General Manager', 'Sales Manager'].includes(user?.role) && hasAccess(user, 'access_control') && !seenPaths.has('/owner/access') && !seenPaths.has('/management/access')) {
     const accessNav = { to: '/owner/access', label: 'Access', access: 'access_control' };
+    markSeen(accessNav);
+    seenPaths.add('/management/access');
+    const contactsAt = visible.findIndex((item) => item.to === '/contacts');
     if (contactsAt >= 0) visible.splice(contactsAt, 0, accessNav);
     else visible.push(accessNav);
   }
   const extras = Array.isArray(user?.navExtras) ? user.navExtras : [];
   for (const extra of extras) {
-    if (!extra?.to || seen.has(extra.to)) continue;
-    seen.add(extra.to);
-    visible.push({ to: extra.to, label: extra.label || 'Feature', access: extra.key });
+    if (!extra?.to) continue;
+    const label = extra.label || 'Feature';
+    // Non-default grants often add alternate role paths (coach/accounting dashboards,
+    // my-callcenter, management access) that collide with the role's existing tabs.
+    if (seenPaths.has(extra.to) || seenLabels.has(navLabelKey(label))) continue;
+    const item = { to: extra.to, label, access: extra.key };
+    markSeen(item);
+    if (extra.to === '/owner/access' || extra.to === '/management/access') {
+      seenPaths.add('/owner/access');
+      seenPaths.add('/management/access');
+    }
+    visible.push(item);
   }
   return visible;
+}
+
+function navLabelKey(label) {
+  return String(label || '').trim().toLowerCase();
 }

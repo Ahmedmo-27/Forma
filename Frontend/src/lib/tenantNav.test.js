@@ -64,4 +64,35 @@ describe("Tenant navigation", () => {
         }), on).map((item) => item.to);
         expect(paths).toContain("/custom");
     });
+
+    it("does not duplicate tabs when non-default extras reuse existing labels or access paths", () => {
+        const items = visibleNavItems(user("Sales Manager", {
+            navExtras: [
+                { to: "/coach/dashboard", label: "Dashboard", key: "coach_dashboard" },
+                { to: "/coach/members", label: "Members", key: "coach_members" },
+                { to: "/coach/checkin", label: "Check In", key: "coach_checkin" },
+                { to: "/sales/my-callcenter", label: "Call Center", key: "my_call_center" },
+                { to: "/management/access", label: "Access", key: "access_control" },
+                { to: "/coach/my-transfers", label: "Transfers", key: "my_transfers" },
+                { to: "/coach/transfer", label: "Transfers", key: "coach_transfer" },
+                { to: "/coach/attendance", label: "Attendance", key: "coach_attendance" },
+            ],
+        }), on);
+        const labels = items.map((item) => item.label);
+        const paths = items.map((item) => item.to);
+
+        expect(labels.filter((label) => label === "Dashboard")).toHaveLength(1);
+        expect(labels.filter((label) => label === "Members")).toHaveLength(1);
+        expect(labels.filter((label) => label === "Check In")).toHaveLength(1);
+        expect(labels.filter((label) => label === "Call Center")).toHaveLength(1);
+        expect(labels.filter((label) => label === "Access")).toHaveLength(1);
+        expect(labels.filter((label) => label === "Transfers")).toHaveLength(1);
+        expect(paths).toContain("/sales/dashboard");
+        expect(paths).not.toContain("/coach/dashboard");
+        expect(paths).not.toContain("/management/access");
+        expect(paths).toContain("/coach/my-transfers");
+        expect(paths).not.toContain("/coach/transfer");
+        expect(paths).toContain("/coach/attendance");
+        expect(new Set(labels).size).toBe(labels.length);
+    });
 });
