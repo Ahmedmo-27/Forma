@@ -59,7 +59,7 @@ Persisted uploads go to Cloudflare R2 bucket `forma` on the account signed in as
 
 Set `R2_ACCOUNT_ID=f7cd61e729b00936ed5f88b6833f5aa8` and `R2_BUCKET_NAME=forma`. The S3 endpoint is `https://f7cd61e729b00936ed5f88b6833f5aa8.r2.cloudflarestorage.com`. Create an R2 API token scoped to bucket `forma` with Object Read and Write, then set `R2_ACCESS_KEY_ID` and `R2_SECRET_ACCESS_KEY`. The server exits on startup if any of those four values is missing. Leave `R2_PUBLIC_URL` empty.
 
-Objects are stored as `{tenantId}/{filename}`. Profile photos, national IDs, invitation ID scans, and tenant logos are written only to that bucket. The API still authorizes `GET /uploads/:filename` and streams the object. Logos redirect to `R2_PUBLIC_URL` only when that variable is a public bucket domain. Excel imports are parsed in memory and are not stored.
+Objects are stored as `{tenantId}/{filename}`. Profile photos, national IDs, invitation ID scans, and tenant logos are written only to that bucket. The API still authorizes `GET /uploads/:filename` and streams the object. Logos redirect to `R2_PUBLIC_URL` only when that variable is a public bucket domain. Member imports accept **CSV only** (parsed in memory; not stored in R2).
 
 On Railway (production) and Render (testing), set `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` in each service dashboard. Do not commit the key pair. Leave `R2_PUBLIC_URL` unset. Use separate secrets per environment.
 
@@ -82,4 +82,16 @@ From `Backend`:
 
 ```bash
 npm test
+npm run test:isolation
+npm run test:security
+```
+
+Security / pentest process: [docs/SECURITY_PENTEST_CHECKLIST.md](docs/SECURITY_PENTEST_CHECKLIST.md).
+
+Release gate: CI (`.github/workflows/ci.yml`) must be green; before production, Phase 1–2 checklist items (isolation, privilege escalation, XSS) must have no open Fail, and High+ Phase 3 findings must be fixed or accepted. Seed pentest accounts on a **test** DB only:
+
+```bash
+npm run seed:superadmin
+npm run seed:showcase
+SECURITY_PENTEST_SEED=1 npm run seed:security-pentest
 ```

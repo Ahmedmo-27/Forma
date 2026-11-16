@@ -65,7 +65,7 @@ Example — first tenant slug `leap`:
 
 Runtime isolation uses JWT `tenantId` / `tenantSlug` and `runWithTenant` (see `Backend/src/middleware/authMiddleware.js`). `X-Tenant-Slug` is a login hint only. `BASE_DOMAIN` documents the production root for a future vanity-subdomain phase; it is not required for request scoping today.
 
-Auth is Bearer + `localStorage` with CORS `credentials: false`, so sessions do not cross subdomains without extra work.
+Browser sessions use **httpOnly** cookies (`forma_tenant`, `forma_platform`, `forma_platform_refresh`) with `Secure; SameSite=Lax` and `Domain=.<BASE_DOMAIN>` in production so `app` and `api` share them. CORS uses an explicit origin allowlist with `credentials: true` (never `*`). Mutating cookie-authenticated requests require `Origin`/`Referer` to match that allowlist (CSRF). `Authorization: Bearer` remains for tests/scripts. Locally, Vite proxies `/api` so host-only cookies work without `Domain`.
 
 ## 3. DNS checklist (production only)
 
@@ -148,7 +148,7 @@ Public site on `www.forma-official.com` (gated by platform `public_site` publish
 - `GET /why-forma` — positioning / ERP comparison
 - `GET /plans` — live catalog
 - `GET /get-started` (and `/checkout` → redirect) — signup + bank-transfer instructions
-- Coming-soon surface when unpublished; super_admin preview via `forma_www_preview` cookie
+- Coming-soon surface when unpublished; super_admin preview via shared `forma_platform` httpOnly cookie (`withCredentials` on `/api/public/site-config`)
 
 Unauthenticated API on **Railway** (`Backend/src/routes/publicRoutes.js`):
 
