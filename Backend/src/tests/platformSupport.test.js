@@ -88,19 +88,26 @@ describe("Phase 6: Support, Impersonation & Operations Tools", () => {
                 },
                 platformUser: supportUser,
             };
+            const cookies = {};
             const res = {
                 json: vi.fn(),
                 status: vi.fn().mockReturnThis(),
+                cookie: vi.fn().mockImplementation((name, value) => {
+                    cookies[name] = value;
+                    return res;
+                }),
             };
 
             await createImpersonationSession(req, res);
 
             expect(res.json).toHaveBeenCalled();
             const callData = res.json.mock.calls[0][0];
-            expect(callData.token).toBeDefined();
+            expect(callData.token).toBeUndefined();
+            expect(callData.redirectPath).toBe("/members");
+            expect(cookies.forma_tenant).toBeDefined();
 
             // Decode and verify token claims
-            const decoded = jwt.verify(callData.token, process.env.JWT_SECRET);
+            const decoded = jwt.verify(cookies.forma_tenant, process.env.JWT_SECRET);
             expect(decoded.isImpersonation).toBe(true);
             expect(decoded.readOnly).toBe(true);
             expect(decoded.impersonatedBy).toBe(supportUser.id);
@@ -119,16 +126,22 @@ describe("Phase 6: Support, Impersonation & Operations Tools", () => {
                 body: {},
                 platformUser: supportUser,
             };
+            const cookies = {};
             const res = {
                 json: vi.fn(),
                 status: vi.fn().mockReturnThis(),
+                cookie: vi.fn().mockImplementation((name, value) => {
+                    cookies[name] = value;
+                    return res;
+                }),
             };
 
             await createImpersonationSession(req, res);
 
             expect(res.json).toHaveBeenCalled();
             const callData = res.json.mock.calls[0][0];
-            expect(callData.token).toBeDefined();
+            expect(callData.token).toBeUndefined();
+            expect(cookies.forma_tenant).toBeDefined();
             expect(callData.session.tenant.id).toEqual(tenantId);
         });
 

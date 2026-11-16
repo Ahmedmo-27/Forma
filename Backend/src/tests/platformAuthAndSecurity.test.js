@@ -175,9 +175,14 @@ describe("Phase 1: Platform Identity, Security & RBAC", () => {
                     password: "password123",
                 },
             };
+            const cookies = {};
             const res = {
                 status: vi.fn().mockReturnThis(),
                 json: vi.fn(),
+                cookie: vi.fn().mockImplementation((name, value) => {
+                    cookies[name] = value;
+                    return res;
+                }),
             };
 
             await login(req, res);
@@ -186,8 +191,10 @@ describe("Phase 1: Platform Identity, Security & RBAC", () => {
             expect(fakeUser.save).toHaveBeenCalled();
 
             const jsonArg = res.json.mock.calls[0][0];
-            expect(jsonArg.token).toEqual(expect.any(String));
-            expect(jsonArg.refreshToken).toEqual(expect.any(String));
+            expect(jsonArg.token).toBeUndefined();
+            expect(jsonArg.refreshToken).toBeUndefined();
+            expect(cookies.forma_platform).toEqual(expect.any(String));
+            expect(cookies.forma_platform_refresh).toEqual(expect.any(String));
             expect(jsonArg.user).toEqual(
                 expect.objectContaining({
                     email: "admin@platform.com",

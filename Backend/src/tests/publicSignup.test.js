@@ -111,6 +111,25 @@ describe("Public plans + signup", () => {
         );
     });
 
+    it("rejects signup with missing required owner email / plan", async () => {
+        const res = mockRes();
+        await publicSignup(
+            {
+                body: {
+                    name: "Incomplete Gym",
+                    slug: "incomplete-gym",
+                    ownerName: "Owner",
+                    // ownerEmail missing
+                    planKey: "basic",
+                    cycle: "monthly",
+                },
+            },
+            res
+        );
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json.mock.calls[0][0].token).toBeUndefined();
+    });
+
     it("creates tenant, manual payment, and audit with tenantId", async () => {
         const planId = new mongoose.Types.ObjectId();
         const tenantId = new mongoose.Types.ObjectId();

@@ -39,6 +39,7 @@ describe("CORS configuration", () => {
 
         expect(res.status).toBe(204);
         expect(res.headers.get("access-control-allow-origin")).toBe("https://leap-dszt.vercel.app");
+        expect(res.headers.get("access-control-allow-credentials")).toBe("true");
 
         const allowHeaders = res.headers.get("access-control-allow-headers") || "";
         const lowerHeaders = allowHeaders.toLowerCase();

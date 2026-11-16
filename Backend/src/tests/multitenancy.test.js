@@ -341,6 +341,7 @@ describe("Phase 9: Multi-Tenancy System Tests", () => {
 
             let responseStatus = 200;
             let responseData = null;
+            const cookies = {};
             const res = {
                 status: vi.fn().mockImplementation((code) => {
                     responseStatus = code;
@@ -350,16 +351,21 @@ describe("Phase 9: Multi-Tenancy System Tests", () => {
                     responseData = data;
                     return res;
                 }),
+                cookie: vi.fn().mockImplementation((name, value) => {
+                    cookies[name] = value;
+                    return res;
+                }),
             };
 
             await loginUser(req, res);
 
             expect(responseStatus).toBe(200);
             expect(responseData.message).toBe("Login successful");
-            expect(responseData.token).toBeDefined();
+            expect(responseData.token).toBeUndefined();
+            expect(cookies.forma_tenant).toBeDefined();
 
             // Verify JWT token has tenantId and tenantSlug
-            const decoded = jwt.verify(responseData.token, process.env.JWT_SECRET);
+            const decoded = jwt.verify(cookies.forma_tenant, process.env.JWT_SECRET);
             expect(decoded.tenantId).toBe(tenantId);
             expect(decoded.tenantSlug).toBe("power-gym");
             expect(decoded.id).toBe(userId);
@@ -375,7 +381,7 @@ describe("Phase 9: Multi-Tenancy System Tests", () => {
             });
             const protectReq = {
                 headers: {
-                    authorization: `Bearer ${responseData.token}`,
+                    authorization: `Bearer ${cookies.forma_tenant}`,
                 },
                 originalUrl: "/api/members",
                 method: "GET",
