@@ -103,6 +103,21 @@ describe("authCookies", () => {
         expect(looksLikeJwt(readTenantToken(req))).toBe(true);
     });
 
+    it("ignores literal Bearer undefined/null from poisoned localStorage", () => {
+        expect(
+            readTenantToken({
+                headers: { authorization: "Bearer undefined" },
+                cookies: {},
+            })
+        ).toBeNull();
+        expect(
+            readTenantToken({
+                headers: { authorization: "Bearer null" },
+                cookies: { [TENANT_COOKIE]: SAMPLE_JWT },
+            })
+        ).toBe(SAMPLE_JWT);
+    });
+
     it("prefers a JWT among duplicate forma_tenant cookies", () => {
         const req = {
             headers: {

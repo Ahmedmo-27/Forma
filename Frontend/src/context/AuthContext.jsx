@@ -14,12 +14,22 @@ function _parseUser() {
   }
 }
 
+/** Drop poisoned legacy tokens left by the pre-cookie SPA (e.g. literal "undefined"). */
+function _scrubLegacyToken() {
+  const token = localStorage.getItem('ff_token');
+  if (token == null) return;
+  if (!token || token === 'undefined' || token === 'null' || token.split('.').length !== 3) {
+    localStorage.removeItem('ff_token');
+  }
+}
+
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [checked, setChecked] = useState(false); // true once session is verified
 
   // On mount — verify cookie session via /users/me
   useEffect(() => {
+    _scrubLegacyToken();
     const cached = _parseUser();
     api.get('/users/me', { skipGlobalError: true })
       .then(res => {

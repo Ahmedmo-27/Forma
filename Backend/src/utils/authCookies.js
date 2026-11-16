@@ -95,8 +95,11 @@ function clearPlatformAuthCookies(res) {
 
 function readBearer(req) {
     const header = req.headers?.authorization || "";
-    if (header.startsWith("Bearer ")) return header.slice(7).trim() || null;
-    return null;
+    if (!header.startsWith("Bearer ")) return null;
+    const token = header.slice(7).trim();
+    // Stale SPA builds stored localStorage ff_token=String(undefined) after cookie migration.
+    if (!token || token === "undefined" || token === "null") return null;
+    return token;
 }
 
 function looksLikeJwt(token) {
