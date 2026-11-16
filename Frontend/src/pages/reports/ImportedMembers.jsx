@@ -190,7 +190,7 @@ export default function ImportedMembers() {
             <Table loading skeletonRows={8} headers={['#', 'Name', 'Phone', 'Status', 'Sales Rep', 'Imported On']} />
           ) : filtered.length === 0 ? (
             <EmptyState icon={Download} message="No imported members found"
-              sub={hasFilters ? 'Try adjusting your filters.' : 'Import an Excel file to add members.'} />
+              sub={hasFilters ? 'Try adjusting your filters.' : 'Import a CSV file to add members.'} />
           ) : (
             <>
               <div className="table-responsive-container">

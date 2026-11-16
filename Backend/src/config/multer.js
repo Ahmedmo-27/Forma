@@ -12,7 +12,7 @@ const { getTenantContext, runWithTenant } = require("../context/tenantContext");
 const DOCUMENT_EXT = new Set([".jpeg", ".jpg", ".png", ".gif", ".webp", ".pdf"]);
 const PHOTO_EXT = new Set([".jpeg", ".jpg", ".png", ".webp"]);
 const LOGO_EXT = new Set([".jpeg", ".jpg", ".png", ".webp", ".svg"]);
-const SHEET_EXT = new Set([".xlsx", ".xls", ".csv"]);
+const SHEET_EXT = new Set([".csv"]);
 const NAME_EXT = new Set([...DOCUMENT_EXT, ".svg"]);
 
 const FIELD_PREFIX = {
@@ -77,7 +77,7 @@ const logoUpload = multer({
 
 const spreadsheetUpload = multer({
     storage,
-    fileFilter: extensionFilter(SHEET_EXT, "Only .xlsx, .xls or .csv files are allowed"),
+    fileFilter: extensionFilter(SHEET_EXT, "Only .csv files are allowed"),
     limits: { fileSize: SPREADSHEET_MAX_BYTES },
 });
 

@@ -53,7 +53,7 @@ function fileNote(file) {
     return {
         format: file.format,
         bytes: file.bytes,
-        xlsxBytes: file.xlsxBytes,
+        csvBytes: file.csvBytes,
         overLimit: Boolean(file.overLimit),
         phoneRoundTrip: file.phoneRoundTrip,
         limitBytes: SPREADSHEET_MAX_BYTES,

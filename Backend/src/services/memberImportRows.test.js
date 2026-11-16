@@ -1,4 +1,4 @@
-const { normalizeSheetRows, chunkCountFor, CHUNK_SIZE } = require("./memberImportRows");
+const { normalizeSheetRows, parseSpreadsheetBuffer, chunkCountFor, CHUNK_SIZE } = require("./memberImportRows");
 
 describe("member import rows", () => {
     it("reads English and Arabic headers and reports missing cells", () => {
@@ -15,6 +15,18 @@ describe("member import rows", () => {
             { line: 4, name: "", phone: "01000000003", error: "Missing name" },
             { line: 5, name: "No Phone", phone: "", error: "Missing phone number" },
         ]);
+    });
+
+    it("parses CSV buffers with headers", () => {
+        const rows = parseSpreadsheetBuffer(Buffer.from("name,phone\nAda,01000000001\nMona,01000000002\n"));
+        expect(rows).toEqual([
+            { line: 2, name: "Ada", phone: "01000000001" },
+            { line: 3, name: "Mona", phone: "01000000002" },
+        ]);
+    });
+
+    it("rejects empty CSV", () => {
+        expect(() => parseSpreadsheetBuffer(Buffer.from("name,phone\n"))).toThrow(/empty/i);
     });
 
     it("counts parts of 200 rows", () => {

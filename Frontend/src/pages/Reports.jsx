@@ -114,8 +114,8 @@ export default function Reports() {
         {/* ── Data — Sales Manager & Owner only ───────────────── */}
         {isDataManager && hasAccess(user, 'import_members') && (
           <ReportSection title="Data" sub="Import and manage bulk data">
-            <ReportCard icon={Download} title="Import Members"   sub="Upload Excel sheet of names & numbers"  to="/sales/import"     iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
-            <ReportCard icon={ClipboardList} title="Imported Members" sub="View all members added via Excel import" to="/reports/imported" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
+            <ReportCard icon={Download} title="Import Members"   sub="Upload CSV of names & numbers"  to="/sales/import"     iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
+            <ReportCard icon={ClipboardList} title="Imported Members" sub="View all members added via CSV import" to="/reports/imported" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
           </ReportSection>
         )}
 

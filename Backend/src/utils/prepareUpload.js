@@ -53,11 +53,7 @@ const PROFILES = {
         allowSvg: true,
     },
     spreadsheet: {
-        mimes: new Set([
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            "application/vnd.ms-excel",
-            "text/csv",
-        ]),
+        mimes: new Set(["text/csv"]),
         maxBytes: SPREADSHEET_MAX_BYTES,
         allowSvg: false,
     },
@@ -165,101 +161,23 @@ function profileForUpload(file) {
     return null;
 }
 
-function listZipNames(buf) {
-    const names = [];
-    const signature = Buffer.from([0x50, 0x4b, 0x01, 0x02]);
-    let offset = 0;
-    while (offset + 46 <= buf.length) {
-        const idx = buf.indexOf(signature, offset);
-        if (idx < 0 || idx + 46 > buf.length) break;
-        const nameLen = buf.readUInt16LE(idx + 28);
-        const extraLen = buf.readUInt16LE(idx + 30);
-        const commentLen = buf.readUInt16LE(idx + 32);
-        const nameEnd = idx + 46 + nameLen;
-        if (nameEnd > buf.length) break;
-        const name = buf.subarray(idx + 46, nameEnd).toString("utf8").replace(/\\/g, "/");
-        if (name.includes("\0") || name.split("/").includes("..")) {
-            throw reject("File content is not a valid spreadsheet");
-        }
-        names.push(name);
-        const next = nameEnd + extraLen + commentLen;
-        if (next <= idx) break;
-        offset = next;
-    }
-    return names;
-}
-
-function assertXlsx(buf) {
-    if (buf.length < 4 || buf[0] !== 0x50 || buf[1] !== 0x4b || (buf[2] !== 0x03 && buf[2] !== 0x05)) {
-        throw reject("File content is not a valid spreadsheet");
-    }
-    const names = listZipNames(buf).map((name) => name.toLowerCase());
-    if (names.some((name) => name.endsWith("vbaproject.bin"))) {
-        throw reject("Spreadsheets cannot contain macros");
-    }
-    const hasTypes = names.some((name) => name === "[content_types].xml" || name.endsWith("/[content_types].xml"));
-    const hasWorkbook = names.some((name) => name.endsWith("xl/workbook.xml") || name.endsWith("xl/workbook.bin"));
-    if (!hasTypes || !hasWorkbook) {
-        throw reject("File content is not a valid spreadsheet");
-    }
-    let workbook;
-    try {
-        const XLSX = require("xlsx");
-        workbook = XLSX.read(buf, { type: "buffer", bookVBA: false, cellFormula: false });
-    } catch {
-        throw reject("File content is not a valid spreadsheet");
-    }
-    if (!workbook?.SheetNames?.length) {
-        throw reject("File content is not a valid spreadsheet");
-    }
-}
-
-function assertXls(buf) {
-    const ole = Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]);
-    if (buf.length < ole.length || !buf.subarray(0, ole.length).equals(ole)) {
-        throw reject("File content is not a valid spreadsheet");
-    }
-    const marker = Buffer.from("_VBA_PROJECT_CUR");
-    if (buf.includes(marker) || buf.includes(Buffer.from("_VBA_PROJECT_CUR", "utf16le"))) {
-        throw reject("Spreadsheets cannot contain macros");
-    }
-    let workbook;
-    try {
-        const XLSX = require("xlsx");
-        workbook = XLSX.read(buf, { type: "buffer", bookVBA: false, cellFormula: false });
-    } catch {
-        throw reject("File content is not a valid spreadsheet");
-    }
-    if (!workbook?.SheetNames?.length) {
-        throw reject("File content is not a valid spreadsheet");
-    }
-}
-
 function assertCsv(buf) {
     if (!buf.length || buf.includes(0)) {
-        throw reject("File content is not a valid spreadsheet");
+        throw reject("File content is not a valid CSV");
     }
     const text = buf.toString("utf8").replace(/^\uFEFF/, "").trimStart().slice(0, 512).toLowerCase();
     if (/^(<\?php|<\?xml|#!|<\s*script|<\s*html|<\s*svg|javascript:)/.test(text)) {
-        throw reject("File content is not a valid spreadsheet");
+        throw reject("File content is not a valid CSV");
     }
 }
 
 function prepareSpreadsheet(file, buffer) {
     const ext = finalExtension(file.originalname || file.filename || "");
-    if (ext === ".xlsx") {
-        assertXlsx(buffer);
-        return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    }
-    if (ext === ".xls") {
-        assertXls(buffer);
-        return "application/vnd.ms-excel";
-    }
     if (ext === ".csv") {
         assertCsv(buffer);
         return "text/csv";
     }
-    throw reject("Only .xlsx, .xls or .csv files are allowed");
+    throw reject("Only .csv files are allowed");
 }
 
 function sharpOptions() {

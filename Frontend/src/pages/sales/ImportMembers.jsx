@@ -144,7 +144,7 @@ export default function ImportMembers() {
             <div>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 6 }}>How to use</h3>
               <p style={{ fontSize: 13, color: 'var(--t3)', lineHeight: 1.6, marginBottom: 8 }}>
-                Upload an Excel file (<code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.xlsx</code> / <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.xls</code> / <code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.csv</code>) with at least two columns. Large sheets are split into parts and imported in the background.
+                Upload a CSV file (<code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.csv</code>) with at least two columns. Large sheets are split into parts and imported in the background.
               </p>
               <div data-walkthrough="import-columns" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {[
@@ -166,7 +166,7 @@ export default function ImportMembers() {
 
         {showPicker && (
           <Card>
-            <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" style={{ display: 'none' }}
+            <input ref={fileRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }}
               onChange={(event) => handleFile(event.target.files[0])} />
             <div
               data-walkthrough="import-drop"
@@ -194,9 +194,9 @@ export default function ImportMembers() {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                   <FolderOpen size={40} strokeWidth={1.25} aria-hidden style={{ opacity: 0.3, color: 'var(--t2)' }} />
-                  <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--t2)' }}>Drop your Excel file here</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--t2)' }}>Drop your CSV file here</p>
                   <p style={{ fontSize: 12, color: 'var(--t4)' }}>or click to browse</p>
-                  <p style={{ fontSize: 11, color: 'var(--t4)' }}>.xlsx · .xls · .csv — max 5 MB</p>
+                  <p style={{ fontSize: 11, color: 'var(--t4)' }}>.csv — max 5 MB</p>
                 </div>
               )}
             </div>

@@ -211,7 +211,7 @@ async function startMemberImport({ buffer, fileName, userId, tenantId, tenantSlu
     const job = await MemberImportJob.create({
         status: "processing",
         stage: `Divided into ${parts} ${parts === 1 ? "part" : "parts"}`,
-        fileName: fileName || "members.xlsx",
+        fileName: fileName || "members.csv",
         totalRows: rows.length,
         processedRows: 0,
         chunkSize: CHUNK_SIZE,

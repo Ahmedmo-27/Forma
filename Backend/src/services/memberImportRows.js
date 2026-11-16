@@ -1,3 +1,5 @@
+const { parse } = require("csv-parse/sync");
+
 const CHUNK_SIZE = 200;
 const MAX_ROWS = 100000;
 const MAX_STORED_ERRORS = 25;
@@ -31,17 +33,23 @@ function normalizeSheetRows(rawRows) {
 }
 
 function parseSpreadsheetBuffer(buffer) {
-    const XLSX = require("xlsx");
-    const workbook = XLSX.read(buffer, { type: "buffer", cellFormula: false });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    if (!sheet) {
-        const error = new Error("Excel file is empty");
+    let rawRows;
+    try {
+        rawRows = parse(buffer, {
+            columns: true,
+            skip_empty_lines: true,
+            trim: true,
+            bom: true,
+            relax_column_count: true,
+        });
+    } catch (err) {
+        const error = new Error(err.message || "CSV file could not be parsed");
         error.statusCode = 400;
         throw error;
     }
-    const rawRows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-    if (!rawRows.length) {
-        const error = new Error("Excel file is empty");
+
+    if (!Array.isArray(rawRows) || !rawRows.length) {
+        const error = new Error("CSV file is empty");
         error.statusCode = 400;
         throw error;
     }

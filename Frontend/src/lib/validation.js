@@ -90,7 +90,7 @@ export const UPLOAD_INTAKE_MB = 15;
 export const PHOTO_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 export const DOCUMENT_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.pdf'];
 export const LOGO_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.svg'];
-export const SPREADSHEET_EXTENSIONS = ['.xlsx', '.xls', '.csv'];
+export const SPREADSHEET_EXTENSIONS = ['.csv'];
 
 export const PHOTO_ACCEPT = 'image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp';
 export const DOCUMENT_ACCEPT = 'image/jpeg,image/png,image/gif,image/webp,application/pdf,.jpg,.jpeg,.png,.gif,.webp,.pdf';
