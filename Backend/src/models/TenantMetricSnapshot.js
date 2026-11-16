@@ -28,6 +28,9 @@ const tenantMetricSnapshotSchema = new mongoose.Schema(
 );
 
 tenantMetricSnapshotSchema.plugin(tenantPlugin);
+// locationId is part of the key so each branch can have its own day.
+// An older unique index on { tenantId, grain, localDate } alone is dropped at runtime;
+// while it exists, a branch row for a date that already has the gym-wide row is rejected.
 tenantMetricSnapshotSchema.index(
     { tenantId: 1, grain: 1, localDate: 1, locationId: 1 },
     { unique: true }

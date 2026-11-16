@@ -3,7 +3,13 @@ import { describe, expect, it, vi } from "vitest";
 
 const require = createRequire(import.meta.url);
 const Insight = require("../../models/Insight");
-const { actualFor, refreshInsights, weekKey } = require("./snapshotJob");
+const {
+    actualFor,
+    refreshInsights,
+    weekKey,
+    scopedLocationIds,
+    STALE_SNAPSHOT_INDEX,
+} = require("./snapshotJob");
 
 function day(localDate, metrics, extra = {}) {
     return {
@@ -17,6 +23,18 @@ function day(localDate, metrics, extra = {}) {
 }
 
 describe("bi snapshot job", () => {
+    it("names the unique index that blocked a second snapshot on the same day", () => {
+        expect(STALE_SNAPSHOT_INDEX).toBe("tenantId_1_grain_1_localDate_1");
+        expect(STALE_SNAPSHOT_INDEX.includes("locationId")).toBe(false);
+    });
+
+    it("only backfills a single branch or a granted set", () => {
+        expect(scopedLocationIds({ mode: "one", locationId: "branch-a" })).toEqual(["branch-a"]);
+        expect(scopedLocationIds({ mode: "subset", locationIds: ["b", "a"] })).toEqual(["b", "a"]);
+        expect(scopedLocationIds({ mode: "unrestricted" })).toEqual([]);
+        expect(scopedLocationIds(null)).toEqual([]);
+    });
+
     it("names the ISO week used to keep a dismissed insight from returning", () => {
         expect(weekKey("2026-04-01")).toBe("2026-W14");
         expect(weekKey("2026-01-01")).toBe("2026-W01");

@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const Member = require("../../models/Member");
 const User = require("../../models/User");
 const TenantMetricSnapshot = require("../../models/TenantMetricSnapshot");
@@ -51,6 +52,33 @@ async function loadPending(now) {
 }
 
 const EMPTY_PENDING = { total: 0, under1: 0, d1to3: 0, over3: 0 };
+
+/** Previous unique key. It allowed one row per day, so the gym-wide snapshot blocked every branch. */
+const STALE_SNAPSHOT_INDEX = "tenantId_1_grain_1_localDate_1";
+
+let rebuilding = false;
+
+function snapshotsRebuilding() {
+    return rebuilding;
+}
+
+function scopedLocationIds(locationScope) {
+    if (locationScope?.mode === "one" && locationScope.locationId) {
+        return [String(locationScope.locationId)];
+    }
+    if (locationScope?.mode === "subset" && Array.isArray(locationScope.locationIds)) {
+        return locationScope.locationIds.map(String).filter(Boolean);
+    }
+    return [];
+}
+
+async function dropStaleSnapshotIndex() {
+    const indexes = await TenantMetricSnapshot.collection.indexes();
+    if (!indexes.some((index) => index.name === STALE_SNAPSHOT_INDEX)) return false;
+    await TenantMetricSnapshot.collection.dropIndex(STALE_SNAPSHOT_INDEX);
+    logger.info("bi", "Dropped snapshot index that blocked per-branch rows", { index: STALE_SNAPSHOT_INDEX });
+    return true;
+}
 
 async function loadFacts(now) {
     const members = await Member.find({}).select(MEMBER_FIELDS).lean();
@@ -207,6 +235,56 @@ async function refreshInsights(storedDays, locationId = null) {
  * Passing the same dates twice overwrites the same snapshot rows.
  */
 async function snapshotTenant(tenant, { dateKeys, now = new Date(), dryRun = false } = {}) {
+    rebuilding = true;
+    try {
+        return await writeTenantSnapshots(tenant, { dateKeys, now, dryRun });
+    } finally {
+        rebuilding = false;
+    }
+}
+
+/**
+ * Branch pages read rows stamped with that location. If the stale unique index
+ * rejected those rows, rebuild the dates that already exist for the whole gym.
+ */
+async function ensureBranchSnapshots(tenant, locationScope) {
+    await dropStaleSnapshotIndex();
+    const ids = scopedLocationIds(locationScope).filter((id) => mongoose.Types.ObjectId.isValid(id));
+    if (!ids.length || !tenant) return false;
+
+    const gymDates = await TenantMetricSnapshot.find({
+        grain: "day",
+        $or: [{ locationId: null }, { locationId: { $exists: false } }],
+    }).distinct("localDate");
+    const wanted = gymDates.filter((date) => date && date !== "cohort");
+    if (!wanted.length) return false;
+
+    const missing = new Set();
+    for (const id of ids) {
+        const oid = new mongoose.Types.ObjectId(id);
+        const have = new Set(
+            await TenantMetricSnapshot.find({ grain: "day", locationId: oid }).distinct("localDate")
+        );
+        for (const date of wanted) {
+            if (!have.has(date)) missing.add(date);
+        }
+        const cohort = await TenantMetricSnapshot.findOne({
+            grain: "cohort",
+            localDate: "cohort",
+            locationId: oid,
+        }).select("_id").lean();
+        if (!cohort) {
+            const timeZone = tenant.settings?.locale?.timezone || "Africa/Cairo";
+            missing.add(localDateKey(new Date(), timeZone));
+        }
+    }
+    if (!missing.size) return false;
+    await snapshotTenant(tenant, { dateKeys: [...missing].sort() });
+    return true;
+}
+
+async function writeTenantSnapshots(tenant, { dateKeys, now = new Date(), dryRun = false } = {}) {
+    await dropStaleSnapshotIndex();
     const timeZone = tenant.settings?.locale?.timezone || "Africa/Cairo";
     const today = localDateKey(now, timeZone);
     const keys = (dateKeys && dateKeys.length ? dateKeys : [addLocalDays(today, -1), today]).slice().sort();
@@ -303,6 +381,11 @@ async function runDueBiSnapshots() {
 
 module.exports = {
     snapshotTenant,
+    ensureBranchSnapshots,
+    dropStaleSnapshotIndex,
+    snapshotsRebuilding,
+    scopedLocationIds,
+    STALE_SNAPSHOT_INDEX,
     runDueBiSnapshots,
     loadFacts,
     weekKey,

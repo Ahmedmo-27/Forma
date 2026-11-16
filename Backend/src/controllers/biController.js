@@ -16,7 +16,8 @@ const {
     quietHourShare,
     MIN_RATE_SAMPLE,
 } = require("../services/bi/metrics");
-const { snapshotTenant } = require("../services/bi/snapshotJob");
+const { snapshotTenant, ensureBranchSnapshots, snapshotsRebuilding } = require("../services/bi/snapshotJob");
+const logger = require("../utils/logger");
 
 function toObjectId(id) {
     if (id == null || id === "") return null;
@@ -203,7 +204,29 @@ async function latestDays(filter, limit) {
     return rows.reverse();
 }
 
+function branchScopeNeedsRows(locationScope) {
+    return (locationScope?.mode === "one" && locationScope.locationId)
+        || (locationScope?.mode === "subset" && locationScope.locationIds?.length);
+}
+
+async function backfillBranchSnapshots(locationScope) {
+    const { getTenantId } = require("../context/tenantContext");
+    const tenantId = getTenantId();
+    if (!tenantId) return;
+    const Tenant = require("../models/Tenant");
+    const tenant = await Tenant.findById(tenantId).select("name settings");
+    if (!tenant) return;
+    await ensureBranchSnapshots(tenant, locationScope);
+}
+
 async function loadDays(limit = 120, locationScope = null) {
+    if (branchScopeNeedsRows(locationScope) && !snapshotsRebuilding()) {
+        try {
+            await backfillBranchSnapshots(locationScope);
+        } catch (error) {
+            logger.error("bi", "Branch snapshot backfill failed", { error: error.message });
+        }
+    }
     const grain = { grain: "day" };
     if (locationScope?.mode === "one" && locationScope.locationId) {
         const oid = toObjectId(locationScope.locationId);
@@ -254,6 +277,13 @@ function mergeCohorts(cohortLists) {
 }
 
 async function loadCohortDoc(locationScope) {
+    if (branchScopeNeedsRows(locationScope) && !snapshotsRebuilding()) {
+        try {
+            await backfillBranchSnapshots(locationScope);
+        } catch (error) {
+            logger.error("bi", "Branch snapshot backfill failed", { error: error.message });
+        }
+    }
     if (locationScope?.mode === "one" && locationScope.locationId) {
         const oid = toObjectId(locationScope.locationId);
         if (!oid) return null;
