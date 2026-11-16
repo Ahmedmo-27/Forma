@@ -181,8 +181,8 @@ export default function TenantDetailPage() {
       await apiUpdateTenantPurpose(id, next);
       platformToast.success(
         next === "showcase"
-          ? "Showcase theme locked to Forma navy and cream"
-          : "Gym branding unlocked"
+          ? "Marked as a showcase. Saved colors stay in effect."
+          : "Set back to a customer gym."
       );
       setPurposeModalOpen(false);
       refetch();
@@ -352,7 +352,7 @@ export default function TenantDetailPage() {
               variant="outline"
               onClick={() => setPurposeModalOpen(true)}
             >
-              {isShowcase ? "Unlock gym branding" : "Mark as showcase"}
+              {isShowcase ? "Use as customer gym" : "Mark as showcase"}
             </Button>
           )}
 
@@ -896,18 +896,18 @@ export default function TenantDetailPage() {
         isOpen={purposeModalOpen}
         onClose={() => setPurposeModalOpen(false)}
         onConfirm={handleConfirmPurpose}
-        title={isShowcase ? `Unlock branding for ${tenant.name}` : `Mark ${tenant.name} as a showcase tenant`}
+        title={isShowcase ? `Use ${tenant.name} as a customer gym` : `Mark ${tenant.name} as a showcase tenant`}
         description={
           isShowcase
-            ? "Staff can edit this gym’s colors again. The palette saved before the showcase lock is restored."
-            : "Everyone in this workspace sees Forma’s navy and cream. Color editing stays locked so a prospect cannot replace it."
+            ? "This workspace stays a normal gym. A palette stashed by the old showcase lock is restored if one is still stored."
+            : "This workspace is marked as a showcase. Its saved colors stay, and staff can keep changing them."
         }
         impactSummary={
           isShowcase
-            ? "The stored gym palette is written back and branding unlocks."
-            : "The current gym palette is stored, then replaced with Forma’s navy and cream."
+            ? "Purpose becomes customer. Colors follow the palette saved on this gym."
+            : "Purpose becomes showcase. Colors are not replaced."
         }
-        confirmLabel={isShowcase ? "Unlock branding" : "Lock showcase theme"}
+        confirmLabel={isShowcase ? "Use as customer gym" : "Mark as showcase"}
         variant="primary"
         requireReason={false}
         loading={actionLoading}

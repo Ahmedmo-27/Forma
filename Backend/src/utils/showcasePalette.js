@@ -1,7 +1,8 @@
 /**
- * Forma navy and cream, mapped onto the gym workspace palette keys.
- * Marketing and the platform console keep these colors; showcase tenants
- * use the same palette inside the gym workspace.
+ * Default workspace theme: Forma navy and cream, mapped onto palette keys.
+ * Marketing and the platform console keep these colors in CSS.
+ * A gym — including a showcase tenant — replaces them only after it saves
+ * its own colors. An empty or untouched palette leaves the theme in place.
  */
 const SHOWCASE_PALETTE = Object.freeze({
     navbar: "#142843",
@@ -24,13 +25,55 @@ const LEAP_STARTER = new Set([
     "#f4f5f7",
 ]);
 
+function paletteColors(palette) {
+    const src = palette?.toObject?.() || palette || {};
+    const colors = [];
+    for (const key of PALETTE_KEYS) {
+        const value = String(src[key] || "").trim().toLowerCase();
+        if (value) colors.push(value);
+    }
+    return colors;
+}
+
 function isLeapStarterPalette(palette) {
-    if (!palette || typeof palette !== "object") return true;
-    const src = palette.toObject?.() || palette;
-    const primary = String(src.primary || "").trim().toLowerCase();
-    const navbar = String(src.navbar || "").trim().toLowerCase();
-    if (!primary && !navbar) return true;
-    return LEAP_STARTER.has(primary) || LEAP_STARTER.has(navbar);
+    const colors = paletteColors(palette);
+    if (!colors.length) return true;
+    return colors.every((color) => LEAP_STARTER.has(color));
+}
+
+/**
+ * Saved colors replace Forma defaults. Missing keys keep the default.
+ * A palette that is still entirely the old Leap starter stays on Forma.
+ */
+function paletteOverDefaults(palette) {
+    if (isLeapStarterPalette(palette)) return { ...SHOWCASE_PALETTE };
+    const saved = paletteSnapshot(palette) || {};
+    return { ...SHOWCASE_PALETTE, ...saved };
+}
+
+/**
+ * Palette sent to the workspace. Null means "no palette set" — the client
+ * keeps the theme. A saved color that differs from the theme is returned.
+ */
+function clientPalette(palette) {
+    const resolved = paletteOverDefaults(palette);
+    const matchesTheme = PALETTE_KEYS.every((key) => (
+        String(resolved[key] || "").trim().toLowerCase() === SHOWCASE_PALETTE[key].toLowerCase()
+    ));
+    return matchesTheme ? null : resolved;
+}
+
+/**
+ * Palette written on save. Incoming colors override both the stored palette
+ * and the Forma defaults. A leftover Leap starter palette is not kept underneath.
+ */
+function resolveSavedPalette(current, incoming) {
+    const nextColors = paletteSnapshot(incoming);
+    if (!nextColors) return paletteOverDefaults(current);
+    const base = isLeapStarterPalette(current)
+        ? { ...SHOWCASE_PALETTE }
+        : paletteOverDefaults(current);
+    return { ...base, ...nextColors };
 }
 
 function isShowcaseTenant(tenant) {
@@ -57,35 +100,29 @@ function plainBranding(branding) {
 }
 
 /**
- * Branding returned to gym clients. Showcase tenants always receive Forma's palette.
+ * Branding returned to gym clients. Every tenant, including showcase,
+ * gets the colors it saved. No saved colors means the theme.
  */
 function publicBranding(tenant) {
     const branding = plainBranding(tenant?.settings?.branding);
-    if (isShowcaseTenant(tenant) || isLeapStarterPalette(branding.palette)) {
-        return {
-            ...branding,
-            palette: { ...SHOWCASE_PALETTE },
-        };
-    }
-    return branding;
+    return {
+        ...branding,
+        palette: clientPalette(branding.palette),
+    };
 }
 
 /**
- * Switch a tenant between a normal gym and a locked showcase workspace.
- * Enabling stores the current palette and writes Forma's colors.
- * Disabling restores that stored palette.
+ * Switch a tenant between a customer gym and a showcase workspace.
+ * Purpose does not replace the palette. Colors stay with the tenant
+ * and can be changed from gym settings either way.
+ * A palette stashed by the old showcase lock is restored once, when
+ * that tenant is switched back to a customer gym.
  */
 function applyShowcasePurpose(tenant, purpose) {
     const next = purpose === "showcase" ? "showcase" : "customer";
     if (!tenant.settings) tenant.settings = {};
     if (!tenant.settings.branding) tenant.settings.branding = {};
     const branding = tenant.settings.branding;
-
-    if (next === "showcase" && tenant.purpose !== "showcase") {
-        const current = paletteSnapshot(branding.palette);
-        if (current) branding.savedPalette = current;
-        branding.palette = { ...SHOWCASE_PALETTE };
-    }
 
     if (next === "customer" && tenant.purpose === "showcase") {
         const saved = paletteSnapshot(branding.savedPalette);
@@ -106,6 +143,9 @@ module.exports = {
     isShowcaseTenant,
     isLeapStarterPalette,
     paletteSnapshot,
+    paletteOverDefaults,
+    clientPalette,
+    resolveSavedPalette,
     publicBranding,
     applyShowcasePurpose,
 };

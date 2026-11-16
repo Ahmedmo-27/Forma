@@ -320,7 +320,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
 
         <Checkbox
           label="Showcase / test tenant"
-          description="Locks the workspace to Forma’s navy and cream so a prospect can picture their gym on your brand. They cannot change those colors."
+          description="A test workspace for prospects. It starts on the theme and can change colors, the same as any gym."
           checked={form.showcase}
           onCheckedChange={(checked) => setForm((prev) => ({ ...prev, showcase: checked }))}
         />

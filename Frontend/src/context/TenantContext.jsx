@@ -19,13 +19,24 @@ const FORMA_PALETTE = {
 const LEAP_STARTER = new Set(['#44298c', '#1e1535', '#5b38ba', '#6d47cc', '#160f2a', '#f4f5f7']);
 
 function workspacePalette(palette) {
-  if (!palette) return FORMA_PALETTE;
-  const primary = String(palette.primary || '').trim().toLowerCase();
-  const navbar = String(palette.navbar || '').trim().toLowerCase();
-  if ((!primary && !navbar) || LEAP_STARTER.has(primary) || LEAP_STARTER.has(navbar)) {
-    return FORMA_PALETTE;
+  const saved = {};
+  if (palette && typeof palette === 'object') {
+    for (const key of Object.keys(FORMA_PALETTE)) {
+      const norm = normalizeHexColor(palette[key]);
+      if (norm) saved[key] = norm;
+    }
   }
-  return palette;
+  const colors = Object.values(saved).map((color) => color.toLowerCase());
+  // Nothing saved, or the old Leap starter, keeps the CSS theme.
+  if (!colors.length || colors.every((color) => LEAP_STARTER.has(color))) {
+    return null;
+  }
+  const resolved = { ...FORMA_PALETTE, ...saved };
+  const matchesTheme = Object.keys(FORMA_PALETTE).every(
+    (key) => resolved[key].toLowerCase() === FORMA_PALETTE[key].toLowerCase()
+  );
+  if (matchesTheme) return null;
+  return resolved;
 }
 const EMPTY_OBJECT = {};
 const EMPTY_LIST = [];
@@ -55,6 +66,7 @@ export function TenantProvider({ children }) {
   const [tenant, setTenant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paletteUserId, setPaletteUserId] = useState(null);
+  const fetchGen = useRef(0);
 
   const applyBranding = useCallback((branding) => {
     const palette = workspacePalette(branding?.palette);
@@ -110,14 +122,17 @@ export function TenantProvider({ children }) {
     setTenant((prev) => {
       const next = { ...(prev || {}), ...tenantData };
       if (prev?.settings || tenantData.settings) {
+        const incomingBranding = tenantData.settings?.branding;
+        const hasIncomingPalette = incomingBranding
+          && Object.prototype.hasOwnProperty.call(incomingBranding, 'palette');
         next.settings = {
           ...(prev?.settings || {}),
           ...(tenantData.settings || {}),
           branding: {
             ...(prev?.settings?.branding || {}),
-            ...(tenantData.settings?.branding || {}),
+            ...(incomingBranding || {}),
             palette: workspacePalette(
-              tenantData.settings?.branding?.palette || prev?.settings?.branding?.palette
+              hasIncomingPalette ? incomingBranding.palette : prev?.settings?.branding?.palette
             ),
           },
         };

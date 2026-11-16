@@ -15,7 +15,7 @@ const brandingSchema = new mongoose.Schema(
             text: { type: String, default: "#142843" },
             icon: { type: String, default: "#142843" },
         },
-        // Gym palette stashed while purpose is "showcase", restored when unlocked.
+        // Palette stashed by the old showcase lock. Restored once when purpose returns to customer.
         savedPalette: { type: mongoose.Schema.Types.Mixed, default: null },
     },
     { _id: false }
@@ -127,7 +127,7 @@ const tenantSchema = new mongoose.Schema(
             default: "trial",
             index: true,
         },
-        // "showcase" locks the workspace to Forma's navy and cream for test accounts.
+        // "showcase" marks a test workspace. Its colors still come from the saved palette.
         purpose: {
             type: String,
             enum: ["customer", "showcase"],

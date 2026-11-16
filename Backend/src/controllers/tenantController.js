@@ -24,7 +24,7 @@ const { assertAllowedLogo, MIME_TO_EXT } = require("../utils/fileMagic");
 const { BILLING_CURRENCY } = require("../config/currency");
 const { setPackageTransferFee } = require("../utils/packageTransferFee");
 const { countMonthlyWhatsAppMessages } = require("../utils/whatsappTracking");
-const { isShowcaseTenant, publicBranding } = require("../utils/showcasePalette");
+const { publicBranding, resolveSavedPalette } = require("../utils/showcasePalette");
 
 function sanitizeTenantResponse(tenant, plan, usage = {}) {
     const effectiveFeatures = getEffectiveFeatures(tenant, plan);
@@ -67,7 +67,7 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
         slug: tenant.slug,
         status: tenant.status,
         purpose: tenant.purpose === "showcase" ? "showcase" : "customer",
-        brandingLocked: isShowcaseTenant(tenant),
+        brandingLocked: false,
         trialEndsAt: isLifetime ? null : tenant.trialEndsAt,
         currentPeriodEnd: isLifetime ? null : tenant.currentPeriodEnd,
         billing: {
@@ -235,11 +235,7 @@ const updateMyTenantSettings = async (req, res) => {
         const raw = req.body.settings ? { ...req.body.settings, ...req.body } : req.body;
         const { branding, locale, enabledActivities, whatsapp, featureConfig } = raw;
 
-        let brandingInput = branding;
-        if (isShowcaseTenant(tenant) && brandingInput && typeof brandingInput === "object") {
-            const { palette: _ignoredPalette, ...rest } = brandingInput;
-            brandingInput = rest;
-        }
+        const brandingInput = branding;
 
         if (brandingInput && Object.keys(brandingInput).length > 0) {
             const currentBranding = tenant.settings?.branding?.toObject?.()
@@ -253,10 +249,7 @@ const updateMyTenantSettings = async (req, res) => {
                 nextBranding.logoKey = currentBranding.logoKey ?? null;
             }
             if (brandingInput.palette) {
-                nextBranding.palette = {
-                    ...(currentBranding.palette || {}),
-                    ...brandingInput.palette,
-                };
+                nextBranding.palette = resolveSavedPalette(currentBranding.palette, brandingInput.palette);
             } else {
                 nextBranding.palette = currentBranding.palette;
             }

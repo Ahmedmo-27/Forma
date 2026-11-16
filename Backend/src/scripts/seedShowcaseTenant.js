@@ -19,7 +19,7 @@ const connectDB = require("../config/db");
 const { runAsPlatform, runWithTenant } = require("../context/tenantContext");
 const { hashPassword, normalizeEmail } = require("../utils/passwordUtils");
 const { normalizePhone } = require("../utils/identityUniqueness");
-const { applyShowcasePurpose, SHOWCASE_PALETTE } = require("../utils/showcasePalette");
+const { applyShowcasePurpose, SHOWCASE_PALETTE, clientPalette } = require("../utils/showcasePalette");
 const { seedPlans } = require("./seedPlans");
 
 const SLUG = "forma-showcase";
@@ -149,7 +149,9 @@ async function seedShowcase() {
         applyShowcasePurpose(tenant, "showcase");
         if (!tenant.settings.branding) tenant.settings.branding = {};
         tenant.settings.branding.displayName = "Forma Showcase";
-        tenant.settings.branding.palette = { ...SHOWCASE_PALETTE };
+        if (!clientPalette(tenant.settings.branding.palette)) {
+            tenant.settings.branding.palette = { ...SHOWCASE_PALETTE };
+        }
         tenant.markModified("settings");
         tenant.markModified("settings.branding");
         await tenant.save();

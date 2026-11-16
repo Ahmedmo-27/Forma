@@ -388,7 +388,7 @@ export default function Layout({ children }) {
           </div>
 
           {/* Right Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexShrink: 0 }}>
+          <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexShrink: 0 }}>
             {/* Mobile Search Toggle Button */}
             <button
               id="mob-search-btn"
@@ -420,7 +420,7 @@ export default function Layout({ children }) {
 
             {/* Profile Menu */}
             <div ref={dropRef} style={{ position: 'relative' }}>
-              <button data-walkthrough="profile-menu" onClick={() => setDrop(p => !p)} style={{
+              <button className="topbar-profile" data-walkthrough="profile-menu" onClick={() => setDrop(p => !p)} style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)',
                 borderRadius: 8, padding: '5px 10px 5px 5px',
@@ -807,13 +807,47 @@ export default function Layout({ children }) {
         #desk-search > * { width: 100% !important; max-width: 100% !important; flex: none !important; }
         @media (max-width: 1280px) { #prof-text, #prof-arrow { display: none !important; } }
         @media (max-width: 1024px) {
-          .topbar-inner { height: 56px !important; padding: 0 14px !important; }
+          .app-topbar { max-width: 100%; }
+          .topbar-inner {
+            height: 56px !important;
+            padding: 0 8px !important;
+            gap: 6px !important;
+            min-width: 0;
+            max-width: 100%;
+          }
           .nav-logo-box { width: 34px !important; height: 34px !important; border-radius: 8px !important; }
+          .nav-logo-text { display: none !important; }
+          .nav-location-switcher {
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+            max-width: 180px;
+            margin-left: 0 !important;
+            overflow: hidden;
+          }
+          .nav-location-switcher > div {
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          .topbar-actions { gap: 4px !important; }
+          .topbar-actions > button:not(.topbar-profile),
+          .topbar-notif button {
+            width: 36px !important;
+            height: 36px !important;
+            min-height: 36px !important;
+            flex-shrink: 0;
+          }
+          .topbar-profile {
+            padding: 2px !important;
+            min-height: 36px !important;
+            width: auto !important;
+            height: auto !important;
+            flex-shrink: 0;
+          }
           #tab-nav-bar, #desk-search { display: none !important; }
           #mob-btn, #mob-search-btn, .mobile-bottom-nav { display: flex !important; }
         }
-        @media (max-width: 480px) {
-          .nav-logo-text { display: none !important; }
+        @media (max-width: 380px) {
+          #mob-btn { display: none !important; }
         }
       `}</style>
     </div>

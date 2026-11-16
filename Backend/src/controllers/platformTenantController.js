@@ -932,12 +932,12 @@ async function updateTenantPurpose(req, res) {
 
         res.json({
             message: tenant.purpose === "showcase"
-                ? "Showcase theme locked to Forma navy and cream"
-                : "Gym branding unlocked",
+                ? "Tenant marked as a showcase. Its saved colors stay in effect."
+                : "Tenant set back to a customer gym.",
             tenant: {
                 id: tenant._id,
                 purpose: tenant.purpose,
-                brandingLocked: tenant.purpose === "showcase",
+                brandingLocked: false,
             },
         });
     } catch (err) {
