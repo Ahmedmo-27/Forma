@@ -1254,7 +1254,9 @@ const switchSalesRep = async (req, res) => {
 
 const bulkTransferSalesReps = async (req, res) => {
     try {
-        const { fromSalesRepId, toSalesRepId, memberIds } = req.body;
+        const { fromSalesRepId, memberIds } = req.body;
+        // Tasks UI historically sent newSalesRepId; Transfer/Profile send toSalesRepId.
+        const toSalesRepId = req.body.toSalesRepId || req.body.newSalesRepId;
 
         if (!toSalesRepId) {
             return res.status(400).json({ message: "toSalesRepId is required" });

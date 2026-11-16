@@ -515,7 +515,7 @@ export default function AssigningTasksPage() {
       if (destKind === 'sales') {
         await bulkTransferSalesReps({
           memberIds: ids,
-          newSalesRepId: destId,
+          toSalesRepId: destId,
           source: 'tasks',
         });
       } else {

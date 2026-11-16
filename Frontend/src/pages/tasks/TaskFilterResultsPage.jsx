@@ -294,7 +294,7 @@ function TaskFilterResults({ filters }) {
     setBusy(true);
     try {
       if (destKind === 'sales') {
-        await bulkTransferSalesReps({ memberIds: ids, newSalesRepId: destId, source: 'filter' });
+        await bulkTransferSalesReps({ memberIds: ids, toSalesRepId: destId, source: 'filter' });
       } else {
         await bulkTransferCoach({ memberIds: ids, coachId: destId, source: 'filter' });
       }
