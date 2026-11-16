@@ -1224,6 +1224,7 @@ const switchSalesRep = async (req, res) => {
                     member: member._id,
                     name: member.name,
                     systemId: member.systemId,
+                    memberId: member.memberId ?? null,
                     phone: member.phones,
                     status: "pending",
                 }],
@@ -1339,6 +1340,7 @@ const bulkTransferSalesReps = async (req, res) => {
                 member: member._id,
                 name: member.name,
                 systemId: member.systemId,
+                memberId: member.memberId ?? null,
                 phone: member.phones,
                 status: "pending",
             });
@@ -2368,6 +2370,7 @@ const switchCoach = async (req, res) => {
                     member: member._id,
                     name: member.name,
                     systemId: member.systemId,
+                    memberId: member.memberId ?? null,
                     phone: member.phones,
                     status: "pending",
                 }],
@@ -2503,12 +2506,13 @@ const bulkTransferCoach = async (req, res) => {
         let createdTaskId = null;
         if (transferredCount > 0) {
             const transferredMembers = await Member.find({ _id: { $in: memberIds } })
-                .select("name systemId phones");
+                .select("name systemId memberId phones");
 
             const taskMemberItems = transferredMembers.map((m) => ({
                 member: m._id,
                 name: m.name,
                 systemId: m.systemId,
+                memberId: m.memberId ?? null,
                 phone: m.phones,
                 status: "pending",
             }));

@@ -30,7 +30,7 @@ import {
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
-const DEFAULT_COLUMNS = ['name', 'systemId', 'phone', 'salesman', 'coach', 'package', 'endDate', 'status'];
+const DEFAULT_COLUMNS = ['name', 'memberId', 'phone', 'salesman', 'coach', 'package', 'endDate', 'status'];
 const BULK_COOLDOWN_SECONDS = 20;
 
 function downloadExcel(filename, columns, rows) {
@@ -102,8 +102,19 @@ export default function AssigningTasksPage() {
   const [columnsOpen, setColumnsOpen] = useState(false);
   const [visibleKeys, setVisibleKeys] = useState(() => {
     try {
-      const saved = JSON.parse(localStorage.getItem('tasks_visible_columns'));
-      return Array.isArray(saved) && saved.length ? saved : DEFAULT_COLUMNS;
+      let saved = JSON.parse(localStorage.getItem('tasks_visible_columns'));
+      if (Array.isArray(saved) && saved.length) {
+        // Automatically migrate legacy systemId column to memberId for existing users
+        if (saved.includes('systemId') && !saved.includes('memberId')) {
+          saved = saved.map((k) => (k === 'systemId' ? 'memberId' : k));
+        }
+        // Deduplicate legacy sales column into salesman
+        if (saved.includes('sales')) {
+          saved = saved.map((k) => (k === 'sales' ? 'salesman' : k));
+        }
+        return [...new Set(saved)];
+      }
+      return DEFAULT_COLUMNS;
     } catch {
       return DEFAULT_COLUMNS;
     }
@@ -726,7 +737,7 @@ export default function AssigningTasksPage() {
                       <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search name, phone, System ID…"
+                        placeholder="Search name, phone, Member ID, System ID…"
                         style={{
                           width: '100%',
                           height: 38,
@@ -1318,7 +1329,7 @@ export default function AssigningTasksPage() {
                 <Table
                   loading
                   skeletonRows={8}
-                  headers={['#', 'Member', 'System ID', 'Phone', 'Sales Rep', 'Coach', 'Status', 'Package']}
+                  headers={['#', 'Member', 'Member ID', 'Phone', 'Sales Rep', 'Coach', 'Status', 'Package']}
                 />
               ) : filtered.length === 0 ? (
                 <EmptyState icon={Users} message="No members found" sub="Adjust your filters or scope selection." />
@@ -1332,13 +1343,16 @@ export default function AssigningTasksPage() {
                           {visibleKeys.includes('name') && (
                             <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member</th>
                           )}
+                          {visibleKeys.includes('memberId') && (
+                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member ID</th>
+                          )}
                           {visibleKeys.includes('systemId') && (
                             <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>System ID</th>
                           )}
                           {visibleKeys.includes('phone') && (
                             <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Phone</th>
                           )}
-                          {(visibleKeys.includes('salesman') || visibleKeys.includes('sales')) && (
+                          {visibleKeys.includes('salesman') && (
                             <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Sales Rep</th>
                           )}
                           {visibleKeys.includes('coach') && (
@@ -1347,11 +1361,23 @@ export default function AssigningTasksPage() {
                           {visibleKeys.includes('package') && (
                             <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Package</th>
                           )}
+                          {visibleKeys.includes('startDate') && (
+                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Start Date</th>
+                          )}
                           {visibleKeys.includes('endDate') && (
                             <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>End Date</th>
                           )}
                           {visibleKeys.includes('status') && (
                             <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Status</th>
+                          )}
+                          {visibleKeys.includes('source') && (
+                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Source</th>
+                          )}
+                          {visibleKeys.includes('gender') && (
+                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Gender</th>
+                          )}
+                          {visibleKeys.includes('joined') && (
+                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Joined</th>
                           )}
                           {visibleKeys.includes('transfers') && (
                             <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Transfers</th>
@@ -1387,6 +1413,11 @@ export default function AssigningTasksPage() {
                                   </span>
                                 </td>
                               )}
+                              {visibleKeys.includes('memberId') && (
+                                <td style={{ padding: '12px 14px', color: 'var(--t2)', fontFamily: 'monospace' }}>
+                                  {member.memberId ? `#${member.memberId}` : '—'}
+                                </td>
+                              )}
                               {visibleKeys.includes('systemId') && (
                                 <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
                                   #{member.systemId}
@@ -1397,7 +1428,7 @@ export default function AssigningTasksPage() {
                                   {member.phones || '—'}
                                 </td>
                               )}
-                              {(visibleKeys.includes('salesman') || visibleKeys.includes('sales')) && (
+                              {visibleKeys.includes('salesman') && (
                                 <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
                                   {salesmanName(member, salesManager) || '—'}
                                 </td>
@@ -1412,6 +1443,11 @@ export default function AssigningTasksPage() {
                                   {packageName(member) || '—'}
                                 </td>
                               )}
+                              {visibleKeys.includes('startDate') && (
+                                <td style={{ padding: '12px 14px', color: 'var(--t3)', fontSize: 12 }}>
+                                  {columnValue(member, 'startDate') || '—'}
+                                </td>
+                              )}
                               {visibleKeys.includes('endDate') && (
                                 <td style={{ padding: '12px 14px', color: 'var(--t3)', fontSize: 12 }}>
                                   {columnValue(member, 'endDate') || '—'}
@@ -1420,6 +1456,21 @@ export default function AssigningTasksPage() {
                               {visibleKeys.includes('status') && (
                                 <td style={{ padding: '12px 14px' }}>
                                   <Badge status={member.status || 'active'} />
+                                </td>
+                              )}
+                              {visibleKeys.includes('source') && (
+                                <td style={{ padding: '12px 14px', color: 'var(--t2)', fontSize: 12 }}>
+                                  {columnValue(member, 'source') || '—'}
+                                </td>
+                              )}
+                              {visibleKeys.includes('gender') && (
+                                <td style={{ padding: '12px 14px', color: 'var(--t2)', fontSize: 12, textTransform: 'capitalize' }}>
+                                  {columnValue(member, 'gender') || '—'}
+                                </td>
+                              )}
+                              {visibleKeys.includes('joined') && (
+                                <td style={{ padding: '12px 14px', color: 'var(--t3)', fontSize: 12 }}>
+                                  {columnValue(member, 'joined') || '—'}
                                 </td>
                               )}
                               {visibleKeys.includes('transfers') && (

@@ -192,7 +192,7 @@ export default function AssignedTasksPage({ embedded = false }) {
           </div>
 
           {loadingAssigned ? (
-            <Table loading skeletonRows={6} headers={['Member', 'System ID', 'Phone', 'Assigned By', 'Assigned At', 'Status', '']} />
+            <Table loading skeletonRows={6} headers={['Member', 'Member ID', 'Phone', 'Assigned By', 'Assigned At', 'Status', '']} />
           ) : activeAssignedMembers.length === 0 ? (
             <EmptyState icon={PartyPopper} message="No pending tasks" sub="You have no members waiting to be processed." />
           ) : (
@@ -201,7 +201,7 @@ export default function AssignedTasksPage({ embedded = false }) {
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
                     <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>System ID</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member ID</th>
                     <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Phone</th>
                     <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Assigned By</th>
                     <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Assigned At</th>
@@ -223,8 +223,8 @@ export default function AssignedTasksPage({ embedded = false }) {
                             <span>{item.member?.name}</span>
                           </span>
                         </td>
-                        <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                          #{item.member?.systemId || '—'}
+                        <td style={{ padding: '12px 14px', color: 'var(--t2)', fontFamily: 'monospace' }}>
+                          {item.member?.memberId ? `#${item.member.memberId}` : (item.member?.systemId ? `#${item.member.systemId}` : '—')}
                         </td>
                         <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
                           {item.member?.phone ? (
@@ -465,7 +465,7 @@ export default function AssignedTasksPage({ embedded = false }) {
                           </span>
                         </td>
                         <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                          #{item.member?.systemId || '—'}
+                          {item.member?.memberId ? `#${item.member.memberId}` : (item.member?.systemId ? `#${item.member.systemId}` : '—')}
                         </td>
                         <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
                           {item.member?.phone || '—'}

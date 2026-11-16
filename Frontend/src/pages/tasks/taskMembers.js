@@ -9,12 +9,11 @@ export const GROUPS = [
 
 export const EXPORT_COLUMNS = [
   { key: 'name', label: 'Name' },
-  { key: 'systemId', label: 'System ID' },
   { key: 'memberId', label: 'Member ID' },
+  { key: 'systemId', label: 'System ID' },
   { key: 'phone', label: 'Phone' },
   { key: 'status', label: 'Status' },
   { key: 'salesman', label: 'Salesman' },
-  { key: 'sales', label: 'Sales' },
   { key: 'coach', label: 'Coach' },
   { key: 'package', label: 'Package' },
   { key: 'startDate', label: 'Start date' },
@@ -239,6 +238,7 @@ export function filterMembers(members, query) {
     return (
       member.name?.toLowerCase().includes(q)
       || phone.includes(q)
+      || String(member.memberId ?? '').toLowerCase().includes(q)
       || String(member.systemId ?? '').includes(q)
       || formatSystemId(member.systemId).toLowerCase().includes(q)
       || salesmanName(member).toLowerCase().includes(q)
@@ -348,9 +348,10 @@ export function filterTaskHistory(history = [], query = '', statusFilter = 'all'
     const name = String(item.member?.name || '').toLowerCase();
     const phone = String(item.member?.phone || '').toLowerCase();
     const systemId = String(item.member?.systemId || '').toLowerCase();
+    const memberId = String(item.member?.memberId || '').toLowerCase();
     const by = String(item.assignedBy?.name || '').toLowerCase();
     const to = String(item.assignedTo?.name || '').toLowerCase();
-    return name.includes(q) || phone.includes(q) || systemId.includes(q) || by.includes(q) || to.includes(q);
+    return name.includes(q) || phone.includes(q) || systemId.includes(q) || memberId.includes(q) || by.includes(q) || to.includes(q);
   });
 }
 

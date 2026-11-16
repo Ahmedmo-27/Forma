@@ -15,6 +15,10 @@ const taskMemberSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.Mixed,
         default: "",
     },
+    memberId: {
+        type: mongoose.Schema.Types.Mixed,
+        default: null,
+    },
     phone: {
         type: String,
         default: "",

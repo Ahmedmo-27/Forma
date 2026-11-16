@@ -201,7 +201,7 @@ export default function TaskFilterPage() {
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Name, phone, System ID…"
+                    placeholder="Name, phone, Member ID, System ID…"
                     style={{
                       width: '100%', height: 42, paddingLeft: 36,
                       paddingRight: search ? 36 : 14, borderRadius: 8,

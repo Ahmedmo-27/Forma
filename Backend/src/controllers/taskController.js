@@ -155,6 +155,7 @@ const getAssignedHistory = async (req, res) => {
                         _id: memberRef?._id || item.member,
                         name: item.name || memberRef?.name || "Member",
                         systemId: item.systemId ?? memberRef?.systemId ?? "",
+                        memberId: item.memberId ?? memberRef?.memberId ?? null,
                         phone: item.phone || memberRef?.phones || "",
                         status: memberRef?.status || "active",
                         package: pkgName,

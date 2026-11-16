@@ -470,7 +470,7 @@ function TaskFilterResults({ filters }) {
 
           {/* Table Body */}
           {loading || !loaded ? (
-            <Table loading skeletonRows={8} headers={['#', 'Member', 'System ID', 'Phone', 'Sales Rep', 'Coach', 'Status', 'Package']} />
+            <Table loading skeletonRows={8} headers={['#', 'Member', 'Member ID', 'Phone', 'Sales Rep', 'Coach', 'Status', 'Package']} />
           ) : filtered.length === 0 ? (
             <EmptyState icon={Users} message="No members found" sub="Go back and adjust your filters to see results." />
           ) : (
@@ -481,7 +481,7 @@ function TaskFilterResults({ filters }) {
                     <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
                       <th style={{ width: 40, padding: '10px 14px', textAlign: 'center' }}>#</th>
                       <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>System ID</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member ID</th>
                       <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Phone</th>
                       <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Sales Rep</th>
                       <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Coach</th>
@@ -518,7 +518,7 @@ function TaskFilterResults({ filters }) {
                             </span>
                           </td>
                           <td style={{ padding: '12px 14px', color: 'var(--t2)', fontFamily: 'monospace', fontSize: 12 }}>
-                            {formatSystemId(member.systemId)}
+                            {member.memberId ? `#${member.memberId}` : (member.systemId ? formatSystemId(member.systemId) : '—')}
                           </td>
                           <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
                             {member.phones || '—'}
