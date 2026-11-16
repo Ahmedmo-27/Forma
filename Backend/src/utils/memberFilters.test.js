@@ -15,6 +15,16 @@ describe("member list filters", () => {
         expect(JSON.stringify(filter)).not.toMatch(/unassigned/i);
     });
 
+    it("maps m-prefixed search to memberId only", () => {
+        const filter = buildMemberListFilter({ search: "m42" });
+        expect(filter.$or).toEqual(expect.arrayContaining([
+            { memberId: 42 },
+        ]));
+        expect(filter.$or).not.toEqual(expect.arrayContaining([
+            { systemId: 42 },
+        ]));
+    });
+
     it("keeps status cards on the full book when extra filters are on", () => {
         const filter = buildMemberListFilter({
             status: "frozen",

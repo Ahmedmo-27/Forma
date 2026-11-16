@@ -38,6 +38,10 @@ function publishLive(tenantId, event) {
     }
 }
 
+/** Cap each SSE so proxies/metrics don't treat multi-hour streams as one request,
+ *  and so clients refresh via their existing reconnect loop after deploys. */
+const LIVE_MAX_AGE_MS = 5 * 60 * 1000;
+
 function liveStream(req, res) {
     const tenantId = req.user?.tenantId;
     if (!tenantId) {
@@ -53,17 +57,29 @@ function liveStream(req, res) {
 
     res.write(`data: ${JSON.stringify({ type: "ready" })}\n\n`);
 
+    let closed = false;
+    const cleanup = () => {
+        if (closed) return;
+        closed = true;
+        clearInterval(heartbeat);
+        clearTimeout(maxAgeTimer);
+        unsubscribe();
+    };
+
     const unsubscribe = subscribeLive(tenantId, (event) => {
+        if (closed) return;
         res.write(`data: ${JSON.stringify(event)}\n\n`);
     });
     const heartbeat = setInterval(() => {
+        if (closed) return;
         res.write(": ping\n\n");
     }, 20000);
+    const maxAgeTimer = setTimeout(() => {
+        cleanup();
+        try { res.end(); } catch { /* already closed */ }
+    }, LIVE_MAX_AGE_MS);
 
-    req.on("close", () => {
-        clearInterval(heartbeat);
-        unsubscribe();
-    });
+    req.on("close", cleanup);
 }
 
 module.exports = { subscribeLive, publishLive, liveStream };

@@ -33,14 +33,14 @@ export function normalizeApiBaseURL(url) {
 }
 
 const rawApiURL = import.meta.env.BACKEND_ORIGIN || import.meta.env.VITE_API_URL;
-const apiBaseURL = normalizeApiBaseURL(rawApiURL);
-export { apiBaseURL };
+/** Dev uses Vite proxy (same origin) so httpOnly cookies work without Domain. */
+export const apiBaseURL = import.meta.env.DEV ? "/api" : normalizeApiBaseURL(rawApiURL);
 
 /** Server origin without /api — use for authenticated /uploads downloads. */
-export const apiOrigin = apiBaseURL?.replace(/\/api$/, "") ?? "";
+export const apiOrigin = import.meta.env.DEV ? "" : (apiBaseURL?.replace(/\/api$/, "") ?? "");
 
 /**
- * Fetch a protected upload with the staff Bearer token and return a blob URL.
+ * Fetch a protected upload with the cookie session and return a blob URL.
  * Callers should revoke the URL when done (URL.revokeObjectURL).
  */
 export async function fetchProtectedUploadBlobUrl(filename) {
@@ -55,13 +55,11 @@ export async function fetchProtectedUploadBlobUrl(filename) {
 const api = axios.create({
   baseURL: apiBaseURL,
   timeout: 15000,
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("ff_token");
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-
-  // Tenant scoping header
+  // Tenant scoping header (hint only — auth is cookie/Bearer)
   const tenantSlug = localStorage.getItem("ff_tenant_slug");
   if (tenantSlug) config.headers["X-Tenant-Slug"] = tenantSlug;
 
@@ -75,22 +73,48 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+function isTimeoutError(err) {
+  return (
+    err?.code === "ECONNABORTED" ||
+    err?.normalized?.code === "REQUEST_TIMEOUT" ||
+    String(err?.message || "").toLowerCase().includes("timeout")
+  );
+}
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 api.interceptors.response.use(
   (res) => {
     logResponse(res);
     return res;
   },
-  (err) => {
+  async (err) => {
+    const config = err.config;
+
+    // One GET retry after deploy/cold-start timeouts (idempotent only).
+    if (
+      config &&
+      !config.__retried &&
+      String(config.method || "get").toLowerCase() === "get" &&
+      isTimeoutError(err)
+    ) {
+      config.__retried = true;
+      await sleep(1500);
+      return api.request(config);
+    }
+
     logError(err);
     const normalized = normalizeError(err);
     err.normalized = normalized;
 
     // Support opt-out of global error handling
-    if (err.config?.skipGlobalError) {
+    if (config?.skipGlobalError) {
       return Promise.reject(err);
     }
 
-    const isLoginEndpoint = err.config?.url?.includes("/users/login");
+    const isLoginEndpoint = config?.url?.includes("/users/login");
 
     // Don't intercept login validation errors with modals
     if (isLoginEndpoint) {

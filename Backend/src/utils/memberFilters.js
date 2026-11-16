@@ -130,9 +130,15 @@ function buildMemberListFilter({
             { name: { $regex: safe, $options: "i" } },
             { phones: { $regex: safe, $options: "i" } },
         ];
-        const num = numericId(q);
-        if (num != null) {
-            or.push({ systemId: num }, { memberId: num });
+        // m123 → memberId only; s123 / bare digits → systemId + memberId
+        const mMatch = /^m(\d+)$/i.exec(q);
+        if (mMatch) {
+            or.push({ memberId: Number(mMatch[1]) });
+        } else {
+            const num = numericId(q);
+            if (num != null) {
+                or.push({ systemId: num }, { memberId: num });
+            }
         }
         if (filter.$or) {
             filter.$and = [{ $or }, { $or: filter.$or }];

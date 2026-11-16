@@ -85,9 +85,13 @@ export const markAllNotificationsRead = () => api.patch('/notifications/read-all
 
 // ── Members ───────────────────────────────────────────────────────────────────
 export const getAllMembers     = (params) => api.get('/members', { params });
-export const searchAllMembers  = () => api.get('/members/all', {
-  params: { limit: 10000, sortBy: 'createdAt', sortDir: -1 },
-});
+/** Debounced typeahead for GlobalSearch — never prefetch the full member book. */
+export const searchMembersQuick = (search, { signal } = {}) =>
+  api.get('/members/all', {
+    params: { search, limit: 8, sortBy: 'createdAt', sortDir: -1 },
+    signal,
+    skipGlobalError: true,
+  });
 export const getAllNotes       = (params) => api.get('/members/all-notes', { params });
 export const bulkImportMembers = (formData) => api.post('/members/bulk-import', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },

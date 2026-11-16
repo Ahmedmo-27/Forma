@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { searchAllMembers } from '../api/endpoints';
+import { searchMembersQuick } from '../api/endpoints';
 import { useAuth } from '../context/AuthContext';
 import { useLocationScope } from '../context/LocationContext';
+import useDebounce from '../hooks/useDebounce';
 import { Avatar } from './ui';
 import AddMemberModal from './AddMemberModal';
 
@@ -13,31 +14,33 @@ const STATUS_DOT = {
   guest:   '#A6A0C2',
 };
 
-// ── Module-level shared cache ─────────────────────────────────────────────────
-// All GlobalSearch instances (desktop + mobile drawer) share one fetch so the
-// /api/members/all endpoint is only called once per session, not per instance.
-let _sharedCache = null;
-let _sharedFetchPromise = null;
-let _cacheInvalidateTimer = null;
+const PHONE_MIN_CHARS = 3;
 
-function getSharedCache() { return _sharedCache; }
-function setSharedCache(data) {
-  _sharedCache = data;
-  // Reset the invalidation timer on every fresh fetch
-  clearTimeout(_cacheInvalidateTimer);
-  _cacheInvalidateTimer = setTimeout(() => { _sharedCache = null; _sharedFetchPromise = null; }, 60000);
+/** Tiny short-lived cache of the last query so desktop + mobile instances share one hit. */
+let _lastQueryKey = null;
+let _lastQueryResults = null;
+let _lastQueryTimer = null;
+
+function cacheQuery(key, members) {
+  _lastQueryKey = key;
+  _lastQueryResults = members;
+  clearTimeout(_lastQueryTimer);
+  _lastQueryTimer = setTimeout(() => {
+    _lastQueryKey = null;
+    _lastQueryResults = null;
+  }, 8000);
 }
-async function loadSharedCache(fetchFn) {
-  if (_sharedCache) return _sharedCache;
-  // If a fetch is already in-flight, piggyback on it instead of firing a second request
-  if (_sharedFetchPromise) return _sharedFetchPromise;
-  _sharedFetchPromise = fetchFn().then(res => {
-    const members = res.data.members ?? [];
-    setSharedCache(members);
-    _sharedFetchPromise = null;
-    return members;
-  }).catch(() => { _sharedFetchPromise = null; return []; });
-  return _sharedFetchPromise;
+
+function clearQueryCache() {
+  _lastQueryKey = null;
+  _lastQueryResults = null;
+  clearTimeout(_lastQueryTimer);
+}
+
+function shouldSearch(q, field) {
+  if (!q) return false;
+  if (field === 'id') return q.length >= 1;
+  return q.length >= PHONE_MIN_CHARS;
 }
 
 export default function GlobalSearch() {
@@ -47,6 +50,8 @@ export default function GlobalSearch() {
   const phoneRef  = useRef(null);
   const idRef     = useRef(null);
   const wrapRef   = useRef(null);
+  const abortRef  = useRef(null);
+  const reqGenRef = useRef(0);
 
   const [phoneQuery, setPhoneQuery] = useState('');
   const [idQuery, setIdQuery]       = useState('');
@@ -55,74 +60,105 @@ export default function GlobalSearch() {
   const [cursor,   setCursor]       = useState(-1);
   const [showAdd,  setShowAdd]      = useState(false);
   const [activeField, setActiveField] = useState('phone'); // 'phone' or 'id'
+  const [searching, setSearching]   = useState(false);
 
   const canAdd = ['Receptionist', 'Owner', 'Sales', 'Sales Manager'].includes(user?.role);
 
-  // Fetch members once and cache at module level (shared across all instances)
-  const loadCache = useCallback(async () => {
-    return loadSharedCache(searchAllMembers);
-  }, []);
+  const rawQuery = (activeField === 'phone' ? phoneQuery : idQuery).trim();
+  const debouncedQuery = useDebounce(rawQuery, 250);
 
-  // Clear shared cache when branch selector changes so results match the branch
+  // Branch change invalidates the short query cache
   useEffect(() => {
-    _sharedCache = null;
-    _sharedFetchPromise = null;
-    clearTimeout(_cacheInvalidateTimer);
-    loadCache();
-  }, [locationVersion, loadCache]);
+    clearQueryCache();
+    setResults([]);
+    setOpen(false);
+  }, [locationVersion]);
 
-  // Invalidate cache every 60s so new members show up
-  // (handled by the shared cache timer — no per-instance timer needed)
-
-  // Filter locally — instant
-  const doSearch = useCallback((q, field) => {
-    if (!q) { setResults([]); setOpen(false); setCursor(-1); return; }
-    const all = getSharedCache() ?? [];
-    let matched;
-    if (field === 'id') {
-      const isS = /^s\d+$/i.test(q);
-      const isM = /^m\d+$/i.test(q);
-      const numericQ = isS || isM ? q.slice(1) : q;
-      matched = all.filter(m => {
-        if (isS) return String(m.systemId) === numericQ;
-        if (isM) return String(m.memberId) === numericQ;
-        return String(m.systemId) === numericQ || String(m.memberId) === numericQ;
-      }).slice(0, 8);
-    } else {
-      matched = all.filter(m =>
-        m.phones?.includes(q)
-      ).slice(0, 8);
-    }
-    setResults(matched);
-    setOpen(matched.length > 0 || canAdd);
-    setCursor(-1);
-  }, [canAdd]);
-
-  // React to input changes
+  // Server search on debounced input
   useEffect(() => {
-    const q = (activeField === 'phone' ? phoneQuery : idQuery).trim();
-    if (!q) { setResults([]); setOpen(false); setCursor(-1); return; }
-    // If cache not loaded yet, load then search
-    if (!getSharedCache()) {
-      loadCache().then(() => doSearch(q, activeField));
-    } else {
-      doSearch(q, activeField);
-    }
-  }, [phoneQuery, idQuery, activeField, doSearch, loadCache]);
+    const q = debouncedQuery;
+    const field = activeField;
 
-  // Drop the shared member list when someone is added, then re-filter.
+    if (!shouldSearch(q, field)) {
+      setResults([]);
+      setOpen(false);
+      setCursor(-1);
+      setSearching(false);
+      abortRef.current?.abort();
+      return;
+    }
+
+    const cacheKey = `${locationVersion}|${field}|${q.toLowerCase()}`;
+    if (_lastQueryKey === cacheKey && _lastQueryResults) {
+      setResults(_lastQueryResults);
+      setOpen(_lastQueryResults.length > 0 || canAdd);
+      setCursor(-1);
+      setSearching(false);
+      return;
+    }
+
+    const gen = ++reqGenRef.current;
+    abortRef.current?.abort();
+    const controller = new AbortController();
+    abortRef.current = controller;
+    setSearching(true);
+    setOpen(true);
+
+    searchMembersQuick(q, { signal: controller.signal })
+      .then((res) => {
+        if (gen !== reqGenRef.current) return;
+        const members = (res.data.members ?? []).slice(0, 8);
+        cacheQuery(cacheKey, members);
+        setResults(members);
+        setOpen(members.length > 0 || canAdd);
+        setCursor(-1);
+      })
+      .catch((err) => {
+        if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || gen !== reqGenRef.current) return;
+        setResults([]);
+        setOpen(canAdd);
+        setCursor(-1);
+      })
+      .finally(() => {
+        if (gen === reqGenRef.current) setSearching(false);
+      });
+
+    return () => controller.abort();
+  }, [debouncedQuery, activeField, locationVersion, canAdd]);
+
+  // Re-run current query when someone is added elsewhere
   useEffect(() => {
     const refresh = () => {
-      _sharedCache = null;
-      _sharedFetchPromise = null;
-      clearTimeout(_cacheInvalidateTimer);
-      const field = activeField;
-      const q = (field === 'phone' ? phoneQuery : idQuery).trim();
-      loadCache().then(() => { if (q) doSearch(q, field); });
+      clearQueryCache();
+      // Nudge debounce by clearing then re-applying is awkward; bump gen via a no-op
+      // by clearing results so the next effect cycle after members-changed re-fetches.
+      reqGenRef.current += 1;
+      if (shouldSearch(rawQuery, activeField)) {
+        const gen = ++reqGenRef.current;
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
+        setSearching(true);
+        searchMembersQuick(rawQuery, { signal: controller.signal })
+          .then((res) => {
+            if (gen !== reqGenRef.current) return;
+            const members = (res.data.members ?? []).slice(0, 8);
+            cacheQuery(`${locationVersion}|${activeField}|${rawQuery.toLowerCase()}`, members);
+            setResults(members);
+            setOpen(members.length > 0 || canAdd);
+            setCursor(-1);
+          })
+          .catch((err) => {
+            if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError' || gen !== reqGenRef.current) return;
+          })
+          .finally(() => {
+            if (gen === reqGenRef.current) setSearching(false);
+          });
+      }
     };
     window.addEventListener('members-changed', refresh);
     return () => window.removeEventListener('members-changed', refresh);
-  }, [activeField, phoneQuery, idQuery, loadCache, doSearch]);
+  }, [activeField, rawQuery, locationVersion, canAdd]);
 
   // Close on outside click
   useEffect(() => {
@@ -189,7 +225,8 @@ export default function GlobalSearch() {
     );
   };
 
-  const displayQuery = activeField === 'phone' ? phoneQuery.trim() : idQuery.trim();
+  const displayQuery = rawQuery;
+  const showDropdown = open && shouldSearch(rawQuery, activeField);
 
   const inputStyle = {
     width: '100%', paddingLeft: 32, paddingRight: 10,
@@ -247,7 +284,7 @@ export default function GlobalSearch() {
       </div>
 
       {/* Dropdown */}
-      {open && (
+      {showDropdown && (
         <div className="global-search-dropdown dropdown-panel" style={{
           position: 'absolute', top: 'calc(100% + 6px)', left: 0,
           width: 360, background: 'var(--card)',
@@ -255,7 +292,11 @@ export default function GlobalSearch() {
           boxShadow: '0 8px 32px rgba(0,0,0,0.10)',
           zIndex: 200, overflow: 'hidden',
         }}>
-          {results.length === 0 ? (
+          {searching && results.length === 0 ? (
+            <div style={{ padding: '16px', textAlign: 'center', fontSize: 12, color: 'var(--t4)' }}>
+              Searching…
+            </div>
+          ) : results.length === 0 ? (
             <div>
               <div style={{ padding: '20px 16px', textAlign: 'center', borderBottom: canAdd ? '1px solid var(--border)' : 'none' }}>
                 <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>

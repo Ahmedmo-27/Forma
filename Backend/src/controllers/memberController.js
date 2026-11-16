@@ -421,8 +421,12 @@ const getAllMembers = async (req, res) => {
         await ensureSalesManagerAssignments();
         await ensureHeadCoachAssignments();
 
-        // Detect global-search / "all" call (frontend passes limit=10000)
-        const isGlobalSearch = parseInt(req.query.limit, 10) >= 1000;
+        // Bulk "all" prefetch (limit >= 1000) or typed quick search (search + small limit)
+        // use the light select path — skip countDocuments/stats.
+        const requestedLimit = parseInt(req.query.limit, 10);
+        const hasSearch = Boolean(String(req.query.search || "").trim());
+        const isQuickSearch = hasSearch && Number.isFinite(requestedLimit) && requestedLimit > 0 && requestedLimit <= 50;
+        const isGlobalSearch = requestedLimit >= 1000 || isQuickSearch;
 
         const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 10, maxLimit: 500 });
         const sortObj = memberListSort(req.query);

@@ -58,7 +58,8 @@ function isReplicaSetError(err) {
 }
 
 const connectOptions = {
-  serverSelectionTimeoutMS: 20000,
+  // Fail faster than the SPA's 15s axios timeout so cold-start hangs surface cleanly.
+  serverSelectionTimeoutMS: 10000,
   family: 4,
 };
 
