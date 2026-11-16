@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 const PlatformUser = require("../models/PlatformUser");
-const { verifyPassword, normalizeEmail } = require("../utils/passwordUtils");
+const { hashPassword, verifyPassword, normalizeEmail } = require("../utils/passwordUtils");
 const {
     PLATFORM_AUDIENCE,
     PLATFORM_ISSUER,
@@ -108,7 +108,10 @@ async function login(req, res) {
             });
         }
 
-        const { match } = await verifyPassword(password, user.password);
+        const { match, needsRehash } = await verifyPassword(password, user.password, {
+            requestId: req.requestId,
+            userId: user._id.toString(),
+        });
         if (!match) {
             user.failedLoginCount = (user.failedLoginCount || 0) + 1;
             if (user.failedLoginCount >= 5) {
@@ -137,6 +140,13 @@ async function login(req, res) {
         user.failedLoginCount = 0;
         user.lockedUntil = null;
         user.lastLoginAt = new Date();
+        if (needsRehash) {
+            user.password = await hashPassword(password);
+            logger.auth("info", "Password rehashed to current cost factor", {
+                requestId: req.requestId,
+                userId: user._id.toString(),
+            });
+        }
         await user.save();
 
         const tokens = generateTokens(user);

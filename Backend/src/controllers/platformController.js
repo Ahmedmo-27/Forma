@@ -30,9 +30,14 @@ const loginPlatformAdmin = async (req, res) => {
             return res.status(401).json({ message: "Invalid credentials" });
         }
 
-        const { match } = await verifyPassword(password, admin.password);
+        const { match, needsRehash } = await verifyPassword(password, admin.password);
         if (!match) {
             return res.status(401).json({ message: "Invalid credentials" });
+        }
+
+        if (needsRehash) {
+            admin.password = await hashPassword(password);
+            await admin.save();
         }
 
         const token = jwt.sign(

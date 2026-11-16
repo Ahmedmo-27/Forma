@@ -6,12 +6,7 @@ const logger = require("../utils/logger");
 const { runWithTenant, runAsPlatform } = require("../context/tenantContext");
 const { getAuthContext, setAuthContext } = require("./authContextCache");
 const { getEffectiveFeatures } = require("../models/Tenant");
-const {
-    readTenantToken,
-    describeAuthToken,
-    clearTenantAuthCookie,
-    looksLikeJwt,
-} = require("../utils/authCookies");
+const { readTenantToken } = require("../utils/authCookies");
 
 function attachPlanFeatures(req) {
     const plan = req.plan && Array.isArray(req.plan.features)
@@ -55,17 +50,12 @@ function touchTenantActivity(tenantId) {
 
 const protect = async (req, res, next) => {
     const token = readTenantToken(req);
-    const tokenMeta = describeAuthToken(req);
 
-    if (!token || !looksLikeJwt(token)) {
-        if (tokenMeta.cookieCount > 0) {
-            clearTenantAuthCookie(res);
-        }
+    if (!token) {
         logger.auth("warn", "Auth middleware: no token", {
             path: req.originalUrl,
             method: req.method,
             ip: req.ip,
-            ...tokenMeta,
         });
         return res.status(401).json({ message: "Not authorized, no token" });
     }
@@ -233,16 +223,12 @@ const protect = async (req, res, next) => {
             next();
         }
     } catch (err) {
-        if (tokenMeta.source === "cookie" || tokenMeta.cookieCount > 0) {
-            clearTenantAuthCookie(res);
-        }
         logger.auth("warn", "Auth middleware: token verification failed", {
             path: req.originalUrl,
             method: req.method,
             error: err.name,
             message: err.message,
             hasJwtSecret: Boolean(process.env.JWT_SECRET),
-            ...tokenMeta,
         });
         res.status(401).json({ message: "Token failed" });
     }

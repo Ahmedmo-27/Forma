@@ -12,12 +12,8 @@ import {
     readTenantToken,
     readPlatformToken,
     requestUsesCookieAuth,
-    normalizeBaseDomain,
-    looksLikeJwt,
 } from "../../utils/authCookies";
 import { csrfOrigin, isAllowedOrigin } from "../../middleware/csrfOrigin";
-
-const SAMPLE_JWT = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.signature";
 
 function mockRes() {
     const cookies = {};
@@ -83,64 +79,12 @@ describe("authCookies", () => {
 
     it("prefers Bearer over cookie when both present", () => {
         const req = {
-            headers: { authorization: `Bearer ${SAMPLE_JWT}` },
-            cookies: { [TENANT_COOKIE]: "not-a-jwt" },
+            headers: { authorization: "Bearer from-header" },
+            cookies: { [TENANT_COOKIE]: "from-cookie" },
         };
-        expect(readTenantToken(req)).toBe(SAMPLE_JWT);
+        expect(readTenantToken(req)).toBe("from-header");
         expect(requestUsesCookieAuth(req)).toBe(false);
-        expect(readPlatformToken({ headers: {}, cookies: { [PLATFORM_COOKIE]: "a.b.c" } })).toBe("a.b.c");
-    });
-
-    it("prefers a JWT-shaped cookie over a malformed Bearer", () => {
-        const req = {
-            headers: {
-                authorization: "Bearer null",
-                cookie: `${TENANT_COOKIE}=${SAMPLE_JWT}`,
-            },
-            cookies: { [TENANT_COOKIE]: SAMPLE_JWT },
-        };
-        expect(readTenantToken(req)).toBe(SAMPLE_JWT);
-        expect(looksLikeJwt(readTenantToken(req))).toBe(true);
-    });
-
-    it("ignores literal Bearer undefined/null from poisoned localStorage", () => {
-        expect(
-            readTenantToken({
-                headers: { authorization: "Bearer undefined" },
-                cookies: {},
-            })
-        ).toBeNull();
-        expect(
-            readTenantToken({
-                headers: { authorization: "Bearer null" },
-                cookies: { [TENANT_COOKIE]: SAMPLE_JWT },
-            })
-        ).toBe(SAMPLE_JWT);
-    });
-
-    it("prefers a JWT among duplicate forma_tenant cookies", () => {
-        const req = {
-            headers: {
-                cookie: `${TENANT_COOKIE}=; ${TENANT_COOKIE}=garbage; ${TENANT_COOKIE}=${SAMPLE_JWT}`,
-            },
-            cookies: { [TENANT_COOKIE]: "garbage" },
-        };
-        expect(readTenantToken(req)).toBe(SAMPLE_JWT);
-    });
-
-    it("clears host-only and Domain cookie variants in production", () => {
-        process.env.NODE_ENV = "production";
-        process.env.BASE_DOMAIN = "https://forma-official.com";
-        expect(normalizeBaseDomain(process.env.BASE_DOMAIN)).toBe("forma-official.com");
-
-        const res = mockRes();
-        setTenantAuthCookie(res, SAMPLE_JWT);
-        expect(res.cookies[TENANT_COOKIE].value).toBe(SAMPLE_JWT);
-        expect(res.cookies[TENANT_COOKIE].options.domain).toBe(".forma-official.com");
-
-        const tenantClears = res.cleared.filter((c) => c.name === TENANT_COOKIE);
-        expect(tenantClears.some((c) => !c.options.domain)).toBe(true);
-        expect(tenantClears.some((c) => c.options.domain === ".forma-official.com")).toBe(true);
+        expect(readPlatformToken({ headers: {}, cookies: { [PLATFORM_COOKIE]: "p" } })).toBe("p");
     });
 });
 

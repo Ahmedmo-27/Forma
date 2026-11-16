@@ -228,7 +228,7 @@ const User = require('./Backend/src/models/User');
 
 async function createOwner() {
   await mongoose.connect(process.env.MONGO_URI);
-  const hash = await bcrypt.hash('SpartanAdmin2026!', 10);
+  const hash = await bcrypt.hash('SpartanAdmin2026!', 12);
   const owner = await User.create({
     name: 'Leonidas Spartan',
     email: 'owner@spartan.com',
