@@ -14,7 +14,9 @@
     "seed:superadmin": "node src/scripts/seedSuperAdminUser.js",
     "seed:plans": "node src/scripts/seedPlans.js",
     "seed:showcase": "node src/scripts/seedShowcaseTenant.js",
+    "seed:security-pentest": "node src/scripts/seedSecurityPentestAccounts.js",
     "seed:prices": "node src/scripts/seedPlanPrices.js",
+    "test:security": "vitest --run src/tests/security",
     "migrate:multitenant": "node src/scripts/migrateToMultitenant.js",
     "migrate:lifetime": "node src/scripts/migrateAddLifetimeBilling.js",
     "migrate:lifetime-to-yearly": "node src/scripts/migrateLifetimeToYearly.js",
@@ -36,25 +38,29 @@
     "@aws-sdk/s3-request-presigner": "^3.1163.0",
     "@whiskeysockets/baileys": "^7.0.0-rc14",
     "bcryptjs": "^3.0.3",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
+    "csv-parse": "^7.0.3",
     "dotenv": "^17.4.2",
-    "express": "^5.2.1",
+    "express": "^5.3.0",
     "express-mongo-sanitize": "^2.2.0",
-    "express-rate-limit": "^8.5.2",
+    "express-rate-limit": "^8.7.4",
     "helmet": "^8.2.0",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.7.0",
-    "multer": "^2.2.0",
+    "mongoose": "^9.12.1",
+    "multer": "^2.5.0",
     "patch-package": "^8.0.1",
     "pdf-lib": "^1.17.1",
     "sharp": "^0.35.5",
-    "xlsx": "^0.18.5",
-    "zod": "^4.4.3"
+    "zod": "^4.6.6"
   },
   "devDependencies": {
     "fast-check": "^4.9.0",
     "jest": "^30.4.2",
     "nodemon": "^3.1.14",
     "vitest": "^1.6.1"
+  },
+  "overrides": {
+    "ip-address": "10.7.6"
   }
 }

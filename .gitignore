@@ -6,11 +6,15 @@ Thumbs.db
 .cursor/
 .agents/
 .failurelens/
+.env
+.env.*
+!**/.env.example
 
 
 node_modules/
 PROJECT.md
 TEST_INFRA.md
+Backend/node_modules
 Backend/logs/app.log
 Backend/logs/auth.log
 Backend/logs/errors.log
