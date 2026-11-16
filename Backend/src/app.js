@@ -3,6 +3,12 @@ const cors = require("cors");
 const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const path = require("path");
+const {
+    GLOBAL_API_MAX,
+    GLOBAL_WINDOW_MS,
+    UPLOAD_READ_MAX,
+    UPLOAD_READ_WINDOW_MS,
+} = require("./middleware/rateLimitBudgets");
 
 const Member = require("./models/Member");
 const userRoutes = require("./routes/userRoutes");
@@ -106,8 +112,8 @@ app.use(requestId);
 app.use(requestLogger);
 
 const globalLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 600,
+    windowMs: GLOBAL_WINDOW_MS,
+    max: GLOBAL_API_MAX,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res, _next, options) => {
@@ -156,8 +162,8 @@ app.use("/api/tasks", taskRoutes);
 app.use("/api/locations", locationRoutes);
 
 const uploadReadLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,
-    max: 300,
+    windowMs: UPLOAD_READ_WINDOW_MS,
+    max: UPLOAD_READ_MAX,
     standardHeaders: true,
     legacyHeaders: false,
     handler: (req, res, _next, options) => {
