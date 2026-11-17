@@ -1,7 +1,9 @@
 /**
  * httpOnly session cookies for tenant + platform JWTs.
- * Prod: Domain=.<BASE_DOMAIN>, Secure, SameSite=Lax (app/api same-site subdomains).
- * Local: host-only (no Domain) — use Vite /api proxy so SPA and API share origin.
+ * Prod + BASE_DOMAIN: Domain=.<BASE_DOMAIN>, Secure, SameSite=Lax (app/api same-site).
+ * Prod without BASE_DOMAIN (Render testing vs Vercel): host-only, Secure, SameSite=None
+ *   so cross-site XHR with credentials can store/send the cookie.
+ * Local: host-only, SameSite=Lax — use Vite /api proxy so SPA and API share origin.
  */
 
 const TENANT_COOKIE = "forma_tenant";
@@ -19,10 +21,14 @@ function cookieBaseOptions() {
         .toLowerCase()
         .replace(/^\.+|\.+$/g, "");
 
+    // Same-site prod (Railway + custom domain): Lax.
+    // Cross-site testing (Vercel ↔ Render, no shared parent domain): None + Secure.
+    const sameSite = isProd && !baseDomain ? "none" : "lax";
+
     const options = {
         httpOnly: true,
         secure: isProd,
-        sameSite: "lax",
+        sameSite,
         path: "/",
     };
 

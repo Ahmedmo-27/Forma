@@ -70,11 +70,22 @@ describe("authCookies", () => {
         const res = mockRes();
         setPlatformAuthCookies(res, { token: "access", refreshToken: "refresh" });
         expect(res.cookies[PLATFORM_COOKIE].options.secure).toBe(true);
+        expect(res.cookies[PLATFORM_COOKIE].options.sameSite).toBe("lax");
         expect(res.cookies[PLATFORM_COOKIE].options.domain).toBe(".forma-official.com");
         clearPlatformAuthCookies(res);
         expect(res.cleared.map((c) => c.name)).toEqual(
             expect.arrayContaining(["forma_platform", "forma_platform_refresh"])
         );
+    });
+
+    it("uses SameSite=None in production when BASE_DOMAIN is unset (cross-site Render testing)", () => {
+        process.env.NODE_ENV = "production";
+        delete process.env.BASE_DOMAIN;
+        const res = mockRes();
+        setTenantAuthCookie(res, "tenant.jwt");
+        expect(res.cookies[TENANT_COOKIE].options.secure).toBe(true);
+        expect(res.cookies[TENANT_COOKIE].options.sameSite).toBe("none");
+        expect(res.cookies[TENANT_COOKIE].options.domain).toBeUndefined();
     });
 
     it("prefers Bearer over cookie when both present", () => {
