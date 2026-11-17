@@ -6,13 +6,13 @@ const on = () => true;
 const off = () => false;
 
 const NAV_PATHS = {
-    Owner: ["/owner/dashboard", "/members", "/tasks", "/checkin", "/reports", "/management", "/sales/callcenter", "/owner/access", "/analytics", "/contacts", "/owner/settings"],
-    "General Manager": ["/owner/dashboard", "/members", "/tasks", "/checkin", "/reports", "/management", "/sales/callcenter", "/owner/access", "/analytics", "/contacts"],
+    Owner: ["/owner/dashboard", "/members", "/tasks", "/checkin", "/maintenance", "/reports", "/management", "/sales/callcenter", "/owner/access", "/analytics", "/contacts", "/owner/settings"],
+    "General Manager": ["/owner/dashboard", "/members", "/tasks", "/checkin", "/maintenance", "/reports", "/management", "/sales/callcenter", "/owner/access", "/analytics", "/contacts"],
     "Sales Manager": ["/sales/dashboard", "/members", "/tasks", "/checkin", "/reports", "/management", "/sales/callcenter", "/analytics", "/owner/access", "/contacts"],
     Sales: ["/sales/dashboard", "/sales/members", "/tasks", "/checkin", "/reports", "/sales/my-callcenter", "/contacts"],
     "Head Coach": ["/coach/dashboard", "/coach/members", "/tasks", "/coach/checkin", "/coach/attendance", "/reports", "/management", "/contacts"],
     Coach: ["/coach/dashboard", "/coach/members", "/tasks", "/coach/checkin", "/coach/my-transfers", "/contacts"],
-    Receptionist: ["/checkin", "/members", "/contacts"],
+    Receptionist: ["/checkin", "/members", "/maintenance", "/contacts"],
     Accountant: ["/accounting/dashboard", "/members", "/tasks", "/accounting/contract-history", "/sales/targets", "/accounting/package-requests", "/analytics", "/contacts", "/reports"],
 };
 
