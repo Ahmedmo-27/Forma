@@ -73,6 +73,7 @@ import Reports         from './pages/Reports';
 import Management      from './pages/Management';
 import AccessControl   from './pages/management/AccessControl';
 import QuickTransfer  from './pages/management/QuickTransfer';
+import MaintenancePage from './pages/maintenance/MaintenancePage';
 import GuestMembers    from './pages/reports/GuestMembers';
 import ExpiredMembers  from './pages/reports/ExpiredMembers';
 import ImportedMembers from './pages/reports/ImportedMembers';
@@ -132,6 +133,7 @@ const PAGES = {
   Management,
   AccessControl,
   QuickTransfer,
+  MaintenancePage,
   AnalyticsHome,
   Reports,
   ExecutiveSummary,

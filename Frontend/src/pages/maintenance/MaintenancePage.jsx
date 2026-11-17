@@ -1,0 +1,760 @@
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import toast from 'react-hot-toast';
+import {
+  CheckCircle2,
+  Clock3,
+  Copy,
+  Plus,
+  Trash2,
+  Wrench,
+} from 'lucide-react';
+import Layout from '../../components/Layout';
+import {
+  Btn,
+  EmptyState,
+  Input,
+  MenuSelect,
+  PageHeader,
+  Spinner,
+  Textarea,
+  fmtDate,
+  fmtTime,
+} from '../../components/ui';
+import usePageTitle from '../../hooks/usePageTitle';
+import { useAuth } from '../../context/AuthContext';
+import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
+import { hasAccess } from '../../lib/access';
+import {
+  completeMaintenanceItem,
+  copyMaintenanceItem,
+  createMaintenanceItems,
+  deleteMaintenanceItem,
+  getMaintenanceBoard,
+  getMaintenanceItems,
+  listLocations,
+} from '../../api/endpoints';
+
+const INTERVAL_OPTIONS = [
+  { value: 'hour', label: 'Hour(s)' },
+  { value: 'day', label: 'Day(s)' },
+  { value: 'week', label: 'Week(s)' },
+  { value: 'month', label: 'Month(s)' },
+];
+
+const STATUS_META = {
+  overdue: { label: 'Overdue', color: '#B91C1C', bg: '#FEF2F2' },
+  due: { label: 'Due', color: '#B45309', bg: '#FFFBEB' },
+  ok: { label: 'Done', color: '#047857', bg: '#ECFDF5' },
+};
+
+function formatInterval(value, unit) {
+  const n = Number(value) || 1;
+  const labels = {
+    hour: n === 1 ? 'hour' : 'hours',
+    day: n === 1 ? 'day' : 'days',
+    week: n === 1 ? 'week' : 'weeks',
+    month: n === 1 ? 'month' : 'months',
+  };
+  return `Every ${n} ${labels[unit] || unit}`;
+}
+
+function personName(user) {
+  return user?.name || user?.username || 'Staff';
+}
+
+function whenLabel(date) {
+  if (!date) return 'Never';
+  return `${fmtDate(date)} ${fmtTime(date)}`;
+}
+
+const emptyForm = {
+  title: '',
+  description: '',
+  intervalValue: 1,
+  intervalUnit: 'day',
+  applyMode: 'this',
+  targetLocationIds: [],
+};
+
+export default function MaintenancePage() {
+  usePageTitle('Maintenance');
+  const { user } = useAuth();
+  const {
+    multiEnabled,
+    locations: scopedLocations,
+    selectedLocationId,
+    setSelectedLocationId,
+  } = useLocationScope();
+
+  const canChecklist = hasAccess(user, 'maintenance_checklist');
+  const canManage = hasAccess(user, 'manage_maintenance');
+
+  const [tab, setTab] = useState(() => (canChecklist ? 'board' : 'manage'));
+  const [allLocations, setAllLocations] = useState([]);
+  const [branchId, setBranchId] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [board, setBoard] = useState([]);
+  const [items, setItems] = useState([]);
+  const [form, setForm] = useState(emptyForm);
+  const [saving, setSaving] = useState(false);
+  const [completeTarget, setCompleteTarget] = useState(null);
+  const [completeNotes, setCompleteNotes] = useState('');
+  const [completing, setCompleting] = useState(false);
+  const [copyTarget, setCopyTarget] = useState(null);
+  const [copyMode, setCopyMode] = useState('all');
+  const [copyLocationIds, setCopyLocationIds] = useState([]);
+  const [copying, setCopying] = useState(false);
+
+  const locationOptions = useMemo(() => {
+    if (scopedLocations?.length) return scopedLocations;
+    return allLocations;
+  }, [scopedLocations, allLocations]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data } = await listLocations();
+        if (!cancelled) setAllLocations(data?.locations || []);
+      } catch {
+        if (!cancelled) setAllLocations([]);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    if (selectedLocationId && selectedLocationId !== ALL_LOCATIONS) {
+      setBranchId(String(selectedLocationId));
+      return;
+    }
+    if (locationOptions.length === 1) {
+      setBranchId(String(locationOptions[0]._id));
+      return;
+    }
+    if (!branchId && locationOptions.length) {
+      setBranchId(String(locationOptions[0]._id));
+    }
+  }, [selectedLocationId, locationOptions, branchId]);
+
+  const needsBranchPicker = multiEnabled && (selectedLocationId === ALL_LOCATIONS || locationOptions.length > 1);
+
+  const loadBoard = useCallback(async () => {
+    if (!canChecklist || !branchId) {
+      setBoard([]);
+      return;
+    }
+    const { data } = await getMaintenanceBoard({ locationId: branchId });
+    setBoard(data?.items || []);
+  }, [canChecklist, branchId]);
+
+  const loadItems = useCallback(async () => {
+    if (!canManage || !branchId) {
+      setItems([]);
+      return;
+    }
+    const { data } = await getMaintenanceItems({ locationId: branchId, active: 'true' });
+    setItems(data?.items || []);
+  }, [canManage, branchId]);
+
+  const refresh = useCallback(async () => {
+    if (!branchId) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    try {
+      await Promise.all([
+        tab === 'board' || canChecklist ? loadBoard() : Promise.resolve(),
+        tab === 'manage' || canManage ? loadItems() : Promise.resolve(),
+      ]);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to load maintenance');
+    } finally {
+      setLoading(false);
+    }
+  }, [branchId, tab, canChecklist, canManage, loadBoard, loadItems]);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  async function handleCreate(e) {
+    e.preventDefault();
+    if (!form.title.trim()) {
+      toast.error('Title is required');
+      return;
+    }
+    if (!branchId) {
+      toast.error('Select a branch first');
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        intervalValue: Number(form.intervalValue) || 1,
+        intervalUnit: form.intervalUnit,
+      };
+      if (form.applyMode === 'all') {
+        payload.allLocations = true;
+        payload.locationId = branchId;
+      } else if (form.applyMode === 'selected') {
+        const ids = [...new Set([branchId, ...form.targetLocationIds.map(String)])];
+        payload.targetLocationIds = ids;
+      } else {
+        payload.locationId = branchId;
+      }
+      await createMaintenanceItems(payload);
+      toast.success('Maintenance item added');
+      setForm(emptyForm);
+      await refresh();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create item');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeactivate(item) {
+    try {
+      await deleteMaintenanceItem(item._id);
+      toast.success('Item removed');
+      await refresh();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to remove item');
+    }
+  }
+
+  async function handleComplete(e) {
+    e.preventDefault();
+    if (!completeTarget) return;
+    setCompleting(true);
+    try {
+      await completeMaintenanceItem(completeTarget._id, { notes: completeNotes.trim() });
+      toast.success('Marked complete');
+      setCompleteTarget(null);
+      setCompleteNotes('');
+      await refresh();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to complete item');
+    } finally {
+      setCompleting(false);
+    }
+  }
+
+  async function handleCopy(e) {
+    e.preventDefault();
+    if (!copyTarget) return;
+    setCopying(true);
+    try {
+      const payload = copyMode === 'all'
+        ? { allLocations: true }
+        : { targetLocationIds: copyLocationIds };
+      if (copyMode !== 'all' && !copyLocationIds.length) {
+        toast.error('Select at least one branch');
+        setCopying(false);
+        return;
+      }
+      await copyMaintenanceItem(copyTarget._id, payload);
+      toast.success('Copied to other branches');
+      setCopyTarget(null);
+      setCopyLocationIds([]);
+      setCopyMode('all');
+      await refresh();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to copy item');
+    } finally {
+      setCopying(false);
+    }
+  }
+
+  const otherLocations = locationOptions.filter((loc) => String(loc._id) !== String(branchId));
+
+  return (
+    <Layout>
+      <PageHeader title="Maintenance">
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {canChecklist && (
+            <Btn
+              variant={tab === 'board' ? 'primary' : 'ghost'}
+              size="sm"
+              onClick={() => setTab('board')}
+            >
+              Checklist
+            </Btn>
+          )}
+          {canManage && (
+            <Btn
+              variant={tab === 'manage' ? 'primary' : 'ghost'}
+              size="sm"
+              onClick={() => setTab('manage')}
+            >
+              Manage
+            </Btn>
+          )}
+        </div>
+      </PageHeader>
+
+      <div className="page-wrap" style={{ paddingTop: 20, paddingBottom: 40 }}>
+        {needsBranchPicker && (
+          <div style={{
+            marginBottom: 18,
+            padding: '12px 14px',
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            background: 'var(--card)',
+            display: 'flex',
+            gap: 12,
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+          >
+            <span style={{ fontSize: 13, color: 'var(--t3)', fontWeight: 600 }}>Branch</span>
+            <div style={{ minWidth: 220, flex: '1 1 220px' }}>
+              <MenuSelect
+                value={branchId}
+                onChange={(e) => {
+                  const value = String(e?.target?.value ?? e ?? '');
+                  setBranchId(value);
+                  if (multiEnabled) setSelectedLocationId(value);
+                }}
+                options={locationOptions.map((loc) => ({
+                  value: String(loc._id),
+                  label: loc.name || loc.locationId || 'Branch',
+                }))}
+                placeholder="Select branch"
+              />
+            </div>
+          </div>
+        )}
+
+        {!branchId && (
+          <EmptyState icon={Wrench} message="Select a branch" sub="Maintenance is tracked per branch." />
+        )}
+
+        {branchId && loading && (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}>
+            <Spinner size="lg" />
+          </div>
+        )}
+
+        {branchId && !loading && tab === 'board' && canChecklist && (
+          <BoardSection
+            board={board}
+            onComplete={(item) => {
+              setCompleteTarget(item);
+              setCompleteNotes('');
+            }}
+          />
+        )}
+
+        {branchId && !loading && tab === 'manage' && canManage && (
+          <ManageSection
+            items={items}
+            form={form}
+            setForm={setForm}
+            saving={saving}
+            onCreate={handleCreate}
+            onDeactivate={handleDeactivate}
+            onCopy={(item) => {
+              setCopyTarget(item);
+              setCopyMode(otherLocations.length ? 'selected' : 'all');
+              setCopyLocationIds([]);
+            }}
+            otherLocations={otherLocations}
+            multiEnabled={multiEnabled || locationOptions.length > 1}
+          />
+        )}
+      </div>
+
+      {completeTarget && (
+        <ModalShell title={`Complete: ${completeTarget.title}`} onClose={() => setCompleteTarget(null)}>
+          <form onSubmit={handleComplete} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <p style={{ fontSize: 13, color: 'var(--t3)', margin: 0 }}>
+              {formatInterval(completeTarget.intervalValue, completeTarget.intervalUnit)}
+            </p>
+            <Textarea
+              label="Notes (optional)"
+              value={completeNotes}
+              onChange={(e) => setCompleteNotes(e.target.value)}
+              rows={3}
+              maxLength={1000}
+            />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Btn variant="ghost" onClick={() => setCompleteTarget(null)}>Cancel</Btn>
+              <Btn type="submit" disabled={completing}>{completing ? 'Saving…' : 'Mark complete'}</Btn>
+            </div>
+          </form>
+        </ModalShell>
+      )}
+
+      {copyTarget && (
+        <ModalShell title={`Copy: ${copyTarget.title}`} onClose={() => setCopyTarget(null)}>
+          <form onSubmit={handleCopy} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <Btn
+                size="sm"
+                variant={copyMode === 'all' ? 'primary' : 'ghost'}
+                onClick={() => setCopyMode('all')}
+              >
+                All branches
+              </Btn>
+              <Btn
+                size="sm"
+                variant={copyMode === 'selected' ? 'primary' : 'ghost'}
+                onClick={() => setCopyMode('selected')}
+                disabled={!otherLocations.length}
+              >
+                Selected branches
+              </Btn>
+            </div>
+            {copyMode === 'selected' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {otherLocations.map((loc) => {
+                  const id = String(loc._id);
+                  const checked = copyLocationIds.includes(id);
+                  return (
+                    <label key={id} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          setCopyLocationIds((prev) => (
+                            e.target.checked
+                              ? [...prev, id]
+                              : prev.filter((x) => x !== id)
+                          ));
+                        }}
+                      />
+                      {loc.name || loc.locationId}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+              <Btn variant="ghost" onClick={() => setCopyTarget(null)}>Cancel</Btn>
+              <Btn type="submit" disabled={copying}>{copying ? 'Copying…' : 'Copy'}</Btn>
+            </div>
+          </form>
+        </ModalShell>
+      )}
+    </Layout>
+  );
+}
+
+function BoardSection({ board, onComplete }) {
+  if (!board.length) {
+    return (
+      <EmptyState
+        icon={Wrench}
+        message="No maintenance items"
+        sub="Ask an owner or general manager to define the checklist for this branch."
+      />
+    );
+  }
+
+  const groups = [
+    { key: 'overdue', title: 'Overdue', items: board.filter((i) => i.status === 'overdue') },
+    { key: 'due', title: 'Due now', items: board.filter((i) => i.status === 'due') },
+    { key: 'ok', title: 'Up to date', items: board.filter((i) => i.status === 'ok') },
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {groups.map((group) => (
+        group.items.length ? (
+          <div key={group.key}>
+            <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', marginBottom: 10 }}>
+              {group.title}
+              <span style={{ marginLeft: 8, color: 'var(--t4)', fontWeight: 600 }}>{group.items.length}</span>
+            </h2>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {group.items.map((item) => (
+                <BoardCard key={item._id} item={item} onComplete={onComplete} />
+              ))}
+            </div>
+          </div>
+        ) : null
+      ))}
+    </div>
+  );
+}
+
+function BoardCard({ item, onComplete }) {
+  const meta = STATUS_META[item.status] || STATUS_META.due;
+  return (
+    <div style={{
+      background: 'var(--card)',
+      border: '1px solid var(--border)',
+      borderRadius: 12,
+      padding: '14px 16px',
+      display: 'flex',
+      gap: 14,
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      flexWrap: 'wrap',
+    }}
+    >
+      <div style={{ flex: '1 1 240px', minWidth: 0 }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4, flexWrap: 'wrap' }}>
+          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>{item.title}</p>
+          <span style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: meta.color,
+            background: meta.bg,
+            borderRadius: 999,
+            padding: '2px 8px',
+          }}
+          >
+            {meta.label}
+          </span>
+        </div>
+        {item.description ? (
+          <p style={{ margin: '0 0 8px', fontSize: 13, color: 'var(--t3)' }}>{item.description}</p>
+        ) : null}
+        <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12, color: 'var(--t4)' }}>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+            <Clock3 size={13} /> {formatInterval(item.intervalValue, item.intervalUnit)}
+          </span>
+          <span>
+            Last: {item.lastCompletion
+              ? `${personName(item.lastCompletion.completedBy)} · ${whenLabel(item.lastCompletedAt)}`
+              : 'Never'}
+          </span>
+          <span>Next due: {whenLabel(item.nextDueAt)}</span>
+        </div>
+      </div>
+      <Btn size="sm" onClick={() => onComplete(item)}>
+        <CheckCircle2 size={14} style={{ marginRight: 6 }} />
+        Complete
+      </Btn>
+    </div>
+  );
+}
+
+function ManageSection({
+  items,
+  form,
+  setForm,
+  saving,
+  onCreate,
+  onDeactivate,
+  onCopy,
+  otherLocations,
+  multiEnabled,
+}) {
+  return (
+    <div style={{ display: 'grid', gap: 20, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+      <form
+        onSubmit={onCreate}
+        style={{
+          background: 'var(--card)',
+          border: '1px solid var(--border)',
+          borderRadius: 12,
+          padding: 16,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 12,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Plus size={16} />
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Add maintenance item</h2>
+        </div>
+        <Input
+          label="Title"
+          value={form.title}
+          onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
+          placeholder="Clean equipment"
+          required
+        />
+        <Textarea
+          label="Description (optional)"
+          value={form.description}
+          onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
+          rows={2}
+        />
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ flex: '1 1 120px' }}>
+            <Input
+              label="Every"
+              type="number"
+              min={1}
+              value={form.intervalValue}
+              onChange={(e) => setForm((prev) => ({ ...prev, intervalValue: e.target.value }))}
+            />
+          </div>
+          <div style={{ flex: '1 1 160px' }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>
+              Interval
+            </label>
+            <MenuSelect
+              value={form.intervalUnit}
+              onChange={(e) => setForm((prev) => ({
+                ...prev,
+                intervalUnit: String(e?.target?.value ?? e ?? 'day'),
+              }))}
+              options={INTERVAL_OPTIONS}
+            />
+          </div>
+        </div>
+
+        {multiEnabled && (
+          <div>
+            <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
+              Also create on
+            </p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+              {[
+                { id: 'this', label: 'This branch only' },
+                { id: 'all', label: 'All branches' },
+                { id: 'selected', label: 'This + other branches' },
+              ].map((opt) => (
+                <Btn
+                  key={opt.id}
+                  size="sm"
+                  variant={form.applyMode === opt.id ? 'primary' : 'ghost'}
+                  onClick={() => setForm((prev) => ({ ...prev, applyMode: opt.id }))}
+                >
+                  {opt.label}
+                </Btn>
+              ))}
+            </div>
+            {form.applyMode === 'selected' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {otherLocations.map((loc) => {
+                  const id = String(loc._id);
+                  const checked = form.targetLocationIds.includes(id);
+                  return (
+                    <label key={id} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 13 }}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          setForm((prev) => ({
+                            ...prev,
+                            targetLocationIds: e.target.checked
+                              ? [...prev.targetLocationIds, id]
+                              : prev.targetLocationIds.filter((x) => x !== id),
+                          }));
+                        }}
+                      />
+                      {loc.name || loc.locationId}
+                    </label>
+                  );
+                })}
+                {!otherLocations.length && (
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--t4)' }}>No other branches available.</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <Btn type="submit" disabled={saving}>{saving ? 'Saving…' : 'Add item'}</Btn>
+        </div>
+      </form>
+
+      <div>
+        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Items for this branch</h2>
+        {!items.length ? (
+          <EmptyState icon={Wrench} message="No items yet" sub="Add the first maintenance task above." />
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {items.map((item) => (
+              <div
+                key={item._id}
+                style={{
+                  background: 'var(--card)',
+                  border: '1px solid var(--border)',
+                  borderRadius: 12,
+                  padding: '14px 16px',
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div style={{ minWidth: 0, flex: '1 1 220px' }}>
+                  <p style={{ margin: 0, fontWeight: 700, fontSize: 14 }}>{item.title}</p>
+                  {item.description ? (
+                    <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--t3)' }}>{item.description}</p>
+                  ) : null}
+                  <div style={{
+                    marginTop: 6,
+                    display: 'inline-flex',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    color: 'var(--t3)',
+                    background: 'var(--bg, #F8FAFC)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 6,
+                    padding: '3px 8px',
+                  }}
+                  >
+                    {formatInterval(item.intervalValue, item.intervalUnit)}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  {(multiEnabled || otherLocations.length > 0) && (
+                    <Btn size="sm" variant="ghost" onClick={() => onCopy(item)}>
+                      <Copy size={14} style={{ marginRight: 6 }} />
+                      Copy
+                    </Btn>
+                  )}
+                  <Btn size="sm" variant="ghost" onClick={() => onDeactivate(item)}>
+                    <Trash2 size={14} style={{ marginRight: 6 }} />
+                    Remove
+                  </Btn>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ModalShell({ title, onClose, children }) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="modal-backdrop-in"
+      style={{
+        position: 'fixed',
+        inset: 0,
+        background: 'rgba(15, 23, 42, 0.45)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 16,
+        zIndex: 80,
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="modal-panel-in"
+        style={{
+          width: '100%',
+          maxWidth: 440,
+          background: 'var(--card)',
+          borderRadius: 14,
+          border: '1px solid var(--border)',
+          padding: 18,
+          boxShadow: '0 20px 50px rgba(0,0,0,0.2)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 700 }}>{title}</h3>
+        {children}
+      </div>
+    </div>
+  );
+}

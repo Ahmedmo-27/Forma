@@ -122,6 +122,7 @@ export default function WalkthroughOverlay() {
       </svg>
 
       <div
+        className="fade-only-in"
         style={{
           ...cardStyle,
           pointerEvents: 'auto',

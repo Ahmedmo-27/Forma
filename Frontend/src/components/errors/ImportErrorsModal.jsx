@@ -32,13 +32,13 @@ export function ImportErrorsModal({ isOpen, onClose, errors = [], totalCount = 0
   return (
     <div
       role="presentation"
-      className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs"
+      className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
     >
       <div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="import-errors-title"
-        className="w-full max-w-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 text-left outline-none animate-in zoom-in-95 flex flex-col max-h-[85vh]"
+        className="w-full max-w-2xl bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 text-left outline-none animate-in fade-in zoom-in-95 duration-150 flex flex-col max-h-[85vh]"
       >
         <div className="flex items-center justify-between pb-3 border-b border-zinc-100 dark:border-zinc-800">
           <div className="flex items-center gap-2">

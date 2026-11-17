@@ -74,6 +74,12 @@ const userSchema = new mongoose.Schema({
         type: Boolean,
         default: false,
     },
+
+    // Platform announcements the user has dismissed ("Got it" / mark read).
+    dismissedAnnouncementIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Announcement",
+    }],
 }, { timestamps: true });
 
 userSchema.plugin(tenantPlugin);

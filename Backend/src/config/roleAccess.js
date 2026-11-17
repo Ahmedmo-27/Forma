@@ -16,6 +16,7 @@ const AREAS = [
     { key: "excel_import", label: "Excel import", description: "Import members from a spreadsheet", planFeature: "excel_import" },
     { key: "exception_approvals", label: "Exception approvals", description: "Discounts, freezes, and package exceptions", planFeature: "exception_approvals" },
     { key: "staff", label: "Staff management", description: "Staff accounts, teams, roles, and access", planFeature: null },
+    { key: "maintenance", label: "Maintenance", description: "Facility maintenance checklists", planFeature: null },
 ];
 
 const AREA_KEYS = AREAS.map((area) => area.key);
@@ -66,6 +67,8 @@ const FEATURE_AREA = {
     teams_overview: "staff",
     change_role: "staff",
     access_control: "staff",
+    maintenance_checklist: "maintenance",
+    manage_maintenance: "maintenance",
 };
 
 const CHECKLIST_ROLES = [

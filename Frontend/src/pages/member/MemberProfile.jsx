@@ -289,6 +289,7 @@ export default function MemberProfile() {
       {alertPopup && (
         <div
           onClick={() => setAlertPopup(null)}
+          className="modal-backdrop-in"
           style={{
             position: 'fixed', inset: 0, zIndex: 9999,
             background: 'rgba(0,0,0,1.0)', backdropFilter: 'blur(4px)',
@@ -296,7 +297,7 @@ export default function MemberProfile() {
             padding: 24, cursor: 'pointer',
           }}
         >
-          <div style={{
+          <div className="modal-panel-in" style={{
             background: '#fffbeb', border: '2px solid #f59e0b',
             borderRadius: 16, padding: '32px 40px', maxWidth: 500, width: '100%',
             textAlign: 'center', boxShadow: '0 20px 60px rgba(245,158,11,0.3)',

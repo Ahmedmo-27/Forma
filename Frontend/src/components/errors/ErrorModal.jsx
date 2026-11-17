@@ -139,7 +139,7 @@ export function ErrorModal({
           onClose?.();
         }
       }}
-      className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs transition-opacity"
+      className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in duration-150"
     >
       <div
         ref={dialogRef}
@@ -148,7 +148,7 @@ export function ErrorModal({
         aria-labelledby="error-modal-title"
         aria-describedby="error-modal-description"
         tabIndex={-1}
-        className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 text-left outline-none animate-in zoom-in-95 duration-150 relative"
+        className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 text-left outline-none animate-in fade-in zoom-in-95 duration-150 relative"
       >
         {!preventClose && (
           <button

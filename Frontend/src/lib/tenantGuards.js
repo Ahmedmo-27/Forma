@@ -11,6 +11,7 @@ export const TENANT_GUARDS = [
   { path: '/tasks/assigned', roles: ['Sales', 'Coach', 'Head Coach'], access: ['sales_members', 'coach_members', 'my_transfers', 'members'], page: 'AssignedTasksPage' },
   { path: '/members/:id', roles: ['Receptionist', 'Owner', 'Sales', 'Sales Manager', 'Coach', 'Head Coach', 'Accountant', 'General Manager'], access: 'member_profile', page: 'MemberProfile' },
   { path: '/checkin', roles: ['Receptionist', 'Owner', 'General Manager', 'Sales Manager', 'Sales'], access: 'check_in', page: 'CheckIn' },
+  { path: '/maintenance', access: ['maintenance_checklist', 'manage_maintenance'], page: 'MaintenancePage' },
   { path: '/sales/dashboard', roles: ['Sales', 'Sales Manager', 'Owner', 'General Manager'], feature: 'sales_crm', access: 'sales_dashboard', page: 'SalesDashboard' },
   { path: '/sales/members', roles: ['Sales', 'Sales Manager', 'Owner', 'General Manager'], feature: 'sales_crm', access: 'sales_members', page: 'SalesMembers' },
   { path: '/sales/requests', roles: ['Sales', 'Sales Manager', 'Owner', 'General Manager'], feature: 'sales_crm', access: ['approve_requests', 'request_assignment', 'request_takeover'], page: 'SalesRequests' },

@@ -664,13 +664,14 @@ export default function SalesDashboard() {
       {showActivity && (
         <div
           onClick={() => setShowActivity(false)}
+          className="modal-backdrop-in"
           style={{
             position: 'fixed', inset: 0, zIndex: 200,
             background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(3px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
           }}
         >
-          <div onClick={e => e.stopPropagation()} style={{
+          <div onClick={e => e.stopPropagation()} className="modal-panel-in" style={{
             background: 'var(--card)', borderRadius: 10, border: '1px solid var(--border)',
             width: '100%', maxWidth: 500, maxHeight: '80svh', overflowY: 'auto',
             boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
@@ -717,13 +718,14 @@ export default function SalesDashboard() {
       {showTodaySubs && (
         <div
           onClick={() => setShowTodaySubs(false)}
+          className="modal-backdrop-in"
           style={{
             position: 'fixed', inset: 0, zIndex: 200,
             background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(3px)',
             display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
           }}
         >
-          <div onClick={e => e.stopPropagation()} style={{
+          <div onClick={e => e.stopPropagation()} className="modal-panel-in" style={{
             background: 'var(--card)', borderRadius: 10, border: '1px solid var(--border)',
             width: '100%', maxWidth: 600, maxHeight: '80svh', overflowY: 'auto',
             boxShadow: '0 12px 40px rgba(0,0,0,0.45)',

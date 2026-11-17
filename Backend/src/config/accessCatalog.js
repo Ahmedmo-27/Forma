@@ -60,6 +60,17 @@ const ACCESS_CATALOG = [
         defaultRoles: ALL_STAFF,
         path: "/members/:id",
     },
+    {
+        key: "maintenance_checklist",
+        label: "Maintenance Checklist",
+        description: "View and complete facility maintenance items for a branch",
+        icon: "Wrench",
+        group: "Receptionist",
+        domain: "sales",
+        defaultRoles: ["Receptionist", "Owner", "General Manager"],
+        path: "/maintenance",
+        nav: { to: "/maintenance", label: "Maintenance" },
+    },
 
     {
         key: "sales_dashboard",
@@ -467,6 +478,16 @@ const ACCESS_CATALOG = [
         defaultRoles: ["Owner"],
         path: "/owner/teams",
         nav: { to: "/owner/teams", label: "Teams" },
+    },
+    {
+        key: "manage_maintenance",
+        label: "Manage Maintenance",
+        description: "Define maintenance items, frequencies, and copy them across branches",
+        icon: "ClipboardList",
+        group: "Owner",
+        domain: "owner",
+        defaultRoles: ["Owner", "General Manager"],
+        path: "/maintenance",
     },
     {
         key: "settings",

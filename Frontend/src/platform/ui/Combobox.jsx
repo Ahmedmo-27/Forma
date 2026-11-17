@@ -120,7 +120,7 @@ export const Combobox = forwardRef(function Combobox(
       {/* Dropdown Popover */}
       {isOpen && (
         <div
-          className="absolute z-50 left-0 right-0 mt-1 rounded-[var(--platform-radius-lg)] bg-[var(--platform-surface-raised)] border border-[var(--platform-border)] p-1.5 overflow-hidden animate-in fade-in duration-150"
+          className="absolute z-50 left-0 right-0 mt-1 rounded-[var(--platform-radius-lg)] bg-[var(--platform-surface-raised)] border border-[var(--platform-border)] p-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150"
           style={{ boxShadow: "var(--platform-shadow-popover)" }}
         >
           {/* Search box */}

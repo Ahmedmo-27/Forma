@@ -12,6 +12,7 @@ import {
   Shield,
   UserRound,
   Users,
+  Wrench,
 } from 'lucide-react';
 import Layout from '../components/Layout';
 import { PageHeader } from '../components/ui';
@@ -84,6 +85,7 @@ export default function Management() {
     accessControl: allow('access_control'),
     packageRequests: allow('package_approvals'),
     quickTransfer: allow('transfer') || allow('coach_transfer'),
+    maintenance: allow(['maintenance_checklist', 'manage_maintenance']),
   };
 
   return (
@@ -92,13 +94,16 @@ export default function Management() {
       <div className="page-wrap" data-walkthrough="management-board" style={{ paddingTop: 24, paddingBottom: 40 }}>
 
         {/* ── Operations ──────────────────────────────────────── */}
-        {(show.requests || show.packages || show.whatsapp || show.coachAttendance || show.assignCoaches) && (
+        {(show.requests || show.packages || show.whatsapp || show.coachAttendance || show.assignCoaches || show.maintenance) && (
           <Section title="Operations" sub="Requests, packages, attendance and assignments">
             {show.requests && (
               <MgmtCard icon={ClipboardList} title="Requests"    sub="Package assignment requests"      to="/sales/requests"           iconBg="#F0F9FF" />
             )}
             {show.packages && (
               <MgmtCard icon={Package} title="Packages"    sub="Manage membership packages"       to="/sales/packages"           iconBg="#F0F9FF" />
+            )}
+            {show.maintenance && (
+              <MgmtCard icon={Wrench} title="Maintenance" sub="Branch maintenance checklist" to="/maintenance" iconBg="#F0F9FF" />
             )}
             {show.coachAttendance && (
               <MgmtCard icon={CalendarDays} title="Attendance" sub="Peak check-in times by weekday and hour" to="/coach/attendance" iconBg="#F0F9FF" />

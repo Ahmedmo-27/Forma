@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { AREA_KEYS } from "../../config/roleAccess.js";
+import { EXPECTED_KEYS } from "./expectedAccess.js";
 import {
     checklist,
     expectAllowed,
@@ -15,35 +16,7 @@ const owner = () => staff("Owner");
 
 describe("Owner", () => {
     it("defaults to every owner area, including settings and role changes", () => {
-        expectKeys("Owner", [
-            "check_in",
-            "members",
-            "member_profile",
-            "sales_dashboard",
-            "sales_members",
-            "management",
-            "sales_team",
-            "staff",
-            "transfer",
-            "packages",
-            "manager_call_center",
-            "import_members",
-            "targets",
-            "approve_requests",
-            "whatsapp_templates",
-            "reports",
-            "accounting_dashboard",
-            "contracts",
-            "package_approvals",
-            "refunds",
-            "package_transfers",
-            "coach_transfer",
-            "owner_dashboard",
-            "teams_overview",
-            "settings",
-            "change_role",
-            "access_control",
-        ]);
+        expectKeys("Owner", EXPECTED_KEYS.Owner);
         expectAreas("Owner", [...AREA_KEYS]);
         expectList("Owner", "all");
     });

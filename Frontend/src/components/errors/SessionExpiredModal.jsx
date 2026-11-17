@@ -82,13 +82,13 @@ export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess }) {
   return (
     <div
       role="presentation"
-      className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs"
+      className="fixed inset-0 z-[999] flex items-center justify-center p-4 bg-black/70 backdrop-blur-xs animate-in fade-in duration-150"
     >
       <div
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="session-expired-title"
-        className="w-full max-w-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 text-left outline-none animate-in zoom-in-95"
+        className="w-full max-w-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 text-left outline-none animate-in fade-in zoom-in-95 duration-150"
       >
         <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4">
           <Lock className="w-5 h-5" />

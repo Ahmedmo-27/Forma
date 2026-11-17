@@ -83,6 +83,14 @@ export const getUnreadCount      = () => api.get('/notifications/unread-count');
 export const markNotificationRead = (id) => api.patch(`/notifications/${id}/read`);
 export const markAllNotificationsRead = () => api.patch('/notifications/read-all');
 
+// ── What's New (platform announcements) ───────────────────────────────────────
+export const getAnnouncements = (params = {}) =>
+  api.get('/announcements', { params, skipGlobalError: true });
+export const dismissAnnouncement = (id) =>
+  api.post(`/announcements/${id}/dismiss`);
+export const dismissAllAnnouncements = () =>
+  api.post('/announcements/dismiss-all');
+
 // ── Members ───────────────────────────────────────────────────────────────────
 export const getAllMembers     = (params) => api.get('/members', { params });
 /** Debounced typeahead for GlobalSearch — never prefetch the full member book. */
@@ -211,6 +219,17 @@ export const listLocations = () => api.get('/locations');
 export const createLocation = (data) => api.post('/locations', data);
 export const updateLocation = (id, data) => api.patch(`/locations/${id}`, data);
 export const deleteLocation = (id) => api.delete(`/locations/${id}`);
+
+// ── Facility maintenance ──────────────────────────────────────────────────────
+export const getMaintenanceBoard = (params = {}) => api.get('/maintenance/board', { params });
+export const getMaintenanceItems = (params = {}) => api.get('/maintenance/items', { params });
+export const createMaintenanceItems = (data) => api.post('/maintenance/items', data);
+export const updateMaintenanceItem = (id, data) => api.patch(`/maintenance/items/${id}`, data);
+export const deleteMaintenanceItem = (id) => api.delete(`/maintenance/items/${id}`);
+export const copyMaintenanceItem = (id, data) => api.post(`/maintenance/items/${id}/copy`, data);
+export const completeMaintenanceItem = (id, data = {}) => api.post(`/maintenance/items/${id}/complete`, data);
+export const getMaintenanceHistory = (id, params = {}) =>
+  api.get(`/maintenance/items/${id}/history`, { params });
 
 // ── Multi-Tenant Billing ──────────────────────────────────────────────────────
 export const getBillingPrices = () => api.get('/tenant/billing/prices');

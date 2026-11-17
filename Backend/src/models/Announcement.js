@@ -25,6 +25,20 @@ const announcementSchema = new mongoose.Schema(
             },
             targetPlanKeys: [{ type: String }],
             targetTenantIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Tenant" }],
+            // Empty = all gym roles. When set, user role must match (AND with plan/tenant).
+            targetRoles: [{
+                type: String,
+                enum: [
+                    "Owner",
+                    "General Manager",
+                    "Receptionist",
+                    "Coach",
+                    "Head Coach",
+                    "Accountant",
+                    "Sales",
+                    "Sales Manager",
+                ],
+            }],
         },
         startDate: {
             type: Date,

@@ -426,6 +426,7 @@ function SelectListbox({
     <div
       ref={listRef}
       role="listbox"
+      className="overlay-in"
       style={{
         position: 'fixed',
         top: dropdownRect.top,
@@ -1144,7 +1145,7 @@ export function Modal({ open = true, onClose, title, children, footer, size = 'm
   if (!open) return null;
   return (
     <div
-      className="modal-backdrop"
+      className="modal-backdrop modal-backdrop-in"
       onClick={onClose}
       style={{
         position: 'fixed', inset: 0, zIndex: 200,
@@ -1155,7 +1156,7 @@ export function Modal({ open = true, onClose, title, children, footer, size = 'm
       <div
         onClick={e => e.stopPropagation()}
         role="dialog" aria-modal="true"
-        className="fade-up modal-panel"
+        className="modal-panel modal-panel-in"
         style={{
           background: 'var(--card)', borderRadius: 14,
           border: '1px solid var(--border)',

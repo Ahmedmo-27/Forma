@@ -285,6 +285,22 @@ async function getAnnouncements(req, res) {
     }
 }
 
+function normalizeAnnouncementTarget(target) {
+    const { sanitizeTargetRoles } = require("../utils/announcementAudience");
+    const raw = target && typeof target === "object" ? target : {};
+    const type = ["all", "plan", "tenant"].includes(raw.type) ? raw.type : "all";
+    return {
+        type,
+        targetPlanKeys: type === "plan" && Array.isArray(raw.targetPlanKeys)
+            ? raw.targetPlanKeys.map((k) => String(k).trim()).filter(Boolean)
+            : [],
+        targetTenantIds: type === "tenant" && Array.isArray(raw.targetTenantIds)
+            ? raw.targetTenantIds
+            : [],
+        targetRoles: sanitizeTargetRoles(raw.targetRoles),
+    };
+}
+
 async function createAnnouncement(req, res) {
     try {
         const { title, message, type, target, startDate, endDate, isActive } = req.body;
@@ -296,7 +312,7 @@ async function createAnnouncement(req, res) {
             title: title.trim(),
             message: message.trim(),
             type: type || "info",
-            target: target || { type: "all" },
+            target: normalizeAnnouncementTarget(target),
             startDate: startDate || new Date(),
             endDate: endDate || null,
             isActive: isActive !== false,
@@ -317,7 +333,7 @@ async function updateAnnouncement(req, res) {
         if (title !== undefined) updates.title = String(title).trim();
         if (message !== undefined) updates.message = String(message).trim();
         if (type !== undefined) updates.type = type;
-        if (target !== undefined) updates.target = target;
+        if (target !== undefined) updates.target = normalizeAnnouncementTarget(target);
         if (startDate !== undefined) updates.startDate = startDate;
         if (endDate !== undefined) updates.endDate = endDate;
         if (isActive !== undefined) updates.isActive = Boolean(isActive);

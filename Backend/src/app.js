@@ -21,6 +21,7 @@ const whatsappTemplateRoutes = require("./routes/whatsappTemplateRoutes");
 const whatsappSessionRoutes = require("./routes/whatsappSessionRoutes");
 const contractRoutes = require("./routes/contractRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
+const announcementRoutes = require("./routes/announcementRoutes");
 const requestId = require("./middleware/requestId");
 const requestLogger = require("./middleware/requestLogger");
 const errorHandler = require("./middleware/errorHandler");
@@ -38,6 +39,7 @@ const analyticsRoutes = require("./routes/analyticsRoutes");
 const biRoutes = require("./routes/biRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 const locationRoutes = require("./routes/locationRoutes");
+const maintenanceRoutes = require("./routes/maintenanceRoutes");
 const storageService = require("./services/storageService");
 const Tenant = require("./models/Tenant");
 const { runAsPlatform } = require("./context/tenantContext");
@@ -154,6 +156,7 @@ app.use("/api/whatsapp", whatsappSessionRoutes);
 app.use("/api/accounting", contractRoutes);
 app.use("/api/requests", salesRequestRoutes);
 app.use("/api/notifications", notificationRoutes);
+app.use("/api/announcements", announcementRoutes);
 app.use("/api/coach-requests", coachRequestRoutes);
 app.use("/api/tenant", tenantRoutes);
 app.use("/api/public", publicRoutes);
@@ -162,6 +165,7 @@ app.use("/api/analytics", analyticsRoutes);
 app.use("/api/bi", biRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/locations", locationRoutes);
+app.use("/api/maintenance", maintenanceRoutes);
 
 const uploadReadLimiter = rateLimit({
     windowMs: UPLOAD_READ_WINDOW_MS,

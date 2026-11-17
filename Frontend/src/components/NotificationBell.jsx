@@ -143,7 +143,7 @@ export default function NotificationBell({ variant = 'bar' }) {
       </button>
 
       {open && (
-        <div className="fade-up notif-panel dropdown-panel" style={{
+        <div className="overlay-in notif-panel dropdown-panel" style={{
           position: 'absolute', top: 'calc(100% + 8px)', right: isDrawer ? 'auto' : 0, left: isDrawer ? 0 : 'auto',
           background: 'var(--card)', border: '1px solid var(--border)',
           borderRadius: 8, width: 320, maxHeight: 400,

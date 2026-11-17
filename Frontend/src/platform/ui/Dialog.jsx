@@ -59,7 +59,7 @@ export function Dialog({
         aria-labelledby={title ? "dialog-title" : undefined}
         tabIndex={-1}
         className={cn(
-          "w-full rounded-[var(--platform-radius-xl)] bg-[var(--platform-surface-raised)] border border-[var(--platform-border)] text-left outline-none overflow-hidden animate-in zoom-in-95 duration-150",
+          "w-full rounded-[var(--platform-radius-xl)] bg-[var(--platform-surface-raised)] border border-[var(--platform-border)] text-left outline-none overflow-hidden animate-in fade-in zoom-in-95 duration-150",
           sizeClasses,
           className
         )}

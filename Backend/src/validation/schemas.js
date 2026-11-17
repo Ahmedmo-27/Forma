@@ -410,6 +410,55 @@ const publicSignupSchema = z.object({
     trialDays: z.coerce.number().int().min(1).max(90).optional().default(14),
 });
 
+const maintenanceIntervalUnit = z.enum(["hour", "day", "week", "month"]);
+
+const createMaintenanceItemSchema = z.object({
+    title: plainText(200),
+    description: z.string().trim().max(1000).optional().default(""),
+    intervalValue: z.coerce.number().int().min(1).max(999),
+    intervalUnit: maintenanceIntervalUnit,
+    locationId: objectId.optional(),
+    targetLocationIds: z.array(objectId).optional(),
+    allLocations: z.boolean().optional().default(false),
+}).superRefine((data, ctx) => {
+    if (data.allLocations) return;
+    if (Array.isArray(data.targetLocationIds) && data.targetLocationIds.length) return;
+    if (data.locationId) return;
+    ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "locationId, targetLocationIds, or allLocations is required",
+        path: ["locationId"],
+    });
+});
+
+const updateMaintenanceItemSchema = z.object({
+    title: plainText(200).optional(),
+    description: z.string().trim().max(1000).optional(),
+    intervalValue: z.coerce.number().int().min(1).max(999).optional(),
+    intervalUnit: maintenanceIntervalUnit.optional(),
+    active: z.boolean().optional(),
+}).refine(
+    (data) => Object.keys(data).length > 0,
+    { message: "At least one field is required" }
+);
+
+const copyMaintenanceItemSchema = z.object({
+    targetLocationIds: z.array(objectId).optional(),
+    allLocations: z.boolean().optional().default(false),
+}).superRefine((data, ctx) => {
+    if (data.allLocations) return;
+    if (Array.isArray(data.targetLocationIds) && data.targetLocationIds.length) return;
+    ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "targetLocationIds or allLocations is required",
+        path: ["targetLocationIds"],
+    });
+});
+
+const completeMaintenanceItemSchema = z.object({
+    notes: z.string().trim().max(1000).optional().default(""),
+});
+
 module.exports = {
     loginSchema,
     setupPasswordSchema,
@@ -442,4 +491,8 @@ module.exports = {
     updateEntitlementPolicySchema,
     planPriceSchema,
     publicSignupSchema,
+    createMaintenanceItemSchema,
+    updateMaintenanceItemSchema,
+    copyMaintenanceItemSchema,
+    completeMaintenanceItemSchema,
 };

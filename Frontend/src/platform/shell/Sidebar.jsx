@@ -239,14 +239,14 @@ export function Sidebar({ isCollapsed, onToggleCollapse, isMobileOpen, onCloseMo
 
       {isMobileOpen && (
         <div
-          className="fixed inset-0 z-50 md:hidden bg-black/60 flex"
+          className="fixed inset-0 z-50 md:hidden bg-black/60 flex animate-in fade-in duration-150"
           onClick={onCloseMobile}
         >
           <div
             role="dialog"
             aria-modal="true"
             aria-label="Platform navigation"
-            className="w-72 max-w-[85vw] h-full"
+            className="w-72 max-w-[85vw] h-full animate-in slide-in-from-left duration-200"
             onClick={(e) => e.stopPropagation()}
           >
             <SidebarFrame

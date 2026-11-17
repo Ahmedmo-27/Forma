@@ -18,6 +18,17 @@ import {
   apiGetTenants,
 } from "../../lib/api/endpoints";
 
+const GYM_ROLES = [
+  "Owner",
+  "General Manager",
+  "Receptionist",
+  "Coach",
+  "Head Coach",
+  "Accountant",
+  "Sales",
+  "Sales Manager",
+];
+
 export default function CreateAnnouncementModal({
   open,
   onOpenChange,
@@ -34,6 +45,7 @@ export default function CreateAnnouncementModal({
   const [targetType, setTargetType] = useState("all");
   const [selectedPlanKeys, setSelectedPlanKeys] = useState([]);
   const [selectedTenantIds, setSelectedTenantIds] = useState([]);
+  const [selectedRoles, setSelectedRoles] = useState([]);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [isActive, setIsActive] = useState(true);
@@ -50,6 +62,7 @@ export default function CreateAnnouncementModal({
           typeof id === "object" ? String(id._id || id) : String(id)
         )
       );
+      setSelectedRoles(announcementToEdit.target?.targetRoles || []);
       setStartDate(
         announcementToEdit.startDate
           ? new Date(announcementToEdit.startDate).toISOString().split("T")[0]
@@ -68,6 +81,7 @@ export default function CreateAnnouncementModal({
       setTargetType("all");
       setSelectedPlanKeys([]);
       setSelectedTenantIds([]);
+      setSelectedRoles([]);
       setStartDate(new Date().toISOString().split("T")[0]);
       setEndDate("");
       setIsActive(true);
@@ -96,6 +110,12 @@ export default function CreateAnnouncementModal({
   const toggleTenant = (id) => {
     setSelectedTenantIds((current) =>
       current.includes(id) ? current.filter((item) => item !== id) : [...current, id]
+    );
+  };
+
+  const toggleRole = (role) => {
+    setSelectedRoles((current) =>
+      current.includes(role) ? current.filter((item) => item !== role) : [...current, role]
     );
   };
 
@@ -148,6 +168,7 @@ export default function CreateAnnouncementModal({
         type: targetType,
         targetPlanKeys: targetType === "plan" ? selectedPlanKeys : [],
         targetTenantIds: targetType === "tenant" ? selectedTenantIds : [],
+        targetRoles: selectedRoles,
       },
       startDate: startDate ? new Date(startDate).toISOString() : new Date().toISOString(),
       endDate: endDate ? new Date(endDate).toISOString() : null,
@@ -285,6 +306,26 @@ export default function CreateAnnouncementModal({
             </div>
           </div>
         )}
+
+        <div className="space-y-1.5">
+          <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)]">
+            Staff Roles
+          </label>
+          <p className="text-[11px] text-[var(--platform-text-muted)] mb-1.5">
+            Leave empty to show to all roles. Selected roles must also match the plan/gym audience above.
+          </p>
+          <div className="flex flex-wrap gap-2 p-2.5 rounded-lg border border-[var(--platform-border-subtle)] bg-[var(--platform-canvas)]">
+            {GYM_ROLES.map((role) => (
+              <label key={role} className="flex items-center gap-1.5 text-xs cursor-pointer">
+                <Checkbox
+                  checked={selectedRoles.includes(role)}
+                  onCheckedChange={() => toggleRole(role)}
+                />
+                <span>{role}</span>
+              </label>
+            ))}
+          </div>
+        </div>
 
         <div className="grid grid-cols-2 gap-4">
           <div>

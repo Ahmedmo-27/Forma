@@ -958,13 +958,13 @@ export default function CheckIn() {
 
       {/* ── Alert popup ──────────────────────────────────────────── */}
       {alertPopup && (
-        <div onClick={() => setAlertPopup(null)} style={{
+        <div onClick={() => setAlertPopup(null)} className="modal-backdrop-in" style={{
           position: 'fixed', inset: 0, zIndex: 9999,
           background: 'rgba(0,0,0,0.60)', backdropFilter: 'blur(8px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           padding: 24, cursor: 'pointer',
         }}>
-          <div className="fade-up" style={{
+          <div className="modal-panel-in" style={{
             background: '#fff', border: '2px solid var(--amber-bd)',
             borderRadius: 20, padding: '40px 48px', maxWidth: 480, width: '100%',
             textAlign: 'center', boxShadow: '0 32px 80px rgba(0,0,0,0.25)',

@@ -285,7 +285,7 @@ export default function GlobalSearch() {
 
       {/* Dropdown */}
       {showDropdown && (
-        <div className="global-search-dropdown dropdown-panel" style={{
+        <div className="global-search-dropdown dropdown-panel overlay-in" style={{
           position: 'absolute', top: 'calc(100% + 6px)', left: 0,
           width: 360, background: 'var(--card)',
           border: '1px solid var(--border)', borderRadius: 8,

@@ -336,7 +336,7 @@ export default function AssignedTasksPage({ embedded = false }) {
 
             {/* Secondary Advanced Filters */}
             {historyMoreFiltersOpen && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12, background: 'var(--bg)', padding: '12px 14px', borderRadius: 8, border: '1px solid var(--border)' }}>
+              <div className="overlay-in" style={{ display: 'flex', flexDirection: 'column', gap: 12, background: 'var(--bg)', padding: '12px 14px', borderRadius: 8, border: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
                   <div style={{ flex: '1 1 180px', minWidth: 160 }}>
                     <Select

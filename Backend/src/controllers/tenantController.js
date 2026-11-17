@@ -5,7 +5,6 @@ const storageService = require("../services/storageService");
 const Tenant = require("../models/Tenant");
 const Member = require("../models/Member");
 const User = require("../models/User");
-const Announcement = require("../models/Announcement");
 const { getEffectiveFeatures, getEffectiveLimits, getEffectiveRoles } = require("../models/Tenant");
 const {
     AREAS,
@@ -145,18 +144,10 @@ const getMyTenant = async (req, res) => {
 
         const timezone = tenant.settings?.locale?.timezone || "Africa/Cairo";
 
-        const [membersCount, staffCount, whatsappMonthlyCount, announcements] = await Promise.all([
+        const [membersCount, staffCount, whatsappMonthlyCount] = await Promise.all([
             Member.countDocuments(),
             User.countDocuments(),
             countMonthlyWhatsAppMessages(tenantId, timezone),
-            runAsPlatform(async () => {
-                const now = new Date();
-                return await Announcement.find({
-                    isActive: true,
-                    startDate: { $lte: now },
-                    $or: [{ endDate: null }, { endDate: { $gt: now } }],
-                }).select("title message type startDate");
-            }),
         ]);
 
         let storageGb = 0;
@@ -179,8 +170,6 @@ const getMyTenant = async (req, res) => {
             storageGb,
             whatsappMonthlyMessages: whatsappMonthlyCount,
         });
-
-        response.announcements = announcements || [];
 
         const accessContext = {
             roleAccess: tenant.roleAccess || null,

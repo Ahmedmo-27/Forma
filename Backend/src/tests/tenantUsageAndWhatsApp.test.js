@@ -4,7 +4,6 @@ import AuditLog from "../models/AuditLog";
 import Member from "../models/Member";
 import User from "../models/User";
 import Tenant from "../models/Tenant";
-import Announcement from "../models/Announcement";
 import { getMyTenant } from "../controllers/tenantController";
 import { WHATSAPP_AUDIT_ACTIONS, countMonthlyWhatsAppMessages } from "../utils/whatsappTracking";
 import { createRequire } from "module";
@@ -51,9 +50,6 @@ describe("Tenant WhatsApp Usage & Limits in GET /api/tenant/me", () => {
         vi.spyOn(Member, "countDocuments").mockResolvedValue(120);
         vi.spyOn(User, "countDocuments").mockResolvedValue(5);
         vi.spyOn(AuditLog, "countDocuments").mockResolvedValue(137); // 137 WhatsApp messages this month
-        vi.spyOn(Announcement, "find").mockReturnValue({
-            select: vi.fn().mockResolvedValue([]),
-        });
 
         const req = {
             user: {
@@ -82,6 +78,7 @@ describe("Tenant WhatsApp Usage & Limits in GET /api/tenant/me", () => {
 
         expect(statusCode).toBe(200);
         expect(responsePayload).toBeDefined();
+        expect(responsePayload.announcements).toBeUndefined();
 
         // Check limits match plan fairUseCaps, NOT hardcoded 500 or 5
         expect(responsePayload.limits.whatsappMonthlyMessages).toBe(2000);
@@ -152,9 +149,6 @@ describe("Tenant WhatsApp Usage & Limits in GET /api/tenant/me", () => {
         vi.spyOn(Member, "countDocuments").mockResolvedValue(10);
         vi.spyOn(User, "countDocuments").mockResolvedValue(2);
         vi.spyOn(AuditLog, "countDocuments").mockResolvedValue(5);
-        vi.spyOn(Announcement, "find").mockReturnValue({
-            select: vi.fn().mockResolvedValue([]),
-        });
 
         const req = {
             user: {

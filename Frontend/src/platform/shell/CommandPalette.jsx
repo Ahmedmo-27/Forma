@@ -212,7 +212,7 @@ export function CommandPalette({ isOpen, onClose }) {
         role="dialog"
         aria-modal="true"
         aria-label="Command Palette"
-        className="w-full max-w-xl rounded-[var(--platform-radius-xl)] bg-[var(--platform-surface-raised)] border border-[var(--platform-border)] text-left overflow-hidden animate-in zoom-in-95 duration-150"
+        className="w-full max-w-xl rounded-[var(--platform-radius-xl)] bg-[var(--platform-surface-raised)] border border-[var(--platform-border)] text-left overflow-hidden animate-in fade-in zoom-in-95 duration-150"
         style={{ boxShadow: "var(--platform-shadow-dialog)" }}
         onClick={(e) => e.stopPropagation()}
       >

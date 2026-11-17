@@ -55,6 +55,7 @@ function HelpDialog({ onClose, onStart }) {
     <div
       role="presentation"
       onClick={onClose}
+      className="modal-backdrop-in"
       style={{
         position: 'fixed',
         inset: 0,
@@ -71,6 +72,7 @@ function HelpDialog({ onClose, onStart }) {
         aria-modal="true"
         aria-labelledby="guide-dialog-title"
         onClick={(event) => event.stopPropagation()}
+        className="modal-panel-in"
         style={{
           width: 'min(880px, 100%)',
           height: 'min(760px, 92dvh)',

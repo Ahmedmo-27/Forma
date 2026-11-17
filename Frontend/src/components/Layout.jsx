@@ -19,6 +19,7 @@ import { useTenant } from '../context/TenantContext';
 import { useLocationScope, ALL_LOCATIONS } from '../context/LocationContext';
 import GlobalSearch from './GlobalSearch';
 import NotificationBell from './NotificationBell';
+import WhatsNewButton from './WhatsNewButton';
 import { updateMyProfile } from '../api/endpoints';
 import { bottomNavFor, visibleNavItems } from '../lib/tenantNav';
 import HelpButton from './tutorials/HelpButton';
@@ -411,6 +412,10 @@ export default function Layout({ children }) {
 
             <HelpButton />
 
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              <WhatsNewButton />
+            </div>
+
             {/* Notification Bell (Visible on both desktop & mobile) */}
             {showNotif && (
               <div className="topbar-notif" data-walkthrough="notif-bell" style={{ display: 'flex', alignItems: 'center' }}>
@@ -450,7 +455,7 @@ export default function Layout({ children }) {
               </button>
 
               {drop && (
-                <div className="fade-up" style={{
+                <div className="overlay-in" style={{
                   position: 'absolute', top: 'calc(100% + 8px)', right: 0,
                   background: 'var(--card)', border: '1px solid var(--border)',
                   borderRadius: 8, width: 200, padding: 4,
@@ -564,7 +569,7 @@ export default function Layout({ children }) {
       </div>
 
       {/* ── MOBILE DRAWER ──────────────────────────────────────── */}
-      {mob && <div onClick={() => setMob(false)} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }} />}
+      {mob && <div onClick={() => setMob(false)} className="modal-backdrop-in" style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }} />}
       <div style={{
         position: 'fixed', top: 0, left: 0, bottom: 0, width: 280, maxWidth: '85vw', zIndex: 100,
         background: NAVBAR_BG,
@@ -690,12 +695,12 @@ export default function Layout({ children }) {
 
       {/* ── Edit Profile Modal ───────────────────────────────── */}
       {editProfile && (
-        <div onClick={() => !profileSaving && setEditProfile(false)} style={{
+        <div onClick={() => !profileSaving && setEditProfile(false)} className="modal-backdrop-in" style={{
           position: 'fixed', inset: 0, zIndex: 200,
           background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(6px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
         }}>
-          <div onClick={e => e.stopPropagation()} className="fade-up modal-panel" style={{
+          <div onClick={e => e.stopPropagation()} className="modal-panel modal-panel-in" style={{
             background: 'var(--card)', border: '1px solid var(--border)',
             borderRadius: 14, width: '100%', maxWidth: 440,
             boxShadow: '0 8px 40px rgba(0,0,0,0.15)', overflow: 'hidden',

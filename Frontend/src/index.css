@@ -95,16 +95,103 @@
   to { transform: rotate(360deg); }
 }
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 @keyframes shimmer {
   0%   { background-position: -500px 0; }
   100% { background-position:  500px 0; }
 }
+@keyframes modalBackdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes modalPanelIn {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes modalSheetIn {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes overlayIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes fadeOnlyIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes drawerInRight {
+  from { opacity: 0; transform: translateX(100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+/* Enter utilities used by Dialog, Drawer, ErrorModal, Popover, etc. */
+@keyframes tw-enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform:
+      translate3d(
+        var(--tw-enter-translate-x, 0),
+        var(--tw-enter-translate-y, 0),
+        0
+      )
+      scale3d(
+        var(--tw-enter-scale, 1),
+        var(--tw-enter-scale, 1),
+        var(--tw-enter-scale, 1)
+      )
+      rotate(var(--tw-enter-rotate, 0));
+  }
+}
 
 /* ── Utilities ─────────────────────────────────────────────── */
-.fade-up { animation: fadeUp 0.18s cubic-bezier(0.16,1,0.3,1) both; }
+.fade-up,
+.overlay-in {
+  animation: overlayIn 0.16s cubic-bezier(0.16,1,0.3,1) both;
+}
+.fade-only-in {
+  animation: fadeOnlyIn 0.16s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.modal-backdrop-in {
+  animation: modalBackdropIn 0.18s cubic-bezier(0.16,1,0.3,1) both;
+}
+.modal-panel-in {
+  animation: modalPanelIn 0.2s cubic-bezier(0.16,1,0.3,1) both;
+}
+.drawer-in-right {
+  animation: drawerInRight 0.22s cubic-bezier(0.16,1,0.3,1) both;
+}
+
+.animate-in {
+  animation-name: tw-enter;
+  animation-duration: 150ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+}
+.fade-in { --tw-enter-opacity: 0; }
+.zoom-in-95 { --tw-enter-scale: 0.95; }
+.slide-in-from-top-2 { --tw-enter-translate-y: -0.5rem; }
+.slide-in-from-bottom { --tw-enter-translate-y: 100%; }
+.slide-in-from-bottom-2 { --tw-enter-translate-y: 0.5rem; }
+.slide-in-from-right { --tw-enter-translate-x: 100%; }
+.slide-in-from-left { --tw-enter-translate-x: -100%; }
+.animate-in.duration-100 { animation-duration: 100ms; }
+.animate-in.duration-150 { animation-duration: 150ms; }
+.animate-in.duration-200 { animation-duration: 200ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fade-up,
+  .overlay-in,
+  .fade-only-in,
+  .modal-backdrop-in,
+  .modal-panel-in,
+  .drawer-in-right,
+  .animate-in {
+    animation: none !important;
+  }
+}
 
 .spin {
   display: inline-block;
@@ -316,6 +403,9 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
     width: 100% !important;
     max-width: 100% !important;
     margin: 0 !important;
+  }
+  .modal-panel-in {
+    animation-name: modalSheetIn;
   }
   .dropdown-panel { width: min(360px,calc(100vw - 24px)) !important; max-width: calc(100vw - 24px) !important; }
   .notif-panel { width: min(320px,calc(100vw - 24px)) !important; right: 0 !important; }

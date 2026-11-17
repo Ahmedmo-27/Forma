@@ -940,6 +940,7 @@ export default function AssigningTasksPage() {
 
                       {templateMenuOpen && (
                         <div
+                          className="overlay-in"
                           style={{
                             position: 'absolute',
                             top: 'calc(100% + 8px)',
@@ -1049,6 +1050,7 @@ export default function AssigningTasksPage() {
                 {/* Row 3: Collapsible Secondary Filters Drawer */}
                 {moreFiltersOpen && (
                   <div
+                    className="overlay-in"
                     style={{
                       marginTop: 4,
                       padding: '16px 18px',

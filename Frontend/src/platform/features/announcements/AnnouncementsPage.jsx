@@ -111,6 +111,20 @@ export default function AnnouncementsPage() {
     return target.type;
   };
 
+  const roleChips = (target) => {
+    const roles = target?.targetRoles || [];
+    if (!roles.length) return null;
+    return (
+      <div className="flex flex-wrap gap-1 mt-1.5">
+        {roles.map((role) => (
+          <Badge key={role} variant="neutral" size="xs">
+            {role}
+          </Badge>
+        ))}
+      </div>
+    );
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -250,6 +264,12 @@ export default function AnnouncementsPage() {
                     <Badge variant="neutral" size="xs">
                       {audienceLabel(ann.target)}
                     </Badge>
+                    {roleChips(ann.target)}
+                    {!ann.target?.targetRoles?.length && (
+                      <div className="text-[10px] text-[var(--platform-text-muted)] mt-1">
+                        All roles
+                      </div>
+                    )}
                   </td>
 
                   <td className="py-3 px-4 text-[11px] text-[var(--platform-text-secondary)] whitespace-nowrap">
