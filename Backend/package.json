@@ -26,16 +26,21 @@
     "migrate:locations": "node src/scripts/migrateLocations.js",
     "migrate:assign-sales-manager": "node src/scripts/migrateAssignUnassignedMembersToSalesManager.js",
     "migrate:head-coach": "node src/scripts/migrateCoachManagerToHeadCoach.js",
-    "test:isolation": "vitest --run src/plugins/tenantPlugin.test.js src/tests/isolationProperty.test.js src/tests/multitenancy.test.js src/tests/locationScope.test.js src/tests/locationScopeWiring.test.js src/tests/userLocationAccess.test.js",
-    "clean:photos": "node src/scripts/cleanMissingPhotos.js"
+    "test:isolation": "vitest --run src/plugins/tenantPlugin.test.js src/tests/isolationProperty.test.js src/tests/multitenancy.test.js src/tests/locationScope.test.js src/tests/locationScopeWiring.test.js src/tests/userLocationAccess.test.js src/tests/inbox src/services/maintenanceReminders.test.js src/tests/retail.test.js",
+    "clean:photos": "node src/scripts/cleanMissingPhotos.js",
+    "restore:tenant": "node src/scripts/restoreTenantFromBackup.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
+  "engines": {
+    "node": ">=22.12"
+  },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1163.0",
     "@aws-sdk/s3-request-presigner": "^3.1163.0",
+    "@sentry/node": "^11.16.0",
     "@whiskeysockets/baileys": "^7.0.0-rc14",
     "bcryptjs": "^3.0.3",
     "cookie-parser": "^1.4.7",
@@ -56,11 +61,14 @@
   },
   "devDependencies": {
     "fast-check": "^4.9.0",
-    "jest": "^30.4.2",
     "nodemon": "^3.1.14",
-    "vitest": "^1.6.1"
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
   },
   "overrides": {
-    "ip-address": "10.7.6"
+    "ip-address": "10.7.6",
+    "nodemon": {
+      "minimatch": "^11.0.9"
+    }
   }
 }
