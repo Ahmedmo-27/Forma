@@ -7,7 +7,7 @@ const logger = require("../utils/logger");
 const { hashPassword, verifyPassword, normalizeEmail, MIN_PASSWORD_LENGTH, bumpTokenVersion } = require("../utils/passwordUtils");
 const passwordSetup = require("../services/passwordSetupService");
 const { invalidateAuthContext } = require("../middleware/authContextCache");
-const { normalizeUsername, uniqueUsername, escapeRegex } = require("../utils/username");
+const { normalizeUsername, uniqueUsername, tenantUsername, escapeRegex } = require("../utils/username");
 const {
     assertEmailAvailable,
     assertPhoneAvailable,
@@ -261,7 +261,16 @@ const loginUser = async (req, res) => {
 
         if (!user.username && typeof user.save === "function") {
             try {
-                user.username = await runAsPlatform(() => uniqueUsername(User, user.email, { excludeId: user._id }));
+                user.username = await runAsPlatform(async () => {
+                    if (!user.tenantId) return uniqueUsername(User, user.email, { excludeId: user._id });
+                    const backfillTenant = await Tenant.findById(user.tenantId).select("slug");
+                    return tenantUsername(
+                        User,
+                        backfillTenant,
+                        { name: user.name, email: user.email },
+                        { excludeId: user._id }
+                    );
+                });
                 await runAsPlatform(async () => {
                     await user.save();
                 });
@@ -798,7 +807,10 @@ const createStaffUser = async (req, res) => {
         const phoneKey = await assertPhoneAvailable(mobile_number);
 
         const hashedPassword = await hashPassword(password);
-        const username = await uniqueUsername(User, normalizedEmail);
+        const staffTenant = req.tenant?.slug
+            ? req.tenant
+            : await runAsPlatform(() => Tenant.findById(req.user.tenantId).select("slug"));
+        const username = await tenantUsername(User, staffTenant, { name, email: normalizedEmail });
 
         const {
             applyLocationAccessToUser,

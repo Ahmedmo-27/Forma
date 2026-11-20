@@ -11,7 +11,7 @@ const { getEffectiveFeatures, getEffectiveLimits, getEffectiveRoles } = require(
 const { runAsPlatform, runWithTenant } = require("../context/tenantContext");
 const storageService = require("../services/storageService");
 const { normalizeEmail, hashPassword } = require("../utils/passwordUtils");
-const { uniqueUsername } = require("../utils/username");
+const { tenantUsername } = require("../utils/username");
 const { assertEmailAvailable } = require("../utils/identityUniqueness");
 const passwordSetup = require("../services/passwordSetupService");
 const mailer = require("../services/mailer");
@@ -413,7 +413,10 @@ async function onboardTenant(req, res) {
         const ownerUser = await runWithTenant(
             { tenantId: String(tenant._id), tenantSlug: tenant.slug },
             async () => {
-                const username = await uniqueUsername(User, normalizedEmail);
+                const username = await tenantUsername(User, tenant, {
+                    name: ownerName,
+                    email: normalizedEmail,
+                });
                 return User.create({
                     tenantId: tenant._id,
                     name: ownerName.trim(),

@@ -129,8 +129,11 @@ export default function CoachStaff() {
           ? []
           : (form.allowedLocationIds || []);
       }
-      await createStaffUser(payload);
-      toast.success(t('Coach account created!'));
+      const res = await createStaffUser(payload);
+      const username = res?.data?.user?.username;
+      toast.success(
+        `${t('Coach account created!')}${username ? ` ${t('Username')}: ${username}` : ''}`
+      );
       setForm({
         ...INIT,
         allowedLocationIds: deskBranch ? [deskBranch] : [],

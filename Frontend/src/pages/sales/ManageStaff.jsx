@@ -175,8 +175,11 @@ export default function ManageStaff() {
           ? []
           : (form.allowedLocationIds || []);
       }
-      await createStaffUser(payload);
-      toast.success(t('{role} account created!', { role: t(form.role) }));
+      const res = await createStaffUser(payload);
+      const username = res?.data?.user?.username;
+      toast.success(
+        `${t('{role} account created!', { role: t(form.role) })}${username ? ` ${t('Username')}: ${username}` : ''}`
+      );
       setForm({
         ...INIT,
         role: roleOptions[0]?.[0] || 'Sales',

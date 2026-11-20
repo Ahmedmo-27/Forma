@@ -7,7 +7,7 @@ const AuditLog = require("../models/AuditLog");
 const ManualPayment = require("../models/ManualPayment");
 const tenantContext = require("../context/tenantContext");
 const { normalizeEmail, hashPassword } = require("../utils/passwordUtils");
-const { uniqueUsername } = require("../utils/username");
+const { tenantUsername } = require("../utils/username");
 const { assertEmailAvailable } = require("../utils/identityUniqueness");
 const passwordSetup = require("../services/passwordSetupService");
 const mailer = require("../services/mailer");
@@ -249,7 +249,10 @@ async function publicSignup(req, res) {
             const ownerUser = await tenantContext.runWithTenant(
                 { tenantId: String(tenant._id), tenantSlug: tenant.slug },
                 async () => {
-                    const username = await uniqueUsername(User, normalizedEmail);
+                    const username = await tenantUsername(User, tenant, {
+                        name: ownerName,
+                        email: normalizedEmail,
+                    });
                     return User.create({
                         tenantId: tenant._id,
                         name: String(ownerName).trim(),

@@ -1,7 +1,6 @@
 const mongoose = require("mongoose");
 const { encryptSecret, decryptSecret } = require("../utils/tenantCrypto");
 const { BILLING_CURRENCY } = require("../config/currency");
-
 const brandingSchema = new mongoose.Schema(
     {
         logoKey: { type: String, default: null }, // Storage key, e.g. "tenant-123/branding/logo.png"
