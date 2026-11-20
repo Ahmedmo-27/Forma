@@ -22,3 +22,5 @@ Backend/logs/http.log
 docs/ERROR_HANDLING.md
 docs/MULTITENANCY.md
 docs/PLATFORM_CONSOLE.md
+Backend/scripts/ops/sync-test-to-prod.js
+prod.env
