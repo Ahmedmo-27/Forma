@@ -1,6 +1,7 @@
 const Member = require("../models/Member");
 const PackageExceptionRequest = require("../models/PackageExceptionRequest");
 const User = require("../models/User");
+const ContractSignature = require("../models/ContractSignature");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const { isSameDay, zonedMidnightUtc, addLocalDays, CAIRO_ZONE, subscriptionSalePrice } = require("../utils/revenueUtils");
 const { resolveSubscriptionPackage } = require("../utils/packageSnapshot");
@@ -151,6 +152,18 @@ const getContracts = async (req, res) => {
         const total = contracts.length;
         const totalRevenue = contracts.reduce((sum, c) => sum + (c.netPaid || 0), 0);
         const pageItems = contracts.slice(skip, skip + limit);
+        const signatures = pageItems.length
+            ? await ContractSignature.find({ subscription: { $in: pageItems.map((c) => c._id) } })
+                .select("subscription signedAt signerName")
+                .lean()
+            : [];
+        const signedBySub = new Map(signatures.map((s) => [String(s.subscription), s]));
+        for (const item of pageItems) {
+            const signature = signedBySub.get(String(item._id));
+            item.signed = Boolean(signature);
+            item.signedAt = signature?.signedAt || null;
+            item.signerName = signature?.signerName || null;
+        }
 
         const currency = req.tenant?.settings?.locale?.currency || "EGP";
 
