@@ -63,8 +63,19 @@ Objects are stored as `{tenantId}/{filename}`. Profile photos, national IDs, inv
 
 On Railway (production) and Render (testing), set `R2_ACCOUNT_ID`, `R2_BUCKET_NAME`, `R2_ACCESS_KEY_ID`, and `R2_SECRET_ACCESS_KEY` in each service dashboard. Do not commit the key pair. Leave `R2_PUBLIC_URL` unset. Use separate secrets per environment.
 
+## Shared inbox
+
+Staff of one gym share one WhatsApp inbox (`/inbox`, plan feature `inbox`). The linked number is managed per gym at `/account/channels`.
+
+- **WhatsApp:** inbound messages arrive on the same Baileys session a staff member already linked at `/account/whatsapp`. Nothing extra to configure. Replies go out from that linked number. Only live (`notify`) messages are stored, so history sync and the gym's own sends are not duplicated.
+
+Backend env var (also in `Backend/.env.example`): `WHATSAPP_REPLY_GAP_MS`.
+
+Plans: `npm run seed:plans` adds `inbox` to Gold and Platinum. Plans already in a database keep their old feature list, so enable `inbox` on them in the platform console.
+
 ## Production
 
+- **Checklist:** env vars, scheduled jobs, deploy order, smoke test and rollback are in [docs/PRODUCTION_CHECKLIST.md](docs/PRODUCTION_CHECKLIST.md). Railway reads [Backend/railway.json](Backend/railway.json).
 - **Domain:** `forma-official.com` — see [docs/DOMAIN_NETWORKING.md](docs/DOMAIN_NETWORKING.md).
 - **Frontend (Vercel):** build from `vercel.json`. Set `BACKEND_ORIGIN=https://api.forma-official.com` (include `https://`) before building. Attach `app`, `www`, and optional `platform` / apex. Vercel skips a production build when the commit does not change `Frontend/`, `vercel.json`, or the root `package.json`.
 - **API (Railway):** custom domain `api.forma-official.com`. Set `FRONTEND_ORIGIN` with `https://app.forma-official.com` listed first (then `www` / `platform`) so invite and reset links hit the gym app. Set `BASE_DOMAIN=forma-official.com`, production `PAYMENT_*`, and production secrets. Do not commit secrets. Health check path is `/health`.

@@ -1,3 +1,7 @@
+# TESTING API ONLY. Production runs on Railway (see Backend/railway.json).
+# Keep the default *.onrender.com URL and leave BASE_DOMAIN unset here so auth
+# cookies stay host-only. Free-plan services sleep when idle, so scheduled jobs
+# (freeze/expiry, owner mail, maintenance reminders) only run while awake.
 services:
   - type: web
     name: leap-backend
@@ -57,4 +61,10 @@ services:
       - key: VERCEL_PROJECT_ID
         sync: false
       - key: VERCEL_TEAM_ID
+        sync: false
+      - key: LOG_LEVEL
+        value: info
+      - key: MAINTENANCE_REMINDER_REPEAT_HOURS
+        value: "24"
+      - key: PLATFORM_IP_ALLOWLIST
         sync: false

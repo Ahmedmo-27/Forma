@@ -1,0 +1,45 @@
+name: Nightly database backup
+
+on:
+  schedule:
+    - cron: "15 1 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mongo-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    name: mongodump to R2
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      MONGO_URI: ${{ secrets.BACKUP_MONGO_URI }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+      BACKUP_BUCKET: ${{ secrets.BACKUP_BUCKET }}
+      BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: auto
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check secrets
+        run: |
+          missing=0
+          for name in MONGO_URI BACKUP_PASSPHRASE BACKUP_BUCKET BACKUP_S3_ENDPOINT AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY; do
+            if [ -z "${!name}" ]; then echo "::error::Missing secret for $name"; missing=1; fi
+          done
+          exit $missing
+      - name: Install MongoDB database tools
+        run: |
+          curl -fsSL https://fastdl.mongodb.org/tools/db/mongodb-database-tools-ubuntu2204-x86_64-100.10.0.tgz -o tools.tgz
+          tar -xzf tools.tgz
+          echo "$PWD/$(tar -tzf tools.tgz | head -1 | cut -d/ -f1)/bin" >> "$GITHUB_PATH"
+      - name: Dump, encrypt and upload
+        run: bash Backend/scripts/ops/mongo-backup.sh
+        env:
+          BACKUP_DIR: ${{ runner.temp }}/backups
