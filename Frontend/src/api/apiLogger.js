@@ -1,3 +1,5 @@
+import { noteFailedRequest } from '../lib/monitoring';
+
 const isDev = import.meta.env.DEV;
 
 function formatError(err) {
@@ -35,6 +37,7 @@ export function logError(err) {
   const url = err.config?.url;
   const requestId = err.response?.headers?.['x-request-id'] || err.config?.headers?.['X-Request-Id'];
   const details = formatError(err);
+  if (!err.response || err.response.status >= 500) noteFailedRequest(requestId, err.response?.status);
 
   if (isDev) {
     console.warn('[API ✗]', method, url, { requestId, ...details });

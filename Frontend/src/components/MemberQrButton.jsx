@@ -1,12 +1,16 @@
 import { useState, useEffect } from "react";
 import QRCode from "qrcode";
 import toast from "react-hot-toast";
-import { Btn, fmtDateTime } from "./ui";
+import { Btn, CAIRO_ZONE } from "./ui";
 import { toWhatsAppUrl } from "../utils/whatsapp";
 import { sendWhatsAppImage } from "../api/endpoints";
 import { memberQrPayload } from "../lib/systemId";
 import { useTenant } from "../context/TenantContext";
+import { useI18n } from "../i18n/useI18n";
+import { useFormat } from "../i18n/useFormat";
 
+// The caption and card image below are sent to the member on WhatsApp (outbound
+// content, not staff UI), so they stay in English.
 function qrMessage(member, code, gymName) {
   const name = member?.name || "Member";
   const brand = gymName || "your gym";
@@ -113,7 +117,19 @@ function CheckmarkMark() {
 }
 
 export default function MemberQrButton({ member, onSent }) {
+  const { t } = useI18n();
+  const { fmtDateTime } = useFormat();
   const { branding, tenant } = useTenant();
+  const fmtSent = (d) => (d ? fmtDateTime(d, {
+    timeZone: CAIRO_ZONE,
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  }, "en-US") : "—");
   const gymName = branding?.displayName || tenant?.name || "";
   const [busy, setBusy] = useState(false);
   const [stage, setStage] = useState("");
@@ -138,21 +154,21 @@ export default function MemberQrButton({ member, onSent }) {
 
   const send = async () => {
     if (!code) {
-      toast.error("This member has no member id yet");
+      toast.error(t("This member has no member id yet"));
       return;
     }
     if (!toWhatsAppUrl(member?.phones)) {
-      toast.error("This member has no phone number for WhatsApp");
+      toast.error(t("This member has no phone number for WhatsApp"));
       return;
     }
 
     setBusy(true);
-    setStage("Generating card…");
+    setStage(t("Generating card…"));
 
     try {
       const blob = await buildCheckInCard(member, code, gymName);
 
-      setStage("Sending on WhatsApp…");
+      setStage(t("Sending on WhatsApp…"));
       const body = new FormData();
       body.append("image", blob, "check-in.jpg");
       body.append("phone", member.phones);
@@ -167,18 +183,18 @@ export default function MemberQrButton({ member, onSent }) {
       const res = await sendWhatsAppImage(body);
       const sentTime = res.data?.lastQrSentAt || new Date().toISOString();
       setLastSentAt(sentTime);
-      toast.success("QR check-in card sent on WhatsApp");
+      toast.success(t("QR check-in card sent on WhatsApp"));
 
       if (onSent) onSent(sentTime);
     } catch (err) {
       const status = err?.response?.status;
       const codeErr = err?.response?.data?.code || err?.normalized?.code;
       if (status === 504 || codeErr === "WHATSAPP_TIMEOUT") {
-        toast.error("WhatsApp upload timed out. Please check your phone connection and retry.");
+        toast.error(t("WhatsApp upload timed out. Please check your phone connection and retry."));
       } else if (err?.code === "ECONNABORTED" || codeErr === "REQUEST_TIMEOUT") {
-        toast.error("WhatsApp request timed out. Please ensure your WhatsApp is connected.");
+        toast.error(t("WhatsApp request timed out. Please ensure your WhatsApp is connected."));
       } else if (!err?.normalized) {
-        toast.error(err?.response?.data?.message || "Could not send the QR code");
+        toast.error(err?.response?.data?.message || t("Could not send the QR code"));
       }
     } finally {
       setBusy(false);
@@ -193,10 +209,10 @@ export default function MemberQrButton({ member, onSent }) {
         variant={lastSentAt ? "outline" : "success"}
         onClick={send}
         disabled={busy || !member}
-        title={lastSentAt ? `Last sent: ${fmtDateTime(lastSentAt)}` : "Send check-in QR code"}
+        title={lastSentAt ? t("Last sent: {date}", { date: fmtSent(lastSentAt) }) : t("Send check-in QR code")}
       >
         {lastSentAt ? <CheckmarkMark /> : <WhatsAppMark />}
-        {busy ? stage : lastSentAt ? "QR Code Sent (Resend)" : "Send QR code on WhatsApp"}
+        {busy ? stage : lastSentAt ? t("QR Code Sent (Resend)") : t("Send QR code on WhatsApp")}
       </Btn>
       {lastSentAt && (
         <span
@@ -207,10 +223,10 @@ export default function MemberQrButton({ member, onSent }) {
             alignItems: "center",
             gap: 4,
           }}
-          title={`Check-in QR sent: ${fmtDateTime(lastSentAt)}`}
+          title={t("Check-in QR sent: {date}", { date: fmtSent(lastSentAt) })}
         >
           <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981" }} />
-          Sent {fmtDateTime(lastSentAt)}
+          {t("Sent {date}", { date: fmtSent(lastSentAt) })}
         </span>
       )}
     </div>

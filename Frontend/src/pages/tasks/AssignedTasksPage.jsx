@@ -12,6 +12,8 @@ import {
    getAssignedTaskHistory, completeMemberTask,
 } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
+import { useI18n } from '../../i18n/useI18n.js';
+import { useFormat } from '../../i18n/useFormat.js';
 import {
   Check, ChevronDown, ChevronUp, FolderOpen, PartyPopper, RefreshCw, X,
 } from 'lucide-react';
@@ -20,7 +22,9 @@ import {
 } from './taskMembers';
 
 export default function AssignedTasksPage({ embedded = false }) {
-  usePageTitle('My Tasks');
+  const { t } = useI18n();
+  const { lang } = useFormat();
+  usePageTitle(t('My Tasks'));
   const navigate = useNavigate();
   const { user: _user } = useAuth();
 
@@ -47,11 +51,11 @@ export default function AssignedTasksPage({ embedded = false }) {
       const res = await getAssignedTaskHistory();
       setAssignedHistory(res.data.history ?? []);
     } catch {
-      toast.error('Failed to load assigned tasks');
+      toast.error(t('Failed to load assigned tasks'));
     } finally {
       setLoadingAssigned(false);
     }
-  }, []);
+  }, [t]);
 
   useLocationEffect(() => { fetchAssignedHistory(); }, [fetchAssignedHistory]);
 
@@ -59,10 +63,10 @@ export default function AssignedTasksPage({ embedded = false }) {
     setCompletingId(memberId);
     try {
       await completeMemberTask(taskId, memberId);
-      toast.success('Member task marked as completed');
+      toast.success(t('Member task marked as completed'));
       fetchAssignedHistory();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to complete task');
+      toast.error(err.response?.data?.message || t('Failed to complete task'));
     } finally {
       setCompletingId(null);
     }
@@ -172,8 +176,8 @@ export default function AssignedTasksPage({ embedded = false }) {
     <div className={embedded ? '' : 'page-wrap'} data-walkthrough={embedded ? undefined : 'my-tasks-board'} style={{ paddingTop: embedded ? 0 : 20, paddingBottom: 40, display: 'flex', flexDirection: 'column', gap: 16 }}>
       <Tabs
         tabs={[
-          { id: 'active', label: `Active Tasks (${activeAssignedMembers.length})` },
-          { id: 'history', label: `Tasks History (${assignedHistory.length})` },
+          { id: 'active', label: t('Active Tasks ({count})', { count: activeAssignedMembers.length }) },
+          { id: 'history', label: t('Tasks History ({count})', { count: assignedHistory.length }) },
         ]}
         active={assigneeTab}
         onChange={setAssigneeTab}
@@ -184,29 +188,29 @@ export default function AssignedTasksPage({ embedded = false }) {
         <Card noPad>
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>Active Assigned Members</h3>
+              <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>{t('Active Assigned Members')}</h3>
               <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--t3)' }}>
-                Members assigned to you by your manager. Contact or follow up with each member, then click &quot;Mark Completed&quot;.
+                {t('Members assigned to you by your manager. Contact or follow up with each member, then click "Mark Completed".')}
               </p>
             </div>
           </div>
 
           {loadingAssigned ? (
-            <Table loading skeletonRows={6} headers={['Member', 'Member ID', 'Phone', 'Assigned By', 'Assigned At', 'Status', '']} />
+            <Table loading skeletonRows={6} headers={[t('Member'), t('Member ID'), t('Phone'), t('Assigned By'), t('Assigned At'), t('Status'), '']} />
           ) : activeAssignedMembers.length === 0 ? (
-            <EmptyState icon={PartyPopper} message="No pending tasks" sub="You have no members waiting to be processed." />
+            <EmptyState icon={PartyPopper} message={t('No pending tasks')} sub={t('You have no members waiting to be processed.')} />
           ) : (
             <div className="table-responsive-container">
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member ID</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Phone</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Assigned By</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Assigned At</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Status</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Action</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Member')}</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Member ID')}</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Phone')}</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Assigned By')}</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Assigned At')}</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Status')}</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'end', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Action')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -219,7 +223,7 @@ export default function AssignedTasksPage({ embedded = false }) {
                             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 600, color: 'var(--t1)', cursor: sid ? 'pointer' : 'default' }}
                             onClick={() => sid && navigate(`/members/${sid}`)}
                           >
-                            <Avatar name={item.member?.name || 'Member'} size="sm" />
+                            <Avatar name={item.member?.name || t('Member')} size="sm" />
                             <span>{item.member?.name}</span>
                           </span>
                         </td>
@@ -229,8 +233,9 @@ export default function AssignedTasksPage({ embedded = false }) {
                         <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
                           {item.member?.phone ? (
                             <a
+                              dir="ltr"
                               href={`tel:${item.member.phone}`}
-                              style={{ color: 'var(--primary)', textDecoration: 'none' }}
+                              style={{ color: 'var(--primary)', textDecoration: 'none', unicodeBidi: 'isolate' }}
                               onClick={(e) => e.stopPropagation()}
                             >
                               {item.member.phone}
@@ -238,15 +243,15 @@ export default function AssignedTasksPage({ embedded = false }) {
                           ) : '—'}
                         </td>
                         <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                          {item.assignedBy?.name} <span style={{ fontSize: 11, color: 'var(--t4)' }}>({item.assignedBy?.role || 'Manager'})</span>
+                          {item.assignedBy?.name} <span style={{ fontSize: 11, color: 'var(--t4)' }}>({t(item.assignedBy?.role || 'Manager')})</span>
                         </td>
                         <td style={{ padding: '12px 14px', color: 'var(--t3)', fontSize: 12 }}>
-                          {formatTaskDateTime(item.assignedAt)}
+                          {formatTaskDateTime(item.assignedAt, lang)}
                         </td>
                         <td style={{ padding: '12px 14px' }}>
                           <Badge status="pending" />
                         </td>
-                        <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                        <td style={{ padding: '12px 14px', textAlign: 'end' }}>
                           <span data-walkthrough="my-tasks-complete">
                           <Btn
                             size="xs"
@@ -254,7 +259,7 @@ export default function AssignedTasksPage({ embedded = false }) {
                             disabled={completingId === (item.member?._id || item._id)}
                             onClick={() => handleCompleteMember(item.taskId, item.member?._id || item._id)}
                           >
-                            {completingId === (item.member?._id || item._id) ? <Spinner size="sm" /> : <><Check size={14} aria-hidden /> Mark Completed</>}
+                            {completingId === (item.member?._id || item._id) ? <Spinner size="sm" /> : <><Check size={14} aria-hidden /> {t('Mark Completed')}</>}
                           </Btn>
                           </span>
                         </td>
@@ -272,18 +277,18 @@ export default function AssignedTasksPage({ embedded = false }) {
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
               <div>
-                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>Assigned Members History</h3>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>{t('Assigned Members History')}</h3>
                 <p style={{ margin: '2px 0 0', fontSize: 12, color: 'var(--t3)' }}>
-                  Complete history of members assigned to your account, with timestamps when marked as completed.
+                  {t('Complete history of members assigned to your account, with timestamps when marked as completed.')}
                 </p>
               </div>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <Btn size="xs" variant="outline" onClick={() => setHistoryMoreFiltersOpen((o) => !o)}>
-                  {historyMoreFiltersOpen ? <><ChevronUp size={12} aria-hidden /> Less Filters</> : <><ChevronDown size={12} aria-hidden /> More Filters</>}
+                  {historyMoreFiltersOpen ? <><ChevronUp size={12} aria-hidden /> {t('Less Filters')}</> : <><ChevronDown size={12} aria-hidden /> {t('More Filters')}</>}
                 </Btn>
                 {hasActiveAssigneeFilters && (
                   <Btn size="xs" variant="ghost" onClick={resetAssigneeHistoryFilters}>
-                    <X size={14} aria-hidden /> Reset Filters
+                    <X size={14} aria-hidden /> {t('Reset Filters')}
                   </Btn>
                 )}
               </div>
@@ -292,12 +297,12 @@ export default function AssignedTasksPage({ embedded = false }) {
             {/* Primary Filter Row */}
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
               <div style={{ flex: '1 1 200px', minWidth: 180 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>Search Member</label>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{t('Search Member')}</label>
                 <input
                   value={historySearch}
                   onChange={(e) => setHistorySearch(e.target.value)}
-                  placeholder="Search member, phone, ID, notes…"
-                  aria-label="Search task history"
+                  placeholder={t('Search member, phone, ID, notes…')}
+                  aria-label={t('Search task history')}
                   style={{
                     width: '100%', padding: '7px 11px', borderRadius: 8,
                     border: '1px solid var(--border)', background: 'var(--card)',
@@ -308,14 +313,14 @@ export default function AssignedTasksPage({ embedded = false }) {
 
               <div style={{ flex: '1 1 200px', minWidth: 180 }}>
                 <Select
-                  label="Assigned By"
+                  label={t('Assigned By')}
                   value={historyAssignedBy}
                   onChange={(e) => setHistoryAssignedBy(e.target.value)}
                 >
-                  <option value="all">All Assigners</option>
+                  <option value="all">{t('All Assigners')}</option>
                   {uniqueAssigners.map((assigner) => (
                     <option key={assigner._id} value={assigner._id}>
-                      {assigner.name} ({assigner.role || 'Manager'})
+                      {assigner.name} ({t(assigner.role || 'Manager')})
                     </option>
                   ))}
                 </Select>
@@ -324,9 +329,9 @@ export default function AssignedTasksPage({ embedded = false }) {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 2 }}>
                 <FilterTabs
                   options={[
-                    { value: 'all', id: 'all', label: 'All' },
-                    { value: 'completed', id: 'completed', label: 'Completed' },
-                    { value: 'pending', id: 'pending', label: 'Pending' },
+                    { value: 'all', id: 'all', label: t('All') },
+                    { value: 'completed', id: 'completed', label: t('Completed') },
+                    { value: 'pending', id: 'pending', label: t('Pending') },
                   ]}
                   active={historyStatusFilter}
                   onChange={setHistoryStatusFilter}
@@ -340,11 +345,11 @@ export default function AssignedTasksPage({ embedded = false }) {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
                   <div style={{ flex: '1 1 180px', minWidth: 160 }}>
                     <Select
-                      label="Package"
+                      label={t('Package')}
                       value={historyPackageFilter}
                       onChange={(e) => setHistoryPackageFilter(e.target.value)}
                     >
-                      <option value="all">All Packages</option>
+                      <option value="all">{t('All Packages')}</option>
                       {derivedPackages.map((pkg) => (
                         <option key={pkg._id} value={pkg._id}>{pkg.name}</option>
                       ))}
@@ -353,27 +358,27 @@ export default function AssignedTasksPage({ embedded = false }) {
 
                   <div style={{ flex: '1 1 180px', minWidth: 160 }}>
                     <Select
-                      label="Transfer Type"
+                      label={t('Transfer Type')}
                       value={historyTransferType}
                       onChange={(e) => setHistoryTransferType(e.target.value)}
                     >
-                      <option value="all">All Types</option>
-                      <option value="bulk">Bulk Transfer</option>
-                      <option value="quick">Quick Transfer</option>
+                      <option value="all">{t('All Types')}</option>
+                      <option value="bulk">{t('Bulk Transfer')}</option>
+                      <option value="quick">{t('Quick Transfer')}</option>
                     </Select>
                   </div>
 
                   <div style={{ flex: '1 1 180px', minWidth: 160 }}>
                     <Select
-                      label="Member Status"
+                      label={t('Member Status')}
                       value={historyMemberStatus}
                       onChange={(e) => setHistoryMemberStatus(e.target.value)}
                     >
-                      <option value="all">All Member Statuses</option>
-                      <option value="active">Active</option>
-                      <option value="expired">Expired</option>
-                      <option value="frozen">Frozen</option>
-                      <option value="guest">Guest</option>
+                      <option value="all">{t('All Member Statuses')}</option>
+                      <option value="active">{t('Active')}</option>
+                      <option value="expired">{t('Expired')}</option>
+                      <option value="frozen">{t('Frozen')}</option>
+                      <option value="guest">{t('Guest')}</option>
                     </Select>
                   </div>
                 </div>
@@ -382,17 +387,17 @@ export default function AssignedTasksPage({ embedded = false }) {
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', borderTop: '1px dashed var(--border)', paddingTop: 10 }}>
                   <div style={{ flex: '0 0 160px' }}>
                     <Select
-                      label="Date Type"
+                      label={t('Date Type')}
                       value={historyDateField}
                       onChange={(e) => setHistoryDateField(e.target.value)}
                     >
-                      <option value="assignedAt">Assigned Date</option>
-                      <option value="completedAt">Completed Date</option>
+                      <option value="assignedAt">{t('Assigned Date')}</option>
+                      <option value="completedAt">{t('Completed Date')}</option>
                     </Select>
                   </div>
 
                   <div style={{ flex: '1 1 140px', minWidth: 130 }}>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 4 }}>From</label>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 4 }}>{t('From')}</label>
                     <input
                       type="date"
                       value={historyDateFrom}
@@ -406,7 +411,7 @@ export default function AssignedTasksPage({ embedded = false }) {
                   </div>
 
                   <div style={{ flex: '1 1 140px', minWidth: 130 }}>
-                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 4 }}>To</label>
+                    <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 4 }}>{t('To')}</label>
                     <input
                       type="date"
                       value={historyDateTo}
@@ -420,10 +425,10 @@ export default function AssignedTasksPage({ embedded = false }) {
                   </div>
 
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingBottom: 2 }}>
-                    <Btn size="xs" variant="ghost" onClick={() => setHistoryQuickPeriod('last7')}>Last 7d</Btn>
-                    <Btn size="xs" variant="ghost" onClick={() => setHistoryQuickPeriod('thisMonth')}>This Month</Btn>
-                    <Btn size="xs" variant="ghost" onClick={() => setHistoryQuickPeriod('last30')}>Last 30d</Btn>
-                    <Btn size="xs" variant="ghost" onClick={() => setHistoryQuickPeriod('clear')}>Clear Dates</Btn>
+                    <Btn size="xs" variant="ghost" onClick={() => setHistoryQuickPeriod('last7')}>{t('Last 7d')}</Btn>
+                    <Btn size="xs" variant="ghost" onClick={() => setHistoryQuickPeriod('thisMonth')}>{t('This Month')}</Btn>
+                    <Btn size="xs" variant="ghost" onClick={() => setHistoryQuickPeriod('last30')}>{t('Last 30d')}</Btn>
+                    <Btn size="xs" variant="ghost" onClick={() => setHistoryQuickPeriod('clear')}>{t('Clear Dates')}</Btn>
                   </div>
                 </div>
               </div>
@@ -431,22 +436,22 @@ export default function AssignedTasksPage({ embedded = false }) {
           </div>
 
           {loadingAssigned ? (
-            <Table loading skeletonRows={6} headers={['Member', 'System ID', 'Phone', 'Assigned By', 'Assigned At', 'Status', '']} />
+            <Table loading skeletonRows={6} headers={[t('Member'), t('System ID'), t('Phone'), t('Assigned By'), t('Assigned At'), t('Status'), '']} />
           ) : filteredHistory.length === 0 ? (
-            <EmptyState icon={FolderOpen} message="No matching history items" sub="Try adjusting your filters or search terms." />
+            <EmptyState icon={FolderOpen} message={t('No matching history items')} sub={t('Try adjusting your filters or search terms.')} />
           ) : (
             <div className="table-responsive-container">
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>System ID</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Phone</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Assigned By</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Assigned At</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Status</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Completed Info</th>
-                    <th style={{ padding: '10px 14px', textAlign: 'right', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Action</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Member')}</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('System ID')}</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Phone')}</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Assigned By')}</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Assigned At')}</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Status')}</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Completed Info')}</th>
+                    <th style={{ padding: '10px 14px', textAlign: 'end', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Action')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -460,7 +465,7 @@ export default function AssignedTasksPage({ embedded = false }) {
                             style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontWeight: 600, color: 'var(--t1)', cursor: sid ? 'pointer' : 'default' }}
                             onClick={() => sid && navigate(`/members/${sid}`)}
                           >
-                            <Avatar name={item.member?.name || 'Member'} size="sm" />
+                            <Avatar name={item.member?.name || t('Member')} size="sm" />
                             <span>{item.member?.name}</span>
                           </span>
                         </td>
@@ -468,30 +473,30 @@ export default function AssignedTasksPage({ embedded = false }) {
                           {item.member?.memberId ? `#${item.member.memberId}` : (item.member?.systemId ? `#${item.member.systemId}` : '—')}
                         </td>
                         <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                          {item.member?.phone || '—'}
+                          {item.member?.phone ? <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{item.member.phone}</span> : '—'}
                         </td>
                         <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                          {item.assignedBy?.name} <span style={{ fontSize: 11, color: 'var(--t4)' }}>({item.assignedBy?.role || 'Manager'})</span>
+                          {item.assignedBy?.name} <span style={{ fontSize: 11, color: 'var(--t4)' }}>({t(item.assignedBy?.role || 'Manager')})</span>
                         </td>
                         <td style={{ padding: '12px 14px', color: 'var(--t3)', fontSize: 12 }}>
-                          {formatTaskDateTime(item.assignedAt)}
+                          {formatTaskDateTime(item.assignedAt, lang)}
                         </td>
                         <td style={{ padding: '12px 14px' }}>
-                          <Badge status={item.status === 'completed' ? 'active' : 'pending'} label={item.status === 'completed' ? 'Completed' : 'Pending'} />
+                          <Badge status={item.status === 'completed' ? 'active' : 'pending'} label={item.status === 'completed' ? t('Completed') : t('Pending')} />
                         </td>
                         <td style={{ padding: '12px 14px', color: 'var(--t3)', fontSize: 12 }}>
                           {item.status === 'completed' ? (
                             <div>
-                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--green)', fontWeight: 600 }}><Check size={12} aria-hidden /> {formatTaskDateTime(item.completedAt)}</span>
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, color: 'var(--green)', fontWeight: 600 }}><Check size={12} aria-hidden /> {formatTaskDateTime(item.completedAt, lang)}</span>
                               {item.completedBy?.name && (
-                                <div style={{ fontSize: 10, color: 'var(--t4)' }}>by {item.completedBy.name}</div>
+                                <div style={{ fontSize: 10, color: 'var(--t4)' }}>{t('by {name}', { name: item.completedBy.name })}</div>
                               )}
                             </div>
                           ) : (
-                            <span style={{ color: 'var(--amber)', fontSize: 11 }}>Awaiting action</span>
+                            <span style={{ color: 'var(--amber)', fontSize: 11 }}>{t('Awaiting action')}</span>
                           )}
                         </td>
-                        <td style={{ padding: '12px 14px', textAlign: 'right' }}>
+                        <td style={{ padding: '12px 14px', textAlign: 'end' }}>
                           {isPending && (
                             <Btn
                               size="xs"
@@ -499,7 +504,7 @@ export default function AssignedTasksPage({ embedded = false }) {
                               disabled={completingId === (item.member?._id || item._id)}
                               onClick={() => handleCompleteMember(item.taskId, item.member?._id || item._id)}
                             >
-                              {completingId === (item.member?._id || item._id) ? <Spinner size="sm" /> : 'Mark Done'}
+                              {completingId === (item.member?._id || item._id) ? <Spinner size="sm" /> : t('Mark Done')}
                             </Btn>
                           )}
                         </td>
@@ -521,10 +526,10 @@ export default function AssignedTasksPage({ embedded = false }) {
 
   return (
     <Layout>
-      <PageHeader walkthrough="my-tasks-header" title="My Tasks">
+      <PageHeader walkthrough="my-tasks-header" title={t('My Tasks')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Btn size="sm" variant="outline" onClick={fetchAssignedHistory} disabled={loadingAssigned}>
-            <RefreshCw size={14} aria-hidden /> Refresh
+            <RefreshCw size={14} aria-hidden /> {t('Refresh')}
           </Btn>
         </div>
       </PageHeader>

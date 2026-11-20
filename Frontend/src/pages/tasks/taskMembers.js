@@ -1,27 +1,31 @@
 import { formatSystemId } from '../../lib/systemId';
+import { tr, translate } from '../../i18n/translate.js';
+import { formatDate, formatDateTime } from '../../i18n/format.js';
+
+const identityT = (key, vars) => translate('en', key, vars);
 
 export const GROUPS = [
-  { id: 'expired', label: 'Expired', hint: 'Memberships that have ended' },
-  { id: 'guest', label: 'Guest', hint: 'People who have not subscribed' },
-  { id: 'active', label: 'Active', hint: 'Members in good standing' },
-  { id: 'frozen', label: 'Freeze', hint: 'Memberships on hold' },
+  { id: 'expired', label: tr('Expired'), hint: tr('Memberships that have ended') },
+  { id: 'guest', label: tr('Guest'), hint: tr('People who have not subscribed') },
+  { id: 'active', label: tr('Active'), hint: tr('Members in good standing') },
+  { id: 'frozen', label: tr('Freeze'), hint: tr('Memberships on hold') },
 ];
 
 export const EXPORT_COLUMNS = [
-  { key: 'name', label: 'Name' },
-  { key: 'memberId', label: 'Member ID' },
-  { key: 'systemId', label: 'System ID' },
-  { key: 'phone', label: 'Phone' },
-  { key: 'status', label: 'Status' },
-  { key: 'salesman', label: 'Salesman' },
-  { key: 'coach', label: 'Coach' },
-  { key: 'package', label: 'Package' },
-  { key: 'startDate', label: 'Start date' },
-  { key: 'endDate', label: 'End date' },
-  { key: 'source', label: 'Source' },
-  { key: 'gender', label: 'Gender' },
-  { key: 'joined', label: 'Joined' },
-  { key: 'transfers', label: 'Transfers' },
+  { key: 'name', label: tr('Name') },
+  { key: 'memberId', label: tr('Member ID') },
+  { key: 'systemId', label: tr('System ID') },
+  { key: 'phone', label: tr('Phone') },
+  { key: 'status', label: tr('Status') },
+  { key: 'salesman', label: tr('Salesman') },
+  { key: 'coach', label: tr('Coach') },
+  { key: 'package', label: tr('Package') },
+  { key: 'startDate', label: tr('Start date') },
+  { key: 'endDate', label: tr('End date') },
+  { key: 'source', label: tr('Source') },
+  { key: 'gender', label: tr('Gender') },
+  { key: 'joined', label: tr('Joined') },
+  { key: 'transfers', label: tr('Transfers') },
 ];
 
 export function hasAccessKey(user, key) {
@@ -142,17 +146,17 @@ export function memberPhone(member) {
   return String(phone);
 }
 
-export function csvDate(value) {
+export function csvDate(value, lang = 'en') {
   if (!value) return '';
-  const formatted = new Date(value).toLocaleDateString('en-GB', {
+  const formatted = formatDate(lang, value, {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  });
+  }, 'en-GB');
   return formatted === '—' ? '' : formatted;
 }
 
-export function columnValue(member, key) {
+export function columnValue(member, key, lang = 'en', t = identityT) {
   const sub = latestSubscription(member);
   switch (key) {
     case 'name': return member.name || '';
@@ -164,12 +168,12 @@ export function columnValue(member, key) {
     case 'sales': return salesName(member);
     case 'coach': return coachName(member);
     case 'package': return packageName(member);
-    case 'startDate': return csvDate(sub?.startDate);
-    case 'endDate': return csvDate(sub?.endDate);
+    case 'startDate': return csvDate(sub?.startDate, lang);
+    case 'endDate': return csvDate(sub?.endDate, lang);
     case 'source': return member.source || '';
     case 'gender': return member.gender || '';
-    case 'joined': return csvDate(member.createdAt);
-    case 'transfers': return transferSummary(member);
+    case 'joined': return csvDate(member.createdAt, lang);
+    case 'transfers': return transferSummary(member, t);
     default: return '';
   }
 }
@@ -259,30 +263,30 @@ export function taskPermissions(user, hasFeature) {
   };
 }
 
-export function assignChoices(kind, { salesUsers = [], coaches = [], selectedCount = 0 } = {}) {
+export function assignChoices(kind, { salesUsers = [], coaches = [], selectedCount = 0, t = identityT } = {}) {
   const salesmanOptions = salesUsers.filter((person) => person.role === 'Sales');
   const salesOptions = salesUsers.filter((person) => person.role === 'Sales Manager');
   if (kind === 'salesman') {
     return {
-      title: 'Change salesman',
-      hint: `Move ${selectedCount} selected member(s) to a sales rep.`,
+      title: t('Change salesman'),
+      hint: t('Move {count} selected member(s) to a sales rep.', { count: selectedCount }),
       options: salesmanOptions.length ? salesmanOptions : salesUsers,
-      empty: 'No sales users found',
+      empty: t('No sales users found'),
     };
   }
   if (kind === 'sales') {
     return {
-      title: 'Change sales',
-      hint: `Move ${selectedCount} selected member(s) to a sales manager.`,
+      title: t('Change sales'),
+      hint: t('Move {count} selected member(s) to a sales manager.', { count: selectedCount }),
       options: salesOptions.length ? salesOptions : salesUsers,
-      empty: 'No sales managers found',
+      empty: t('No sales managers found'),
     };
   }
   return {
-    title: 'Change coach',
-    hint: `Assign ${selectedCount} selected member(s) to a coach.`,
+    title: t('Change coach'),
+    hint: t('Assign {count} selected member(s) to a coach.', { count: selectedCount }),
     options: coaches,
-    empty: 'No coaches found',
+    empty: t('No coaches found'),
   };
 }
 
@@ -301,11 +305,11 @@ export function toggleIds(selected, ids) {
   return next;
 }
 
-export function formatTaskDateTime(value) {
+export function formatTaskDateTime(value, lang = 'en') {
   if (!value) return '—';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleString('en-US', {
+  return formatDateTime(lang, d, {
     timeZone: 'Africa/Cairo',
     day: '2-digit',
     month: 'short',
@@ -313,7 +317,7 @@ export function formatTaskDateTime(value) {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-  });
+  }, 'en-US');
 }
 
 export const TASK_PLAYER_TYPES = {
@@ -366,11 +370,11 @@ export function lastTransferDate(member) {
   return logs[logs.length - 1].createdAt || null;
 }
 
-export function transferSummary(member) {
+export function transferSummary(member, t = identityT) {
   const logs = getTransferLogs(member);
-  if (!logs.length) return 'None';
+  if (!logs.length) return t('None');
   const latest = logs[logs.length - 1];
-  return latest.text || 'Transferred';
+  return latest.text || t('Transferred');
 }
 
 function belongsToAssignee(value, person) {
@@ -763,33 +767,33 @@ export function filterAssignedHistoryAdvanced(history = [], filters = {}) {
 
 export const SELECTION_TEMPLATES = [
   // Top/First Count Templates
-  { id: 'first_10', label: 'First 10 members', shortLabel: 'First 10', count: 10, group: 'First / Top' },
-  { id: 'first_20', label: 'First 20 members', shortLabel: 'First 20', count: 20, group: 'First / Top' },
-  { id: 'first_30', label: 'First 30 members', shortLabel: 'First 30', count: 30, group: 'First / Top' },
-  { id: 'first_50', label: 'First 50 members', shortLabel: 'First 50', count: 50, group: 'First / Top' },
+  { id: 'first_10', label: tr('First 10 members'), shortLabel: tr('First 10'), count: 10, group: tr('First / Top') },
+  { id: 'first_20', label: tr('First 20 members'), shortLabel: tr('First 20'), count: 20, group: tr('First / Top') },
+  { id: 'first_30', label: tr('First 30 members'), shortLabel: tr('First 30'), count: 30, group: tr('First / Top') },
+  { id: 'first_50', label: tr('First 50 members'), shortLabel: tr('First 50'), count: 50, group: tr('First / Top') },
 
   // Bottom/Last Count Templates
-  { id: 'last_10', label: 'Last 10 members', shortLabel: 'Last 10', count: 10, group: 'Last / Bottom' },
-  { id: 'last_20', label: 'Last 20 members', shortLabel: 'Last 20', count: 20, group: 'Last / Bottom' },
-  { id: 'last_30', label: 'Last 30 members', shortLabel: 'Last 30', count: 30, group: 'Last / Bottom' },
-  { id: 'last_50', label: 'Last 50 members', shortLabel: 'Last 50', count: 50, group: 'Last / Bottom' },
+  { id: 'last_10', label: tr('Last 10 members'), shortLabel: tr('Last 10'), count: 10, group: tr('Last / Bottom') },
+  { id: 'last_20', label: tr('Last 20 members'), shortLabel: tr('Last 20'), count: 20, group: tr('Last / Bottom') },
+  { id: 'last_30', label: tr('Last 30 members'), shortLabel: tr('Last 30'), count: 30, group: tr('Last / Bottom') },
+  { id: 'last_50', label: tr('Last 50 members'), shortLabel: tr('Last 50'), count: 50, group: tr('Last / Bottom') },
 
   // Random Selection Templates
-  { id: 'random_10', label: 'Random 10 members', shortLabel: 'Random 10', count: 10, group: 'Random Sample' },
-  { id: 'random_20', label: 'Random 20 members', shortLabel: 'Random 20', count: 20, group: 'Random Sample' },
-  { id: 'random_30', label: 'Random 30 members', shortLabel: 'Random 30', count: 30, group: 'Random Sample' },
+  { id: 'random_10', label: tr('Random 10 members'), shortLabel: tr('Random 10'), count: 10, group: tr('Random Sample') },
+  { id: 'random_20', label: tr('Random 20 members'), shortLabel: tr('Random 20'), count: 20, group: tr('Random Sample') },
+  { id: 'random_30', label: tr('Random 30 members'), shortLabel: tr('Random 30'), count: 30, group: tr('Random Sample') },
 
   // Membership Status Templates
-  { id: 'status_active', label: 'Active members only', shortLabel: 'Active Only', group: 'Member Status' },
-  { id: 'status_expired', label: 'Expired members only', shortLabel: 'Expired Only', group: 'Member Status' },
-  { id: 'status_frozen', label: 'Frozen members only', shortLabel: 'Frozen Only', group: 'Member Status' },
-  { id: 'status_guest', label: 'Guest members only', shortLabel: 'Guest Only', group: 'Member Status' },
+  { id: 'status_active', label: tr('Active members only'), shortLabel: tr('Active Only'), group: tr('Member Status') },
+  { id: 'status_expired', label: tr('Expired members only'), shortLabel: tr('Expired Only'), group: tr('Member Status') },
+  { id: 'status_frozen', label: tr('Frozen members only'), shortLabel: tr('Frozen Only'), group: tr('Member Status') },
+  { id: 'status_guest', label: tr('Guest members only'), shortLabel: tr('Guest Only'), group: tr('Member Status') },
 
-  { id: 'never_transferred', label: 'Never transferred before', shortLabel: 'Never Transferred', group: 'Transfer Status' },
-  { id: 'transferred_before', label: 'Previously transferred', shortLabel: 'Transferred Before', group: 'Transfer Status' },
+  { id: 'never_transferred', label: tr('Never transferred before'), shortLabel: tr('Never Transferred'), group: tr('Transfer Status') },
+  { id: 'transferred_before', label: tr('Previously transferred'), shortLabel: tr('Transferred Before'), group: tr('Transfer Status') },
 
   // General Selection
-  { id: 'all_filtered', label: 'All filtered members', shortLabel: 'Select All', group: 'General' },
+  { id: 'all_filtered', label: tr('All filtered members'), shortLabel: tr('Select All'), group: tr('General') },
 ];
 
 export function applySelectionTemplate(members = [], templateId, options = {}) {

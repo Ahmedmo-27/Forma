@@ -4,6 +4,9 @@ import toast from 'react-hot-toast';
 import Layout from '../../components/Layout';
 import { PageHeader, Card, Btn, Spinner } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
+import { tr } from '../../i18n/translate';
 import { bulkImportMembers, getMemberImportJob } from '../../api/endpoints';
 import { validateFile, SPREADSHEET_EXTENSIONS } from '../../lib/validation';
 import {
@@ -11,11 +14,17 @@ import {
 } from 'lucide-react';
 
 const STEPS = [
-  { key: 'received', label: 'File received' },
-  { key: 'divided', label: 'Split into parts' },
-  { key: 'importing', label: 'Importing' },
-  { key: 'done', label: 'Finished' },
+  { key: 'received', label: tr('File received') },
+  { key: 'divided', label: tr('Split into parts') },
+  { key: 'importing', label: tr('Importing') },
+  { key: 'done', label: tr('Finished') },
 ];
+
+/** Renders a translated sentence with a `{token}` placeholder swapped for a React node. */
+function withNode(text, token, node) {
+  const [before, after = ''] = text.split(token);
+  return <>{before}{node}{after}</>;
+}
 
 function stepState(job, key) {
   if (!job) return key === 'received' ? 'active' : 'waiting';
@@ -27,7 +36,9 @@ function stepState(job, key) {
 }
 
 export default function ImportMembers() {
-  usePageTitle('Import Members');
+  const { t } = useI18n();
+  const { fmtNumber } = useFormat();
+  usePageTitle(t('Import Members'));
   const navigate = useNavigate();
   const fileRef = useRef(null);
   const pollRef = useRef(null);
@@ -45,6 +56,8 @@ export default function ImportMembers() {
     return () => {
       if (pollRef.current) clearTimeout(pollRef.current);
     };
+    // Mount-only: resume watching a saved import job once.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const watchJob = (jobId) => {
@@ -57,11 +70,13 @@ export default function ImportMembers() {
           if (sawRunningRef.current && !toldRef.current) {
             toldRef.current = true;
             if (res.data.status === 'completed' && res.data.summary.created > 0) {
-              toast.success(`${res.data.summary.created} member${res.data.summary.created === 1 ? '' : 's'} imported`);
+              toast.success(res.data.summary.created === 1
+                ? t('1 member imported')
+                : t('{count} members imported', { count: res.data.summary.created }));
             } else if (res.data.status === 'failed') {
-              toast.error(res.data.errorMessage || 'Import stopped');
+              toast.error(res.data.errorMessage || t('Import stopped'));
             } else {
-              toast.error('No new members were imported');
+              toast.error(t('No new members were imported'));
             }
           }
           return;
@@ -74,7 +89,7 @@ export default function ImportMembers() {
         }
         setJob((current) => current && ({
           ...current,
-          pollError: err.response?.data?.message || 'Could not refresh the import status',
+          pollError: err.response?.data?.message || t('Could not refresh the import status'),
         }));
         pollRef.current = setTimeout(tick, 2000);
       }
@@ -99,7 +114,7 @@ export default function ImportMembers() {
   };
 
   const handleImport = async () => {
-    if (!file) { toast.error('Please select a file first'); return; }
+    if (!file) { toast.error(t('Please select a file first')); return; }
     setUploading(true);
     toldRef.current = false;
     sawRunningRef.current = true;
@@ -112,7 +127,7 @@ export default function ImportMembers() {
       setUploading(false);
       watchJob(res.data.jobId);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Import failed');
+      toast.error(err.response?.data?.message || t('Import failed'));
       setUploading(false);
     }
   };
@@ -133,8 +148,8 @@ export default function ImportMembers() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="import-header" title="Import Members">
-        <Btn variant="outline" size="sm" onClick={() => navigate(-1)}>← Back</Btn>
+      <PageHeader walkthrough="import-header" title={t('Import Members')}>
+        <Btn variant="outline" size="sm" onClick={() => navigate(-1)}>{t('← Back')}</Btn>
       </PageHeader>
 
       <div className="page-wrap" data-walkthrough="import-board" style={{ paddingTop: 20, paddingBottom: 40 }}>
@@ -142,23 +157,31 @@ export default function ImportMembers() {
           <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
             <div style={{ width: 40, height: 40, borderRadius: 10, background: 'color-mix(in srgb, var(--navy) 10%, transparent)', border: '1px solid color-mix(in srgb, var(--navy) 20%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--navy)' }}><Download size={20} aria-hidden /></div>
             <div>
-              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 6 }}>How to use</h3>
+              <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 6 }}>{t('How to use')}</h3>
               <p style={{ fontSize: 13, color: 'var(--t3)', lineHeight: 1.6, marginBottom: 8 }}>
-                Upload a CSV file (<code style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.csv</code>) with at least two columns. Large sheets are split into parts and imported in the background.
+                {withNode(
+                  t('Upload a CSV file ({ext}) with at least two columns. Large sheets are split into parts and imported in the background.'),
+                  '{ext}',
+                  <code dir="ltr" style={{ background: 'var(--bg)', padding: '1px 6px', borderRadius: 4, fontSize: 12 }}>.csv</code>,
+                )}
               </p>
               <div data-walkthrough="import-columns" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                 {[
-                  { col: 'name', desc: 'Full name of the person' },
-                  { col: 'phone', desc: 'Phone number (also accepts "number", "mobile")' },
+                  { col: 'name', desc: tr('Full name of the person') },
+                  { col: 'phone', desc: tr('Phone number (also accepts "number", "mobile")') },
                 ].map(({ col, desc }) => (
                   <div key={col} style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 14px', fontSize: 12 }}>
                     <span style={{ fontWeight: 700, color: 'var(--navy)', fontFamily: 'monospace' }}>{col}</span>
-                    <span style={{ color: 'var(--t3)', marginLeft: 8 }}>{desc}</span>
+                    <span style={{ color: 'var(--t3)', marginInlineStart: 8 }}>{t(desc)}</span>
                   </div>
                 ))}
               </div>
               <p style={{ fontSize: 12, color: 'var(--t4)', marginTop: 10 }}>
-                Imported records are added as <strong>guest members assigned to the sales manager</strong> with source "data entry". Duplicate phone numbers are skipped.
+                {withNode(
+                  t('Imported records are added as {guests} with source "data entry". Duplicate phone numbers are skipped.'),
+                  '{guests}',
+                  <strong>{t('guest members assigned to the sales manager')}</strong>,
+                )}
               </p>
             </div>
           </div>
@@ -185,24 +208,24 @@ export default function ImportMembers() {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                   <BarChart3 size={40} strokeWidth={1.25} aria-hidden style={{ color: 'var(--t2)' }} />
                   <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>{file.name}</p>
-                  <p style={{ fontSize: 12, color: 'var(--t4)' }}>{(file.size / 1024).toFixed(1)} KB</p>
+                  <p style={{ fontSize: 12, color: 'var(--t4)' }}>{t('{size} KB', { size: (file.size / 1024).toFixed(1) })}</p>
                   <button type="button" onClick={(event) => { event.stopPropagation(); reset(); }}
                     style={{ fontSize: 12, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                    <X size={12} aria-hidden /> Remove
+                    <X size={12} aria-hidden /> {t('Remove')}
                   </button>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
                   <FolderOpen size={40} strokeWidth={1.25} aria-hidden style={{ opacity: 0.3, color: 'var(--t2)' }} />
-                  <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--t2)' }}>Drop your CSV file here</p>
-                  <p style={{ fontSize: 12, color: 'var(--t4)' }}>or click to browse</p>
-                  <p style={{ fontSize: 11, color: 'var(--t4)' }}>.csv — max 5 MB</p>
+                  <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--t2)' }}>{t('Drop your CSV file here')}</p>
+                  <p style={{ fontSize: 12, color: 'var(--t4)' }}>{t('or click to browse')}</p>
+                  <p style={{ fontSize: 11, color: 'var(--t4)' }}>{t('.csv — max 5 MB')}</p>
                 </div>
               )}
             </div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
-              {!file && <Btn variant="outline" size="md" onClick={() => fileRef.current?.click()}>Browse File</Btn>}
-              {file && <Btn size="md" onClick={handleImport}><Download size={16} aria-hidden /> Import Now</Btn>}
+              {!file && <Btn variant="outline" size="md" onClick={() => fileRef.current?.click()}>{t('Browse File')}</Btn>}
+              {file && <Btn size="md" onClick={handleImport}><Download size={16} aria-hidden /> {t('Import Now')}</Btn>}
             </div>
           </Card>
         )}
@@ -212,11 +235,11 @@ export default function ImportMembers() {
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'flex-start', marginBottom: 16 }}>
               <div>
                 <h3 style={{ fontSize: 15, fontWeight: 800, color: 'var(--t1)', marginBottom: 4 }}>
-                  {uploading ? 'Uploading the file' : job.stage}
+                  {uploading ? t('Uploading the file') : job.stage}
                 </h3>
                 <p style={{ fontSize: 12, color: 'var(--t4)' }}>
                   {job?.fileName || file?.name}
-                  {running ? ' · You can leave this page. The import keeps going.' : ''}
+                  {running ? ` · ${t('You can leave this page. The import keeps going.')}` : ''}
                 </p>
               </div>
               {running && <Spinner size="sm" />}
@@ -227,16 +250,16 @@ export default function ImportMembers() {
                 const state = stepState(uploading ? null : job, step.key);
                 const color = state === 'failed' ? 'var(--red)' : state === 'waiting' ? 'var(--t4)' : 'var(--navy)';
                 const detail = step.key === 'divided' && job
-                  ? `${job.chunkCount} ${job.chunkCount === 1 ? 'part' : 'parts'}`
+                  ? (job.chunkCount === 1 ? t('1 part') : t('{count} parts', { count: job.chunkCount }))
                   : step.key === 'importing' && job
-                    ? `Part ${Math.max(job.chunkIndex, running ? 1 : job.chunkIndex)} of ${job.chunkCount}`
+                    ? t('Part {current} of {total}', { current: Math.max(job.chunkIndex, running ? 1 : job.chunkIndex), total: job.chunkCount })
                     : null;
                 return (
                   <li key={step.key} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13, color }}>
                     <span aria-hidden="true" style={{ width: 18, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {state === 'done' ? <Check size={14} strokeWidth={2.5} /> : state === 'failed' ? <AlertTriangle size={14} /> : state === 'active' ? <CircleDot size={14} /> : <Circle size={12} />}
                     </span>
-                    <span style={{ fontWeight: state === 'active' ? 700 : 500 }}>{step.label}</span>
+                    <span style={{ fontWeight: state === 'active' ? 700 : 500 }}>{t(step.label)}</span>
                     {detail && <span style={{ color: 'var(--t4)', fontWeight: 500 }}>{detail}</span>}
                   </li>
                 );
@@ -248,7 +271,7 @@ export default function ImportMembers() {
               aria-valuemin={0}
               aria-valuemax={job?.totalRows || 0}
               aria-valuenow={job?.processedRows || 0}
-              aria-label={uploading ? 'Uploading the file' : job?.stage}
+              aria-label={uploading ? t('Uploading the file') : job?.stage}
               style={{ height: 8, borderRadius: 99, background: 'var(--bg)', border: '1px solid var(--border)', overflow: 'hidden' }}
             >
               <div style={{
@@ -260,8 +283,8 @@ export default function ImportMembers() {
             </div>
             <p aria-live="polite" style={{ fontSize: 12, color: 'var(--t3)', marginTop: 8 }}>
               {uploading
-                ? 'Sending the spreadsheet…'
-                : `${job.processedRows.toLocaleString()} of ${job.totalRows.toLocaleString()} rows · ${job.percent}%`}
+                ? t('Sending the spreadsheet…')
+                : t('{done} of {total} rows · {percent}%', { done: fmtNumber(job.processedRows), total: fmtNumber(job.totalRows), percent: job.percent })}
             </p>
             {job?.pollError && <p style={{ fontSize: 12, color: 'var(--amber)', marginTop: 6 }}>{job.pollError}</p>}
             {job?.status === 'failed' && job.errorMessage && (
@@ -274,13 +297,13 @@ export default function ImportMembers() {
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
               {[
-                { label: 'Total Rows', value: job.summary.total, accent: 'var(--navy)' },
-                { label: 'Created', value: job.summary.created, accent: 'var(--green)' },
-                { label: 'Skipped', value: job.summary.skipped, accent: 'var(--amber)' },
-                { label: 'Errors', value: job.summary.errors, accent: 'var(--red)' },
+                { label: tr('Total Rows'), value: job.summary.total, accent: 'var(--navy)' },
+                { label: tr('Created'), value: job.summary.created, accent: 'var(--green)' },
+                { label: tr('Skipped'), value: job.summary.skipped, accent: 'var(--amber)' },
+                { label: tr('Errors'), value: job.summary.errors, accent: 'var(--red)' },
               ].map(({ label, value, accent }) => (
                 <div key={label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderTop: `3px solid ${accent}`, borderRadius: 12, padding: '16px 18px' }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)', marginBottom: 4 }}>{label}</p>
+                  <p style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)', marginBottom: 4 }}>{t(label)}</p>
                   <p style={{ fontSize: 28, fontWeight: 800, color: accent }}>{value}</p>
                 </div>
               ))}
@@ -290,18 +313,18 @@ export default function ImportMembers() {
               <Card noPad>
                 <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)' }}>
-                    Errors ({job.summary.errors})
+                    {t('Errors ({count})', { count: job.summary.errors })}
                   </span>
                   {job.summary.errors > job.errors.length && (
-                    <span style={{ fontSize: 12, color: 'var(--t4)', marginLeft: 8 }}>Showing the first {job.errors.length}</span>
+                    <span style={{ fontSize: 12, color: 'var(--t4)', marginInlineStart: 8 }}>{t('Showing the first {count}', { count: job.errors.length })}</span>
                   )}
                 </div>
                 <div style={{ overflowX: 'auto' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-                        {['Row', 'Name', 'Phone', 'Reason'].map((heading) => (
-                          <th key={heading} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)' }}>{heading}</th>
+                        {[tr('Row'), tr('Name'), tr('Phone'), tr('Reason')].map((heading) => (
+                          <th key={heading} style={{ padding: '9px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)' }}>{t(heading)}</th>
                         ))}
                       </tr>
                     </thead>
@@ -310,7 +333,9 @@ export default function ImportMembers() {
                         <tr key={`${entry.line}-${index}`} style={{ borderBottom: '1px solid var(--border)', background: 'var(--red-bg)' }}>
                           <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: 12 }}>{entry.line}</td>
                           <td style={{ padding: '9px 14px' }}>{entry.name || '—'}</td>
-                          <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: 12 }}>{entry.phone || '—'}</td>
+                          <td style={{ padding: '9px 14px', fontFamily: 'monospace', fontSize: 12 }}>
+                            <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{entry.phone || '—'}</span>
+                          </td>
                           <td style={{ padding: '9px 14px', color: 'var(--red)', fontWeight: 600 }}>{entry.reason}</td>
                         </tr>
                       ))}
@@ -322,9 +347,9 @@ export default function ImportMembers() {
 
             {!running && (
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <Btn onClick={reset} variant="outline">Import Another File</Btn>
+                <Btn onClick={reset} variant="outline">{t('Import Another File')}</Btn>
                 {job.summary.created > 0 && (
-                  <Btn onClick={() => navigate('/members?status=guest')}>View Imported Members →</Btn>
+                  <Btn onClick={() => navigate('/members?status=guest')}>{t('View Imported Members →')}</Btn>
                 )}
               </div>
             )}

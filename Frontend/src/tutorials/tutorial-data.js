@@ -218,7 +218,7 @@ export const tutorialSections = [
           ),
           step(
             'Camera scanner',
-            'Point the camera at the member’s QR. A successful scan checks them in and shows the result here.',
+            'Point the camera at the member’s QR. A successful scan checks them in and shows the result here. If the member has both a gym package and PT sessions, a prompt asks you to confirm whether they are attending Regular Gym or a PT session. Ask them, then pick one.',
             'checkin-scanner',
             '/checkin?mode=scanner',
           ),
@@ -596,7 +596,7 @@ export const tutorialSections = [
         steps: [
           step(
             'Session check-in',
-            'This is separate from the front-desk door check-in. It records a coaching session against the member’s package.',
+            'Coaches check in PT sessions only. Regular gym check-in is done at the front desk. This records a coaching session against the member’s package.',
             'coach-checkin-header',
             '/coach/checkin',
           ),
@@ -642,7 +642,7 @@ export const tutorialSections = [
         steps: [
           step(
             'Attendance',
-            'This heatmap is front-desk check-ins from the last 8 weeks, by weekday and hour. Use it to plan coach shifts. A single member’s visits stay on that member’s check-in history.',
+            'This heatmap is front-desk check-ins for the period you pick (the last 8 weeks by default; choose a day, a week, or any range with the date selector), by weekday and hour. Switch between All, Regular gym and PT, and compare visits per member for gym and PT packages. Use it to plan coach shifts. A single member’s visits stay on that member’s check-in history.',
             'report-header',
             '/coach/attendance',
           ),

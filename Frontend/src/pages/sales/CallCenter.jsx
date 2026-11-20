@@ -5,15 +5,19 @@ import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Btn, SearchInput, EmptyState, Avatar, Badge, fmtDateTime, Pagination, CardListSkeleton } from '../../components/ui';
+import { PageHeader, Btn, SearchInput, EmptyState, Avatar, Badge, CAIRO_ZONE, Pagination, CardListSkeleton } from '../../components/ui';
 import { getAllNotes, getSalesUsers } from '../../api/endpoints';
 import { Check, X } from 'lucide-react';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
+import { tr } from '../../i18n/translate';
 
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 export default function CallCenter() {
-  usePageTitle('Call Center');
+  const { t } = useI18n();
+  usePageTitle(t('Call Center'));
   const navigate = useNavigate();
 
   const [notes,      setNotes]      = useState([]);
@@ -42,9 +46,9 @@ export default function CallCenter() {
       const salesRes = await getSalesUsers();
       setSalesUsers(salesRes.data.salesUsers ?? []);
     } catch {
-      toast.error('Failed to load sales users.');
+      toast.error(t('Failed to load sales users.'));
     }
-  }, []);
+  }, [t]);
 
   const fetchNotes = useCallback(async () => {
     setLoading(true);
@@ -60,11 +64,11 @@ export default function CallCenter() {
       setNotes(res.data.notes ?? []);
       setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: pageSize });
     } catch {
-      toast.error('Failed to load notes.');
+      toast.error(t('Failed to load notes.'));
     } finally {
       setLoading(false);
     }
-  }, [page, pageSize, debouncedSearch, salesFilter, dateFrom, dateTo]);
+  }, [page, pageSize, debouncedSearch, salesFilter, dateFrom, dateTo, t]);
 
   useLocationEffect(() => { fetchSalesUsers(); }, [fetchSalesUsers]);
   useLocationEffect(() => { fetchNotes(); }, [fetchNotes]);
@@ -90,11 +94,11 @@ export default function CallCenter() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="manager-calls-header" title="Call Center">
+      <PageHeader walkthrough="manager-calls-header" title={t('Call Center')}>
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Search notes, members, authors…"
+          placeholder={t('Search notes, members, authors…')}
           width={260}
         />
       </PageHeader>
@@ -111,12 +115,12 @@ export default function CallCenter() {
           overflow: 'hidden',
         }}>
           {[
-            { label: 'Total Notes', value: pagination.total },
-            { label: 'On This Page', value: notes.length },
-            { label: 'Contributors', value: salesUsers.length },
+            { label: tr('Total Notes'), value: pagination.total },
+            { label: tr('On This Page'), value: notes.length },
+            { label: tr('Contributors'), value: salesUsers.length },
           ].map(s => (
             <div key={s.label} style={{ background: 'var(--card)', padding: '12px 16px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{s.label}</div>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{t(s.label)}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--t1)' }}>{loading && s.label !== 'Contributors' ? '—' : s.value}</div>
             </div>
           ))}
@@ -132,11 +136,11 @@ export default function CallCenter() {
               borderRadius: 8, overflow: 'hidden',
             }}>
               <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', fontSize: 11, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                Filter by Date
+                {t('Filter by Date')}
               </div>
               <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t4)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>From</label>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t4)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{t('From')}</label>
                   <input
                     type="date"
                     value={dateFrom}
@@ -151,7 +155,7 @@ export default function CallCenter() {
                   />
                 </div>
                 <div>
-                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t4)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>To</label>
+                  <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t4)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{t('To')}</label>
                   <input
                     type="date"
                     value={dateTo}
@@ -171,10 +175,10 @@ export default function CallCenter() {
                     style={{
                       fontSize: 11, fontWeight: 600, color: 'var(--red)',
                       background: 'none', border: 'none', cursor: 'pointer',
-                      textAlign: 'left', fontFamily: 'inherit', padding: 0,
+                      textAlign: 'start', fontFamily: 'inherit', padding: 0,
                     }}
                   >
-                    <X size={12} aria-hidden style={{ display: 'inline', verticalAlign: 'middle' }} /> Clear dates
+                    <X size={12} aria-hidden style={{ display: 'inline', verticalAlign: 'middle' }} /> {t('Clear dates')}
                   </button>
                 )}
               </div>
@@ -192,7 +196,7 @@ export default function CallCenter() {
                 fontSize: 11, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.5px',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg)',
               }}>
-                <span>Filter by Author ({salesUsers.length})</span>
+                <span>{t('Filter by Author ({count})', { count: salesUsers.length })}</span>
                 {salesFilter !== 'all' && (
                   <button
                     type="button"
@@ -202,7 +206,7 @@ export default function CallCenter() {
                       fontWeight: 600, cursor: 'pointer', padding: 0, fontFamily: 'inherit',
                     }}
                   >
-                    Reset
+                    {t('Reset')}
                   </button>
                 )}
               </div>
@@ -211,7 +215,7 @@ export default function CallCenter() {
                 <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--border)', background: 'var(--card)' }}>
                   <input
                     type="text"
-                    placeholder="Search author…"
+                    placeholder={t('Search author…')}
                     value={authorSearch}
                     onChange={e => setAuthorSearch(e.target.value)}
                     style={{
@@ -229,14 +233,14 @@ export default function CallCenter() {
                   style={{
                     width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '10px 14px', border: 'none', borderBottom: '1px solid var(--border)',
-                    borderLeft: salesFilter === 'all' ? '3px solid var(--navy)' : '3px solid transparent',
+                    borderInlineStart: salesFilter === 'all' ? '3px solid var(--navy)' : '3px solid transparent',
                     background: salesFilter === 'all' ? 'color-mix(in srgb, var(--navy) 10%, transparent)' : 'var(--card)',
                     cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
                   }}
                   onMouseEnter={e => { if (salesFilter !== 'all') e.currentTarget.style.background = 'var(--bg)'; }}
                   onMouseLeave={e => { if (salesFilter !== 'all') e.currentTarget.style.background = 'var(--card)'; }}
                 >
-                  <span style={{ fontSize: 12, fontWeight: salesFilter === 'all' ? 700 : 500, color: salesFilter === 'all' ? 'var(--navy)' : 'var(--t1)' }}>All Authors</span>
+                  <span style={{ fontSize: 12, fontWeight: salesFilter === 'all' ? 700 : 500, color: salesFilter === 'all' ? 'var(--navy)' : 'var(--t1)' }}>{t('All Authors')}</span>
                   {salesFilter === 'all' && <Check size={14} strokeWidth={2.5} style={{ color: 'var(--navy)' }} aria-hidden />}
                 </button>
 
@@ -251,7 +255,7 @@ export default function CallCenter() {
                         width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                         padding: '9px 12px', border: 'none',
                         borderBottom: isLast ? 'none' : '1px solid var(--border)',
-                        borderLeft: isActive ? '3px solid var(--navy)' : '3px solid transparent',
+                        borderInlineStart: isActive ? '3px solid var(--navy)' : '3px solid transparent',
                         background: isActive ? 'color-mix(in srgb, var(--navy) 10%, transparent)' : 'var(--card)',
                         cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
                       }}
@@ -259,7 +263,7 @@ export default function CallCenter() {
                       onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'var(--card)'; }}
                     >
                       <Avatar name={u.name} size="sm" />
-                      <div style={{ flex: 1, minWidth: 0, textAlign: 'left' }}>
+                      <div style={{ flex: 1, minWidth: 0, textAlign: 'start' }}>
                         <div style={{
                           fontSize: 12,
                           fontWeight: isActive ? 700 : 600,
@@ -268,7 +272,7 @@ export default function CallCenter() {
                         }}>
                           {u.name}
                         </div>
-                        <div style={{ fontSize: 10, color: 'var(--t4)' }}>{u.role}</div>
+                        <div style={{ fontSize: 10, color: 'var(--t4)' }}>{t(u.role)}</div>
                       </div>
                       {isActive && <Check size={14} strokeWidth={2.5} style={{ color: 'var(--navy)' }} aria-hidden />}
                     </button>
@@ -285,19 +289,19 @@ export default function CallCenter() {
               </div>
             ) : !notes.length ? (
               <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8 }}>
-                <EmptyState message="No notes match your filters" sub="Try a different search term or select a different sales rep." />
+                <EmptyState message={t('No notes match your filters')} sub={t('Try a different search term or select a different sales rep.')} />
               </div>
             ) : (
               <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                 <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t2)' }}>
-                    {pagination.total} note{pagination.total !== 1 ? 's' : ''}
-                    {salesFilter !== 'all' && ` by ${salesUsers.find(u => String(u._id) === salesFilter)?.name ?? ''}`}
-                    {debouncedSearch && ` matching "${debouncedSearch}"`}
+                    {pagination.total === 1 ? t('1 note') : t('{count} notes', { count: pagination.total })}
+                    {salesFilter !== 'all' && ` ${t('by {name}', { name: salesUsers.find(u => String(u._id) === salesFilter)?.name ?? '' })}`}
+                    {debouncedSearch && ` ${t('matching "{query}"', { query: debouncedSearch })}`}
                   </span>
                   {(salesFilter !== 'all' || search || dateFrom || dateTo) && (
                     <Btn variant="ghost" size="xs" onClick={() => { setSalesFilter('all'); setSearch(''); setDateFrom(''); setDateTo(''); }}>
-                      Clear filters
+                      {t('Clear filters')}
                     </Btn>
                   )}
                 </div>
@@ -332,6 +336,18 @@ export default function CallCenter() {
 }
 
 function NoteRow({ note, onMemberClick, isLast }) {
+  const { t } = useI18n();
+  const { fmtDateTime } = useFormat();
+  const fmtNoteDate = (d) => (d ? fmtDateTime(d, {
+    timeZone: CAIRO_ZONE,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  }, 'en-US') : '—');
   return (
     <div style={{
       padding: '14px 16px',
@@ -349,15 +365,15 @@ function NoteRow({ note, onMemberClick, isLast }) {
               {note.createdBy?.name ?? '—'}
             </span>
             <span style={{
-              marginLeft: 7, fontSize: 10, fontWeight: 600,
+              marginInlineStart: 7, fontSize: 10, fontWeight: 600,
               color: 'var(--t3)', background: 'var(--bg)',
               border: '1px solid var(--border)', padding: '1px 6px', borderRadius: 3,
             }}>
-              {note.createdBy?.role ?? '—'}
+              {note.createdBy?.role ? t(note.createdBy.role) : '—'}
             </span>
           </div>
         </div>
-        <span style={{ fontSize: 11, color: 'var(--t4)' }}>{fmtDateTime(note.createdAt)}</span>
+        <span style={{ fontSize: 11, color: 'var(--t4)' }}>{fmtNoteDate(note.createdAt)}</span>
       </div>
 
       <p style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.6, margin: '0 0 10px', whiteSpace: 'pre-wrap' }}>
@@ -376,14 +392,14 @@ function NoteRow({ note, onMemberClick, isLast }) {
           onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--navy)'}
           onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
         >
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t4)', fontFamily: 'monospace' }}>
+          <span dir="ltr" style={{ fontSize: 11, fontWeight: 700, color: 'var(--t4)', fontFamily: 'monospace', unicodeBidi: 'isolate' }}>
             #{note.member.systemId}
           </span>
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t1)' }}>
-            {note.member.name}
+            <bdi>{note.member.name}</bdi>
           </span>
           <Badge status={note.member.status} />
-          <span style={{ fontSize: 10, color: 'var(--t4)' }}>View →</span>
+          <span style={{ fontSize: 10, color: 'var(--t4)' }}>{t('View →')}</span>
         </button>
       )}
     </div>

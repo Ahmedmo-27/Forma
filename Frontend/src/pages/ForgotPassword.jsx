@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import { forgotPassword } from '../api/endpoints';
 import usePageTitle from '../hooks/usePageTitle';
 import { Spinner } from '../components/ui';
+import { useI18n } from '../i18n/useI18n';
 import { AuthCard } from './SetupPassword';
 
 export default function ForgotPassword() {
-  usePageTitle('Reset password');
+  const { t } = useI18n();
+  usePageTitle(t('Reset password'));
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState('');
@@ -17,15 +19,15 @@ export default function ForgotPassword() {
     setError('');
     setMessage('');
     if (!/\S+@\S+\.\S+/.test(email)) {
-      setError('Enter a valid email address.');
+      setError(t('Enter a valid email address.'));
       return;
     }
     setLoading(true);
     try {
       const res = await forgotPassword(email.trim());
-      setMessage(res.data?.message || 'If an account exists for that email, a reset link has been sent.');
+      setMessage(res.data?.message || t('If an account exists for that email, a reset link has been sent.'));
     } catch (err) {
-      setError(err.response?.data?.error?.message || err.response?.data?.message || 'Could not send a reset link.');
+      setError(err.response?.data?.error?.message || err.response?.data?.message || t('Could not send a reset link.'));
     } finally {
       setLoading(false);
     }
@@ -33,14 +35,14 @@ export default function ForgotPassword() {
 
   return (
     <AuthCard
-      title="Reset your password"
-      subtitle="We will email a link if an account exists for this address."
+      title={t('Reset your password')}
+      subtitle={t('We will email a link if an account exists for this address.')}
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {error && <p style={{ margin: 0, fontSize: 13, color: '#DC2626' }}>{error}</p>}
         {message && <p style={{ margin: 0, fontSize: 13, color: '#166534' }}>{message}</p>}
         <label style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 13, fontWeight: 600, color: '#374151' }}>
-          Email
+          {t('Email')}
           <input
             type="email"
             value={email}
@@ -69,10 +71,10 @@ export default function ForgotPassword() {
             cursor: loading ? 'not-allowed' : 'pointer',
           }}
         >
-          {loading ? <Spinner size="sm" /> : 'Send reset link'}
+          {loading ? <Spinner size="sm" /> : t('Send reset link')}
         </button>
         <Link to="/login" style={{ fontSize: 13, color: '#142843', fontWeight: 600, textAlign: 'center' }}>
-          Back to sign in
+          {t('Back to sign in')}
         </Link>
       </form>
     </AuthCard>

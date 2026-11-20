@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Timer, RefreshCw } from "lucide-react";
+import { useI18n } from "../../i18n/useI18n";
 
 export function RateLimitedModal({ isOpen, onClose, error }) {
+  const { t } = useI18n();
   const initialSeconds = error?.retryAfter || error?.details?.retryAfter || 60;
   const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
 
@@ -44,17 +46,17 @@ export function RateLimitedModal({ isOpen, onClose, error }) {
         </div>
 
         <h2 id="ratelimit-title" className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-1">
-          Please Slow Down
+          {t("Please Slow Down")}
         </h2>
         <p className="text-xs text-zinc-600 dark:text-zinc-400 mb-5 leading-relaxed">
-          Too many requests were sent in a short period. Please wait for the cooldown timer to expire.
+          {t("Too many requests were sent in a short period. Please wait for the cooldown timer to expire.")}
         </p>
 
         <div className="py-4 px-6 rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 mb-5 inline-block">
-          <div className="text-2xl font-mono font-bold text-zinc-900 dark:text-zinc-100 tracking-wider">
+          <div dir="ltr" className="text-2xl font-mono font-bold text-zinc-900 dark:text-zinc-100 tracking-wider">
             {formattedTime}
           </div>
-          <div className="text-[10px] text-zinc-400 uppercase tracking-widest mt-0.5">Cooldown Remaining</div>
+          <div className="text-[10px] text-zinc-400 uppercase tracking-widest mt-0.5">{t("Cooldown Remaining")}</div>
         </div>
 
         <div>
@@ -65,7 +67,7 @@ export function RateLimitedModal({ isOpen, onClose, error }) {
             className="w-full py-2.5 px-4 text-xs font-semibold rounded-xl text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5 cursor-pointer"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${secondsLeft === 0 ? "animate-spin" : ""}`} />
-            {secondsLeft > 0 ? `Wait (${secondsLeft}s)` : "Try Again Now"}
+            {secondsLeft > 0 ? t("Wait ({seconds}s)", { seconds: secondsLeft }) : t("Try Again Now")}
           </button>
         </div>
       </div>

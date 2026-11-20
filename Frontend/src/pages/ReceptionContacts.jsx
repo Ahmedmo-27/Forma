@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
+import { useI18n } from '../i18n/useI18n';
 import useLocationEffect from '../hooks/useLocationEffect';
 import Layout from '../components/Layout';
 import { PageHeader, Spinner, EmptyState, Avatar, SearchInput, Pagination } from '../components/ui';
@@ -28,6 +29,7 @@ const MANAGER_ROLES = ['General Manager', 'Sales Manager', 'Head Coach', 'Owner'
 const ALL_ROLES     = [...STAFF_ROLES, ...MANAGER_ROLES];
 
 function ContactCard({ person }) {
+  const { t } = useI18n();
   const meta = ROLE_META[person.role] ?? { icon: UserRound, color: 'var(--t3)', bg: 'var(--bg)', group: 'staff' };
   const RoleIcon = meta.icon;
 
@@ -64,7 +66,7 @@ function ContactCard({ person }) {
             style={{
               position: 'absolute',
               bottom: -2,
-              right: -2,
+              insetInlineEnd: -2,
               width: 22,
               height: 22,
               borderRadius: '50%',
@@ -110,7 +112,7 @@ function ContactCard({ person }) {
               whiteSpace: 'nowrap',
             }}
           >
-            {person.role}
+            {t(person.role)}
           </span>
         </div>
       </div>
@@ -160,18 +162,18 @@ function ContactCard({ person }) {
                 e.currentTarget.style.borderColor = 'var(--border)';
                 e.currentTarget.style.color = 'var(--t1)';
               }}
-              title={`Call ${person.mobile_number}`}
+              title={t('Call {number}', { number: person.mobile_number })}
             >
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}>
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.13 11.5a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.06 1h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 5.99 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>
               </svg>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{person.mobile_number}</span>
+              <span dir="ltr" style={{ overflow: 'hidden', textOverflow: 'ellipsis', unicodeBidi: 'isolate' }}>{person.mobile_number}</span>
             </a>
             <WhatsAppBtn phone={person.mobile_number} size="xs" />
           </>
         ) : (
           <span style={{ fontSize: 12, color: 'var(--t4)', fontStyle: 'italic', padding: '6px 0' }}>
-            No contact number
+            {t('No contact number')}
           </span>
         )}
       </div>
@@ -183,7 +185,8 @@ const DEFAULT_PAGE_SIZE = 12;
 const PAGE_SIZE_OPTIONS = [12, 24, 48];
 
 export default function ReceptionContacts() {
-  usePageTitle('Contacts');
+  const { t } = useI18n();
+  usePageTitle(t('Contacts'));
   const {
     multiEnabled,
     selectedLocationId,
@@ -209,8 +212,8 @@ export default function ReceptionContacts() {
   const debouncedSearch = useDebounce(search, 200);
   const viewingAllBranches = !multiEnabled || selectedLocationId === ALL_LOCATIONS;
   const branchLabel = viewingAllBranches
-    ? 'All locations'
-    : (selectedLocation?.name || 'Selected branch');
+    ? t('All locations')
+    : (selectedLocation?.name || t('Selected branch'));
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -218,9 +221,9 @@ export default function ReceptionContacts() {
       const res = await getReceptionists();
       setStaff(res.data.receptionists ?? []);
     } catch {
-      toast.error('Failed to load contacts');
+      toast.error(t('Failed to load contacts'));
     } finally { setLoading(false); }
-  }, []);
+  }, [t]);
 
   useLocationEffect(() => { load(); }, [load]);
   useLocationEffect(() => { setPage(1); }, []);
@@ -301,12 +304,12 @@ export default function ReceptionContacts() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="contacts-header" title="Contacts">
+      <PageHeader walkthrough="contacts-header" title={t('Contacts')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           {multiEnabled && (
             <span style={{ fontSize: 12, color: 'var(--t2)', fontWeight: 600 }}>{branchLabel}</span>
           )}
-          <SearchInput value={search} onChange={setSearch} placeholder="Search name or number…" width={220} />
+          <SearchInput value={search} onChange={setSearch} placeholder={t('Search name or number…')} width={220} />
         </div>
       </PageHeader>
 
@@ -314,18 +317,18 @@ export default function ReceptionContacts() {
 
         {/* ── Filter bar ──────────────────────────────────────── */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <FilterBtn value="all"      label="All Staff"  count={staff.length} />
-          <FilterBtn value="staff"    label="Staff"      count={staffCount} />
-          <FilterBtn value="managers" label="Managers"   count={managerCount} />
+          <FilterBtn value="all"      label={t('All Staff')} count={staff.length} />
+          <FilterBtn value="staff"    label={t('Staff')} count={staffCount} />
+          <FilterBtn value="managers" label={t('Managers')} count={managerCount} />
           {(search || filter !== 'all') && (
             <button onClick={() => { setSearch(''); setFilter('all'); }} style={{
               fontSize: 12, fontWeight: 600, color: 'var(--red)',
               background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
               display: 'inline-flex', alignItems: 'center', gap: 4,
-            }}><X size={12} aria-hidden /> Clear</button>
+            }}><X size={12} aria-hidden /> {t('Clear')}</button>
           )}
-          <span style={{ marginLeft: 'auto', fontSize: 12, color: 'var(--t4)' }}>
-            {loading ? '…' : `${sorted.length} contact${sorted.length !== 1 ? 's' : ''}`}
+          <span style={{ marginInlineStart: 'auto', fontSize: 12, color: 'var(--t4)' }}>
+            {loading ? '…' : (sorted.length === 1 ? t('1 contact') : t('{count} contacts', { count: sorted.length }))}
           </span>
         </div>
 
@@ -335,10 +338,10 @@ export default function ReceptionContacts() {
         ) : sorted.length === 0 ? (
           <EmptyState
             icon={Phone}
-            message="No contacts found"
+            message={t('No contacts found')}
             sub={multiEnabled && !viewingAllBranches
-              ? 'No staff are assigned to this branch. Try All locations or another branch.'
-              : 'Try adjusting your search or filter.'}
+              ? t('No staff are assigned to this branch. Try All locations or another branch.')
+              : t('Try adjusting your search or filter.')}
           />
         ) : (
           <>

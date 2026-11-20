@@ -9,11 +9,13 @@ import {
 } from '../../components/ui';
 import { getAllMembers, getSalesUsers, bulkTransferSalesReps, switchSalesRep } from '../../api/endpoints';
 import { primaryByRole } from '../tasks/taskMembers';
+import { useI18n } from '../../i18n/useI18n';
 
 const PAGE_SIZE = 25;
 
 export default function Transfer() {
-  usePageTitle('Transfer');
+  const { t } = useI18n();
+  usePageTitle(t('Transfer'));
 
   const [members, setMembers]       = useState([]);
   const [salesUsers, setSalesUsers] = useState([]);
@@ -41,20 +43,20 @@ export default function Transfer() {
       const res = await getAllMembers({ all: 'true' });
       setMembers(res.data.members ?? []);
     } catch {
-      toast.error('Failed to load members.');
+      toast.error(t('Failed to load members.'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   const fetchSalesUsers = useCallback(async () => {
     try {
       const sRes = await getSalesUsers();
       setSalesUsers(sRes.data.salesUsers ?? []);
     } catch {
-      toast.error('Failed to load sales users.');
+      toast.error(t('Failed to load sales users.'));
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => { fetchSalesUsers(); }, [fetchSalesUsers]);
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
@@ -113,11 +115,11 @@ export default function Transfer() {
   const handleSelectByCount = (order = selectCountOrder) => {
     const count = parseInt(selectCountInput, 10);
     if (!Number.isFinite(count) || count <= 0) {
-      toast.error('Please enter a valid positive number');
+      toast.error(t('Please enter a valid positive number'));
       return;
     }
     if (!filtered.length) {
-      toast.error('No members match your filters');
+      toast.error(t('No members match your filters'));
       return;
     }
     const n = Math.min(count, filtered.length);
@@ -132,16 +134,18 @@ export default function Transfer() {
     } else {
       setPage(1);
     }
-    toast.success(`Selected ${isLast ? 'last' : 'first'} ${slice.length} member${slice.length !== 1 ? 's' : ''}`);
+    toast.success(isLast
+      ? t('Selected last {count} members', { count: slice.length })
+      : t('Selected first {count} members', { count: slice.length }));
   };
 
   const handleBulkTransfer = async () => {
     if (!transferTo) {
-      toast.error('Select a destination sales rep');
+      toast.error(t('Select a destination sales rep'));
       return;
     }
     if (!selectedIds.size) {
-      toast.error('Select at least one member');
+      toast.error(t('Select at least one member'));
       return;
     }
     setTransferring(true);
@@ -150,11 +154,11 @@ export default function Transfer() {
         toSalesRepId: transferTo,
         memberIds: [...selectedIds],
       });
-      toast.success(`Transferred ${res.data.transferredCount} member(s)`);
+      toast.success(t('Transferred {count} member(s)', { count: res.data.transferredCount }));
       setSelectedIds(new Set());
       fetchMembers();
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Transfer failed');
+      toast.error(e.response?.data?.message || t('Transfer failed'));
     } finally {
       setTransferring(false);
     }
@@ -164,25 +168,25 @@ export default function Transfer() {
     e.preventDefault();
     const trimmedId = quickId.trim();
     if (!trimmedId) {
-      toast.error('Enter a member system ID');
+      toast.error(t('Enter a member system ID'));
       return;
     }
     if (trimmedId.length > 40) {
-      toast.error('Invalid member system ID length');
+      toast.error(t('Invalid member system ID length'));
       return;
     }
     if (!quickTo) {
-      toast.error('Select a destination sales rep');
+      toast.error(t('Select a destination sales rep'));
       return;
     }
     setQuickLoading(true);
     try {
       await switchSalesRep(trimmedId, quickTo);
-      toast.success('Member transferred successfully');
+      toast.success(t('Member transferred successfully'));
       setQuickId('');
       fetchMembers();
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Transfer failed');
+      toast.error(e.response?.data?.message || t('Transfer failed'));
     } finally {
       setQuickLoading(false);
     }
@@ -192,15 +196,15 @@ export default function Transfer() {
 
   return (
     <Layout>
-      <PageHeader title="Transfer">
+      <PageHeader title={t('Transfer')}>
         <Select
           value={transferTo}
           onChange={(e) => setTransferTo(e.target.value)}
           style={{ minWidth: 180 }}
         >
-          <option value="">Transfer to…</option>
+          <option value="">{t('Transfer to…')}</option>
           {salesUsers.map((s) => (
-            <option key={s._id} value={s._id}>{s.name} ({s.role})</option>
+            <option key={s._id} value={s._id}>{s.name} ({t(s.role)})</option>
           ))}
         </Select>
         <Btn
@@ -208,7 +212,7 @@ export default function Transfer() {
           onClick={handleBulkTransfer}
           disabled={transferring || !transferTo || !selectedIds.size}
         >
-          {transferring ? <Spinner size="sm" /> : `Transfer Selected (${selectedIds.size})`}
+          {transferring ? <Spinner size="sm" /> : t('Transfer Selected ({count})', { count: selectedIds.size })}
         </Btn>
       </PageHeader>
 
@@ -216,49 +220,49 @@ export default function Transfer() {
 
         <Card>
           <div style={{ padding: '16px 16px 0' }}>
-            <CardHeader title="Quick Transfer" />
-            <p style={{ fontSize: 12, color: 'var(--t4)', margin: '-8px 0 12px' }}>Assign one member by system ID</p>
+            <CardHeader title={t('Quick Transfer')} />
+            <p style={{ fontSize: 12, color: 'var(--t4)', margin: '-8px 0 12px' }}>{t('Assign one member by system ID')}</p>
           </div>
           <form onSubmit={handleQuickTransfer} style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end', padding: '0 16px 16px' }}>
             <Input
-              label="System ID"
+              label={t('System ID')}
               value={quickId}
               onChange={(e) => setQuickId(e.target.value)}
-              placeholder="e.g. 150"
+              placeholder={t('e.g. 150')}
               style={{ width: 140 }}
             />
             <Select
-              label="Transfer to"
+              label={t('Transfer to')}
               value={quickTo}
               onChange={(e) => setQuickTo(e.target.value)}
               style={{ minWidth: 200 }}
             >
-              <option value="">Select sales rep…</option>
+              <option value="">{t('Select sales rep…')}</option>
               {salesUsers.map((s) => (
-                <option key={s._id} value={s._id}>{s.name} ({s.role})</option>
+                <option key={s._id} value={s._id}>{s.name} ({t(s.role)})</option>
               ))}
             </Select>
             <Btn type="submit" size="sm" disabled={quickLoading || !quickId.trim() || !quickTo}>
-              {quickLoading ? <Spinner size="sm" /> : 'Transfer'}
+              {quickLoading ? <Spinner size="sm" /> : t('Transfer')}
             </Btn>
           </form>
         </Card>
 
         <Card>
           <div style={{ padding: '16px 16px 0' }}>
-            <CardHeader title="Bulk Transfer" />
+            <CardHeader title={t('Bulk Transfer')} />
             <p style={{ fontSize: 12, color: 'var(--t4)', margin: '-8px 0 12px' }}>
-              {destLabel ? `Selected members will be assigned to ${destLabel}` : 'Select members and a destination sales rep above'}
+              {destLabel ? t('Selected members will be assigned to {name}', { name: destLabel }) : t('Select members and a destination sales rep above')}
             </p>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, padding: '0 16px 12px', alignItems: 'center' }}>
-            <SearchInput value={search} onChange={setSearch} placeholder="Name, phone, ID…" width={200} />
+            <SearchInput value={search} onChange={setSearch} placeholder={t('Name, phone, ID…')} width={200} />
 
             {/* Rep filter dropdown */}
-            <MenuSelect value={repFilter} onChange={(e) => setRepFilter(e.target.value)} style={{ minWidth: 220 }} aria-label="Filter by sales rep">
-              <option value="all">All members</option>
+            <MenuSelect value={repFilter} onChange={(e) => setRepFilter(e.target.value)} style={{ minWidth: 220 }} aria-label={t('Filter by sales rep')}>
+              <option value="all">{t('All members')}</option>
               {salesUsers.map((s) => (
-                <option key={s._id} value={s._id}>{s.name} ({s.role})</option>
+                <option key={s._id} value={s._id}>{s.name} ({t(s.role)})</option>
               ))}
             </MenuSelect>
 
@@ -269,9 +273,9 @@ export default function Transfer() {
                 min="1"
                 value={selectCountInput}
                 onChange={(e) => setSelectCountInput(e.target.value)}
-                placeholder="How many?"
+                placeholder={t('How many?')}
                 className="no-spinners"
-                aria-label="Number of members to select"
+                aria-label={t('Number of members to select')}
                 style={{ width: 90, padding: '6px 8px', fontSize: 12, border: '1px solid var(--border)', borderRadius: 5, fontFamily: 'inherit', MozAppearance: 'textfield' }}
               />
               <Btn
@@ -279,32 +283,32 @@ export default function Transfer() {
                 size="xs"
                 onClick={() => handleSelectByCount('first')}
               >
-                First
+                {t('First')}
               </Btn>
               <Btn
                 variant={selectCountOrder === 'last' ? 'primary' : 'outline'}
                 size="xs"
                 onClick={() => handleSelectByCount('last')}
               >
-                Last
+                {t('Last')}
               </Btn>
             </div>
 
             {selectedIds.size > 0 && (
-              <Btn variant="ghost" size="xs" onClick={() => setSelectedIds(new Set())}>Clear selection</Btn>
+              <Btn variant="ghost" size="xs" onClick={() => setSelectedIds(new Set())}>{t('Clear selection')}</Btn>
             )}
             {paginated.length > 0 && (
               <Btn variant="ghost" size="xs" onClick={toggleSelectPage}>
-                {paginated.every((m) => selectedIds.has(m._id)) ? 'Deselect page' : 'Select page'}
+                {paginated.every((m) => selectedIds.has(m._id)) ? t('Deselect page') : t('Select page')}
               </Btn>
             )}
           </div>
 
           {!loading && !paginated.length ? (
-            <EmptyState message="No members match your filters" />
+            <EmptyState message={t('No members match your filters')} />
           ) : (
             <>
-              <Table loading={loading} skeletonRows={8} headers={['', 'ID', 'Name', 'Current Sales Rep', 'Status', 'Phone']}>
+              <Table loading={loading} skeletonRows={8} headers={['', t('ID'), t('Name'), t('Current Sales Rep'), t('Status'), t('Phone')]}>
                 {paginated.map((m) => {
                   const selected = selectedIds.has(m._id);
                   return (
@@ -322,7 +326,8 @@ export default function Transfer() {
                         />
                       </td>
                       <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}>
-                        #{m.systemId}{m.memberId ? ` / M${m.memberId}` : ''}
+                        {/* i18n-ignore -- id token */}
+                        <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>#{m.systemId}{m.memberId ? ` / M${m.memberId}` : ''}</span>
                       </td>
                       <td style={{ padding: '10px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -334,7 +339,7 @@ export default function Transfer() {
                         {repName(m.assignedSales)}
                       </td>
                       <td style={{ padding: '10px 14px' }}><Badge status={m.status} /></td>
-                      <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}>{m.phones ?? '—'}</td>
+                      <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}><span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{m.phones ?? '—'}</span></td>
                     </tr>
                   );
                 })}

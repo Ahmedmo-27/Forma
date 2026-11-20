@@ -1,0 +1,57 @@
+/** Arabic strings for the accounting area, keyed by the English source text. */
+const AR = {
+  // Dashboard
+  'Failed to load some dashboard data.': 'تعذر تحميل بعض بيانات لوحة التحكم.',
+  'Failed to load dashboard.': 'تعذر تحميل لوحة التحكم.',
+  'there': 'عزيزي المستخدم',
+  "Review pending package requests, track contracts you've processed, and monitor revenue — all from one place.": 'راجع طلبات الباقات المعلّقة، وتابع العقود التي عالجتها، وراقب الإيرادات — كل ذلك من مكان واحد.',
+  '{count} requests awaiting review': '{count} طلبات بانتظار المراجعة',
+  '1 request awaiting review': 'طلب واحد بانتظار المراجعة',
+  'Needs your review': 'بانتظار مراجعتك',
+  'All caught up': 'لا توجد طلبات معلّقة',
+  '{count} contracts today': '{count} عقود اليوم',
+  '1 contract today': 'عقد واحد اليوم',
+  '{count} contracts processed': '{count} عقود تمت معالجتها',
+  '1 contract processed': 'عقد واحد تمت معالجته',
+  'Recent Contracts': 'أحدث العقود',
+  'Latest activity': 'آخر النشاطات',
+  'Pending Package Requests': 'طلبات الباقات المعلّقة',
+  'New sales manager requests will appear here': 'ستظهر هنا الطلبات الجديدة من مديري المبيعات',
+  'No contracts yet': 'لا توجد عقود بعد',
+  'Approved packages and direct assignments appear here': 'تظهر هنا الباقات المعتمدة والإسنادات المباشرة',
+  'Review & approve packages': 'مراجعة الباقات واعتمادها',
+  'All processed contracts': 'كل العقود التي تمت معالجتها',
+  'Revenue breakdown & reports': 'تفصيل الإيرادات والتقارير',
+  'Browse member profiles': 'تصفح ملفات الأعضاء',
+  'View all': 'عرض الكل',
+  'Contract History': 'سجل العقود',
+
+  // Contract history
+  'Failed to load contract history.': 'تعذر تحميل سجل العقود.',
+  'Signed': 'تم التوقيع',
+  'All Time': 'كل الفترات',
+  'Contracts ({count})': 'العقود ({count})',
+  'No contracts in this period': 'لا توجد عقود في هذه الفترة',
+  'Try adjusting the date range or approve a package request': 'جرّب تعديل النطاق الزمني أو اعتمد طلب باقة',
+  'Cancelled · no refund': 'ملغى · بدون استرداد',
+  'Signed by {name}': 'وقّعه {name}',
+  'Not signed': 'غير موقّع',
+
+  // Package requests
+  'Package Exception Request': 'طلب باقة استثنائية',
+  'Package Request': 'طلب باقة',
+  'Approve': 'اعتماد',
+  'Standard catalog request': 'طلب قياسي من الكتالوج',
+  'Reviewed By': 'تمت المراجعة بواسطة',
+  'Price Paid (EGP)': 'المبلغ المدفوع (EGP)',
+  'Review Note:': 'ملاحظة المراجعة:',
+  'Failed to load package requests.': 'تعذر تحميل طلبات الباقات.',
+  'Request {status}.': 'تم تحديث حالة الطلب: {status}.',
+  'Proposed By': 'مقترح من',
+  'Based on: {name}': 'مبني على: {name}',
+  'No pending package requests': 'لا توجد طلبات باقات معلّقة',
+  'Reject Package Request': 'رفض طلب الباقة',
+  'Are you sure you want to reject this package request?': 'هل أنت متأكد من رفض طلب الباقة هذا؟',
+};
+
+export default AR;

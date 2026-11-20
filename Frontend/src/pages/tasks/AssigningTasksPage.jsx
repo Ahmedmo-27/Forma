@@ -15,6 +15,9 @@ import {
 } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
+import { useI18n } from '../../i18n/useI18n.js';
+import { useFormat } from '../../i18n/useFormat.js';
+import { tr } from '../../i18n/translate.js';
 import {
   EXPORT_COLUMNS, buildExcel, columnsForExport,
   columnValue, coachName, salesmanName, primaryByRole, withDefaultCoach, withDefaultSales, taskPermissions, toggleId, toggleIds, canUserReceiveTasks, formatTaskDateTime,
@@ -32,6 +35,7 @@ const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
 const DEFAULT_COLUMNS = ['name', 'memberId', 'phone', 'salesman', 'coach', 'package', 'endDate', 'status'];
 const BULK_COOLDOWN_SECONDS = 20;
+const GENDER_LABELS = { male: tr('Male'), female: tr('Female') };
 
 function downloadExcel(filename, columns, rows) {
   const blob = new Blob([buildExcel(columns, rows)], { type: 'application/vnd.ms-excel' });
@@ -58,7 +62,9 @@ async function loadAssigned(scope = {}) {
 }
 
 export default function AssigningTasksPage() {
-  usePageTitle('Tasks Management');
+  const { t, isRtl } = useI18n();
+  const { lang } = useFormat();
+  usePageTitle(t('Tasks Management'));
   const navigate = useNavigate();
   const { user } = useAuth();
   const { hasFeature } = useTenant();
@@ -156,7 +162,7 @@ export default function AssigningTasksPage() {
   const [customCountOrder, setCustomCountOrder] = useState('first');
   const [_transferModalTemplate, setTransferModalTemplate] = useState('');
   const [_lastAppliedTemplate, setLastAppliedTemplate] = useState('');
-  const [menuAlign, setMenuAlign] = useState('left');
+  const [menuAlign, setMenuAlign] = useState('start');
   const templateMenuRef = useRef(null);
 
   // ── Assigner History Modal State ──
@@ -208,11 +214,11 @@ export default function AssigningTasksPage() {
       const res = await getAssigningCreatedTasks();
       setCreatedTasks(res.data.tasks ?? []);
     } catch {
-      toast.error('Failed to load created tasks history');
+      toast.error(t('Failed to load created tasks history'));
     } finally {
       setLoadingCreatedTasks(false);
     }
-  }, []);
+  }, [t]);
 
   const openTasksHistoryModal = () => {
     setHistoryOpen(true);
@@ -257,11 +263,11 @@ export default function AssigningTasksPage() {
       setSelected(new Set());
     } catch {
       setMembers([]);
-      toast.error('Failed to load members');
+      toast.error(t('Failed to load members'));
     } finally {
       setLoading(false);
     }
-  }, [salesManager, headCoach]);
+  }, [salesManager, headCoach, t]);
 
   useLocationEffect(() => {
     if (activeTab === 'schedule') {
@@ -381,7 +387,7 @@ export default function AssigningTasksPage() {
 
   const handleResetFilters = () => {
     setSearch('');
-    setStatusFilter('all');
+    setStatusFilter('all'); // i18n-ignore
     setKind('all');
     setPersonId('');
     setPackageFilter('all');
@@ -399,6 +405,12 @@ export default function AssigningTasksPage() {
 
   const isAllFilteredSelected = filtered.length > 0 && filtered.every((m) => selectedSet.has(m._id));
 
+  // Anchor the presets menu to the start edge unless it would overflow the viewport.
+  const menuAlignFor = useCallback((rect) => {
+    if (isRtl) return rect.right - 330 < 0 ? 'end' : 'start';
+    return rect.left + 330 > window.innerWidth ? 'end' : 'start';
+  }, [isRtl]);
+
   // ── Dynamic Boundary Alignment & Click Outside for Selection Templates ──
   useEffect(() => {
     function handleClickOutside(e) {
@@ -408,45 +420,40 @@ export default function AssigningTasksPage() {
     }
     if (templateMenuOpen) {
       if (templateMenuRef.current) {
-        const rect = templateMenuRef.current.getBoundingClientRect();
-        if (rect.left + 330 > window.innerWidth) {
-          setMenuAlign('right');
-        } else {
-          setMenuAlign('left');
-        }
+        setMenuAlign(menuAlignFor(templateMenuRef.current.getBoundingClientRect()));
       }
       document.addEventListener('mousedown', handleClickOutside);
       return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [templateMenuOpen]);
+  }, [templateMenuOpen, menuAlignFor]);
 
   const handleApplyTemplate = (templateId, options = {}) => {
     if (!filtered.length) {
-      toast.error('No members match the current filters');
+      toast.error(t('No members match the current filters'));
       return;
     }
     const ids = applySelectionTemplate(filtered, templateId, options);
     if (!ids.length) {
-      toast.error('No members matched this template criteria');
+      toast.error(t('No members matched this template criteria'));
       return;
     }
     setSelected(new Set(ids));
     setTemplateMenuOpen(false);
-    const tmpl = SELECTION_TEMPLATES.find((t) => t.id === templateId);
-    const label = tmpl ? tmpl.label : options.customLabel || `${ids.length} members`;
+    const tmpl = SELECTION_TEMPLATES.find((tpl) => tpl.id === templateId);
+    const label = tmpl ? t(tmpl.label) : options.customLabel || t('{count} members', { count: ids.length });
     setLastAppliedTemplate(label);
-    toast.success(`Selected ${ids.length} members (${label})`);
+    toast.success(t('Selected {count} members ({label})', { count: ids.length, label }));
   };
 
   const _handleApplyCustomCount = () => {
     const count = parseInt(customCountInput, 10);
     if (!Number.isFinite(count) || count <= 0) {
-      toast.error('Please enter a valid positive number');
+      toast.error(t('Please enter a valid positive number'));
       return;
     }
     const isLast = customCountOrder === 'last';
     const templateId = isLast ? 'custom_last' : 'custom_first';
-    const label = isLast ? `Last ${count}` : `First ${count}`;
+    const label = isLast ? t('Last {count}', { count }) : t('First {count}', { count });
     handleApplyTemplate(templateId, { count, customLabel: label });
     if (isLast) {
       setPage(Math.max(1, Math.ceil(filtered.length / pageSize)));
@@ -460,8 +467,8 @@ export default function AssigningTasksPage() {
     const next = invertSelection(filtered, selectedSet);
     const nextSet = new Set(next);
     setSelected(nextSet);
-    setLastAppliedTemplate('Inverted');
-    toast.success(`Selection inverted (${nextSet.size} members selected)`);
+    setLastAppliedTemplate('Inverted'); // i18n-ignore
+    toast.success(t('Selection inverted ({count} members selected)', { count: nextSet.size }));
   };
 
   const handleClearSelection = () => {
@@ -471,7 +478,7 @@ export default function AssigningTasksPage() {
 
   const openTransferModal = (targetKind) => {
     if (!selectedSet.size) {
-      toast.error('Select at least one member to transfer');
+      toast.error(t('Select at least one member to transfer'));
       return;
     }
     setDestKind(targetKind);
@@ -484,7 +491,7 @@ export default function AssigningTasksPage() {
 
   const openWaModal = () => {
     if (!selectedSet.size) {
-      toast.error('Select at least one member');
+      toast.error(t('Select at least one member'));
       return;
     }
     setWaOpen(true);
@@ -512,7 +519,7 @@ export default function AssigningTasksPage() {
 
   const executeBulkTransfer = async () => {
     if (!destId) {
-      toast.error(destKind === 'sales' ? 'Choose a sales rep' : 'Choose a coach');
+      toast.error(destKind === 'sales' ? t('Choose a sales rep') : t('Choose a coach'));
       return;
     }
     const ids = Array.from(selectedSet);
@@ -540,7 +547,7 @@ export default function AssigningTasksPage() {
       setTransferProgress({ current: ids.length, total: ids.length });
       setTransferStatus('cooling_down');
       setCooldownRemaining(BULK_COOLDOWN_SECONDS);
-      toast.success(`Successfully assigned ${ids.length} members as tasks!`);
+      toast.success(t('Successfully assigned {count} members as tasks!', { count: ids.length }));
 
       showMembers(kind, personId);
       setSelected(new Set());
@@ -548,7 +555,7 @@ export default function AssigningTasksPage() {
       fetchOverview();
       fetchCreatedTasks();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Transfer failed');
+      toast.error(err.response?.data?.message || t('Transfer failed'));
       setTransferStatus('idle');
     } finally {
       setBusy(false);
@@ -560,7 +567,7 @@ export default function AssigningTasksPage() {
     const id = quickId.trim();
     if (!id) return;
     if (!destId) {
-      toast.error('Choose a target staff member');
+      toast.error(t('Choose a target staff member'));
       return;
     }
     setBusy(true);
@@ -571,23 +578,23 @@ export default function AssigningTasksPage() {
       } else {
         await switchCoach(id, destId, { reason: 'Quick task assign' });
       }
-      toast.success(`Member #${id} assigned successfully!`);
+      toast.success(t('Member #{id} assigned successfully!', { id }));
       setQuickId('');
       setDestId('');
       showMembers(kind, personId);
       fetchOverview();
       fetchCreatedTasks();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Transfer failed');
+      toast.error(err.response?.data?.message || t('Transfer failed'));
     } finally {
       setBusy(false);
     }
   };
 
   const exportSheet = () => {
-    const cols = columnsForExport(visibleKeys);
+    const cols = columnsForExport(visibleKeys).map((col) => ({ ...col, label: t(col.label) }));
     if (!filtered.length) {
-      toast.error('No members to export');
+      toast.error(t('No members to export'));
       return;
     }
     downloadExcel(
@@ -595,29 +602,29 @@ export default function AssigningTasksPage() {
       cols,
       filtered.map((member) => withDefaultSales(withDefaultCoach(member, headCoach), salesManager)),
     );
-    toast.success(`Exported ${filtered.length} rows to Excel`);
+    toast.success(t('Exported {count} rows to Excel', { count: filtered.length }));
   };
 
   const canReceiveTasks = canUserReceiveTasks(user);
 
   return (
     <Layout>
-      <PageHeader walkthrough="assign-tasks-header" title="Tasks Management">
+      <PageHeader walkthrough="assign-tasks-header" title={t('Tasks Management')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <Btn variant="outline" size="sm" onClick={() => navigate('/tasks/filter')}>
-            <Search size={14} aria-hidden /> Filter &amp; Bulk Actions
+            <Search size={14} aria-hidden /> {t('Filter & Bulk Actions')}
           </Btn>
 
           <Btn variant="outline" size="sm" onClick={openTasksHistoryModal}>
-            <ClipboardList size={14} aria-hidden /> View Created Tasks
+            <ClipboardList size={14} aria-hidden /> {t('View Created Tasks')}
           </Btn>
 
           <Btn variant="outline" size="sm" onClick={() => setColumnsOpen(true)}>
-            Columns
+            {t('Columns')}
           </Btn>
 
           <Btn variant="outline" size="sm" onClick={exportSheet} disabled={loading || !filtered.length}>
-            Export Excel
+            {t('Export Excel')}
           </Btn>
         </div>
       </PageHeader>
@@ -627,19 +634,19 @@ export default function AssigningTasksPage() {
         {overviewStats && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
             <Card style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Total Tasks Created</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('Total Tasks Created')}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--t1)' }}>{overviewStats.totalTasks}</div>
             </Card>
             <Card style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Pending Tasks</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('Pending Tasks')}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--amber)' }}>{overviewStats.pendingTasks}</div>
             </Card>
             <Card style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Members Assigned</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('Members Assigned')}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--primary)' }}>{overviewStats.totalMembersAssigned}</div>
             </Card>
             <Card style={{ padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Completion Rate</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('Completion Rate')}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--green)' }}>{overviewStats.completionRate}%</div>
             </Card>
           </div>
@@ -653,14 +660,14 @@ export default function AssigningTasksPage() {
               variant={activeTab === 'schedule' ? 'primary' : 'ghost'}
               onClick={() => setActiveTab('schedule')}
             >
-              Assign Tasks & Member Schedule
+              {t('Assign Tasks & Member Schedule')}
             </Btn>
             <Btn
               size="sm"
               variant={activeTab === 'my_tasks' ? 'primary' : 'ghost'}
               onClick={() => setActiveTab('my_tasks')}
             >
-              My Assigned Tasks
+              {t('My Assigned Tasks')}
             </Btn>
           </div>
         )}
@@ -677,7 +684,7 @@ export default function AssigningTasksPage() {
                   {/* View Scope Select */}
                   <div style={{ flex: '0 0 auto', width: 280, minWidth: 240 }}>
                     <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                      View Scope
+                      {t('View Scope')}
                     </label>
                     <MenuSelect
                       value={kind}
@@ -686,13 +693,13 @@ export default function AssigningTasksPage() {
                         setPersonId('');
                       }}
                       style={{ width: '100%' }}
-                      aria-label="View scope"
+                      aria-label={t('View scope')}
                     >
-                      <option value="all">All Gym Members</option>
-                      {canSalesman && <option value="sales">By Sales Rep</option>}
-                      {canCoach && <option value="coach">By Coach</option>}
-                      {canSalesman && <option value="sales_manager">Assigned to Sales Manager</option>}
-                      {canCoach && <option value="head_coach">Assigned to Head Coach</option>}
+                      <option value="all">{t('All Gym Members')}</option>
+                      {canSalesman && <option value="sales">{t('By Sales Rep')}</option>}
+                      {canCoach && <option value="coach">{t('By Coach')}</option>}
+                      {canSalesman && <option value="sales_manager">{t('Assigned to Sales Manager')}</option>}
+                      {canCoach && <option value="head_coach">{t('Assigned to Head Coach')}</option>}
                     </MenuSelect>
                   </div>
 
@@ -700,15 +707,15 @@ export default function AssigningTasksPage() {
                   {(kind === 'sales' || kind === 'coach') && (
                     <div style={{ flex: '0 0 auto', width: 210, minWidth: 170 }}>
                       <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                        {kind === 'sales' ? 'Select Sales Rep' : 'Select Coach'}
+                        {kind === 'sales' ? t('Select Sales Rep') : t('Select Coach')}
                       </label>
                       <MenuSelect
                         value={personId}
                         onChange={(e) => setPersonId(e.target.value)}
                         style={{ width: '100%' }}
-                        aria-label={kind === 'sales' ? 'Select sales rep' : 'Select coach'}
+                        aria-label={kind === 'sales' ? t('Select sales rep') : t('Select coach')}
                       >
-                        <option value="">Choose staff member…</option>
+                        <option value="">{t('Choose staff member…')}</option>
                         {people.map((p) => (
                           <option key={p._id} value={p._id}>{p.name}</option>
                         ))}
@@ -719,11 +726,11 @@ export default function AssigningTasksPage() {
                   {/* Search Directory Input with Search Icon */}
                   <div style={{ flex: '1 1 240px', minWidth: 200, position: 'relative' }}>
                     <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                      Search Directory
+                      {t('Search Directory')}
                     </label>
                     <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                       <svg
-                        style={{ position: 'absolute', left: 11, color: 'var(--t4)', pointerEvents: 'none' }}
+                        style={{ position: 'absolute', insetInlineStart: 11, color: 'var(--t4)', pointerEvents: 'none' }}
                         width="15"
                         height="15"
                         viewBox="0 0 24 24"
@@ -737,12 +744,12 @@ export default function AssigningTasksPage() {
                       <input
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Search name, phone, Member ID, System ID…"
+                        placeholder={t('Search name, phone, Member ID, System ID…')}
                         style={{
                           width: '100%',
                           height: 38,
-                          paddingLeft: 34,
-                          paddingRight: search ? 30 : 12,
+                          paddingInlineStart: 34,
+                          paddingInlineEnd: search ? 30 : 12,
                           borderRadius: 8,
                           border: '1px solid var(--border)',
                           background: 'var(--card)',
@@ -767,7 +774,7 @@ export default function AssigningTasksPage() {
                           onClick={() => setSearch('')}
                           style={{
                             position: 'absolute',
-                            right: 8,
+                            insetInlineEnd: 8,
                             background: 'none',
                             border: 'none',
                             color: 'var(--t4)',
@@ -778,7 +785,7 @@ export default function AssigningTasksPage() {
                             alignItems: 'center',
                             justifyContent: 'center',
                           }}
-                          title="Clear search"
+                          title={t('Clear search')}
                         >
                           <X size={12} aria-hidden />
                         </button>
@@ -810,7 +817,7 @@ export default function AssigningTasksPage() {
                       }}
                     >
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                        {moreFiltersOpen ? <><ChevronUp size={12} aria-hidden /> Less Filters</> : <><ChevronDown size={12} aria-hidden /> More Filters</>}
+                        {moreFiltersOpen ? <><ChevronUp size={12} aria-hidden /> {t('Less Filters')}</> : <><ChevronDown size={12} aria-hidden /> {t('More Filters')}</>}
                       </span>
                       {activeFilterCount > 0 && (
                         <span
@@ -821,7 +828,7 @@ export default function AssigningTasksPage() {
                             fontWeight: 700,
                             padding: '1px 6px',
                             borderRadius: 10,
-                            marginLeft: 2,
+                            marginInlineStart: 2,
                           }}
                         >
                           {activeFilterCount}
@@ -850,9 +857,9 @@ export default function AssigningTasksPage() {
                           transition: 'all 0.15s ease',
                           whiteSpace: 'nowrap',
                         }}
-                        title="Reset all filters"
+                        title={t('Reset all filters')}
                       >
-                        ↺ Reset
+                        ↺ {t('Reset')}
                       </button>
                     )}
                   </div>
@@ -873,11 +880,11 @@ export default function AssigningTasksPage() {
                 >
                   <FilterTabs
                     options={[
-                      { value: 'all', id: 'all', label: `All (${statusCounts.all})` },
-                      { value: 'active', id: 'active', label: `Active (${statusCounts.active})` },
-                      { value: 'expired', id: 'expired', label: `Expired (${statusCounts.expired})` },
-                      { value: 'frozen', id: 'frozen', label: `Frozen (${statusCounts.frozen})` },
-                      { value: 'guest', id: 'guest', label: `Guest (${statusCounts.guest})` },
+                      { value: 'all', id: 'all', label: t('All ({count})', { count: statusCounts.all }) },
+                      { value: 'active', id: 'active', label: t('Active ({count})', { count: statusCounts.active }) },
+                      { value: 'expired', id: 'expired', label: t('Expired ({count})', { count: statusCounts.expired }) },
+                      { value: 'frozen', id: 'frozen', label: t('Frozen ({count})', { count: statusCounts.frozen }) },
+                      { value: 'guest', id: 'guest', label: t('Guest ({count})', { count: statusCounts.guest }) },
                     ]}
                     active={statusFilter}
                     onChange={setStatusFilter}
@@ -899,7 +906,7 @@ export default function AssigningTasksPage() {
                           fontWeight: 700,
                         }}
                       >
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CircleDot size={12} aria-hidden /> {selectedSet.size} selected</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CircleDot size={12} aria-hidden /> {t('{count} selected', { count: selectedSet.size })}</span>
                         <button
                           type="button"
                           onClick={handleClearSelection}
@@ -913,7 +920,7 @@ export default function AssigningTasksPage() {
                             padding: '0 2px',
                           }}
                         >
-                          (Clear)
+                          {t('(Clear)')}
                         </button>
                       </div>
                     )}
@@ -924,18 +931,13 @@ export default function AssigningTasksPage() {
                         variant={selectedSet.size > 0 ? 'primary' : 'outline'}
                         onClick={() => {
                           if (!templateMenuOpen && templateMenuRef.current) {
-                            const rect = templateMenuRef.current.getBoundingClientRect();
-                            if (rect.left + 330 > window.innerWidth) {
-                              setMenuAlign('right');
-                            } else {
-                              setMenuAlign('left');
-                            }
+                            setMenuAlign(menuAlignFor(templateMenuRef.current.getBoundingClientRect()));
                           }
                           setTemplateMenuOpen((open) => !open);
                         }}
                         style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
                       >
-                        <Zap size={14} aria-hidden /> Selection Templates <ChevronDown size={10} aria-hidden style={{ opacity: 0.7 }} />
+                        <Zap size={14} aria-hidden /> {t('Selection Templates')} <ChevronDown size={10} aria-hidden style={{ opacity: 0.7 }} />
                       </Btn>
 
                       {templateMenuOpen && (
@@ -944,7 +946,7 @@ export default function AssigningTasksPage() {
                           style={{
                             position: 'absolute',
                             top: 'calc(100% + 8px)',
-                            ...(menuAlign === 'right' ? { right: 0 } : { left: 0 }),
+                            ...(menuAlign === 'end' ? { insetInlineEnd: 0 } : { insetInlineStart: 0 }),
                             zIndex: 1000,
                             width: 320,
                             maxWidth: 'min(320px, calc(100vw - 32px))',
@@ -958,10 +960,10 @@ export default function AssigningTasksPage() {
                           }}
                         >
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
-                            <div style={{ fontWeight: 700 }}>Selection Presets</div>
+                            <div style={{ fontWeight: 700 }}>{t('Selection Presets')}</div>
                             {selectedSet.size > 0 && (
                               <Btn size="xs" variant="ghost" onClick={handleClearSelection} style={{ color: 'var(--red)' }}>
-                                Clear ({selectedSet.size})
+                                {t('Clear ({count})', { count: selectedSet.size })}
                               </Btn>
                             )}
                           </div>
@@ -973,8 +975,8 @@ export default function AssigningTasksPage() {
                                 min="1"
                                 value={customCountInput}
                                 onChange={(e) => setCustomCountInput(e.target.value)}
-                                placeholder="How many members?"
-                                aria-label="Number of members to select"
+                                placeholder={t('How many members?')}
+                                aria-label={t('Number of members to select')}
                                 className="no-spinners"
                                 style={{
                                   width: '100%', height: 34, padding: '0 10px', borderRadius: 6,
@@ -990,10 +992,10 @@ export default function AssigningTasksPage() {
                                     setCustomCountOrder('first');
                                     const count = parseInt(customCountInput, 10);
                                     if (!Number.isFinite(count) || count <= 0) {
-                                      toast.error('Please enter a valid positive number');
+                                      toast.error(t('Please enter a valid positive number'));
                                       return;
                                     }
-                                    handleApplyTemplate('custom_first', { count, customLabel: `First ${count}` });
+                                    handleApplyTemplate('custom_first', { count, customLabel: t('First {count}', { count }) });
                                     setPage(1);
                                   }}
                                   style={{
@@ -1003,7 +1005,7 @@ export default function AssigningTasksPage() {
                                     fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                                   }}
                                 >
-                                  First
+                                  {t('First')}
                                 </button>
                                 <button
                                   type="button"
@@ -1011,10 +1013,10 @@ export default function AssigningTasksPage() {
                                     setCustomCountOrder('last');
                                     const count = parseInt(customCountInput, 10);
                                     if (!Number.isFinite(count) || count <= 0) {
-                                      toast.error('Please enter a valid positive number');
+                                      toast.error(t('Please enter a valid positive number'));
                                       return;
                                     }
-                                    handleApplyTemplate('custom_last', { count, customLabel: `Last ${count}` });
+                                    handleApplyTemplate('custom_last', { count, customLabel: t('Last {count}', { count }) });
                                     setPage(Math.max(1, Math.ceil(filtered.length / pageSize)));
                                   }}
                                   style={{
@@ -1024,7 +1026,7 @@ export default function AssigningTasksPage() {
                                     fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                                   }}
                                 >
-                                  Last
+                                  {t('Last')}
                                 </button>
                               </div>
                             </div>
@@ -1038,7 +1040,7 @@ export default function AssigningTasksPage() {
                                 textAlign: 'center',
                               }}
                             >
-                              Invert Selection
+                              {t('Invert Selection')}
                             </button>
                           </div>
                         </div>
@@ -1066,15 +1068,15 @@ export default function AssigningTasksPage() {
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
                       <div>
                         <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                          Package
+                          {t('Package')}
                         </label>
                         <MenuSelect
                           value={packageFilter}
                           onChange={(e) => setPackageFilter(e.target.value)}
                           style={{ width: '100%' }}
-                          aria-label="Package"
+                          aria-label={t('Package')}
                         >
-                          <option value="all">All Packages</option>
+                          <option value="all">{t('All Packages')}</option>
                           {allPackages.map((pkg) => (
                             <option key={pkg._id} value={pkg._id}>{pkg.name}</option>
                           ))}
@@ -1083,33 +1085,33 @@ export default function AssigningTasksPage() {
 
                       <div>
                         <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                          Gender
+                          {t('Gender')}
                         </label>
                         <MenuSelect
                           value={genderFilter}
                           onChange={(e) => setGenderFilter(e.target.value)}
                           style={{ width: '100%' }}
-                          aria-label="Gender"
+                          aria-label={t('Gender')}
                         >
-                          <option value="all">All Genders</option>
-                          <option value="male">Male</option>
-                          <option value="female">Female</option>
+                          <option value="all">{t('All Genders')}</option>
+                          <option value="male">{t('Male')}</option>
+                          <option value="female">{t('Female')}</option>
                         </MenuSelect>
                       </div>
 
                       <div>
                         <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                          Transfer Status
+                          {t('Transfer Status')}
                         </label>
                         <MenuSelect
                           value={transferTypeFilter}
                           onChange={(e) => setTransferTypeFilter(e.target.value)}
                           style={{ width: '100%' }}
-                          aria-label="Transfer status"
+                          aria-label={t('Transfer status')}
                         >
-                          <option value="all">All Transfer Statuses</option>
-                          <option value="transferred">Transferred Members</option>
-                          <option value="never">Never Transferred</option>
+                          <option value="all">{t('All Transfer Statuses')}</option>
+                          <option value="transferred">{t('Transferred Members')}</option>
+                          <option value="never">{t('Never Transferred')}</option>
                         </MenuSelect>
                       </div>
                     </div>
@@ -1127,23 +1129,23 @@ export default function AssigningTasksPage() {
                     >
                       <div style={{ flex: '1 1 160px', minWidth: 140 }}>
                         <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                          Date Field
+                          {t('Date Field')}
                         </label>
                         <MenuSelect
                           value={dateField}
                           onChange={(e) => setDateField(e.target.value)}
                           style={{ width: '100%' }}
-                          aria-label="Date field"
+                          aria-label={t('Date field')}
                         >
-                          <option value="endDate">End Date</option>
-                          <option value="startDate">Start Date</option>
-                          <option value="createdAt">Joined Date</option>
+                          <option value="endDate">{t('End Date')}</option>
+                          <option value="startDate">{t('Start Date')}</option>
+                          <option value="createdAt">{t('Joined Date')}</option>
                         </MenuSelect>
                       </div>
 
                       <div style={{ flex: '1 1 160px', minWidth: 140 }}>
                         <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                          From Date
+                          {t('From Date')}
                         </label>
                         <input
                           type="date"
@@ -1166,7 +1168,7 @@ export default function AssigningTasksPage() {
 
                       <div style={{ flex: '1 1 160px', minWidth: 140 }}>
                         <label style={{ display: 'block', fontSize: 11, fontWeight: 700, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>
-                          To Date
+                          {t('To Date')}
                         </label>
                         <input
                           type="date"
@@ -1206,7 +1208,7 @@ export default function AssigningTasksPage() {
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          Today
+                          {t('Today')}
                         </button>
                         <button
                           type="button"
@@ -1225,7 +1227,7 @@ export default function AssigningTasksPage() {
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          Next 30d
+                          {t('Next 30d')}
                         </button>
                         <button
                           type="button"
@@ -1244,7 +1246,7 @@ export default function AssigningTasksPage() {
                             transition: 'all 0.15s ease',
                           }}
                         >
-                          Last 30d
+                          {t('Last 30d')}
                         </button>
                         {(dateFrom || dateTo) && (
                           <button
@@ -1264,7 +1266,7 @@ export default function AssigningTasksPage() {
                               transition: 'all 0.15s ease',
                             }}
                           >
-                            Clear Dates
+                            {t('Clear Dates')}
                           </button>
                         )}
                       </div>
@@ -1284,11 +1286,11 @@ export default function AssigningTasksPage() {
                       checked={isAllFilteredSelected}
                       onChange={handleSelectAllFiltered}
                     />
-                    <span>Select All Filtered ({filtered.length})</span>
+                    <span>{t('Select All Filtered ({count})', { count: filtered.length })}</span>
                   </label>
                   {selectedSet.size > 0 && (
                     <Btn size="xs" variant="ghost" onClick={handleClearSelection} style={{ color: 'var(--red)' }}>
-                      Deselect All
+                      {t('Deselect All')}
                     </Btn>
                   )}
                 </div>
@@ -1301,7 +1303,7 @@ export default function AssigningTasksPage() {
                       disabled={!selectedSet.size}
                       onClick={() => openTransferModal('sales')}
                     >
-                      <UserRound size={14} aria-hidden /> Assign Sales Rep ({selectedSet.size})
+                      <UserRound size={14} aria-hidden /> {t('Assign Sales Rep ({count})', { count: selectedSet.size })}
                     </Btn>
                   )}
                   {canCoach && (
@@ -1311,7 +1313,7 @@ export default function AssigningTasksPage() {
                       disabled={!selectedSet.size}
                       onClick={() => openTransferModal('coach')}
                     >
-                      <Dumbbell size={14} aria-hidden /> Assign Coach ({selectedSet.size})
+                      <Dumbbell size={14} aria-hidden /> {t('Assign Coach ({count})', { count: selectedSet.size })}
                     </Btn>
                   )}
                   {canWhatsApp && (
@@ -1331,10 +1333,10 @@ export default function AssigningTasksPage() {
                 <Table
                   loading
                   skeletonRows={8}
-                  headers={['#', 'Member', 'Member ID', 'Phone', 'Sales Rep', 'Coach', 'Status', 'Package']}
+                  headers={['#', t('Member'), t('Member ID'), t('Phone'), t('Sales Rep'), t('Coach'), t('Status'), t('Package')]}
                 />
               ) : filtered.length === 0 ? (
-                <EmptyState icon={Users} message="No members found" sub="Adjust your filters or scope selection." />
+                <EmptyState icon={Users} message={t('No members found')} sub={t('Adjust your filters or scope selection.')} />
               ) : (
                 <>
                   <div className="table-responsive-container">
@@ -1343,46 +1345,46 @@ export default function AssigningTasksPage() {
                         <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
                           <th style={{ width: 40, padding: '10px 14px', textAlign: 'center' }}>#</th>
                           {visibleKeys.includes('name') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Member')}</th>
                           )}
                           {visibleKeys.includes('memberId') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member ID</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Member ID')}</th>
                           )}
                           {visibleKeys.includes('systemId') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>System ID</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('System ID')}</th>
                           )}
                           {visibleKeys.includes('phone') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Phone</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Phone')}</th>
                           )}
                           {visibleKeys.includes('salesman') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Sales Rep</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Sales Rep')}</th>
                           )}
                           {visibleKeys.includes('coach') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Coach</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Coach')}</th>
                           )}
                           {visibleKeys.includes('package') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Package</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Package')}</th>
                           )}
                           {visibleKeys.includes('startDate') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Start Date</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Start Date')}</th>
                           )}
                           {visibleKeys.includes('endDate') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>End Date</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('End Date')}</th>
                           )}
                           {visibleKeys.includes('status') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Status</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Status')}</th>
                           )}
                           {visibleKeys.includes('source') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Source</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Source')}</th>
                           )}
                           {visibleKeys.includes('gender') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Gender</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Gender')}</th>
                           )}
                           {visibleKeys.includes('joined') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Joined</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Joined')}</th>
                           )}
                           {visibleKeys.includes('transfers') && (
-                            <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Transfers</th>
+                            <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Transfers')}</th>
                           )}
                         </tr>
                       </thead>
@@ -1417,17 +1419,17 @@ export default function AssigningTasksPage() {
                               )}
                               {visibleKeys.includes('memberId') && (
                                 <td style={{ padding: '12px 14px', color: 'var(--t2)', fontFamily: 'monospace' }}>
-                                  {member.memberId ? `#${member.memberId}` : '—'}
+                                  {member.memberId ? <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{`#${member.memberId}`}</span> : '—'}
                                 </td>
                               )}
                               {visibleKeys.includes('systemId') && (
                                 <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                                  #{member.systemId}
+                                  <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>#{member.systemId}</span>
                                 </td>
                               )}
                               {visibleKeys.includes('phone') && (
                                 <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                                  {member.phones || '—'}
+                                  {member.phones ? <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{member.phones}</span> : '—'}
                                 </td>
                               )}
                               {visibleKeys.includes('salesman') && (
@@ -1447,12 +1449,12 @@ export default function AssigningTasksPage() {
                               )}
                               {visibleKeys.includes('startDate') && (
                                 <td style={{ padding: '12px 14px', color: 'var(--t3)', fontSize: 12 }}>
-                                  {columnValue(member, 'startDate') || '—'}
+                                  {columnValue(member, 'startDate', lang, t) || '—'}
                                 </td>
                               )}
                               {visibleKeys.includes('endDate') && (
                                 <td style={{ padding: '12px 14px', color: 'var(--t3)', fontSize: 12 }}>
-                                  {columnValue(member, 'endDate') || '—'}
+                                  {columnValue(member, 'endDate', lang, t) || '—'}
                                 </td>
                               )}
                               {visibleKeys.includes('status') && (
@@ -1467,17 +1469,17 @@ export default function AssigningTasksPage() {
                               )}
                               {visibleKeys.includes('gender') && (
                                 <td style={{ padding: '12px 14px', color: 'var(--t2)', fontSize: 12, textTransform: 'capitalize' }}>
-                                  {columnValue(member, 'gender') || '—'}
+                                  {GENDER_LABELS[String(columnValue(member, 'gender')).toLowerCase()] ? t(GENDER_LABELS[String(columnValue(member, 'gender')).toLowerCase()]) : (columnValue(member, 'gender') || '—')}
                                 </td>
                               )}
                               {visibleKeys.includes('joined') && (
                                 <td style={{ padding: '12px 14px', color: 'var(--t3)', fontSize: 12 }}>
-                                  {columnValue(member, 'joined') || '—'}
+                                  {columnValue(member, 'joined', lang, t) || '—'}
                                 </td>
                               )}
                               {visibleKeys.includes('transfers') && (
                                 <td style={{ padding: '12px 14px', color: 'var(--t3)', fontSize: 12 }}>
-                                  {columnValue(member, 'transfers') || '0'}
+                                  {columnValue(member, 'transfers', lang, t) || '0'}
                                 </td>
                               )}
                             </tr>
@@ -1506,21 +1508,21 @@ export default function AssigningTasksPage() {
 
         {/* ── BULK TRANSFER MODAL ── */}
         {transferOpen && (
-          <Modal open={transferOpen} title={`Assign Tasks to ${destKind === 'sales' ? 'Sales Rep' : 'Coach'}`} onClose={() => setTransferOpen(false)}>
+          <Modal open={transferOpen} title={destKind === 'sales' ? t('Assign Tasks to Sales Rep') : t('Assign Tasks to Coach')} onClose={() => setTransferOpen(false)}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
                 <p style={{ margin: 0, fontSize: 13, color: 'var(--t2)' }}>
-                  You are assigning <strong>{selectedSet.size} member(s)</strong> as tasks. Each assigned member will trigger a notification to the recipient and appear in their active task queue.
+                  {t('You are assigning {count} member(s) as tasks. Each assigned member will trigger a notification to the recipient and appear in their active task queue.', { count: selectedSet.size })}
                 </p>
               </div>
 
               <div>
                 <Select
-                  label={destKind === 'sales' ? 'Select Sales Rep' : 'Select Coach'}
+                  label={destKind === 'sales' ? t('Select Sales Rep') : t('Select Coach')}
                   value={destId}
                   onChange={(e) => setDestId(e.target.value)}
                 >
-                  <option value="">Choose recipient…</option>
+                  <option value="">{t('Choose recipient…')}</option>
                   {(destKind === 'sales' ? salesUsers.filter((u) => u.role === 'Sales') : coaches).map((p) => (
                     <option key={p._id} value={p._id}>{p.name}</option>
                   ))}
@@ -1528,9 +1530,9 @@ export default function AssigningTasksPage() {
               </div>
 
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 10 }}>
-                <Btn variant="outline" onClick={() => setTransferOpen(false)} disabled={busy}>Cancel</Btn>
+                <Btn variant="outline" onClick={() => setTransferOpen(false)} disabled={busy}>{t('Cancel')}</Btn>
                 <Btn variant="primary" onClick={executeBulkTransfer} disabled={busy || !destId}>
-                  {busy ? <Spinner size="sm" /> : `Confirm & Assign (${selectedSet.size})`}
+                  {busy ? <Spinner size="sm" /> : t('Confirm & Assign ({count})', { count: selectedSet.size })}
                 </Btn>
               </div>
             </div>
@@ -1539,10 +1541,10 @@ export default function AssigningTasksPage() {
 
         {/* ── COLUMNS CUSTOMIZATION MODAL ── */}
         {columnsOpen && (
-          <Modal open={columnsOpen} title="Customize Table Columns" onClose={() => setColumnsOpen(false)} size="md">
+          <Modal open={columnsOpen} title={t('Customize Table Columns')} onClose={() => setColumnsOpen(false)} size="md">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <p style={{ fontSize: 13, color: 'var(--t3)', margin: 0 }}>
-                Select which columns are visible in the schedule table and exported Excel sheets.
+                {t('Select which columns are visible in the schedule table and exported Excel sheets.')}
               </p>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '10px 14px' }}>
@@ -1577,7 +1579,7 @@ export default function AssigningTasksPage() {
                           );
                         }}
                       />
-                      <span>{col.label}</span>
+                      <span>{t(col.label)}</span>
                     </label>
                   );
                 })}
@@ -1586,15 +1588,15 @@ export default function AssigningTasksPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8, borderTop: '1px solid var(--border)' }}>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <Btn size="xs" variant="ghost" onClick={() => handleUpdateVisibleKeys(DEFAULT_COLUMNS)}>
-                    Reset Default
+                    {t('Reset Default')}
                   </Btn>
                   <Btn size="xs" variant="ghost" onClick={() => handleUpdateVisibleKeys(EXPORT_COLUMNS.map((c) => c.key))}>
-                    Select All
+                    {t('Select All')}
                   </Btn>
                 </div>
 
                 <Btn size="sm" variant="primary" onClick={() => setColumnsOpen(false)}>
-                  Apply Columns
+                  {t('Apply Columns')}
                 </Btn>
               </div>
             </div>
@@ -1609,31 +1611,31 @@ export default function AssigningTasksPage() {
 
         {/* ── VIEW CREATED TASKS HISTORY MODAL ── */}
         {historyOpen && (
-          <Modal open={historyOpen} title="Created Tasks History" onClose={() => setHistoryOpen(false)} maxWidth={860}>
+          <Modal open={historyOpen} title={t('Created Tasks History')} onClose={() => setHistoryOpen(false)} maxWidth={860}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <p style={{ margin: 0, fontSize: 13, color: 'var(--t3)' }}>
-                  All task batches created and assigned to staff members.
+                  {t('All task batches created and assigned to staff members.')}
                 </p>
                 <Btn size="xs" variant="ghost" onClick={fetchCreatedTasks} disabled={loadingCreatedTasks}>
-                  <RefreshCw size={14} aria-hidden /> Refresh
+                  <RefreshCw size={14} aria-hidden /> {t('Refresh')}
                 </Btn>
               </div>
 
               {loadingCreatedTasks ? (
-                <Table loading skeletonRows={5} headers={['Task', 'Scope', 'Members', 'Created', 'Status']} />
+                <Table loading skeletonRows={5} headers={[t('Task'), t('Scope'), t('Members'), t('Created'), t('Status')]} />
               ) : createdTasks.length === 0 ? (
-                <EmptyState icon={FolderOpen} message="No tasks created yet" sub="Create your first task by selecting members and transferring them." />
+                <EmptyState icon={FolderOpen} message={t('No tasks created yet')} sub={t('Create your first task by selecting members and transferring them.')} />
               ) : (
                 <div className="table-responsive-container">
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t3)' }}>Task Title</th>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t3)' }}>Assigned To</th>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t3)' }}>Progress</th>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t3)' }}>Created At</th>
-                        <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t3)' }}>Status</th>
+                        <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t3)' }}>{t('Task Title')}</th>
+                        <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t3)' }}>{t('Assigned To')}</th>
+                        <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t3)' }}>{t('Progress')}</th>
+                        <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t3)' }}>{t('Created At')}</th>
+                        <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t3)' }}>{t('Status')}</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1644,10 +1646,10 @@ export default function AssigningTasksPage() {
                         return (
                           <tr key={task._id} style={{ borderBottom: '1px solid var(--border)' }}>
                             <td style={{ padding: '10px 14px', fontWeight: 600, color: 'var(--t1)' }}>
-                              {task.title || `Task batch for ${total} members`}
+                              {task.title || t('Task batch for {count} members', { count: total })}
                             </td>
                             <td style={{ padding: '10px 14px', color: 'var(--t2)' }}>
-                              {task.assignedTo?.name || task.assignedToName || 'Staff Member'}
+                              {task.assignedTo?.name || task.assignedToName || t('Staff Member')}
                             </td>
                             <td style={{ padding: '10px 14px' }}>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1658,10 +1660,10 @@ export default function AssigningTasksPage() {
                               </div>
                             </td>
                             <td style={{ padding: '10px 14px', color: 'var(--t3)', fontSize: 12 }}>
-                              {formatTaskDateTime(task.createdAt)}
+                              {formatTaskDateTime(task.createdAt, lang)}
                             </td>
                             <td style={{ padding: '10px 14px' }}>
-                              <Badge status={task.status === 'completed' ? 'active' : 'pending'} label={task.status || 'pending'} />
+                              <Badge status={task.status === 'completed' ? 'active' : 'pending'} label={task.status === 'completed' ? t('Completed') : t('Pending')} />
                             </td>
                           </tr>
                         );

@@ -9,26 +9,28 @@ import { isValidEmail, isValidPhone } from '../../lib/validation';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
+import { useI18n } from '../../i18n/useI18n';
+import { tr } from '../../i18n/translate';
 
 const ALL_STAFF_ROLES = [
-  ['General Manager', 'General Manager'],
-  ['Sales Manager', 'Sales Manager'],
-  ['Sales', 'Sales Representative'],
-  ['Head Coach', 'Head Coach'],
-  ['Coach', 'Coach'],
-  ['Receptionist', 'Receptionist'],
-  ['Accountant', 'Accountant'],
+  ['General Manager', tr('General Manager')],
+  ['Sales Manager', tr('Sales Manager')],
+  ['Sales', tr('Sales Representative')],
+  ['Head Coach', tr('Head Coach')],
+  ['Coach', tr('Coach')],
+  ['Receptionist', tr('Receptionist')],
+  ['Accountant', tr('Accountant')],
 ];
 
 const CREATABLE_ROLES = {
   Owner: ALL_STAFF_ROLES,
   'General Manager': ALL_STAFF_ROLES.filter(([role]) => role !== 'General Manager'),
   'Sales Manager': [
-    ['Sales', 'Sales Representative'],
-    ['Receptionist', 'Receptionist'],
+    ['Sales', tr('Sales Representative')],
+    ['Receptionist', tr('Receptionist')],
   ],
   'Head Coach': [
-    ['Coach', 'Coach'],
+    ['Coach', tr('Coach')],
   ],
 };
 
@@ -43,7 +45,8 @@ const INIT = {
 };
 
 export default function ManageStaff() {
-  usePageTitle('Manage Staff');
+  const { t } = useI18n();
+  usePageTitle(t('Manage Staff'));
   const { user } = useAuth();
   const { hasFeature, tenant } = useTenant() || {};
   const { selectedLocationId } = useLocationScope();
@@ -113,33 +116,33 @@ export default function ManageStaff() {
     const mobileTrim = form.mobile_number.trim();
 
     if (!nameTrim) {
-      e.name = 'Name is required';
+      e.name = t('Name is required');
     } else if (nameTrim.length > 120) {
-      e.name = 'Name must not exceed 120 characters';
+      e.name = t('Name must not exceed 120 characters');
     }
 
     if (!emailTrim) {
-      e.email = 'Email is required';
+      e.email = t('Email is required');
     } else if (!isValidEmail(emailTrim)) {
-      e.email = 'Enter a valid email address';
+      e.email = t('Enter a valid email address');
     }
 
     if (!mobileTrim) {
-      e.mobile_number = 'Mobile number is required';
+      e.mobile_number = t('Mobile number is required');
     } else if (!isValidPhone(mobileTrim)) {
-      e.mobile_number = 'Enter a valid mobile phone number (5–40 characters)';
+      e.mobile_number = t('Enter a valid mobile phone number (5–40 characters)');
     }
 
     if (!form.password) {
-      e.password = 'Password is required';
+      e.password = t('Password is required');
     } else if (form.password.length < 8) {
-      e.password = 'Password must be at least 8 characters';
+      e.password = t('Password must be at least 8 characters');
     } else if (form.password.length > 200) {
-      e.password = 'Password must not exceed 200 characters';
+      e.password = t('Password must not exceed 200 characters');
     }
 
     if (!roleOptions.some(([role]) => role === form.role)) {
-      e.role = 'Please select a valid staff role';
+      e.role = t('Please select a valid staff role');
     }
 
     if (
@@ -147,7 +150,7 @@ export default function ManageStaff() {
       && !form.canAccessAllLocations
       && !(form.allowedLocationIds || []).length
     ) {
-      e.allowedLocationIds = 'Select at least one branch, or enable all locations';
+      e.allowedLocationIds = t('Select at least one branch, or enable all locations');
     }
 
     setErrors(e);
@@ -173,7 +176,7 @@ export default function ManageStaff() {
           : (form.allowedLocationIds || []);
       }
       await createStaffUser(payload);
-      toast.success(`${form.role} account created!`);
+      toast.success(t('{role} account created!', { role: t(form.role) }));
       setForm({
         ...INIT,
         role: roleOptions[0]?.[0] || 'Sales',
@@ -183,7 +186,7 @@ export default function ManageStaff() {
       setErrors({});
     } catch (err) {
       if (err.normalized?.status !== 403 && err.normalized?.status !== 429) {
-        toast.error(err.normalized?.message || err.response?.data?.message || 'Failed to create account.');
+        toast.error(err.normalized?.message || err.response?.data?.message || t('Failed to create account.'));
       }
     } finally {
       setLoading(false);
@@ -192,40 +195,42 @@ export default function ManageStaff() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="staff-header" title="Manage Staff" subtitle="Create a staff account for any role on the platform" />
+      <PageHeader walkthrough="staff-header" title={t('Manage Staff')} subtitle={t('Create a staff account for any role on the platform')} />
 
       <div className="page-wrap" data-walkthrough="staff-board" style={{ paddingTop: 20, paddingBottom: 32, maxWidth: 480 }}>
         <Card>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <Input
-              label="Full Name *"
+              label={t('Full Name *')}
               value={form.name}
               onChange={(e) => set('name', e.target.value)}
               error={errors.name}
             />
             <Input
-              label="Email *"
+              label={t('Email *')}
               type="email"
+              dir="ltr"
               value={form.email}
               onChange={(e) => set('email', e.target.value)}
               error={errors.email}
             />
             <Input
-              label="Mobile Number *"
+              label={t('Mobile Number *')}
               value={form.mobile_number}
               onChange={(e) => set('mobile_number', e.target.value)}
               error={errors.mobile_number}
-              placeholder="e.g. 01012345678"
+              placeholder={t('e.g. 01012345678')}
+              dir="ltr"
             />
             <Input
-              label="Password *"
+              label={t('Password *')}
               type="password"
               value={form.password}
               onChange={(e) => set('password', e.target.value)}
               error={errors.password}
             />
             <Select
-              label="Role *"
+              label={t('Role *')}
               value={form.role}
               onChange={(e) => {
                 const role = e.target.value;
@@ -238,15 +243,15 @@ export default function ManageStaff() {
               }}
             >
               {roleOptions.map(([value, label]) => (
-                <option key={value} value={value}>{label}</option>
+                <option key={value} value={value}>{t(label)}</option>
               ))}
             </Select>
 
             {canSetLocations && (
               <LocationAccessEditor
                 embedded
-                title="Branch viewing access"
-                description="Choose whether this user can view data for all branches or only selected ones."
+                title={t('Branch viewing access')}
+                description={t('Choose whether this user can view data for all branches or only selected ones.')}
                 locations={locations}
                 canAccessAll={Boolean(form.canAccessAllLocations)}
                 onCanAccessAllChange={(checked) => setForm((f) => ({
@@ -267,7 +272,7 @@ export default function ManageStaff() {
 
             <div style={{ paddingTop: 4 }}>
               <Btn type="submit" disabled={loading}>
-                {loading ? <Spinner size="sm" /> : 'Create Account'}
+                {loading ? <Spinner size="sm" /> : t('Create Account')}
               </Btn>
             </div>
           </form>

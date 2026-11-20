@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 @source "./";
 @source "./platform";
@@ -71,12 +71,16 @@
   body {
     background: var(--bg);
     color: var(--t1);
-    font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, sans-serif;
+    font-family: 'Inter', 'IBM Plex Sans Arabic', ui-sans-serif, system-ui, -apple-system, sans-serif;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
 
   input, select, textarea, button { font-family: inherit; }
+
+  /* Letter spacing breaks Arabic letter joining; beats inline letterSpacing. */
+  [dir="rtl"] body, [dir="rtl"] body * { letter-spacing: 0 !important; }
+  [dir="rtl"] .rtl-flip { transform: scaleX(-1); }
 
   input::placeholder,
   textarea::placeholder { color: var(--t4); opacity: 1; }
@@ -126,6 +130,10 @@
   from { opacity: 0; transform: translateX(100%); }
   to   { opacity: 1; transform: translateX(0); }
 }
+@keyframes drawerInLeft {
+  from { opacity: 0; transform: translateX(-100%); }
+  to   { opacity: 1; transform: translateX(0); }
+}
 /* Enter utilities used by Dialog, Drawer, ErrorModal, Popover, etc. */
 @keyframes tw-enter {
   from {
@@ -163,6 +171,10 @@
 .drawer-in-right {
   animation: drawerInRight 0.22s cubic-bezier(0.16,1,0.3,1) both;
 }
+/* Drawers dock to the inline-end edge, so in RTL they enter from the left. */
+[dir="rtl"] .drawer-in-right {
+  animation-name: drawerInLeft;
+}
 
 .animate-in {
   animation-name: tw-enter;
@@ -177,6 +189,8 @@
 .slide-in-from-bottom-2 { --tw-enter-translate-y: 0.5rem; }
 .slide-in-from-right { --tw-enter-translate-x: 100%; }
 .slide-in-from-left { --tw-enter-translate-x: -100%; }
+[dir="rtl"] .slide-in-from-right { --tw-enter-translate-x: -100%; }
+[dir="rtl"] .slide-in-from-left { --tw-enter-translate-x: 100%; }
 .animate-in.duration-100 { animation-duration: 100ms; }
 .animate-in.duration-150 { animation-duration: 150ms; }
 .animate-in.duration-200 { animation-duration: 200ms; }
@@ -408,7 +422,7 @@ input[type="datetime-local"]:hover::-webkit-calendar-picker-indicator {
     animation-name: modalSheetIn;
   }
   .dropdown-panel { width: min(360px,calc(100vw - 24px)) !important; max-width: calc(100vw - 24px) !important; }
-  .notif-panel { width: min(320px,calc(100vw - 24px)) !important; right: 0 !important; }
+  .notif-panel { width: min(320px,calc(100vw - 24px)) !important; inset-inline-end: 0 !important; }
   .global-search-wrap { flex: 1 1 auto !important; min-width: 0 !important; max-width: 100% !important; }
   .global-search-dropdown { width: 100% !important; left: 0 !important; right: 0 !important; }
   .mob-hide-kbd { display: none !important; }

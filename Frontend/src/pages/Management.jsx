@@ -19,6 +19,9 @@ import { PageHeader } from '../components/ui';
 import usePageTitle from '../hooks/usePageTitle';
 import { useAuth } from '../context/AuthContext';
 import { hasAccess } from '../lib/access';
+import { useTenant } from '../context/TenantContext';
+import { routeFeatureAllowed } from '../lib/canSeeRoute';
+import { useI18n } from '../i18n/useI18n';
 
 function MgmtCard({ icon: Icon, title, sub, to, iconBg = '#F0F9FF' }) {
   const navigate = useNavigate();
@@ -43,7 +46,7 @@ function MgmtCard({ icon: Icon, title, sub, to, iconBg = '#F0F9FF' }) {
         <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{title}</p>
         <p style={{ fontSize: 12, color: 'var(--t3)' }}>{sub}</p>
       </div>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <svg className="rtl-flip" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
         <polyline points="9 18 15 12 9 6" />
       </svg>
     </div>
@@ -65,103 +68,107 @@ function Section({ title, sub, children }) {
 }
 
 export default function Management() {
-  usePageTitle('Management');
+  const { t } = useI18n();
+  usePageTitle(t('Management'));
   const { user } = useAuth();
 
-  const allow = (key) => hasAccess(user, key);
-  const show = {
-    requests: allow(['approve_requests', 'request_assignment', 'request_takeover']),
-    packages: allow('packages'),
-    whatsapp: allow('whatsapp_templates'),
-    salesTeam: allow('sales_team'),
-    staff: allow('staff'),
-    contracts: allow('contracts'),
-    coachTeam: allow('coach_team'),
-    coachStaff: allow('coach_staff'),
-    coachTransfers: user?.role === 'Head Coach' && allow('my_transfers'),
-    coachAttendance: allow('coach_attendance'),
-    assignCoaches: allow('coach_transfer'),
-    teams: allow('teams_overview'),
-    accessControl: allow('access_control'),
-    packageRequests: allow('package_approvals'),
-    quickTransfer: allow('transfer') || allow('coach_transfer'),
-    maintenance: allow(['maintenance_checklist', 'manage_maintenance']),
-  };
+  const { hasFeature } = useTenant();
 
+  // Each card needs the person's access key AND the gym's plan feature for its page.
+  const allow = (key, to) => hasAccess(user, key) && routeFeatureAllowed(hasFeature, to);
+  const whatsappTo = user?.role === 'Head Coach' ? '/coach/whatsapp-templates' : '/sales/whatsapp-templates';
+  const show = {
+    requests: allow(['approve_requests', 'request_assignment', 'request_takeover'], '/sales/requests'),
+    packages: allow('packages', '/sales/packages'),
+    whatsapp: allow('whatsapp_templates', whatsappTo),
+    salesTeam: allow('sales_team', '/sales/team'),
+    staff: allow('staff', '/sales/staff'),
+    contracts: allow('contracts', '/accounting/contract-history'),
+    coachTeam: allow('coach_team', '/coach/team'),
+    coachStaff: allow('coach_staff', '/coach/staff'),
+    coachTransfers: user?.role === 'Head Coach' && allow('my_transfers', '/coach/my-transfers'),
+    coachAttendance: allow('coach_attendance', '/coach/attendance'),
+    assignCoaches: allow('coach_transfer', '/tasks'),
+    teams: allow('teams_overview', '/owner/teams'),
+    accessControl: allow('access_control', '/management/access'),
+    packageRequests: allow('package_approvals', '/accounting/package-requests'),
+    quickTransfer: (hasAccess(user, 'transfer') || hasAccess(user, 'coach_transfer')) && routeFeatureAllowed(hasFeature, '/management/quick-transfer'),
+    maintenance: allow(['maintenance_checklist', 'manage_maintenance'], '/maintenance'),
+  };
   return (
     <Layout>
-      <PageHeader walkthrough="management-header" title="Management" />
+      <PageHeader walkthrough="management-header" title={t('Management')} />
       <div className="page-wrap" data-walkthrough="management-board" style={{ paddingTop: 24, paddingBottom: 40 }}>
 
         {/* ── Operations ──────────────────────────────────────── */}
         {(show.requests || show.packages || show.whatsapp || show.coachAttendance || show.assignCoaches || show.maintenance) && (
-          <Section title="Operations" sub="Requests, packages, attendance and assignments">
+          <Section title={t('Operations')} sub={t('Requests, packages, attendance and assignments')}>
             {show.requests && (
-              <MgmtCard icon={ClipboardList} title="Requests"    sub="Package assignment requests"      to="/sales/requests"           iconBg="#F0F9FF" />
+              <MgmtCard icon={ClipboardList} title={t('Requests')}    sub={t('Package assignment requests')}      to="/sales/requests"           iconBg="#F0F9FF" />
             )}
             {show.packages && (
-              <MgmtCard icon={Package} title="Packages"    sub="Manage membership packages"       to="/sales/packages"           iconBg="#F0F9FF" />
+              <MgmtCard icon={Package} title={t('Packages')}    sub={t('Manage membership packages')}       to="/sales/packages"           iconBg="#F0F9FF" />
             )}
             {show.maintenance && (
-              <MgmtCard icon={Wrench} title="Maintenance" sub="Branch maintenance checklist" to="/maintenance" iconBg="#F0F9FF" />
+              <MgmtCard icon={Wrench} title={t('Maintenance')} sub={t('Branch maintenance checklist')} to="/maintenance" iconBg="#F0F9FF" />
             )}
             {show.coachAttendance && (
-              <MgmtCard icon={CalendarDays} title="Attendance" sub="Peak check-in times by weekday and hour" to="/coach/attendance" iconBg="#F0F9FF" />
+              <MgmtCard icon={CalendarDays} title={t('Attendance')} sub={t('Peak check-in times by weekday and hour')} to="/coach/attendance" iconBg="#F0F9FF" />
             )}
             {show.assignCoaches && (
-              <MgmtCard icon={Dumbbell} title="Assign Coaches" sub="Quick or bulk assign members to coaches" to="/tasks" iconBg="#F0F9FF" />
+              <MgmtCard icon={Dumbbell} title={t('Assign Coaches')} sub={t('Quick or bulk assign members to coaches')} to="/tasks" iconBg="#F0F9FF" />
             )}
             {show.whatsapp && (
-              <MgmtCard icon={MessageCircle} title="WA Messages" sub="WhatsApp message templates"
-                to={user?.role === 'Head Coach' ? '/coach/whatsapp-templates' : '/sales/whatsapp-templates'}
+              <MgmtCard icon={MessageCircle} title={t('WA Messages')} sub={t('WhatsApp message templates')}
+                to={whatsappTo}
                 iconBg="#F0FDF4" />
             )}
           </Section>
         )}
 
         {(show.salesTeam || show.staff || show.contracts || show.coachTeam || show.coachStaff || show.coachTransfers) && (
-          <Section title="Team & Staff" sub="Team members and staff accounts">
+          <Section title={t('Team & Staff')} sub={t('Team members and staff accounts')}>
             {show.salesTeam && (
-              <MgmtCard icon={Users} title="Sales Team"  sub="Sales team overview & stats"      to="/sales/team"   iconBg="#FFF7ED" />
+              <MgmtCard icon={Users} title={t('Sales Team')}  sub={t('Sales team overview & stats')}      to="/sales/team"   iconBg="#FFF7ED" />
             )}
             {show.staff && (
-              <MgmtCard icon={UserRound} title="Create Staff Account" sub="Create a new staff account" to="/sales/staff" iconBg="#FFF7ED" />
+              <MgmtCard icon={UserRound} title={t('Create Staff Account')} sub={t('Create a new staff account')} to="/sales/staff" iconBg="#FFF7ED" />
             )}
             {show.contracts && (
-              <MgmtCard icon={ScrollText} title="Contracts"   sub="All member contracts"             to="/accounting/contract-history" iconBg="#FFF7ED" />
+              <MgmtCard icon={ScrollText} title={t('Contracts')}   sub={t('All member contracts')}             to="/accounting/contract-history" iconBg="#FFF7ED" />
             )}
             {show.coachTeam && (
-              <MgmtCard icon={Users} title="Coach Team"  sub="Coach team overview & stats"      to="/coach/team"   iconBg="#FFF7ED" />
+              <MgmtCard icon={Users} title={t('Coach Team')}  sub={t('Coach team overview & stats')}      to="/coach/team"   iconBg="#FFF7ED" />
             )}
             {show.coachStaff && (
-              <MgmtCard icon={UserRound} title="Create Coach Account" sub="Create a new coach account" to="/coach/staff" iconBg="#FFF7ED" />
+              <MgmtCard icon={UserRound} title={t('Create Coach Account')} sub={t('Create a new coach account')} to="/coach/staff" iconBg="#FFF7ED" />
             )}
             {show.coachTransfers && (
-              <MgmtCard icon={RefreshCw} title="Transfers"   sub="Coach member transfers log"       to="/coach/my-transfers" iconBg="#FFF7ED" />
+              <MgmtCard icon={RefreshCw} title={t('Transfers')}   sub={t('Coach member transfers log')}       to="/coach/my-transfers" iconBg="#FFF7ED" />
             )}
           </Section>
         )}
 
         {(show.teams || show.accessControl) && (
-          <Section title="Admin" sub={user?.role === 'Owner' ? 'Owner tools and staff access' : 'Staff access for your team'}>
+          <Section title={t('Admin')} sub={user?.role === 'Owner' ? t('Owner tools and staff access') : t('Staff access for your team')}>
             {show.teams && (
-              <MgmtCard icon={Building2} title="Teams Overview" sub="All teams at a glance"           to="/owner/teams"  iconBg="#F5F3FF" />
+              <MgmtCard icon={Building2} title={t('Teams Overview')} sub={t('All teams at a glance')}           to="/owner/teams"  iconBg="#F5F3FF" />
             )}
             {show.accessControl && (
-              <MgmtCard icon={Shield} title="Access Control" sub="Manage role defaults, staff roles, and individual permissions" to="/management/access" iconBg="#F5F3FF" />
+              <MgmtCard icon={Shield} title={t('Access Control')} sub={t('Manage role defaults, staff roles, and individual permissions')} to="/management/access" iconBg="#F5F3FF" />
             )}
           </Section>
         )}
 
         {show.packageRequests && (
-          <Section title="Accounting" sub="Financial management tools">
-            <MgmtCard icon={Mail} title="Package Requests" sub="Pending package approvals"    to="/accounting/package-requests" iconBg="#F0FDF4" />
+          <Section title={t('Accounting')} sub={t('Financial management tools')}>
+            <MgmtCard icon={Mail} title={t('Package Requests')} sub={t('Pending package approvals')}    to="/accounting/package-requests" iconBg="#F0FDF4" />
           </Section>
         )}
 
         {show.quickTransfer && (
-          <Section title="Members" sub="Member management tools">
-            <MgmtCard icon={RefreshCw} title="Quick Transfer" sub="Transfer a member to a sales rep or coach" to="/management/quick-transfer" iconBg="#F0F9FF" />
+          <Section title={t('Members')} sub={t('Member management tools')}>
+            <MgmtCard icon={RefreshCw} title={t('Quick Transfer')} sub={t('Transfer a member to a sales rep or coach')} to="/management/quick-transfer" iconBg="#F0F9FF" />
           </Section>
         )}
 

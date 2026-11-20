@@ -217,6 +217,12 @@ export const ERROR_CODES = {
     category: "data",
     retryable: false,
   },
+  INBOX_CHANNEL_NOT_CONNECTED: {
+    code: "INBOX_CHANNEL_NOT_CONNECTED",
+    status: 409,
+    category: "data",
+    retryable: true,
+  },
   RESOURCE_NOT_FOUND: {
     code: "RESOURCE_NOT_FOUND",
     status: 404,

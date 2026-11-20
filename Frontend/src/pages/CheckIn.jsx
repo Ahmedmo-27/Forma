@@ -3,17 +3,22 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import usePageTitle from '../hooks/usePageTitle';
 import Layout from '../components/Layout';
-import { Badge, Avatar, Spinner, fmtDate, fmtTime, EmptyState, Pagination, CardListSkeleton, MenuSelect } from '../components/ui';
+import { Badge, Avatar, Spinner, EmptyState, Pagination, CardListSkeleton, MenuSelect } from '../components/ui';
 import { formatSystemId } from '../lib/systemId';
 import { checkInByBarcode, checkInMember, getMemberProfile, getTodayCheckIns } from '../api/endpoints';
 import { subscribeLiveEvents } from '../api/live';
 import QrCheckInCamera from '../components/QrCheckInCamera';
+import CheckInTypeModal from '../components/CheckInTypeModal';
+import { isCheckInTypeRequired } from '../lib/checkInType';
 import CheckInScanner from '../components/CheckInScanner';
 import { parseScannedIdentifier } from '../lib/scannerParser';
 import useHardwareScanner from '../hooks/useHardwareScanner';
 import useLocationEffect from '../hooks/useLocationEffect';
 import { useLocationScope, ALL_LOCATIONS } from '../context/LocationContext';
 import { playCheckInSound } from '../lib/audioFeedback';
+import { useI18n } from '../i18n/useI18n';
+import { useFormat } from '../i18n/useFormat';
+import { tr } from '../i18n/translate';
 import {
   AlertTriangle,
   Ban,
@@ -21,6 +26,7 @@ import {
   Camera,
   Check,
   CheckCircle2,
+  Dumbbell,
   MapPin,
   Package,
   Phone,
@@ -33,6 +39,20 @@ import {
 } from 'lucide-react';
 
 const CHECKIN_DESK_KEY = 'ff_checkin_location_id';
+
+const MEMBER_STATUS_LABELS = {
+  active: tr('Active'),
+  frozen: tr('Frozen'),
+  expired: tr('Expired'),
+  guest: tr('Guest'),
+  blocked: tr('Blocked'),
+};
+
+/** Translates a raw member status for display; unknown values pass through. */
+function statusText(t, status) {
+  const label = MEMBER_STATUS_LABELS[String(status || '').toLowerCase()];
+  return label ? t(label) : status;
+}
 
 // ── small stat pill ───────────────────────────────────────────────────────────
 function StatPill({ label, value, color = 'var(--t1)' }) {
@@ -56,7 +76,11 @@ const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 export default function CheckIn() {
-  usePageTitle('Check In');
+  const { t } = useI18n();
+  const { fmtDate: formatDateIn, fmtTime: formatTimeIn } = useFormat();
+  const fmtDate = (d) => (d ? formatDateIn(d, { timeZone: 'Africa/Cairo', day: '2-digit', month: 'short', year: 'numeric' }) : '—');
+  const fmtTime = (d) => (d ? formatTimeIn(d, { timeZone: 'Africa/Cairo', hour: 'numeric', minute: '2-digit', hour12: true }, 'en-US') : '—');
+  usePageTitle(t('Check In'));
   const navigate  = useNavigate();
   const [searchParams] = useSearchParams();
   const inputRef  = useRef(null);
@@ -85,6 +109,8 @@ export default function CheckIn() {
     checkInMode === 'lookup' || checkInMode === 'scanner' ? checkInMode : 'scanner'
   ));
   const [lastScannedResult, setLastScannedResult] = useState(null);
+  // Set when a member has both a gym package and PT sessions and the desk must ask which one.
+  const [typePrompt, setTypePrompt] = useState(null);
   const [deskLocationId, setDeskLocationId] = useState(() => {
     try {
       return localStorage.getItem(CHECKIN_DESK_KEY) || '';
@@ -201,7 +227,7 @@ export default function CheckIn() {
         const id = String(entry._id);
         const systemId = String(entry.member?.systemId ?? '');
         if (!known.has(id)) {
-          announce(`in:${id}`, `${entry.member?.name || 'A member'} checked in`, <CheckCircle2 size={16} />);
+          announce(`in:${id}`, t('{name} checked in', { name: entry.member?.name || t('A member') }), <CheckCircle2 size={16} />);
           arrived.push(id);
           return;
         }
@@ -210,7 +236,7 @@ export default function CheckIn() {
         if (before.member?.status !== entry.member?.status) {
           announce(
             `status:${systemId}:${entry.member?.status}`,
-            `${entry.member?.name || 'A member'} is now ${entry.member?.status}`,
+            t('{name} is now {status}', { name: entry.member?.name || t('A member'), status: statusText(t, entry.member?.status) }),
             <RefreshCw size={16} />,
           );
         }
@@ -219,7 +245,7 @@ export default function CheckIn() {
         if (beforePkg !== nextPkg) {
           announce(
             `pkg:${systemId}:${nextPkg}`,
-            `${entry.member?.name || 'A member'}'s package is now ${nextPkg || 'none'}`,
+            t("{name}'s package is now {package}", { name: entry.member?.name || t('A member'), package: nextPkg || t('none') }),
             <Package size={16} />,
           );
         }
@@ -231,7 +257,7 @@ export default function CheckIn() {
     }
     historyRef.current = next;
     setHistory(next);
-  }, [announce]);
+  }, [announce, t]);
 
   const refreshBoard = useCallback(async ({ notify = false, memberId = null } = {}) => {
     let next = null;
@@ -305,9 +331,7 @@ export default function CheckIn() {
     if (alerts.length) { setAlertPopup(alerts.map(a => a.text)); setTimeout(() => setAlertPopup(null), 5000); }
   };
 
-  const recordScan = useCallback(async (raw, sourceRaw, mode = 'auto') => {
-    const identifier = parseScannedIdentifier(raw, mode);
-    if (!identifier) return;
+  const submitScan = useCallback(async (identifier, type) => {
     setSearching(true);
     setMember(null);
     setResult(null);
@@ -315,12 +339,12 @@ export default function CheckIn() {
     setQuery(identifier);
     try {
       if (needsDeskPicker && !checkInPayload().locationId) {
-        toast.error('Select which branch this check-in is for');
+        toast.error(t('Select which branch this check-in is for'));
         setSearching(false);
         return;
       }
-      const r = await checkInByBarcode(identifier, checkInPayload());
-      const okMsg = r.data.message || 'Check-in recorded';
+      const r = await checkInByBarcode(identifier, type ? { ...checkInPayload(), type } : checkInPayload());
+      const okMsg = r.data.message || t('Check-in recorded');
       setResult({ ok: true, msg: okMsg });
       toast.success(okMsg);
       playCheckInSound('success');
@@ -345,7 +369,12 @@ export default function CheckIn() {
         time: new Date(),
       });
     } catch (err) {
-      const msg = err.normalized?.message || err.response?.data?.message || 'Check-in failed.';
+      if (isCheckInTypeRequired(err)) {
+        // Nothing was recorded yet. Ask the member what they are attending, then send the answer.
+        setTypePrompt({ source: 'scan', identifier, data: err.response.data });
+        return;
+      }
+      const msg = err.normalized?.message || err.response?.data?.message || t('Check-in failed.');
       setResult({ ok: false, msg });
       toast.error(msg);
       playCheckInSound('error');
@@ -365,7 +394,13 @@ export default function CheckIn() {
         inputRef.current?.focus();
       }
     }
-  }, [activeTab, refreshBoard, needsDeskPicker, checkInPayload]);
+  }, [activeTab, refreshBoard, needsDeskPicker, checkInPayload, t]);
+
+  const recordScan = useCallback(async (raw, sourceRaw, mode = 'auto') => {
+    const identifier = parseScannedIdentifier(raw, mode);
+    if (!identifier) return;
+    await submitScan(identifier);
+  }, [submitScan]);
 
   // Global hardware scanner listener: automatically detects scans from any USB / Bluetooth barcode & QR scanner
   useHardwareScanner({
@@ -390,7 +425,7 @@ export default function CheckIn() {
       setMember(r.data.member);
       showMemberAlerts(r.data.member);
     } catch (err) {
-      const msg = err.normalized?.message || err.response?.data?.message || 'Member not found.';
+      const msg = err.normalized?.message || err.response?.data?.message || t('Member not found.');
       toast.error(msg);
     }
     finally { setSearching(false); }
@@ -413,28 +448,48 @@ export default function CheckIn() {
   const isGuest     = member?.status === 'guest' || member?.isMember === false;
   const hasExpired  = member?.status === 'expired' || (expiryDays !== null && expiryDays < 0);
   const hasPackage  = Boolean(pkg);
-  const canCheckIn  = Boolean(member && !member.isBlocked && !isGuest && hasPackage && (!hasExpired || member.status === 'frozen'));
-  const today       = new Date().toLocaleDateString('en-GB', { timeZone: 'Africa/Cairo', weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const gymEligible = Boolean(member && !member.isBlocked && !isGuest && hasPackage && (!hasExpired || member.status === 'frozen'));
+  const ptLeft      = Math.max(0, (member?.PT_sessions || 0) - (member?.used_PT_sessions || 0));
+  const ptExpiry    = member?.PT_sessions_expDate ? new Date(member.PT_sessions_expDate) : null;
+  const ptExpired   = Boolean(ptExpiry && ptExpiry < new Date(new Date().setHours(0, 0, 0, 0)));
+  const ptEligible  = Boolean(member && !member.isBlocked && member.couch_subscription_status === 'active' && ptLeft > 0 && !ptExpired);
+  // A member can be checked in for the gym, for a PT session, or both (the desk is then asked which).
+  const canCheckIn  = gymEligible || ptEligible;
+  const today       = formatDateIn(new Date(), { timeZone: 'Africa/Cairo', weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
   const todayCount  = history.length;
   const activeToday = history.filter(e => String(e.member?.status).toLowerCase() === 'active' && !e.member?.isBlocked).length;
 
-  const handleCheckIn = async () => {
+  // `type` is 'gym' or 'pt' once the member has said what they are attending. Otherwise the server decides.
+  const handleCheckIn = async (type) => {
     if (!member || !canCheckIn) return;
     if (needsDeskPicker && !checkInPayload().locationId) {
-      toast.error('Select which branch this check-in is for');
+      toast.error(t('Select which branch this check-in is for'));
       return;
     }
+    const chosen = typeof type === 'string' ? type : undefined;
     setChecking(true); setResult(null);
     try {
-      const r = await checkInMember(member.systemId, checkInPayload());
+      const r = await checkInMember(member.systemId, chosen ? { ...checkInPayload(), type: chosen } : checkInPayload());
       setResult({ ok: true, msg: r.data.message });
       const u = await getMemberProfile(member.systemId);
       setMember(u.data.member);
       refreshBoard({ notify: false, memberId: member.systemId });
     } catch (err) {
-      const msg = err.normalized?.message || err.response?.data?.message || 'Check-in failed.';
+      if (isCheckInTypeRequired(err)) {
+        setTypePrompt({ source: 'manual', data: err.response.data });
+        return;
+      }
+      const msg = err.normalized?.message || err.response?.data?.message || t('Check-in failed.');
       setResult({ ok: false, msg });
     } finally { setChecking(false); }
+  };
+
+  const chooseCheckInType = (type) => {
+    const prompt = typePrompt;
+    setTypePrompt(null);
+    if (!prompt) return;
+    if (prompt.source === 'scan') submitScan(prompt.identifier, type);
+    else handleCheckIn(type);
   };
 
   return (
@@ -456,7 +511,7 @@ export default function CheckIn() {
                       display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18,
                     }}><CheckCircle2 size={20} color="var(--navy)" aria-hidden /></div>
                     <div>
-                      <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--t1)', margin: 0, letterSpacing: '-0.3px' }}>Check In</h1>
+                      <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--t1)', margin: 0, letterSpacing: '-0.3px' }}>{t('Check In')}</h1>
                       <p style={{ fontSize: 12, color: 'var(--t4)', margin: '2px 0 0' }}>{today}</p>
                     </div>
                   </div>
@@ -473,10 +528,10 @@ export default function CheckIn() {
                         textTransform: 'uppercase', letterSpacing: '0.4px',
                       }}>
                         <MapPin size={12} aria-hidden />
-                        Checking in at
+                        {t('Checking in at')}
                       </label>
                       <MenuSelect
-                        aria-label="Check-in branch"
+                        aria-label={t('Check-in branch')}
                         value={deskLocationId}
                         onChange={(e) => setDeskBranch(e.target.value)}
                         style={{ minWidth: 180 }}
@@ -488,7 +543,7 @@ export default function CheckIn() {
                       </MenuSelect>
                       {deskLocationName && (
                         <span style={{ fontSize: 11, color: 'var(--t4)' }}>
-                          Scans stamp <strong style={{ color: 'var(--t2)' }}>{deskLocationName}</strong>
+                          {t('Scans stamp')} <strong style={{ color: 'var(--t2)' }}><bdi>{deskLocationName}</bdi></strong>
                         </span>
                       )}
                     </div>
@@ -529,7 +584,7 @@ export default function CheckIn() {
                     }}
                   >
                     <Camera size={16} aria-hidden />
-                    <span>Scanner</span>
+                    <span>{t('Scanner')}</span>
                     <span style={{
                       fontSize: 9,
                       fontWeight: 700,
@@ -540,7 +595,7 @@ export default function CheckIn() {
                       padding: '2px 6px',
                       borderRadius: 10,
                     }}>
-                      Camera
+                      {t('Camera')}
                     </span>
                   </button>
 
@@ -569,7 +624,7 @@ export default function CheckIn() {
                     }}
                   >
                     <Search size={16} aria-hidden />
-                    <span>Manual Search</span>
+                    <span>{t('Manual Search')}</span>
                   </button>
                 </div>
 
@@ -578,10 +633,10 @@ export default function CheckIn() {
                   <div data-walkthrough="checkin-scanner" style={{ padding: '18px 20px' }}>
                     <div style={{ marginBottom: 12 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>
-                        Scanner
+                        {t('Scanner')}
                       </div>
                       <div style={{ fontSize: 11, color: 'var(--t4)' }}>
-                        Opens camera to scan members and check them in (System ID or Member ID)
+                        {t('Opens camera to scan members and check them in (System ID or Member ID)')}
                       </div>
                     </div>
                     <CheckInScanner
@@ -593,14 +648,14 @@ export default function CheckIn() {
                 ) : (
                   <div data-walkthrough="checkin-search">
                     <div style={{ padding: '16px 20px 14px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>Manual Lookup & USB Scanner</div>
-                      <div style={{ fontSize: 11, color: 'var(--t4)' }}>Type System ID (S100), Member ID (M100 or number), or scan with a USB scanner</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{t('Manual Lookup & USB Scanner')}</div>
+                      <div style={{ fontSize: 11, color: 'var(--t4)' }}>{t('Type System ID (S100), Member ID (M100 or number), or scan with a USB scanner')}</div>
                     </div>
                     <div style={{ padding: '16px 20px' }}>
                       <form onSubmit={handleSearch}>
                         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                           <div style={{ position: 'relative', flex: '1 1 200px', minWidth: 160 }}>
-                            <svg style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--t4)', pointerEvents: 'none' }}
+                            <svg style={{ position: 'absolute', insetInlineStart: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--t4)', pointerEvents: 'none' }}
                               width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                               <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
                             </svg>
@@ -609,10 +664,10 @@ export default function CheckIn() {
                               value={query}
                               onChange={e => { queryRef.current = e.target.value; setQuery(e.target.value); setMember(null); setResult(null); }}
                               onKeyDown={noteScanKey}
-                              placeholder="Scan QR/barcode or type ID…"
+                              placeholder={t('Scan QR/barcode or type ID…')}
                               autoFocus
                               style={{
-                                width: '100%', height: 44, padding: '0 12px 0 36px', fontSize: 14,
+                                width: '100%', height: 44, paddingBlock: 0, paddingInlineStart: 36, paddingInlineEnd: 12, fontSize: 14,
                                 border: '1.5px solid var(--border)', borderRadius: 10,
                                 outline: 'none', color: 'var(--t1)', background: 'var(--bg)',
                                 fontFamily: 'inherit', boxSizing: 'border-box',
@@ -629,7 +684,7 @@ export default function CheckIn() {
                             opacity: !query.trim() ? 0.6 : 1, display: 'flex', alignItems: 'center', gap: 6,
                             transition: 'opacity 0.15s',
                           }}>
-                            {searching ? <Spinner size="sm" /> : <><Search size={15} aria-hidden /> Search</>}
+                            {searching ? <Spinner size="sm" /> : <><Search size={15} aria-hidden /> {t('Search')}</>}
                           </button>
                           <button type="button" onClick={() => setActiveTab('scanner')} style={{
                             padding: '0 14px', minHeight: 44, borderRadius: 10, fontFamily: 'inherit',
@@ -638,7 +693,7 @@ export default function CheckIn() {
                             fontSize: 13, fontWeight: 700, cursor: 'pointer',
                             whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 6,
                           }}>
-                            <Camera size={15} aria-hidden /> Open Camera
+                            <Camera size={15} aria-hidden /> {t('Open Camera')}
                           </button>
                         </div>
                       </form>
@@ -655,11 +710,11 @@ export default function CheckIn() {
                   display: 'flex', gap: 0, padding: '10px 6px',
                   width: '100%', maxWidth: 240,
                 }}>
-                  <StatPill label="Today" value={histLoad ? '…' : todayCount} />
+                  <StatPill label={t('Today')} value={histLoad ? '…' : todayCount} />
                   <div style={{ width: 1, background: 'var(--border)', margin: '2px 0' }} />
-                  <StatPill label="Active" value={histLoad ? '…' : activeToday} color="var(--green)" />
+                  <StatPill label={t('Active')} value={histLoad ? '…' : activeToday} color="var(--green)" />
                   <div style={{ width: 1, background: 'var(--border)', margin: '2px 0' }} />
-                  <StatPill label="This Month" value="—" color="var(--t4)" />
+                  <StatPill label={t('This Month')} value="—" color="var(--t4)" />
                 </div>
               </div>
             </div>
@@ -678,7 +733,7 @@ export default function CheckIn() {
                     padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 14,
                     position: 'relative', overflow: 'hidden',
                   }}>
-                    <div style={{ position: 'absolute', width: 140, height: 140, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', right: -30, top: -40 }} />
+                    <div style={{ position: 'absolute', width: 140, height: 140, borderRadius: '50%', background: 'rgba(255,255,255,0.05)', insetInlineEnd: -30, top: -40 }} />
                     <div style={{ position: 'relative' }}>
                       <Avatar name={member.name} size="xl" photo={member.photo}
                         style={{ border: '3px solid rgba(255,255,255,0.25)', boxShadow: '0 4px 16px rgba(0,0,0,0.30)' }} />
@@ -688,17 +743,17 @@ export default function CheckIn() {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <Badge status={member.isBlocked ? 'blocked' : member.status} />
                         <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', fontFamily: 'monospace' }}>
-                          {formatSystemId(member.systemId)}{member.memberId ? ` · Member #${member.memberId}` : ''}
+                          <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{formatSystemId(member.systemId)}</span>{member.memberId ? ` · ${t('Member #{id}', { id: member.memberId })}` : ''}
                         </span>
                         {member.status === 'guest' && (
                           <span style={{ fontSize: 10, background: 'rgba(255,255,255,0.18)', color: '#fff', padding: '1px 7px', borderRadius: 10, fontWeight: 700 }}>
-                            Non-Member
+                            {t('Non-Member')}
                           </span>
                         )}
                       </div>
                       {member.phones && (
                         <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
-                          <Phone size={12} aria-hidden /> {member.phones}
+                          <Phone size={12} aria-hidden /> <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{member.phones}</span>
                         </div>
                       )}
                     </div>
@@ -710,40 +765,57 @@ export default function CheckIn() {
                     {pkg ? (
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                         <div style={{ background: 'var(--bg)', borderRadius: 10, padding: '12px 14px', border: '1px solid var(--border)' }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>Package</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{t('Package')}</div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{pkg.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--t3)' }}>{pkg.activityType} · {pkg.duration}</div>
+                          <div style={{ fontSize: 11, color: 'var(--t3)' }}>{t(pkg.activityType)} · {t(pkg.duration)}</div>
                         </div>
                         <div style={{ background: 'var(--bg)', borderRadius: 10, padding: '12px 14px', border: '1px solid var(--border)' }}>
-                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>Expires</div>
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{t('Expires')}</div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{fmtDate(sub?.endDate)}</div>
                           {expiryDays !== null && (
                             <div style={{ fontSize: 11, fontWeight: 600, color: expiryDays < 0 ? 'var(--red)' : expiryDays <= 7 ? 'var(--amber)' : 'var(--green)' }}>
-                              {expiryDays < 0 ? 'Expired' : expiryDays <= 7 ? (
-                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12} aria-hidden /> {expiryDays}d left</span>
-                              ) : `${expiryDays}d remaining`}
+                              {expiryDays < 0 ? t('Expired') : expiryDays <= 7 ? (
+                                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={12} aria-hidden /> {t('{days}d left', { days: expiryDays })}</span>
+                              ) : t('{days}d remaining', { days: expiryDays })}
                             </div>
                           )}
                         </div>
                       </div>
                     ) : member.status === 'guest' ? (
                       <div style={{ textAlign: 'center', padding: '12px 14px', fontSize: 13, background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)' }}>
-                        <div style={{ fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>Non-Member / Guest</div>
-                        <div style={{ fontSize: 11, color: 'var(--red)', fontWeight: 600 }}>This member is a guest and does not have a package</div>
+                        <div style={{ fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{t('Non-Member / Guest')}</div>
+                        <div style={{ fontSize: 11, color: 'var(--red)', fontWeight: 600 }}>{t('This member is a guest and does not have a package')}</div>
                       </div>
                     ) : (
                       <div style={{ textAlign: 'center', padding: '12px 14px', fontSize: 13, color: 'var(--red)', background: 'var(--bg)', borderRadius: 10, border: '1px solid var(--border)', fontWeight: 600 }}>
-                        This member does not have a package
+                        {t('This member does not have a package')}
+                      </div>
+                    )}
+
+                    {/* PT balance, shown when the member can be checked in for a PT session */}
+                    {ptEligible && (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, background: 'var(--bg)', borderRadius: 10, padding: '10px 14px', border: '1px solid var(--border)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+                          <Dumbbell size={16} color="var(--navy)" aria-hidden />
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t1)' }}>{t('PT sessions')}</div>
+                            <div style={{ fontSize: 11, color: 'var(--t3)' }}>
+                              {member.current_couch?.name ? t('Coach: {name}', { name: member.current_couch.name }) : t('Personal training pack')}
+                              {ptExpiry ? ` · ${t('until {date}', { date: fmtDate(ptExpiry) })}` : ''}
+                            </div>
+                          </div>
+                        </div>
+                        <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--navy)', whiteSpace: 'nowrap' }}>{t('{count} left', { count: ptLeft })}</span>
                       </div>
                     )}
 
                     {/* Blocked banner */}
                     {member.isBlocked && (
-                      <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--red-bg)', border: '1px solid var(--red-bd)', borderLeft: '4px solid var(--red)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--red-bg)', border: '1px solid var(--red-bd)', borderInlineStart: '4px solid var(--red)', display: 'flex', alignItems: 'center', gap: 10 }}>
                         <Ban size={20} color="var(--red)" aria-hidden />
                         <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)' }}>Member is Blocked</div>
-                          {member.blockedReason && <div style={{ fontSize: 11, color: 'var(--red)', opacity: 0.8, marginTop: 1 }}>Reason: {member.blockedReason}</div>}
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)' }}>{t('Member is Blocked')}</div>
+                          {member.blockedReason && <div style={{ fontSize: 11, color: 'var(--red)', opacity: 0.8, marginTop: 1 }}>{t('Reason: {reason}', { reason: member.blockedReason })}</div>}
                         </div>
                       </div>
                     )}
@@ -765,7 +837,7 @@ export default function CheckIn() {
 
                     {/* Check-in button */}
                     <button
-                      onClick={handleCheckIn}
+                      onClick={() => handleCheckIn()}
                       disabled={checking || !canCheckIn}
                       style={{
                         width: '100%', padding: '15px', fontSize: 16, fontWeight: 800,
@@ -784,36 +856,40 @@ export default function CheckIn() {
                       onMouseLeave={e => { e.currentTarget.style.transform = 'none'; e.currentTarget.style.boxShadow = canCheckIn ? '0 4px 20px rgba(34,197,94,0.35)' : 'none'; }}
                     >
                       {checking
-                        ? <><Spinner size="sm" /> Processing…</>
+                        ? <><Spinner size="sm" /> {t('Processing…')}</>
                         : <>
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
-                            {isGuest || !hasPackage ? 'Cannot Check In (No Package)' : 'Check In Now'}
+                            {!canCheckIn
+                              ? t('Cannot Check In (No Package)')
+                              : gymEligible || !ptEligible
+                              ? t('Check In Now')
+                              : t('Check In PT Session')}
                           </>
                       }
                     </button>
 
                     {!canCheckIn && (
                       <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--red)', margin: 0, fontWeight: 600 }}>
-                        Cannot check in — {
-                          member.isBlocked
-                            ? 'member is blocked'
+                        {t('Cannot check in — {reason}', {
+                          reason: member.isBlocked
+                            ? t('member is blocked')
                             : isGuest
-                            ? 'this member is a guest and does not have a package'
+                            ? t('this member is a guest and does not have a package')
                             : !hasPackage
-                            ? 'this member does not have a package'
+                            ? t('this member does not have a package')
                             : hasExpired
-                            ? 'this member has an expired package'
-                            : `member is ${member.status}`
-                        }
+                            ? t('this member has an expired package')
+                            : t('member is {status}', { status: statusText(t, member.status) }),
+                        })}
                       </p>
                     )}
 
                     {/* Quick nav buttons */}
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
                       {[
-                        { label: 'Profile', Icon: User, to: `/members/${member.systemId}` },
-                        { label: 'Freeze', Icon: Snowflake, to: `/members/${member.systemId}?tab=freeze` },
-                        { label: 'Invitations', Icon: Ticket, to: `/members/${member.systemId}?tab=invitations` },
+                        { label: t('Profile'), Icon: User, to: `/members/${member.systemId}` },
+                        { label: t('Freeze'), Icon: Snowflake, to: `/members/${member.systemId}?tab=freeze` },
+                        { label: t('Invitations'), Icon: Ticket, to: `/members/${member.systemId}?tab=invitations` },
                       ].map(({ label, Icon, to }) => (
                         <button key={to} onClick={() => navigate(to)} style={{
                           padding: '9px 6px', borderRadius: 8, border: '1px solid var(--border)',
@@ -841,10 +917,10 @@ export default function CheckIn() {
               <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg)' }}>
                 <div>
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    Today's Activity
+                    {t("Today's Activity")}
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: live === 'live' ? 'var(--green)' : 'var(--amber)' }}>
                       <span style={{ width: 7, height: 7, borderRadius: '50%', background: live === 'live' ? '#22c55e' : '#f59e0b', boxShadow: live === 'live' ? '0 0 0 3px rgba(34,197,94,0.18)' : 'none' }} />
-                      {live === 'live' ? 'Live' : 'Reconnecting'}
+                      {live === 'live' ? t('Live') : t('Reconnecting')}
                     </span>
                   </h3>
                   <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>{today}</p>
@@ -856,7 +932,7 @@ export default function CheckIn() {
                     padding: '4px 14px', borderRadius: 20,
                     boxShadow: '0 2px 8px color-mix(in srgb, var(--navy) 30%, transparent)',
                   }}>
-                    {histLoad ? '…' : `${todayCount} check-in${todayCount !== 1 ? 's' : ''}`}
+                    {histLoad ? '…' : (todayCount === 1 ? t('1 check-in') : t('{count} check-ins', { count: todayCount }))}
                   </div>
                 </div>
               </div>
@@ -868,7 +944,7 @@ export default function CheckIn() {
                     <CardListSkeleton rows={6} />
                   </div>
                 ) : history.length === 0 ? (
-                  <EmptyState icon={CheckCircle2} message="No check-ins yet today" sub="Search for a member above to check them in" />
+                  <EmptyState icon={CheckCircle2} message={t('No check-ins yet today')} sub={t('Search for a member above to check them in')} />
                 ) : (
                   paginatedHistory.map((entry, i) => {
                     const globalIndex = (page - 1) * pageSize + i;
@@ -907,12 +983,12 @@ export default function CheckIn() {
                             {entry.member.name}
                           </div>
                           <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2, display: 'flex', gap: 6 }}>
-                            <span style={{ fontFamily: 'monospace' }}>{formatSystemId(entry.member.systemId)}</span>
+                            <span dir="ltr" style={{ fontFamily: 'monospace', unicodeBidi: 'isolate' }}>{formatSystemId(entry.member.systemId)}</span>
                             {entry.member.package && <span>· {entry.member.package.name}</span>}
                           </div>
                         </div>
 
-                        <div style={{ textAlign: 'right', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
+                        <div style={{ textAlign: 'end', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
                           <span style={{
                             fontSize: 12, fontWeight: 700, color: 'var(--t1)',
                             background: isLatest ? 'color-mix(in srgb, var(--navy) 8%, transparent)' : 'transparent',
@@ -922,7 +998,7 @@ export default function CheckIn() {
                             {fmtTime(entry.time)}
                           </span>
                           {entry.checkedInBy?.name && (
-                            <span style={{ fontSize: 10, color: 'var(--t4)' }}>by {entry.checkedInBy.name}</span>
+                            <span style={{ fontSize: 10, color: 'var(--t4)' }}>{t('by {name}', { name: entry.checkedInBy.name })}</span>
                           )}
                           <Badge status={entry.member.status} />
                         </div>
@@ -956,6 +1032,12 @@ export default function CheckIn() {
         lastScannedResult={lastScannedResult}
       />
 
+      <CheckInTypeModal
+        prompt={typePrompt?.data}
+        onChoose={chooseCheckInType}
+        onClose={() => setTypePrompt(null)}
+      />
+
       {/* ── Alert popup ──────────────────────────────────────────── */}
       {alertPopup && (
         <div onClick={() => setAlertPopup(null)} className="modal-backdrop-in" style={{
@@ -972,15 +1054,15 @@ export default function CheckIn() {
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, color: '#92400e' }}>
               <AlertTriangle size={56} strokeWidth={1.5} aria-hidden />
             </div>
-            <h2 style={{ fontSize: 22, fontWeight: 900, color: '#92400e', marginBottom: 16, letterSpacing: '-0.3px' }}>Member Alert</h2>
+            <h2 style={{ fontSize: 22, fontWeight: 900, color: '#92400e', marginBottom: 16, letterSpacing: '-0.3px' }}>{t('Member Alert')}</h2>
             {alertPopup.map((text, i) => (
               <p key={i} style={{ fontSize: 16, fontWeight: 600, color: '#78350f', lineHeight: 1.6, marginBottom: 8 }}>{text}</p>
             ))}
-            <p style={{ fontSize: 12, color: '#b45309', marginTop: 20, opacity: 0.7 }}>Click anywhere to dismiss · Auto-closes in 5 seconds</p>
+            <p style={{ fontSize: 12, color: '#b45309', marginTop: 20, opacity: 0.7 }}>{t('Click anywhere to dismiss · Auto-closes in 5 seconds')}</p>
           </div>
         </div>
       )}
-
+      {/* i18n-ignore: CSS, not user-facing text */}
       <style>{`
         @media (max-width: 960px) {
           .checkin-top { grid-template-columns: 1fr !important; }

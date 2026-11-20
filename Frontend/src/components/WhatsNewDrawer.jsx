@@ -1,16 +1,19 @@
 import { Btn } from './ui';
+import { useI18n } from '../i18n/useI18n';
+import { useFormat } from '../i18n/useFormat';
+import { tr } from '../i18n/translate';
 
 const TYPE_LABEL = {
-  feature: 'Feature',
-  warning: 'Warning',
-  maintenance: 'Maintenance',
-  info: 'Info',
+  feature: tr('Feature'),
+  warning: tr('Warning'),
+  maintenance: tr('Maintenance'),
+  info: tr('Info'),
 };
 
-function formatWhen(value) {
+function formatWhen(value, fmtDate) {
   if (!value) return '';
   try {
-    return new Date(value).toLocaleDateString(undefined, {
+    return fmtDate(value, {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
@@ -32,6 +35,8 @@ export default function WhatsNewDrawer({
   dismissing = false,
   loading = false,
 }) {
+  const { t, isRtl } = useI18n();
+  const { fmtDate } = useFormat();
   if (!open) return null;
 
   const unread = items.filter((item) => !item.dismissed);
@@ -52,18 +57,18 @@ export default function WhatsNewDrawer({
       <aside
         role="dialog"
         aria-modal="true"
-        aria-label="What's new"
+        aria-label={t("What's new")}
         className="drawer-in-right"
         style={{
           position: 'fixed',
           top: 0,
-          right: 0,
+          insetInlineEnd: 0,
           bottom: 0,
           zIndex: 191,
           width: 'min(420px, 100vw)',
           background: 'var(--card)',
-          borderLeft: '1px solid var(--border)',
-          boxShadow: '-8px 0 24px rgba(0,0,0,0.12)',
+          borderInlineStart: '1px solid var(--border)',
+          boxShadow: isRtl ? '8px 0 24px rgba(0,0,0,0.12)' : '-8px 0 24px rgba(0,0,0,0.12)',
           display: 'flex',
           flexDirection: 'column',
         }}
@@ -78,15 +83,15 @@ export default function WhatsNewDrawer({
           }}
         >
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>What's new</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>{t("What's new")}</div>
             <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
-              Updates for your role and plan
+              {t('Updates for your role and plan')}
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('Close')}
             style={{
               background: 'none',
               border: '1px solid var(--border)',
@@ -116,18 +121,18 @@ export default function WhatsNewDrawer({
               disabled={dismissing}
               onClick={() => onDismissAll?.()}
             >
-              Mark all as read
+              {t('Mark all as read')}
             </Btn>
           </div>
         )}
 
         <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
           {loading && (
-            <div style={{ fontSize: 13, color: 'var(--t3)', padding: 12 }}>Loading updates…</div>
+            <div style={{ fontSize: 13, color: 'var(--t3)', padding: 12 }}>{t('Loading updates…')}</div>
           )}
           {!loading && items.length === 0 && (
             <div style={{ fontSize: 13, color: 'var(--t3)', padding: 12, textAlign: 'center' }}>
-              No updates right now. Check back after the next platform release.
+              {t('No updates right now. Check back after the next platform release.')}
             </div>
           )}
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -160,11 +165,11 @@ export default function WhatsNewDrawer({
                       color: 'var(--t3)',
                     }}
                   >
-                    {TYPE_LABEL[item.type] || 'Update'}
-                    {item.dismissed ? ' · Read' : ' · New'}
+                    {t(TYPE_LABEL[item.type] || 'Update')}
+                    {' · '}{item.dismissed ? t('Read') : t('New')}
                   </span>
                   <span style={{ fontSize: 11, color: 'var(--t3)' }}>
-                    {formatWhen(item.startDate || item.createdAt)}
+                    {formatWhen(item.startDate || item.createdAt, fmtDate)}
                   </span>
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
@@ -188,7 +193,7 @@ export default function WhatsNewDrawer({
                       disabled={dismissing}
                       onClick={() => onDismiss?.(item._id)}
                     >
-                      Got it
+                      {t('Got it')}
                     </Btn>
                   </div>
                 )}

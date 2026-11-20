@@ -5,8 +5,10 @@ import { Card, CardHeader, Btn, Spinner, EmptyState } from '../../../components/
 import { uploadNationalId } from '../../../api/endpoints';
 import { fetchProtectedUploadBlobUrl } from '../../../api/axios';
 import { validateFile, DOCUMENT_EXTENSIONS, DOCUMENT_ACCEPT, UPLOAD_INTAKE_MB } from '../../../lib/validation';
+import { useI18n } from '../../../i18n/useI18n';
 
 export default function FilesTab({ member, user, onRefresh }) {
+  const { t } = useI18n();
   const isAccountant = user?.role === 'Accountant';
   const [uploading, setUploading] = useState(false);
   const [nationalIdUrl, setNationalIdUrl] = useState(null);
@@ -59,10 +61,10 @@ export default function FilesTab({ member, user, onRefresh }) {
     setUploading(true);
     try {
       await uploadNationalId(member.systemId, formData);
-      toast.success('National ID uploaded');
+      toast.success(t('National ID uploaded'));
       onRefresh();
     } catch (err) {
-      toast.error(err.response?.data?.message ?? 'Upload failed');
+      toast.error(err.response?.data?.message ?? t('Upload failed'));
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = '';
@@ -74,7 +76,7 @@ export default function FilesTab({ member, user, onRefresh }) {
 
       {/* ── National ID ────────────────────────────────────────────── */}
       <Card>
-        <CardHeader title="National ID">
+        <CardHeader title={t('National ID')}>
           {isAccountant && (
             <>
               <input
@@ -91,8 +93,8 @@ export default function FilesTab({ member, user, onRefresh }) {
                 disabled={uploading}
               >
                 {uploading
-                  ? <><Spinner size="sm" /> Uploading…</>
-                  : nationalIdUrl ? 'Replace' : 'Upload'
+                  ? <><Spinner size="sm" /> {t('Uploading…')}</>
+                  : nationalIdUrl ? t('Replace') : t('Upload')
                 }
               </Btn>
             </>
@@ -114,7 +116,7 @@ export default function FilesTab({ member, user, onRefresh }) {
             >
               <img
                 src={nationalIdUrl}
-                alt="National ID"
+                alt={t('National ID')}
                 style={{ maxWidth: '100%', maxHeight: 360, display: 'block' }}
                 onError={e => {
                   e.target.style.display = 'none';
@@ -126,18 +128,18 @@ export default function FilesTab({ member, user, onRefresh }) {
                 fontSize: 13, fontWeight: 600, color: 'var(--blue)',
               }}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                View / Download File
+                {t('View / Download File')}
               </div>
             </a>
             <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 8 }}>
-              Click to view full size. {isAccountant ? 'Use the Replace button to update.' : 'Only the Accountant can update this file.'}
+              {t('Click to view full size.')} {isAccountant ? t('Use the Replace button to update.') : t('Only the Accountant can update this file.')}
             </p>
           </div>
         ) : (
           <EmptyState
             icon={IdCard}
-            message="No national ID uploaded"
-            sub={isAccountant ? 'Click Upload to add the scanned national ID.' : 'The Accountant has not uploaded this file yet.'}
+            message={t('No national ID uploaded')}
+            sub={isAccountant ? t('Click Upload to add the scanned national ID.') : t('The Accountant has not uploaded this file yet.')}
           />
         )}
       </Card>

@@ -4,8 +4,10 @@ import { Card, Btn } from './ui';
 import { useAuth } from '../context/AuthContext';
 import { useTenant } from '../context/TenantContext';
 import { updateUserAreaAccess } from '../api/endpoints';
+import { useI18n } from '../i18n/useI18n';
 
 export default function UserAreaAccess({ target }) {
+  const { t } = useI18n();
   const { user } = useAuth();
   const { accessCatalog, roleAccess, roleDefaults, effectiveAccess, hasFeature } = useTenant();
   const [draft, setDraft] = useState([]);
@@ -54,9 +56,9 @@ export default function UserAreaAccess({ target }) {
     setSaving(true);
     try {
       await updateUserAreaAccess(target._id, nextAdd, nextRemove);
-      toast.success('Personal access updated');
+      toast.success(t('Personal access updated'));
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Could not save access');
+      toast.error(error.response?.data?.message || t('Could not save access'));
     } finally {
       setSaving(false);
     }
@@ -64,9 +66,9 @@ export default function UserAreaAccess({ target }) {
 
   return (
     <Card style={{ marginBottom: 16 }}>
-      <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 4 }}>Area access</div>
+      <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 4 }}>{t('Area access')}</div>
       <p style={{ fontSize: 12, color: 'var(--t3)', marginTop: 0 }}>
-        These boxes change this person only. Their role checklist stays the same for everyone else.
+        {t('These boxes change this person only. Their role checklist stays the same for everyone else.')}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {accessCatalog.map((area) => {
@@ -80,14 +82,14 @@ export default function UserAreaAccess({ target }) {
                 disabled={disabled}
                 onChange={() => toggle(area)}
               />
-              <span>{area.label}</span>
-              {planLocked(area) && <span style={{ color: 'var(--t3)' }}>Not in plan</span>}
+              <span>{t(area.label)}</span>
+              {planLocked(area) && <span style={{ color: 'var(--t3)' }}>{t('Not in plan')}</span>}
             </label>
           );
         })}
       </div>
       <div style={{ marginTop: 14 }}>
-        <Btn size="sm" onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Save personal access'}</Btn>
+        <Btn size="sm" onClick={save} disabled={saving}>{saving ? t('Saving…') : t('Save personal access')}</Btn>
       </div>
     </Card>
   );

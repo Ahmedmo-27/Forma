@@ -5,7 +5,9 @@ import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, fmtDate, Pagination, Select, PageSizeFilter } from '../../components/ui';
+import { PageHeader, Card, StatCard, Table, Badge, FilterTabs, Btn, EmptyState, SearchInput, Avatar, CAIRO_ZONE, Pagination, Select, PageSizeFilter } from '../../components/ui';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 import { formatSystemId } from '../../lib/systemId';
 import { getAllMembers } from '../../api/endpoints';
 import AddMemberModal from '../../components/AddMemberModal';
@@ -15,7 +17,10 @@ const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
 
 export default function SalesMembers() {
-  usePageTitle('Members');
+  const { t } = useI18n();
+  const { fmtDate: fmtLocaleDate } = useFormat();
+  const fmtDate = (d) => (d ? fmtLocaleDate(d, { timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric' }, 'en-GB') : '—');
+  usePageTitle(t('Members'));
   const { user } = useAuth();
   const navigate = useNavigate();
   const [pageSize, setPageSize] = useState(() => {
@@ -63,9 +68,9 @@ export default function SalesMembers() {
       setMembers(res.data.members ?? []);
       setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: currentLimit });
       if (res.data.stats) setStats(res.data.stats);
-    } catch { toast.error('Failed to load data.'); }
+    } catch { toast.error(t('Failed to load data.')); }
     finally { setLoading(false); }
-  }, [page, pageSize, filter, debouncedSearch, extra, sortNewest]);
+  }, [t, page, pageSize, filter, debouncedSearch, extra, sortNewest]);
 
   useEffect(() => { fetchMembers(); }, [fetchMembers]);
   useEffect(() => { setPage(1); }, [filter, debouncedSearch, extra, sortNewest]);
@@ -90,39 +95,39 @@ export default function SalesMembers() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="sales-members-header" title="Members">
-        <SearchInput value={search} onChange={setSearch} placeholder="Name, phone, ID…" width={200} />
+      <PageHeader walkthrough="sales-members-header" title={t('Members')}>
+        <SearchInput value={search} onChange={setSearch} placeholder={t('Name, phone, ID…')} width={200} />
         <span data-walkthrough="add-guest-btn">
-          <Btn size="sm" onClick={() => setShowAdd(true)}>+ Add Guest</Btn>
+          <Btn size="sm" onClick={() => setShowAdd(true)}>{t('+ Add Guest')}</Btn>
         </span>
       </PageHeader>
 
       <div className="page-wrap" data-walkthrough="sales-members-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <div style={{ maxWidth: 280, marginBottom: 12 }}>
-          <Select label="More filters" value={extra} onChange={(e) => setExtra(e.target.value)}>
-            <option value="">All of my members</option>
-            <option value="all">Show all members</option>
-            <option value="transferred">Transferred to me</option>
-            <option value="recent">Added in the last 30 days</option>
-            <option value="expiring">Expiring in 7 days</option>
+          <Select label={t('More filters')} value={extra} onChange={(e) => setExtra(e.target.value)}>
+            <option value="">{t('All of my members')}</option>
+            <option value="all">{t('Show all members')}</option>
+            <option value="transferred">{t('Transferred to me')}</option>
+            <option value="recent">{t('Added in the last 30 days')}</option>
+            <option value="expiring">{t('Expiring in 7 days')}</option>
           </Select>
         </div>
 
         <div className="grid-stats-5">
-          <StatCard label="Total"   value={loading ? '—' : stats.total}   color="brand" />
-          <StatCard label="Active"  value={loading ? '—' : stats.active}  color="success" />
-          <StatCard label="Frozen"  value={loading ? '—' : stats.frozen}  color="info" />
-          <StatCard label="Expired" value={loading ? '—' : stats.expired} color="danger" />
-          <StatCard label="Guests"  value={loading ? '—' : stats.guest} />
+          <StatCard label={t('Total')} value={loading ? '—' : stats.total}   color="brand" />
+          <StatCard label={t('Active')} value={loading ? '—' : stats.active}  color="success" />
+          <StatCard label={t('Frozen')} value={loading ? '—' : stats.frozen}  color="info" />
+          <StatCard label={t('Expired')} value={loading ? '—' : stats.expired} color="danger" />
+          <StatCard label={t('Guests')} value={loading ? '—' : stats.guest} />
         </div>
 
         <FilterTabs active={filter} onChange={setFilter} options={[
-          { value: 'all',     label: `All (${stats.total})` },
-          { value: 'active',  label: `Active (${stats.active})` },
-          { value: 'frozen',  label: `Frozen (${stats.frozen})` },
-          { value: 'expired', label: `Expired (${stats.expired})` },
-          { value: 'guest',   label: `Guests (${stats.guest})` },
-          { value: 'blocked', label: `Blocked (${stats.blocked ?? 0})` },
+          { value: 'all',     label: t('All ({count})', { count: stats.total }) },
+          { value: 'active',  label: t('Active ({count})', { count: stats.active }) },
+          { value: 'frozen',  label: t('Frozen ({count})', { count: stats.frozen }) },
+          { value: 'expired', label: t('Expired ({count})', { count: stats.expired }) },
+          { value: 'guest',   label: t('Guests ({count})', { count: stats.guest }) },
+          { value: 'blocked', label: t('Blocked ({count})', { count: stats.blocked ?? 0 }) },
         ]} />
 
         {/* Page size templates & filters */}
@@ -136,9 +141,9 @@ export default function SalesMembers() {
         </div>
 
         <Card noPad>
-          <Table loading={loading} skeletonRows={Math.min(pageSize, 8)} headers={['ID', 'Name', 'Status', 'Package', 'Expires', '']}>
+          <Table loading={loading} skeletonRows={Math.min(pageSize, 8)} headers={[t('ID'), t('Name'), t('Status'), t('Package'), t('Expires'), '']}>
             {!paginated.length && !loading
-              ? <tr><td colSpan={6}><EmptyState message="No members found" /></td></tr>
+              ? <tr><td colSpan={6}><EmptyState message={t('No members found')} /></td></tr>
               : paginated.map(m => {
                   const sub = m.subscriptions?.filter(s => !s.refunded && !s.cancelled && s.subscriptionStatus !== 'cancelled')?.at(-1);
                   const pkg = sub?.package;
@@ -156,7 +161,7 @@ export default function SalesMembers() {
                       <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{pkg ? `${pkg.name} · ${pkg.duration}` : '—'}</td>
                       <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}>{fmtDate(sub?.endDate)}</td>
                       <td style={{ padding: '10px 14px' }} onClick={e => e.stopPropagation()}>
-                        <Btn variant="outline" size="xs" onClick={() => navigate(`/members/${m.systemId}`)}>View</Btn>
+                        <Btn variant="outline" size="xs" onClick={() => navigate(`/members/${m.systemId}`)}>{t('View')}</Btn>
                       </td>
                     </tr>
                   );

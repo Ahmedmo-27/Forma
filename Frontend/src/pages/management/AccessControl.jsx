@@ -19,6 +19,8 @@ import ChangeRoleField from '../../components/ChangeRoleField';
 import LocationAccessEditor from '../../components/LocationAccessEditor';
 import { canChangeUserRole } from '../../lib/roles';
 import { FeatureIcon } from '../../lib/featureIcons';
+import { useI18n } from '../../i18n/useI18n';
+import { tr } from '../../i18n/translate';
 
 function canEditFeatureAccess(actor, targetRole) {
   const actorRole = typeof actor === 'string' ? actor : actor?.role;
@@ -62,10 +64,10 @@ function Toggle({ checked, onChange, disabled }) {
       }}
     >
       <span style={{
-        position: 'absolute', top: 3, left: checked ? 21 : 3,
+        position: 'absolute', top: 3, insetInlineStart: checked ? 21 : 3,
         width: 22, height: 22, borderRadius: '50%',
         background: 'var(--card)', boxShadow: '0 1px 3px rgba(0,0,0,0.12)',
-        transition: 'left 0.18s',
+        transition: 'inset-inline-start 0.18s',
       }} />
     </button>
   );
@@ -73,9 +75,9 @@ function Toggle({ checked, onChange, disabled }) {
 
 function draftBadge(feature, on) {
   const isDefault = feature.isDefault ?? (feature.source === 'revoked' || (feature.source === 'default' && feature.enabled));
-  if (on && isDefault) return { text: 'Default', color: 'var(--t3)' };
-  if (on && !isDefault) return { text: 'Extra', color: 'var(--green)' };
-  if (!on && isDefault) return { text: 'Removed', color: 'var(--red)' };
+  if (on && isDefault) return { text: tr('Default'), color: 'var(--t3)' };
+  if (on && !isDefault) return { text: tr('Extra'), color: 'var(--green)' };
+  if (!on && isDefault) return { text: tr('Removed'), color: 'var(--red)' };
   return null;
 }
 
@@ -90,7 +92,8 @@ function enabledKeys(groups) {
 }
 
 export default function AccessControl({ defaultTab = 'staff' }) {
-  usePageTitle('Access Control');
+  const { t } = useI18n();
+  usePageTitle(t('Access Control'));
   const [searchParams, setSearchParams] = useSearchParams();
   const urlTab = searchParams.get('tab');
 
@@ -131,9 +134,9 @@ export default function AccessControl({ defaultTab = 'staff' }) {
     }
   }, [urlTab]);
 
-  const handleTabChange = (t) => {
-    setActiveTab(t);
-    setSearchParams({ tab: t }, { replace: true });
+  const handleTabChange = (tab) => {
+    setActiveTab(tab);
+    setSearchParams({ tab }, { replace: true });
   };
 
   // ══════════════════════════════════════════════════════════════════════
@@ -252,7 +255,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
       setAccessLocations([]);
       const blockedFromFeatures = error.response?.status === 403 && canChangeUserRole(user, person.role);
       if (!blockedFromFeatures) {
-        toast.error(error.response?.data?.message || 'Could not load access');
+        toast.error(error.response?.data?.message || t('Could not load access'));
       }
     } finally {
       setLoadingAccess(false);
@@ -312,9 +315,9 @@ export default function AccessControl({ defaultTab = 'staff' }) {
       };
       setLocationDraft(nextLoc);
       setSavedLocationDraft(nextLoc);
-      toast.success(`Access updated for ${selectedPerson.name}`);
+      toast.success(t('Access updated for {name}', { name: selectedPerson.name }));
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Could not save access');
+      toast.error(error.response?.data?.message || t('Could not save access'));
     } finally {
       setSavingStaff(false);
     }
@@ -419,11 +422,11 @@ export default function AccessControl({ defaultTab = 'staff' }) {
         ? (roleLocationDraft.canAccessAll ? [] : roleLocationDraft.locationIds)
         : undefined;
       await updateRoleAccess(defaultRoleChoice, areas, locationIds);
-      toast.success(`Access updated for ${defaultRoleChoice}`);
+      toast.success(t('Access updated for {name}', { name: t(defaultRoleChoice) }));
       if (typeof refreshTenant === 'function') await refreshTenant();
       if (typeof refreshUser === 'function') refreshUser();
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Could not save access');
+      toast.error(error.response?.data?.message || t('Could not save access'));
     } finally {
       setSavingRole(false);
     }
@@ -431,7 +434,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
 
   return (
     <Layout>
-      <PageHeader walkthrough="access-header" title="Access Control" />
+      <PageHeader walkthrough="access-header" title={t('Access Control')} />
 
       <div className="page-wrap" data-walkthrough="access-board" style={{ paddingTop: 20, paddingBottom: 96, maxWidth: 840 }}>
 
@@ -463,7 +466,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
             }}
           >
             <User size={16} aria-hidden="true" />
-            <span>Staff Members & Roles</span>
+            <span>{t('Staff Members & Roles')}</span>
           </button>
 
           {canViewRoleDefaults && (
@@ -488,7 +491,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
               }}
             >
               <Shield size={16} aria-hidden="true" />
-              <span>Role Defaults</span>
+              <span>{t('Role Defaults')}</span>
             </button>
           )}
         </div>
@@ -502,18 +505,18 @@ export default function AccessControl({ defaultTab = 'staff' }) {
             {/* Step 1: Staff Picker */}
             <Card>
               <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
-                Choose a Staff Member
+                {t('Choose a Staff Member')}
               </h3>
               <p style={{ fontSize: 12, color: 'var(--t4)', margin: '0 0 14px' }}>
-                Select a staff member to view their access, promote/change their role, or customize individual feature overrides.
+                {t('Select a staff member to view their access, promote/change their role, or customize individual feature overrides.')}
               </p>
 
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 200px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
-                  Current Role
+                  {t('Current Role')}
                   <MenuSelect
                     value={staffRole}
-                    aria-label="Filter role"
+                    aria-label={t('Filter role')}
                     onChange={(event) => {
                       setStaffRole(event.target.value);
                       setSelectedPerson(null);
@@ -522,16 +525,16 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                     }}
                     style={{ width: '100%' }}
                   >
-                    <option value="">Choose a role</option>
-                    {staffFilterRoles.map((item) => <option key={item} value={item}>{item}</option>)}
+                    <option value="">{t('Choose a role')}</option>
+                    {staffFilterRoles.map((item) => <option key={item} value={item}>{t(item)}</option>)}
                   </MenuSelect>
                 </label>
 
                 <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 240px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
-                  Staff Member
+                  {t('Staff Member')}
                   <MenuSelect
                     value={selectedPerson?._id || ''}
-                    aria-label="Staff member"
+                    aria-label={t('Staff member')}
                     disabled={!staffRole || loadingPeople}
                     onChange={(event) => {
                       const person = people.find((item) => item._id === event.target.value);
@@ -539,7 +542,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                     }}
                     style={{ width: '100%' }}
                   >
-                    <option value="">{loadingPeople ? 'Loading staff…' : 'Choose a person'}</option>
+                    <option value="">{loadingPeople ? t('Loading staff…') : t('Choose a person')}</option>
                     {people.map((person) => (
                       <option key={person._id} value={person._id}>{person.name}</option>
                     ))}
@@ -565,14 +568,14 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                     <div>
                       <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>{selectedPerson.name}</div>
                       <div style={{ fontSize: 12, color: 'var(--t4)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span>{selectedPerson.email || 'No email registered'}</span>
-                        {selectedPerson.mobile_number && <span>· {selectedPerson.mobile_number}</span>}
+                        {selectedPerson.email ? <span dir="ltr">{selectedPerson.email}</span> : <span>{t('No email registered')}</span>}
+                        {selectedPerson.mobile_number && <span>· <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{selectedPerson.mobile_number}</span></span>}
                       </div>
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600 }}>Role:</span>
-                    <Badge status="active">{selectedPerson.role}</Badge>
+                    <span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600 }}>{t('Role:')}</span>
+                    <Badge status="active">{t(selectedPerson.role)}</Badge>
                   </div>
                 </div>
 
@@ -587,15 +590,15 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                     flexWrap: 'wrap',
                   }}>
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Change Assigned Role</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t('Change Assigned Role')}</div>
                       <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>
-                        Promote or change this staff member’s role. Their baseline privileges will update automatically.
+                        {t('Promote or change this staff member’s role. Their baseline privileges will update automatically.')}
                       </div>
                     </div>
                     <ChangeRoleField
                       userId={selectedPerson._id}
                       currentRole={selectedPerson.role}
-                      label="New Role"
+                      label={t('New Role')}
                       onChanged={async (newRole) => {
                         const person = { ...selectedPerson, role: newRole };
                         setSelectedPerson(person);
@@ -614,7 +617,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
 
             {!loadingAccess && selectedPerson && groups.length === 0 && !hasStaff && user?.role === 'Sales Manager' && canChangeUserRole(user, selectedPerson.role) && (
               <p style={{ fontSize: 13, color: 'var(--t3)', marginTop: 8 }}>
-                You can change this person’s role above. Feature overrides for this person are managed by an owner or general manager.
+                {t('You can change this person’s role above. Feature overrides for this person are managed by an owner or general manager.')}
               </p>
             )}
 
@@ -624,8 +627,8 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                 <LocationAccessEditor
                   description={
                     multiBranches
-                      ? `Choose which branches ${selectedPerson.name} can view in the navbar and data screens.`
-                      : `Choose which branches ${selectedPerson.name} can view. Multi-branch viewing is most useful on Gold/Platinum.`
+                      ? t('Choose which branches {name} can view in the navbar and data screens.', { name: selectedPerson.name })
+                      : t('Choose which branches {name} can view.', { name: selectedPerson.name })
                   }
                   locations={staffLocationList}
                   canAccessAll={Boolean(locationDraft.canAccessAllLocations)}
@@ -656,10 +659,10 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                     disabled={!locationDirty || savingStaff}
                     onClick={() => setLocationDraft(savedLocationDraft)}
                   >
-                    Reset
+                    {t('Reset')}
                   </Btn>
                   <Btn disabled={!isStaffDirty || savingStaff} onClick={confirmStaffAccess}>
-                    {savingStaff ? <Spinner size="sm" /> : 'Confirm Access'}
+                    {savingStaff ? <Spinner size="sm" /> : t('Confirm Access')}
                   </Btn>
                 </div>
               </div>
@@ -668,15 +671,15 @@ export default function AccessControl({ defaultTab = 'staff' }) {
             {!loadingAccess && selectedPerson && groups.length > 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <p style={{ fontSize: 13, color: 'var(--t3)', margin: 0 }}>
-                  Feature overrides for <strong>{selectedPerson.name}</strong> ({selectedPerson.role}). Role defaults remain active unless individually toggled.
+                  {t('Feature overrides for {name} ({role}). Role defaults remain active unless individually toggled.', { name: selectedPerson.name, role: t(selectedPerson.role) })}
                 </p>
 
                 {showStaffLocationAccess && (
                   <LocationAccessEditor
                     description={
                       multiBranches
-                        ? 'Choose which branches this person can view in the navbar and data screens.'
-                        : 'Choose which branches this person can view. Multi-branch viewing is most useful on Gold/Platinum.'
+                        ? t('Choose which branches this person can view in the navbar and data screens.')
+                        : t('Choose which branches this person can view.')
                     }
                     locations={staffLocationList}
                     canAccessAll={Boolean(locationDraft.canAccessAllLocations)}
@@ -700,7 +703,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                 {groups.map((group) => (
                   <Card key={group.role}>
                     <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 12 }}>
-                      {group.role}
+                      {t(group.role)}
                     </h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 1, background: 'var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                       {group.features.map((feature) => {
@@ -719,7 +722,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 2 }}>
                                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{feature.label}</span>
                                 {label && (
-                                  <span style={{ fontSize: 10, fontWeight: 700, color: label.color, letterSpacing: '0.3px' }}>{label.text}</span>
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: label.color, letterSpacing: '0.3px' }}>{t(label.text)}</span>
                                 )}
                               </div>
                               <div style={{ fontSize: 12, color: 'var(--t4)' }}>{feature.description}</div>
@@ -729,7 +732,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                               <span style={{ fontSize: 11, fontWeight: 600, color: on ? 'var(--green)' : 'var(--red)' }}>
-                                {on ? 'Enabled' : 'Disabled'}
+                                {on ? t('Enabled') : t('Disabled')}
                               </span>
                               <Toggle
                                 checked={on}
@@ -762,10 +765,10 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                       setLocationDraft(savedLocationDraft);
                     }}
                   >
-                    Reset Overrides
+                    {t('Reset Overrides')}
                   </Btn>
                   <Btn disabled={!isStaffDirty || savingStaff} onClick={confirmStaffAccess}>
-                    {savingStaff ? <Spinner size="sm" /> : 'Confirm Access'}
+                    {savingStaff ? <Spinner size="sm" /> : t('Confirm Access')}
                   </Btn>
                 </div>
               </div>
@@ -784,16 +787,16 @@ export default function AccessControl({ defaultTab = 'staff' }) {
               <Card>
                 <div style={{ marginBottom: 16 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--t3)', marginBottom: 6 }}>
-                    Select Role to Configure
+                    {t('Select Role to Configure')}
                   </label>
                   <MenuSelect
                     value={defaultRoleChoice}
                     onChange={(event) => setDefaultRoleChoice(event.target.value)}
                     style={{ width: '100%', maxWidth: 320 }}
-                    aria-label="Select role to configure"
+                    aria-label={t('Select role to configure')}
                   >
                     {editableChecklistRoles.map((name) => (
-                      <option key={name} value={name}>{name}</option>
+                      <option key={name} value={name}>{t(name)}</option>
                     ))}
                   </MenuSelect>
                 </div>
@@ -803,11 +806,11 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                   padding: '10px 14px', marginBottom: 16, fontSize: 12, color: 'var(--t3)', lineHeight: 1.5,
                 }}>
                   {isReadOnlyRole ? (
-                    <span style={{ color: 'var(--amber)' }}>Only the owner can modify the General Manager baseline permissions.</span>
+                    <span style={{ color: 'var(--amber)' }}>{t('Only the owner can modify the General Manager baseline permissions.')}</span>
                   ) : !savedRoleList ? (
-                    <span>This role is currently using factory defaults. Modifying and saving will establish your gym’s custom baseline for this role.</span>
+                    <span>{t('This role is currently using factory defaults. Modifying and saving will establish your gym’s custom baseline for this role.')}</span>
                   ) : (
-                    <span>Changes to this checklist apply automatically to all staff in the <strong>{defaultRoleChoice}</strong> role who do not have custom overrides.</span>
+                    <span>{t('Changes to this checklist apply automatically to all staff in the {role} role who do not have custom overrides.', { role: t(defaultRoleChoice) })}</span>
                   )}
                 </div>
 
@@ -824,8 +827,8 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{area.label}</div>
                           <div style={{ fontSize: 12, color: 'var(--t3)', marginTop: 2 }}>
-                            {planLocked(area) ? 'Not included in this gym’s plan' : area.description}
-                            {!isOwner && !actorAreas.has(area.key) && !planLocked(area) ? ' · You do not possess this privilege' : ''}
+                            {planLocked(area) ? t('Not included in this gym’s plan') : area.description}
+                            {!isOwner && !actorAreas.has(area.key) && !planLocked(area) ? <> · {t('You do not possess this privilege')}</> : ''}
                           </div>
                         </div>
                         <Toggle checked={on} disabled={disabled} onChange={() => toggleRoleArea(area)} />
@@ -837,8 +840,8 @@ export default function AccessControl({ defaultTab = 'staff' }) {
                 {canManageLocations && (
                   <div style={{ marginTop: 20 }}>
                     <LocationAccessEditor
-                      title={`Default branch viewing · ${defaultRoleChoice}`}
-                      description="Staff in this role inherit these branch permissions unless they have personal overrides on the Staff Members tab. Empty / All locations means no branch restriction."
+                      title={t('Default branch viewing · {role}', { role: t(defaultRoleChoice) })}
+                      description={t('Staff in this role inherit these branch permissions unless they have personal overrides on the Staff Members tab. Empty / All locations means no branch restriction.')}
                       locations={catalogLocations}
                       canAccessAll={Boolean(roleLocationDraft.canAccessAll)}
                       onCanAccessAllChange={(checked) => setRoleLocationDraft({
@@ -862,7 +865,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
 
                 <div style={{ marginTop: 20 }}>
                   <Btn onClick={saveRoleDefaults} disabled={savingRole || !hasStaff || isReadOnlyRole}>
-                    {savingRole ? <Spinner size="sm" /> : 'Save Role Defaults'}
+                    {savingRole ? <Spinner size="sm" /> : t('Save Role Defaults')}
                   </Btn>
                 </div>
               </Card>

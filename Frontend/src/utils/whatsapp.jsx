@@ -1,4 +1,6 @@
 import { Btn } from '../components/ui';
+import { useI18n } from '../i18n/useI18n';
+import { tr } from '../i18n/translate';
 
 /** Encode message text for WhatsApp deep links (keeps emoji/Arabic intact). */
 function encodeWhatsAppText(text) {
@@ -60,13 +62,13 @@ function formatPlaceholderDate(value) {
 
 /** Tokens available in bulk custom WhatsApp messages. */
 export const WHATSAPP_PLACEHOLDER_TOKENS = [
-  { token: '{{name}}', label: 'Name' },
-  { token: '{{firstName}}', label: 'First name' },
-  { token: '{{package}}', label: 'Package' },
-  { token: '{{startDate}}', label: 'Start date' },
-  { token: '{{endDate}}', label: 'End date' },
-  { token: '{{coach}}', label: 'Coach' },
-  { token: '{{salesman}}', label: 'Salesman' },
+  { token: '{{name}}', label: tr('Name') },
+  { token: '{{firstName}}', label: tr('First name') },
+  { token: '{{package}}', label: tr('Package') },
+  { token: '{{startDate}}', label: tr('Start date') },
+  { token: '{{endDate}}', label: tr('End date') },
+  { token: '{{coach}}', label: tr('Coach') },
+  { token: '{{salesman}}', label: tr('Salesman') },
 ];
 
 /**
@@ -224,6 +226,7 @@ export function composeWhatsAppTemplateMessage(template, packages = [], options 
 }
 
 export function WhatsAppBtn({ phone, size = 'xs', fullWidth = false }) {
+  const { t } = useI18n();
   const url = toWhatsAppUrl(phone);
   if (!url) return null;
   return (
@@ -233,7 +236,7 @@ export function WhatsAppBtn({ phone, size = 'xs', fullWidth = false }) {
       fullWidth={fullWidth}
       onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}
     >
-      Chat on WhatsApp
+      {t('Chat on WhatsApp')}
     </Btn>
   );
 }

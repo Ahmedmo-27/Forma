@@ -6,8 +6,10 @@ import { useTenant } from '../context/TenantContext';
 import { changeUserRole } from '../api/endpoints';
 import { hasAccess } from '../lib/access';
 import { canChangeUserRole, roleChoicesFor } from '../lib/roles';
+import { useI18n } from '../i18n/useI18n';
 
-export default function ChangeRoleField({ userId, currentRole, onChanged, label = 'Role' }) {
+export default function ChangeRoleField({ userId, currentRole, onChanged, label }) {
+  const { t } = useI18n();
   const { user } = useAuth();
   const { tenant } = useTenant();
   const [nextRole, setNextRole] = useState(currentRole || '');
@@ -27,10 +29,10 @@ export default function ChangeRoleField({ userId, currentRole, onChanged, label 
     setSaving(true);
     try {
       await changeUserRole(userId, nextRole);
-      toast.success(`Role changed to ${nextRole}`);
+      toast.success(t('Role changed to {role}', { role: t(nextRole) }));
       onChanged?.(nextRole);
     } catch (error) {
-      toast.error(error.response?.data?.message || 'Could not change role');
+      toast.error(error.response?.data?.message || t('Could not change role'));
     } finally {
       setSaving(false);
     }
@@ -38,18 +40,18 @@ export default function ChangeRoleField({ userId, currentRole, onChanged, label 
 
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: '1 1 240px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
-      {label}
+      {label ?? t('Role')}
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <MenuSelect
-          aria-label={label}
+          aria-label={label ?? t('Role')}
           value={nextRole}
           disabled={saving}
           onChange={(event) => setNextRole(event.target.value)}
           style={{ flex: '1 1 160px', minWidth: 0 }}
-          options={choices.map((role) => ({ value: role, label: role }))}
+          options={choices.map((role) => ({ value: role, label: t(role) }))}
         />
         <Btn size="sm" disabled={saving || !nextRole || nextRole === currentRole} onClick={save}>
-          {saving ? <Spinner size="sm" /> : 'Save role'}
+          {saving ? <Spinner size="sm" /> : t('Save role')}
         </Btn>
       </div>
     </label>

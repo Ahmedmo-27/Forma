@@ -1,26 +1,29 @@
 import { AlertOctagon, Clock, Wrench } from "lucide-react";
+import { useI18n } from "../../i18n/useI18n";
+import { tr } from "../../i18n/translate";
 
 export function GlobalStatusBanner({ statusType, message, onAction }) {
+  const { t } = useI18n();
   if (!statusType) return null;
 
   const configs = {
     TENANT_SUSPENDED: {
       Icon: AlertOctagon,
       bg: "bg-red-600",
-      defaultMsg: "Your gym's subscription is suspended. Read-only mode is active.",
-      actionLabel: "Contact Support",
+      defaultMsg: tr("Your gym's subscription is suspended. Read-only mode is active."),
+      actionLabel: tr("Contact Support"),
     },
     SUBSCRIPTION_PAST_DUE: {
       Icon: Clock,
       bg: "bg-amber-600",
-      defaultMsg: "Your subscription payment is past due. Data changes are disabled until settled.",
-      actionLabel: "Settle Payment",
+      defaultMsg: tr("Your subscription payment is past due. Data changes are disabled until settled."),
+      actionLabel: tr("Settle Payment"),
     },
     MAINTENANCE_MODE: {
       Icon: Wrench,
       bg: "bg-blue-600",
-      defaultMsg: "System maintenance is in progress. Some features may be temporarily unavailable.",
-      actionLabel: "Refresh",
+      defaultMsg: tr("System maintenance is in progress. Some features may be temporarily unavailable."),
+      actionLabel: tr("Refresh"),
     },
   };
 
@@ -34,7 +37,7 @@ export function GlobalStatusBanner({ statusType, message, onAction }) {
     >
       <div className="flex items-center gap-2">
         <Icon className="w-4 h-4 shrink-0" />
-        <span>{message || config.defaultMsg}</span>
+        <span>{message || t(config.defaultMsg)}</span>
       </div>
       {onAction && (
         <button
@@ -42,7 +45,7 @@ export function GlobalStatusBanner({ statusType, message, onAction }) {
           onClick={onAction}
           className="px-2.5 py-1 bg-white/20 hover:bg-white/30 rounded-lg text-white font-semibold transition-colors cursor-pointer text-[11px]"
         >
-          {config.actionLabel}
+          {t(config.actionLabel)}
         </button>
       )}
     </div>

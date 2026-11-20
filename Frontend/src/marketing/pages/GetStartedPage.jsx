@@ -92,6 +92,14 @@ export default function GetStartedPage() {
 
   const selectedDurationId = durationKey(form.cycle, form.intervalCount);
 
+  // Plans are admin-defined: when the preselected key is not a live plan, use the
+  // featured plan (or the first one) instead of assuming "basic" exists.
+  useEffect(() => {
+    if (!planOptions.length || planOptions.some((plan) => plan.key === form.planKey)) return;
+    const fallback = planOptions.find((plan) => plan.featured) || planOptions[0];
+    setForm((prev) => ({ ...prev, planKey: fallback.key }));
+  }, [planOptions, form.planKey]);
+
   useEffect(() => {
     if (!durationOptions.length) return;
     if (!durationOptions.some((d) => d.id === selectedDurationId)) {

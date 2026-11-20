@@ -5,6 +5,9 @@ import { HelmetProvider } from 'react-helmet-async'
 import queryClient from './api/queryClient'
 import './index.css'
 import App from './App.jsx'
+import { initMonitoring } from './lib/monitoring'
+
+initMonitoring()
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

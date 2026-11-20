@@ -5,7 +5,7 @@ import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, CardHeader, Btn,
-  Spinner, Modal, ConfirmDialog, Table, EmptyState, fmtDate, Pagination,
+  Spinner, Modal, ConfirmDialog, Table, EmptyState, CAIRO_ZONE, Pagination,
 } from '../../components/ui';
 import PackageForm, {
   EMPTY_PACKAGE_FORM,
@@ -17,6 +17,8 @@ import PackageForm, {
 import { getPackages, createPackage, updatePackage, deletePackage } from '../../api/endpoints';
 import { Package } from 'lucide-react';
 import { useTourReveal } from '../../tutorials/walkthrough-context';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 
 const PAGE_SIZE = 15;
 
@@ -29,19 +31,28 @@ const ACTIVITY_COLOR = {
   calisthenics: { bg: '#f0f9ff', color: '#0284c7', border: '#bae6fd' },
 };
 function ActivityBadge({ type }) {
+  const { t } = useI18n();
   const c = ACTIVITY_COLOR[type] ?? { bg: 'var(--slate-bg)', color: 'var(--slate)', border: 'var(--slate-bd)' };
   return (
     <span style={{
       display: 'inline-block', padding: '2px 8px', borderRadius: 4,
       fontSize: 11, fontWeight: 600, letterSpacing: '0.3px', textTransform: 'capitalize',
       background: c.bg, color: c.color, border: `1px solid ${c.border}`,
-    }}>{type}</span>
+    }}>{t(type)}</span>
   );
 }
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function ManagePackages() {
-  usePageTitle('Packages');
+  const { t } = useI18n();
+  const { fmtDate, fmtNumber } = useFormat();
+  usePageTitle(t('Packages'));
+  const fmtCreated = (d) => (d ? fmtDate(d, {
+    timeZone: CAIRO_ZONE,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+  }, 'en-GB') : '—');
 
   const [packages, setPackages] = useState([]);
   const [loading,  setLoading]  = useState(true);
@@ -69,9 +80,9 @@ export default function ManagePackages() {
       const res = await getPackages({ page: pageNum, limit: PAGE_SIZE, catalog: 'all' });
       setPackages(res.data.packages ?? []);
       setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
-    } catch { toast.error('Failed to load packages'); }
+    } catch { toast.error(t('Failed to load packages')); }
     finally { setLoading(false); }
-  }, [page]);
+  }, [page, t]);
 
   useLocationEffect(() => { load(); }, [load]);
 
@@ -82,13 +93,13 @@ export default function ManagePackages() {
     setCreating(true);
     try {
       await createPackage(packageFormToPayload(createForm));
-      toast.success('Package created');
+      toast.success(t('Package created'));
       setShowCreate(false);
       setCreateForm(EMPTY_PACKAGE_FORM);
       setCreateErrors({});
       load();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create package');
+      toast.error(err.response?.data?.message || t('Failed to create package'));
     } finally { setCreating(false); }
   };
 
@@ -106,14 +117,14 @@ export default function ManagePackages() {
     try {
       const res = await updatePackage(editTarget._id, packageFormToPayload(editForm));
       const updated = res.data?.package;
-      toast.success('Package updated');
+      toast.success(t('Package updated'));
       setEditTarget(null);
       await load();
       if (updated?._id) {
         setPackages((prev) => prev.map((pkg) => (pkg._id === updated._id ? { ...pkg, ...updated } : pkg)));
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to update package');
+      toast.error(err.response?.data?.message || t('Failed to update package'));
     } finally { setEditing(false); }
   };
 
@@ -122,36 +133,36 @@ export default function ManagePackages() {
     setDeleting(true);
     try {
       await deletePackage(deleteTarget._id);
-      toast.success('Package deactivated');
+      toast.success(t('Package deactivated'));
       setDeleteTarget(null);
       load();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to delete package');
+      toast.error(err.response?.data?.message || t('Failed to delete package'));
     } finally { setDeleting(false); }
   };
 
   return (
     <Layout>
-      <PageHeader walkthrough="packages-header" title="Packages">
+      <PageHeader walkthrough="packages-header" title={t('Packages')}>
         <span data-walkthrough="packages-new">
         <Btn variant="blue" size="sm" onClick={() => { setCreateForm(EMPTY_PACKAGE_FORM); setCreateErrors({}); setShowCreate(true); }}>
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
           </svg>
-          New Package
+          {t('New Package')}
         </Btn>
         </span>
       </PageHeader>
 
       <div className="page-wrap" data-walkthrough="packages-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <Card noPad>
-          <CardHeader title={`Active Packages (${pagination.total})`} />
+          <CardHeader title={t('Active Packages ({count})', { count: pagination.total })} />
           <Table
-            headers={['Name', 'Activity', 'Duration', 'Price', 'Branches', 'Freeze', 'Invites', 'Discount', 'Created', '']}
+            headers={[t('Name'), t('Activity'), t('Duration'), t('Price'), t('Branches'), t('Freeze'), t('Invites'), t('Discount'), t('Created'), '']}
             loading={loading} skeletonRows={4}
           >
             {!loading && packages.length === 0 && (
-              <tr><td colSpan={10}><EmptyState icon={Package} message="No packages yet" sub="Create your first package above" /></td></tr>
+              <tr><td colSpan={10}><EmptyState icon={Package} message={t('No packages yet')} sub={t('Create your first package above')} /></td></tr>
             )}
             {packages.map(pkg => (
               <tr key={pkg._id} style={{ borderBottom: '1px solid var(--border)' }}
@@ -169,13 +180,13 @@ export default function ManagePackages() {
                 <td style={{ padding: '11px 14px' }}><ActivityBadge type={pkg.activityType} /></td>
                 <td style={{ padding: '11px 14px', color: 'var(--t2)', fontSize: 13 }}>{pkg.duration}</td>
                 <td style={{ padding: '11px 14px', fontWeight: 700, color: 'var(--t1)', fontSize: 13 }}>
-                  {pkg.price.toLocaleString()} EGP
+                  {fmtNumber(pkg.price)} EGP
                 </td>
                 <td style={{ padding: '11px 14px', color: 'var(--t2)', fontSize: 12, maxWidth: 160 }}>
-                  {packageEligibilityLabel(pkg)}
+                  {t(packageEligibilityLabel(pkg))}
                 </td>
                 <td style={{ padding: '11px 14px', color: 'var(--t2)', fontSize: 13 }}>
-                  {pkg.freezeLimitDays > 0 ? `${pkg.freezeLimitDays}d` : <span style={{ color: 'var(--t4)' }}>—</span>}
+                  {pkg.freezeLimitDays > 0 ? t('{count}d', { count: pkg.freezeLimitDays }) : <span style={{ color: 'var(--t4)' }}>—</span>}
                 </td>
                 <td style={{ padding: '11px 14px', color: 'var(--t2)', fontSize: 13 }}>
                   {pkg.invitationLimit > 0 ? pkg.invitationLimit : <span style={{ color: 'var(--t4)' }}>—</span>}
@@ -185,11 +196,11 @@ export default function ManagePackages() {
                     ? <span style={{ color: 'var(--green)', fontWeight: 600 }}>{pkg.renewalDiscountPercent}%</span>
                     : <span style={{ color: 'var(--t4)' }}>—</span>}
                 </td>
-                <td style={{ padding: '11px 14px', color: 'var(--t4)', fontSize: 12 }}>{fmtDate(pkg.createdAt)}</td>
+                <td style={{ padding: '11px 14px', color: 'var(--t4)', fontSize: 12 }}>{fmtCreated(pkg.createdAt)}</td>
                 <td style={{ padding: '11px 14px' }}>
                   <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                    <Btn variant="outline" size="xs" onClick={() => openEdit(pkg)}>Edit</Btn>
-                    <Btn variant="danger"  size="xs" onClick={() => setDeleteTarget(pkg)}>Delete</Btn>
+                    <Btn variant="outline" size="xs" onClick={() => openEdit(pkg)}>{t('Edit')}</Btn>
+                    <Btn variant="danger"  size="xs" onClick={() => setDeleteTarget(pkg)}>{t('Delete')}</Btn>
                   </div>
                 </td>
               </tr>
@@ -206,11 +217,11 @@ export default function ManagePackages() {
       </div>
 
       {/* Create */}
-      <Modal open={showCreate} onClose={() => setShowCreate(false)} title="New Package" size="md"
+      <Modal open={showCreate} onClose={() => setShowCreate(false)} title={t('New Package')} size="md"
         footer={<>
-          <Btn variant="ghost" size="sm" onClick={() => setShowCreate(false)} disabled={creating}>Cancel</Btn>
+          <Btn variant="ghost" size="sm" onClick={() => setShowCreate(false)} disabled={creating}>{t('Cancel')}</Btn>
           <Btn variant="blue"  size="sm" onClick={handleCreate} disabled={creating}>
-            {creating ? <Spinner size="sm" /> : 'Create Package'}
+            {creating ? <Spinner size="sm" /> : t('Create Package')}
           </Btn>
         </>}
       >
@@ -218,11 +229,11 @@ export default function ManagePackages() {
       </Modal>
 
       {/* Edit */}
-      <Modal open={Boolean(editTarget)} onClose={() => setEditTarget(null)} title={`Edit — ${editTarget?.name ?? ''}`} size="md"
+      <Modal open={Boolean(editTarget)} onClose={() => setEditTarget(null)} title={t('Edit — {name}', { name: editTarget?.name ?? '' })} size="md"
         footer={<>
-          <Btn variant="ghost" size="sm" onClick={() => setEditTarget(null)} disabled={editing}>Cancel</Btn>
+          <Btn variant="ghost" size="sm" onClick={() => setEditTarget(null)} disabled={editing}>{t('Cancel')}</Btn>
           <Btn variant="blue"  size="sm" onClick={handleEdit} disabled={editing}>
-            {editing ? <Spinner size="sm" /> : 'Save Changes'}
+            {editing ? <Spinner size="sm" /> : t('Save Changes')}
           </Btn>
         </>}
       >
@@ -232,9 +243,9 @@ export default function ManagePackages() {
       {/* Delete confirm */}
       <ConfirmDialog
         open={Boolean(deleteTarget)} onClose={() => setDeleteTarget(null)} onConfirm={handleDelete}
-        title="Deactivate Package"
-        message={`Deactivate "${deleteTarget?.name}"? It will no longer appear when assigning packages to members.`}
-        confirmLabel="Deactivate" danger loading={deleting}
+        title={t('Deactivate Package')}
+        message={t('Deactivate "{name}"? It will no longer appear when assigning packages to members.', { name: deleteTarget?.name })}
+        confirmLabel={t('Deactivate')} danger loading={deleting}
       />
     </Layout>
   );

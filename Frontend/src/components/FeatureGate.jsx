@@ -1,9 +1,16 @@
-import { useFeature } from '../hooks/useFeature';
 import { useTenant } from '../context/TenantContext';
+import { useI18n } from '../i18n/useI18n';
+import { featureAllowed, featureKeys } from '../lib/canSeeRoute';
 
+/**
+ * Renders children when the gym has the feature (or any of a list).
+ * Otherwise shows a locked-module page so a removed page explains itself.
+ */
 export default function FeatureGate({ feature, fallback, children }) {
-  const isEnabled = useFeature(feature);
-  const { plan } = useTenant();
+  const { plan, tenant, loading, hasFeature, refreshTenant } = useTenant();
+  const { t } = useI18n();
+  const isEnabled = featureAllowed(hasFeature, feature);
+  const featureLabel = featureKeys(feature).join(', ');
 
   if (isEnabled) {
     return children;
@@ -11,6 +18,20 @@ export default function FeatureGate({ feature, fallback, children }) {
 
   if (fallback !== undefined) {
     return fallback;
+  }
+
+  // Plan details never arrived (network error): say so instead of claiming the module is locked.
+  if (!tenant && !loading) {
+    return (
+      <div style={{ margin: '24px 0', padding: '32px 24px', textAlign: 'center' }}>
+        <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 16 }}>
+          {t('We could not load your gym’s plan. Check your connection and try again.')}
+        </p>
+        <button type="button" className="btn btn-primary" onClick={() => refreshTenant?.()}>
+          {t('Try again')}
+        </button>
+      </div>
+    );
   }
 
   return (
@@ -44,13 +65,13 @@ export default function FeatureGate({ feature, fallback, children }) {
         </svg>
       </div>
       <h3 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
-        Feature Not Available in {plan?.name || 'Current'} Plan
+        {t('Module Not Available in {plan} Plan', { plan: plan?.name || t('Current') })}
       </h3>
       <p style={{ fontSize: 14, color: '#6B7280', maxWidth: 480, margin: '0 auto 20px', lineHeight: 1.5 }}>
-        This module (<code>{feature}</code>) is part of a higher tier subscription. Contact your platform administrator to upgrade your gym’s plan and unlock this capability.
+        {t('This module ({feature}) is not enabled for your gym. Contact your platform administrator to add it to your plan.', { feature: featureLabel })}
       </p>
       <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 20, background: '#F3F4F6', fontSize: 12, fontWeight: 600, color: '#4B5563' }}>
-        Current Tier: <span style={{ color: 'var(--navy)' }}>{plan?.name || 'Standard'}</span>
+        {t('Current Tier:')} <span style={{ color: 'var(--navy)' }}>{plan?.name || t('Standard')}</span>
       </div>
     </div>
   );

@@ -4,13 +4,20 @@ import { X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Table, Badge, Btn, Modal, Input, Spinner, EmptyState, ConfirmDialog, fmtDateTime, Pagination, MenuSelect } from '../../components/ui';
+import { PageHeader, Card, Table, Badge, Btn, Modal, Input, Spinner, EmptyState, ConfirmDialog, Pagination, MenuSelect, CAIRO_ZONE } from '../../components/ui';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 import { getRequests, createRequest, updateRequestStatus, getSalesTeam } from '../../api/endpoints';
 
 const PAGE_SIZE = 10;
 
 export default function SalesRequests() {
-  usePageTitle('Requests');
+  const { t } = useI18n();
+  const { fmtDateTime: fmtLocaleDateTime } = useFormat();
+  const fmtDateTime = (d) => (d ? fmtLocaleDateTime(d, {
+    timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true,
+  }, 'en-US') : '—');
+  usePageTitle(t('Requests'));
   const { user } = useAuth();
   const [pending, setPending] = useState([]);
   const [resolved, setResolved] = useState([]);
@@ -38,9 +45,9 @@ export default function SalesRequests() {
       const res = await getRequests({ status: 'pending', page: pendingPage, limit: PAGE_SIZE, ...repParams });
       setPending(res.data.requests ?? []);
       setPendingPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
-    } catch { toast.error('Failed to load pending requests.'); }
+    } catch { toast.error(t('Failed to load pending requests.')); }
     finally { setLoadingPending(false); }
-  }, [pendingPage, repParams]);
+  }, [t, pendingPage, repParams]);
 
   const fetchResolved = useCallback(async () => {
     setLoadingResolved(true);
@@ -48,9 +55,9 @@ export default function SalesRequests() {
       const res = await getRequests({ status: 'resolved', page: resolvedPage, limit: PAGE_SIZE, ...repParams });
       setResolved(res.data.requests ?? []);
       setResolvedPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
-    } catch { toast.error('Failed to load request history.'); }
+    } catch { toast.error(t('Failed to load request history.')); }
     finally { setLoadingResolved(false); }
-  }, [resolvedPage, repParams]);
+  }, [t, resolvedPage, repParams]);
 
   const fetchRequests = useCallback(() => {
     fetchPending();
@@ -77,23 +84,23 @@ export default function SalesRequests() {
     setActionLoading(true);
     try {
       await updateRequestStatus(confirm.id, confirm.status);
-      toast.success(`Request ${confirm.status}.`);
+      toast.success(confirm.status === 'accepted' ? t('Request accepted.') : t('Request rejected.'));
       setConfirm(null);
       fetchRequests();
-    } catch (e) { toast.error(e.response?.data?.message ?? 'Action failed.'); }
+    } catch (e) { toast.error(e.response?.data?.message ?? t('Action failed.')); }
     finally { setActionLoading(false); }
   };
 
   // Apply rep filter handled server-side via repParams
 
   const RowCols = isManager
-    ? ['Member', 'Requested By', 'Submitted', 'Status', 'Actions']
-    : ['Member', 'Requested By', 'Submitted', 'Status'];
+    ? [t('Member'), t('Requested By'), t('Submitted'), t('Status'), t('Actions')]
+    : [t('Member'), t('Requested By'), t('Submitted'), t('Status')];
 
   return (
     <Layout>
-      <PageHeader walkthrough="requests-header" title="Requests">
-        {user?.role === 'Sales' && <Btn size="sm" onClick={() => setShowNew(true)}>+ New Request</Btn>}
+      <PageHeader walkthrough="requests-header" title={t('Requests')}>
+        {user?.role === 'Sales' && <Btn size="sm" onClick={() => setShowNew(true)}>{t('+ New Request')}</Btn>}
       </PageHeader>
 
       <div className="page-wrap" data-walkthrough="requests-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
@@ -102,15 +109,15 @@ export default function SalesRequests() {
         {isManager && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)', textTransform: 'uppercase', letterSpacing: '0.4px', flexShrink: 0 }}>
-              Filter by Rep:
+              {t('Filter by Rep:')}
             </label>
             <MenuSelect
               value={repFilter}
               onChange={e => setRepFilter(e.target.value)}
               style={{ minWidth: 200 }}
-              aria-label="Filter by sales rep"
+              aria-label={t('Filter by sales rep')}
             >
-              <option value="all">All Reps</option>
+              <option value="all">{t('All Reps')}</option>
               {salesReps.map(rep => (
                 <option key={rep._id} value={rep._id}>{rep.name}</option>
               ))}
@@ -121,7 +128,7 @@ export default function SalesRequests() {
                 style={{ fontSize: 12, fontWeight: 600, color: 'var(--red)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit', padding: 0 }}
               >
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                  <X size={12} strokeWidth={2.5} /> Clear
+                  <X size={12} strokeWidth={2.5} /> {t('Clear')}
                 </span>
               </button>
             )}
@@ -131,15 +138,15 @@ export default function SalesRequests() {
         {/* ── Pending ──────────────────────────────────────────── */}
         <Card noPad style={{ marginBottom: 16 }}>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Pending ({pendingPagination.total})</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t('Pending ({count})', { count: pendingPagination.total })}</span>
             {pendingPagination.total > 0 && (
               <span style={{ fontSize: 11, background: 'var(--amber-bg)', color: 'var(--amber)', border: '1px solid var(--amber-bd)', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
-                Needs Review
+                {t('Needs Review')}
               </span>
             )}
           </div>
           {!pending.length && !loadingPending
-            ? <EmptyState message="No pending requests" />
+            ? <EmptyState message={t('No pending requests')} />
             : <>
             <Table loading={loadingPending} skeletonRows={3} headers={RowCols}>
                 {pending.map(r => (
@@ -154,8 +161,8 @@ export default function SalesRequests() {
                     {isManager && (
                       <td style={{ padding: '10px 14px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <Btn variant="success" size="xs" onClick={() => setConfirm({ id: r._id, status: 'accepted' })}>Accept</Btn>
-                          <Btn variant="danger"  size="xs" onClick={() => setConfirm({ id: r._id, status: 'rejected' })}>Reject</Btn>
+                          <Btn variant="success" size="xs" onClick={() => setConfirm({ id: r._id, status: 'accepted' })}>{t('Accept')}</Btn>
+                          <Btn variant="danger"  size="xs" onClick={() => setConfirm({ id: r._id, status: 'rejected' })}>{t('Reject')}</Btn>
                         </div>
                       </td>
                     )}
@@ -176,12 +183,12 @@ export default function SalesRequests() {
         {/* ── History ──────────────────────────────────────────── */}
         <Card noPad>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>History ({resolvedPagination.total})</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t('History ({count})', { count: resolvedPagination.total })}</span>
           </div>
           {!resolved.length && !loadingResolved
-            ? <EmptyState message="No resolved requests" />
+            ? <EmptyState message={t('No resolved requests')} />
             : <>
-            <Table loading={loadingResolved} headers={['Member', 'Requested By', 'Submitted', 'Status']}>
+            <Table loading={loadingResolved} headers={[t('Member'), t('Requested By'), t('Submitted'), t('Status')]}>
                 {resolved.map(r => (
                   <tr key={r._id} style={{ borderBottom: '1px solid var(--border)' }}
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
@@ -216,9 +223,11 @@ export default function SalesRequests() {
 
       <ConfirmDialog
         open={!!confirm} onClose={() => setConfirm(null)} onConfirm={handleAction}
-        title={confirm?.status === 'accepted' ? 'Accept Request' : 'Reject Request'}
-        message={`Are you sure you want to ${confirm?.status} this assignment request?`}
-        confirmLabel={confirm?.status === 'accepted' ? 'Accept' : 'Reject'}
+        title={confirm?.status === 'accepted' ? t('Accept Request') : t('Reject Request')}
+        message={confirm?.status === 'accepted'
+          ? t('Are you sure you want to accept this assignment request?')
+          : t('Are you sure you want to reject this assignment request?')}
+        confirmLabel={confirm?.status === 'accepted' ? t('Accept') : t('Reject')}
         danger={confirm?.status === 'rejected'} loading={actionLoading}
       />
     </Layout>
@@ -226,35 +235,36 @@ export default function SalesRequests() {
 }
 
 function NewRequestModal({ open, onClose, onSuccess }) {
+  const { t } = useI18n();
   const [memberId, setMemberId] = useState('');
   const [loading,  setLoading]  = useState(false);
   const handleSubmit = async () => {
-    if (!memberId.trim()) { toast.error('Member ID required.'); return; }
+    if (!memberId.trim()) { toast.error(t('Member ID required.')); return; }
     setLoading(true);
     try {
       await createRequest(memberId.trim());
-      toast.success('Request submitted.');
+      toast.success(t('Request submitted.'));
       setMemberId('');
       onSuccess();
-    } catch (e) { toast.error(e.response?.data?.message ?? 'Failed.'); }
+    } catch (e) { toast.error(e.response?.data?.message ?? t('Failed.')); }
     finally { setLoading(false); }
   };
   return (
-    <Modal open={open} onClose={onClose} title="Request Member Assignment" size="sm"
+    <Modal open={open} onClose={onClose} title={t('Request Member Assignment')} size="sm"
       footer={<>
-        <Btn variant="ghost" size="sm" onClick={onClose}>Cancel</Btn>
-        <Btn size="sm" onClick={handleSubmit} disabled={loading}>{loading ? <Spinner size="sm" /> : 'Send'}</Btn>
+        <Btn variant="ghost" size="sm" onClick={onClose}>{t('Cancel')}</Btn>
+        <Btn size="sm" onClick={handleSubmit} disabled={loading}>{loading ? <Spinner size="sm" /> : t('Send')}</Btn>
       </>}
     >
       <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 14, lineHeight: 1.6 }}>
-        Enter the System ID or Member ID of the member you want assigned to you. The request will go to your Sales Manager.
+        {t('Enter the System ID or Member ID of the member you want assigned to you. The request will go to your Sales Manager.')}
       </p>
       <Input
-        label="Member System ID *"
+        label={t('Member System ID *')}
         value={memberId}
         onChange={e => setMemberId(e.target.value)}
-        placeholder="e.g. 100"
-        hint="Found on the member's profile page."
+        placeholder={t('e.g. 100')}
+        hint={t("Found on the member's profile page.")}
       />
     </Modal>
   );

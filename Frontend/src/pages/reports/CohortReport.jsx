@@ -4,6 +4,7 @@ import { getRetentionCohorts } from '../../api/endpoints';
 import ReportFrame from './ReportFrame';
 import useAnalyticsReport from './useAnalyticsReport';
 import { formatMonth, formatPercent, tdStyle, thStyle } from './analyticsFormat';
+import { useI18n } from '../../i18n/useI18n';
 
 function cellColor(rate) {
   if (rate == null) return 'transparent';
@@ -12,39 +13,40 @@ function cellColor(rate) {
 }
 
 export default function CohortReport() {
+  const { t, lang } = useI18n();
   const load = useCallback(() => getRetentionCohorts({ months: 12 }), []);
   const { data, loading, error } = useAnalyticsReport(load);
   const hasCohorts = (data?.cohorts || []).some((row) => row.size > 0);
   const windowLabel = data?.cohorts?.length
-    ? `${formatMonth(data.cohorts[0].cohort)} – ${formatMonth(data.cohorts[data.cohorts.length - 1].cohort)}`
+    ? `${formatMonth(data.cohorts[0].cohort, lang)} – ${formatMonth(data.cohorts[data.cohorts.length - 1].cohort, lang)}`
     : '';
 
   return (
     <ReportFrame
-      title="Retention Cohorts"
-      definition="Each row is the month of a member's first subscription. Cells show the share still covered at the end of that month and the months after it. A member who comes back is covered again."
+      title={t('Retention Cohorts')}
+      definition={t("Each row is the month of a member's first subscription. Cells show the share still covered at the end of that month and the months after it. A member who comes back is covered again.")}
       windowLabel={windowLabel}
       loading={loading}
       error={error}
     >
-      {data && !hasCohorts && <EmptyState message="No first subscriptions in this window yet" />}
+      {data && !hasCohorts && <EmptyState message={t('No first subscriptions in this window yet')} />}
       {data && hasCohorts && (
         <Card noPad>
           <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr>
-                <th style={thStyle}>Cohort</th>
-                <th style={thStyle}>Size</th>
+                <th style={thStyle}>{t('Cohort')}</th>
+                <th style={thStyle}>{t('Size')}</th>
                 {Array.from({ length: 12 }, (_, index) => (
-                  <th key={index} style={{ ...thStyle, textAlign: 'center' }}>M{index}</th>
+                  <th key={index} style={{ ...thStyle, textAlign: 'center' }}>{t('M{index}', { index })}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {data.cohorts.filter((row) => row.size > 0).map((row) => (
                 <tr key={row.cohort}>
-                  <td style={tdStyle}>{formatMonth(row.cohort)}</td>
+                  <td style={tdStyle}>{formatMonth(row.cohort, lang)}</td>
                   <td style={tdStyle}>{row.size}</td>
                   {row.retention.map((rate, index) => (
                     <td

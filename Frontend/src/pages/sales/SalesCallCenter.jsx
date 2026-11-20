@@ -6,9 +6,11 @@ import usePageTitle from '../../hooks/usePageTitle';
 import useDebounce from '../../hooks/useDebounce';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, EmptyState, Avatar, Badge, SearchInput, Btn, Pagination, fmtDateTime, toLocalDateString, CardListSkeleton } from '../../components/ui';
+import { PageHeader, Card, EmptyState, Avatar, Badge, SearchInput, Btn, Pagination, CAIRO_ZONE, toLocalDateString, CardListSkeleton } from '../../components/ui';
 import { getAllNotes } from '../../api/endpoints';
 import { MessageCircle, X } from 'lucide-react';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 
 const TODAY = toLocalDateString();
 const DEFAULT_PAGE_SIZE = 10;
@@ -22,7 +24,19 @@ const inputStyle = {
 };
 
 export default function SalesCallCenter() {
-  usePageTitle('Call Center');
+  const { t } = useI18n();
+  const { fmtDateTime } = useFormat();
+  const fmtNoteDate = (d) => (d ? fmtDateTime(d, {
+    timeZone: CAIRO_ZONE,
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+  }, 'en-US') : '—');
+  usePageTitle(t('Call Center'));
   const { user }  = useAuth();
   const navigate  = useNavigate();
 
@@ -59,11 +73,11 @@ export default function SalesCallCenter() {
       setNotes(res.data.notes ?? []);
       setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: pageSize });
     } catch {
-      toast.error('Failed to load notes');
+      toast.error(t('Failed to load notes'));
     } finally {
       setLoading(false);
     }
-  }, [user?._id, page, pageSize, debouncedSearch, dateFrom, dateTo]);
+  }, [user?._id, page, pageSize, debouncedSearch, dateFrom, dateTo, t]);
 
   useLocationEffect(() => { fetchNotes(); }, [fetchNotes]);
   useLocationEffect(() => { setPage(1); }, []);
@@ -84,11 +98,11 @@ export default function SalesCallCenter() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="my-calls-header" title="Call Center">
+      <PageHeader walkthrough="my-calls-header" title={t('Call Center')}>
         <SearchInput
           value={search}
           onChange={setSearch}
-          placeholder="Search notes or members…"
+          placeholder={t('Search notes or members…')}
           width={220}
         />
       </PageHeader>
@@ -102,13 +116,13 @@ export default function SalesCallCenter() {
           display: 'flex', alignItems: 'flex-end', gap: 16, flexWrap: 'wrap',
         }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: '1 1 140px' }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>From Date</label>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{t('From Date')}</label>
             <input type="date" value={dateFrom} max={dateTo || TODAY}
               onChange={e => setDateFrom(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 5, flex: '1 1 140px' }}>
-            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>To Date</label>
+            <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{t('To Date')}</label>
             <input type="date" value={dateTo} min={dateFrom || undefined} max={TODAY}
               onChange={e => setDateTo(e.target.value)} style={{ ...inputStyle, width: '100%' }} />
           </div>
@@ -116,11 +130,11 @@ export default function SalesCallCenter() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, paddingBottom: 2 }}>
             {hasFilters && (
               <Btn variant="ghost" size="sm" onClick={() => { setDateFrom(''); setDateTo(''); setSearch(''); }}>
-                <X size={14} aria-hidden /> Clear
+                <X size={14} aria-hidden /> {t('Clear')}
               </Btn>
             )}
             <span style={{ fontSize: 12, color: 'var(--t4)' }}>
-              {loading ? '…' : `${pagination.total} note${pagination.total !== 1 ? 's' : ''}`}
+              {loading ? '…' : (pagination.total === 1 ? t('1 note') : t('{count} notes', { count: pagination.total }))}
             </span>
           </div>
         </div>
@@ -129,7 +143,7 @@ export default function SalesCallCenter() {
         <Card noPad>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
-              My Notes {!loading && `(${pagination.total})`}
+              {loading ? t('My Notes') : t('My Notes ({count})', { count: pagination.total })}
             </span>
           </div>
 
@@ -140,8 +154,8 @@ export default function SalesCallCenter() {
           ) : notes.length === 0 ? (
             <EmptyState
               icon={MessageCircle}
-              message={hasFilters ? 'No notes match your filters' : 'No notes written yet'}
-              sub={hasFilters ? 'Try adjusting the date range or search.' : 'Notes you add to member profiles will appear here.'}
+              message={hasFilters ? t('No notes match your filters') : t('No notes written yet')}
+              sub={hasFilters ? t('Try adjusting the date range or search.') : t('Notes you add to member profiles will appear here.')}
             />
           ) : (
             <>
@@ -161,10 +175,10 @@ export default function SalesCallCenter() {
                     {/* Member info */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
                       <Avatar name={note.member?.name ?? '?'} size="sm" photo={note.member?.photo} />
-                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{note.member?.name ?? '—'}</span>
-                      <span style={{ fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}>#{note.member?.systemId}</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}><bdi>{note.member?.name ?? '—'}</bdi></span>
+                      <span dir="ltr" style={{ fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace', unicodeBidi: 'isolate' }}>#{note.member?.systemId}</span>
                       <Badge status={note.member?.status} />
-                      <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--t4)' }}>{fmtDateTime(note.createdAt)}</span>
+                      <span style={{ marginInlineStart: 'auto', fontSize: 11, color: 'var(--t4)' }}>{fmtNoteDate(note.createdAt)}</span>
                     </div>
 
                     {/* Note text */}

@@ -9,6 +9,7 @@ import { isValidEmail, isValidPhone } from '../../lib/validation';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
+import { useI18n } from '../../i18n/useI18n';
 
 const INIT = {
   name: '',
@@ -21,7 +22,8 @@ const INIT = {
 };
 
 export default function CoachStaff() {
-  usePageTitle('Manage Coaches');
+  const { t } = useI18n();
+  usePageTitle(t('Manage Coaches'));
   const { user } = useAuth();
   const { hasFeature } = useTenant() || {};
   const { selectedLocationId } = useLocationScope();
@@ -72,29 +74,29 @@ export default function CoachStaff() {
     const mobileTrim = form.mobile_number.trim();
 
     if (!nameTrim) {
-      e.name = 'Name is required';
+      e.name = t('Name is required');
     } else if (nameTrim.length > 120) {
-      e.name = 'Name must not exceed 120 characters';
+      e.name = t('Name must not exceed 120 characters');
     }
 
     if (!emailTrim) {
-      e.email = 'Email is required';
+      e.email = t('Email is required');
     } else if (!isValidEmail(emailTrim)) {
-      e.email = 'Enter a valid email address';
+      e.email = t('Enter a valid email address');
     }
 
     if (!mobileTrim) {
-      e.mobile_number = 'Mobile number is required';
+      e.mobile_number = t('Mobile number is required');
     } else if (!isValidPhone(mobileTrim)) {
-      e.mobile_number = 'Enter a valid mobile phone number (5–40 characters)';
+      e.mobile_number = t('Enter a valid mobile phone number (5–40 characters)');
     }
 
     if (!form.password) {
-      e.password = 'Password is required';
+      e.password = t('Password is required');
     } else if (form.password.length < 8) {
-      e.password = 'Password must be at least 8 characters';
+      e.password = t('Password must be at least 8 characters');
     } else if (form.password.length > 200) {
-      e.password = 'Password must not exceed 200 characters';
+      e.password = t('Password must not exceed 200 characters');
     }
 
     if (
@@ -102,7 +104,7 @@ export default function CoachStaff() {
       && !form.canAccessAllLocations
       && !(form.allowedLocationIds || []).length
     ) {
-      e.allowedLocationIds = 'Select at least one branch, or enable all locations';
+      e.allowedLocationIds = t('Select at least one branch, or enable all locations');
     }
 
     setErrors(e);
@@ -128,14 +130,14 @@ export default function CoachStaff() {
           : (form.allowedLocationIds || []);
       }
       await createStaffUser(payload);
-      toast.success('Coach account created!');
+      toast.success(t('Coach account created!'));
       setForm({
         ...INIT,
         allowedLocationIds: deskBranch ? [deskBranch] : [],
       });
       setErrors({});
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create account.');
+      toast.error(err.response?.data?.message || t('Failed to create account.'));
     } finally {
       setLoading(false);
     }
@@ -143,33 +145,33 @@ export default function CoachStaff() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="coach-staff-header" title="Create Coach Account" />
+      <PageHeader walkthrough="coach-staff-header" title={t('Create Coach Account')} />
 
       <div className="page-wrap" data-walkthrough="coach-staff-board" style={{ paddingTop: 20, paddingBottom: 32, maxWidth: 480 }}>
         <Card>
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <Input
-              label="Full Name *"
+              label={t('Full Name *')}
               value={form.name}
               onChange={e => set('name', e.target.value)}
               error={errors.name}
             />
             <Input
-              label="Email *"
+              label={t('Email *')}
               type="email"
               value={form.email}
               onChange={e => set('email', e.target.value)}
               error={errors.email}
             />
             <Input
-              label="Mobile Number *"
+              label={t('Mobile Number *')}
               value={form.mobile_number}
               onChange={e => set('mobile_number', e.target.value)}
               error={errors.mobile_number}
-              placeholder="e.g. 01012345678"
+              placeholder={t('e.g. 01012345678')}
             />
             <Input
-              label="Password *"
+              label={t('Password *')}
               type="password"
               value={form.password}
               onChange={e => set('password', e.target.value)}
@@ -179,8 +181,8 @@ export default function CoachStaff() {
             {canSetLocations && (
               <LocationAccessEditor
                 embedded
-                title="Branch viewing access"
-                description="Choose whether this coach can view data for all branches or only selected ones."
+                title={t('Branch viewing access')}
+                description={t('Choose whether this coach can view data for all branches or only selected ones.')}
                 locations={locations}
                 canAccessAll={Boolean(form.canAccessAllLocations)}
                 onCanAccessAllChange={(checked) => setForm((f) => ({
@@ -201,7 +203,7 @@ export default function CoachStaff() {
 
             <div style={{ paddingTop: 4 }}>
               <Btn type="submit" disabled={loading}>
-                {loading ? <Spinner size="sm" /> : 'Create Coach Account'}
+                {loading ? <Spinner size="sm" /> : t('Create Coach Account')}
               </Btn>
             </div>
           </form>

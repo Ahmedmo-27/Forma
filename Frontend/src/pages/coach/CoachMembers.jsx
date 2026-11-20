@@ -9,9 +9,11 @@ import Layout from '../../components/Layout';
 import { PageHeader, Card, Table, Badge, StatCard, EmptyState, SearchInput, Avatar, formatSystemId } from '../../components/ui';
 import { getAllMembers } from '../../api/endpoints';
 import { Dumbbell } from 'lucide-react';
+import { useI18n } from '../../i18n/useI18n';
 
 export default function CoachMembers() {
-  usePageTitle('Members');
+  const { t } = useI18n();
+  usePageTitle(t('Members'));
   const { user } = useAuth();
   const navigate = useNavigate();
   const isManager = user?.role === 'Head Coach';
@@ -28,11 +30,11 @@ export default function CoachMembers() {
       const res = await getAllMembers();
       setMembers(res.data.members ?? []);
     } catch {
-      toast.error('Failed to load members');
+      toast.error(t('Failed to load members'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useLocationEffect(() => { load(); }, [load]);
 
@@ -74,27 +76,27 @@ export default function CoachMembers() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="coach-members-header" title="Members">
-        <SearchInput value={search} onChange={setSearch} placeholder="Name, phone, ID…" width={200} />
+      <PageHeader walkthrough="coach-members-header" title={t('Members')}>
+        <SearchInput value={search} onChange={setSearch} placeholder={t('Name, phone, ID…')} width={200} />
       </PageHeader>
 
       <div className="page-wrap" data-walkthrough="coach-members-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <div className="grid-stats-5" style={{ marginBottom: 16 }}>
-          <StatCard label="Total" value={stats.total} color="brand" />
-          <StatCard label="Active" value={stats.active} color="success" />
-          <StatCard label="Transferred" value={stats.transferred} color="info" />
-          <StatCard label="Interested" value={stats.interested} color="warning" />
-          <StatCard label="Expired" value={stats.expired} color="danger" />
+          <StatCard label={t('Total')} value={stats.total} color="brand" />
+          <StatCard label={t('Active')} value={stats.active} color="success" />
+          <StatCard label={t('Transferred')} value={stats.transferred} color="info" />
+          <StatCard label={t('Interested')} value={stats.interested} color="warning" />
+          <StatCard label={t('Expired')} value={stats.expired} color="danger" />
         </div>
 
         {/* Filter buttons */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
           {[
-            { value: 'all', label: `All (${stats.total})` },
-            { value: 'active', label: `Active (${stats.active})` },
-            { value: 'transferred', label: `Transferred (${stats.transferred})` },
-            { value: 'interested', label: `Interested (${stats.interested})` },
-            { value: 'expired', label: `Expired (${stats.expired})` },
+            { value: 'all', label: t('All ({count})', { count: stats.total }) },
+            { value: 'active', label: t('Active ({count})', { count: stats.active }) },
+            { value: 'transferred', label: t('Transferred ({count})', { count: stats.transferred }) },
+            { value: 'interested', label: t('Interested ({count})', { count: stats.interested }) },
+            { value: 'expired', label: t('Expired ({count})', { count: stats.expired }) },
           ].map(o => (
             <button key={o.value} onClick={() => setFilter(o.value)} style={{
               padding: '5px 12px', borderRadius: 5, fontSize: 12, fontWeight: 600,
@@ -108,12 +110,12 @@ export default function CoachMembers() {
 
         <Card noPad>
           {!loading && filtered.length === 0 ? (
-            <EmptyState icon={Dumbbell} message="No members match" />
+            <EmptyState icon={Dumbbell} message={t('No members match')} />
           ) : (
             <Table
               loading={loading}
               skeletonRows={8}
-              headers={['ID', 'Name', ...(isManager ? ['Coach'] : []), 'Status', 'Sessions', 'Used', 'Remaining']}
+              headers={[t('ID'), t('Name'), ...(isManager ? [t('Coach')] : []), t('Status'), t('Sessions'), t('Used'), t('Remaining')]}
             >
               {filtered.map(m => (
                 <tr key={m._id} onClick={() => navigate(`/members/${m.systemId}`)}

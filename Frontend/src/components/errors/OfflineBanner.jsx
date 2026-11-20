@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { WifiOff, Wifi } from "lucide-react";
+import { useI18n } from "../../i18n/useI18n";
 
 export function OfflineBanner() {
+  const { t } = useI18n();
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [justReconnected, setJustReconnected] = useState(false);
 
@@ -34,10 +36,10 @@ export function OfflineBanner() {
       <div
         role="status"
         aria-live="polite"
-        className="fixed top-0 left-0 right-0 z-[1000] bg-emerald-600 text-white text-xs font-semibold py-1.5 px-4 text-center flex items-center justify-center gap-2 shadow-sm transition-all duration-300"
+        className="fixed top-0 start-0 end-0 z-[1000] bg-emerald-600 text-white text-xs font-semibold py-1.5 px-4 text-center flex items-center justify-center gap-2 shadow-sm transition-all duration-300"
       >
         <Wifi className="w-3.5 h-3.5" />
-        Connection restored. You are back online.
+        {t("Connection restored. You are back online.")}
       </div>
     );
   }
@@ -46,10 +48,10 @@ export function OfflineBanner() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed top-0 left-0 right-0 z-[1000] bg-amber-600 text-white text-xs font-semibold py-1.5 px-4 text-center flex items-center justify-center gap-2 shadow-sm animate-pulse"
+      className="fixed top-0 start-0 end-0 z-[1000] bg-amber-600 text-white text-xs font-semibold py-1.5 px-4 text-center flex items-center justify-center gap-2 shadow-sm animate-pulse"
     >
       <WifiOff className="w-3.5 h-3.5" />
-      You are currently offline. Actions will automatically sync when reconnected.
+      {t("You are currently offline. Actions will automatically sync when reconnected.")}
     </div>
   );
 }

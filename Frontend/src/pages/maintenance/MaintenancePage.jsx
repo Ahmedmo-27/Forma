@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   CheckCircle2,
@@ -17,8 +18,7 @@ import {
   PageHeader,
   Spinner,
   Textarea,
-  fmtDate,
-  fmtTime,
+  CAIRO_ZONE,
 } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { useAuth } from '../../context/AuthContext';
@@ -33,38 +33,41 @@ import {
   getMaintenanceItems,
   listLocations,
 } from '../../api/endpoints';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
+import { tr } from '../../i18n/translate';
 
 const INTERVAL_OPTIONS = [
-  { value: 'hour', label: 'Hour(s)' },
-  { value: 'day', label: 'Day(s)' },
-  { value: 'week', label: 'Week(s)' },
-  { value: 'month', label: 'Month(s)' },
+  { value: 'hour', label: tr('Hour(s)') },
+  { value: 'day', label: tr('Day(s)') },
+  { value: 'week', label: tr('Week(s)') },
+  { value: 'month', label: tr('Month(s)') },
 ];
 
 const STATUS_META = {
-  overdue: { label: 'Overdue', color: '#B91C1C', bg: '#FEF2F2' },
-  due: { label: 'Due', color: '#B45309', bg: '#FFFBEB' },
-  ok: { label: 'Done', color: '#047857', bg: '#ECFDF5' },
+  overdue: { label: tr('Overdue'), color: '#B91C1C', bg: '#FEF2F2' },
+  due: { label: tr('Due'), color: '#B45309', bg: '#FFFBEB' },
+  ok: { label: tr('Done'), color: '#047857', bg: '#ECFDF5' },
 };
 
-function formatInterval(value, unit) {
+function formatInterval(value, unit, t) {
   const n = Number(value) || 1;
-  const labels = {
-    hour: n === 1 ? 'hour' : 'hours',
-    day: n === 1 ? 'day' : 'days',
-    week: n === 1 ? 'week' : 'weeks',
-    month: n === 1 ? 'month' : 'months',
-  };
-  return `Every ${n} ${labels[unit] || unit}`;
+  const labels = n === 1
+    ? { hour: tr('Every 1 hour'), day: tr('Every 1 day'), week: tr('Every 1 week'), month: tr('Every 1 month') }
+    : { hour: tr('Every {count} hours'), day: tr('Every {count} days'), week: tr('Every {count} weeks'), month: tr('Every {count} months') };
+  if (labels[unit]) return t(labels[unit], { count: n });
+  return t('Every {count} {unit}', { count: n, unit });
 }
 
-function personName(user) {
-  return user?.name || user?.username || 'Staff';
+function personName(user, t) {
+  return user?.name || user?.username || t('Staff');
 }
 
-function whenLabel(date) {
-  if (!date) return 'Never';
-  return `${fmtDate(date)} ${fmtTime(date)}`;
+function whenLabel(date, t, fmt) {
+  if (!date) return t('Never');
+  const day = fmt.fmtDate(date, { timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric' });
+  const time = fmt.fmtTime(date, { timeZone: CAIRO_ZONE, hour: 'numeric', minute: '2-digit', hour12: true }, 'en-US');
+  return `${day} ${time}`;
 }
 
 const emptyForm = {
@@ -77,7 +80,8 @@ const emptyForm = {
 };
 
 export default function MaintenancePage() {
-  usePageTitle('Maintenance');
+  const { t } = useI18n();
+  usePageTitle(t('Maintenance'));
   const { user } = useAuth();
   const {
     multiEnabled,
@@ -122,6 +126,15 @@ export default function MaintenancePage() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Reminder notifications deep-link to a branch: /maintenance?locationId=<id>
+  const [searchParams] = useSearchParams();
+  const requestedBranch = searchParams.get('locationId');
+  useEffect(() => {
+    if (!requestedBranch) return;
+    setSelectedLocationId(requestedBranch);
+    setBranchId(requestedBranch);
+  }, [requestedBranch, setSelectedLocationId]);
 
   useEffect(() => {
     if (selectedLocationId && selectedLocationId !== ALL_LOCATIONS) {
@@ -169,11 +182,11 @@ export default function MaintenancePage() {
         tab === 'manage' || canManage ? loadItems() : Promise.resolve(),
       ]);
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to load maintenance');
+      toast.error(err.response?.data?.message || t('Failed to load maintenance'));
     } finally {
       setLoading(false);
     }
-  }, [branchId, tab, canChecklist, canManage, loadBoard, loadItems]);
+  }, [branchId, tab, canChecklist, canManage, loadBoard, loadItems, t]);
 
   useEffect(() => {
     refresh();
@@ -182,11 +195,11 @@ export default function MaintenancePage() {
   async function handleCreate(e) {
     e.preventDefault();
     if (!form.title.trim()) {
-      toast.error('Title is required');
+      toast.error(t('Title is required'));
       return;
     }
     if (!branchId) {
-      toast.error('Select a branch first');
+      toast.error(t('Select a branch first'));
       return;
     }
     setSaving(true);
@@ -207,11 +220,11 @@ export default function MaintenancePage() {
         payload.locationId = branchId;
       }
       await createMaintenanceItems(payload);
-      toast.success('Maintenance item added');
+      toast.success(t('Maintenance item added'));
       setForm(emptyForm);
       await refresh();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to create item');
+      toast.error(err.response?.data?.message || t('Failed to create item'));
     } finally {
       setSaving(false);
     }
@@ -220,10 +233,10 @@ export default function MaintenancePage() {
   async function handleDeactivate(item) {
     try {
       await deleteMaintenanceItem(item._id);
-      toast.success('Item removed');
+      toast.success(t('Item removed'));
       await refresh();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to remove item');
+      toast.error(err.response?.data?.message || t('Failed to remove item'));
     }
   }
 
@@ -233,12 +246,12 @@ export default function MaintenancePage() {
     setCompleting(true);
     try {
       await completeMaintenanceItem(completeTarget._id, { notes: completeNotes.trim() });
-      toast.success('Marked complete');
+      toast.success(t('Marked complete'));
       setCompleteTarget(null);
       setCompleteNotes('');
       await refresh();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to complete item');
+      toast.error(err.response?.data?.message || t('Failed to complete item'));
     } finally {
       setCompleting(false);
     }
@@ -253,18 +266,18 @@ export default function MaintenancePage() {
         ? { allLocations: true }
         : { targetLocationIds: copyLocationIds };
       if (copyMode !== 'all' && !copyLocationIds.length) {
-        toast.error('Select at least one branch');
+        toast.error(t('Select at least one branch'));
         setCopying(false);
         return;
       }
       await copyMaintenanceItem(copyTarget._id, payload);
-      toast.success('Copied to other branches');
+      toast.success(t('Copied to other branches'));
       setCopyTarget(null);
       setCopyLocationIds([]);
       setCopyMode('all');
       await refresh();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to copy item');
+      toast.error(err.response?.data?.message || t('Failed to copy item'));
     } finally {
       setCopying(false);
     }
@@ -274,7 +287,7 @@ export default function MaintenancePage() {
 
   return (
     <Layout>
-      <PageHeader title="Maintenance">
+      <PageHeader title={t('Maintenance')}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {canChecklist && (
             <Btn
@@ -282,7 +295,7 @@ export default function MaintenancePage() {
               size="sm"
               onClick={() => setTab('board')}
             >
-              Checklist
+              {t('Checklist')}
             </Btn>
           )}
           {canManage && (
@@ -291,7 +304,7 @@ export default function MaintenancePage() {
               size="sm"
               onClick={() => setTab('manage')}
             >
-              Manage
+              {t('Manage')}
             </Btn>
           )}
         </div>
@@ -311,7 +324,7 @@ export default function MaintenancePage() {
             flexWrap: 'wrap',
           }}
           >
-            <span style={{ fontSize: 13, color: 'var(--t3)', fontWeight: 600 }}>Branch</span>
+            <span style={{ fontSize: 13, color: 'var(--t3)', fontWeight: 600 }}>{t('Branch')}</span>
             <div style={{ minWidth: 220, flex: '1 1 220px' }}>
               <MenuSelect
                 value={branchId}
@@ -322,16 +335,16 @@ export default function MaintenancePage() {
                 }}
                 options={locationOptions.map((loc) => ({
                   value: String(loc._id),
-                  label: loc.name || loc.locationId || 'Branch',
+                  label: loc.name || loc.locationId || t('Branch'),
                 }))}
-                placeholder="Select branch"
+                placeholder={t('Select branch')}
               />
             </div>
           </div>
         )}
 
         {!branchId && (
-          <EmptyState icon={Wrench} message="Select a branch" sub="Maintenance is tracked per branch." />
+          <EmptyState icon={Wrench} message={t('Select a branch')} sub={t('Maintenance is tracked per branch.')} />
         )}
 
         {branchId && loading && (
@@ -370,28 +383,28 @@ export default function MaintenancePage() {
       </div>
 
       {completeTarget && (
-        <ModalShell title={`Complete: ${completeTarget.title}`} onClose={() => setCompleteTarget(null)}>
+        <ModalShell title={t('Complete: {title}', { title: completeTarget.title })} onClose={() => setCompleteTarget(null)}>
           <form onSubmit={handleComplete} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <p style={{ fontSize: 13, color: 'var(--t3)', margin: 0 }}>
-              {formatInterval(completeTarget.intervalValue, completeTarget.intervalUnit)}
+              {formatInterval(completeTarget.intervalValue, completeTarget.intervalUnit, t)}
             </p>
             <Textarea
-              label="Notes (optional)"
+              label={t('Notes (optional)')}
               value={completeNotes}
               onChange={(e) => setCompleteNotes(e.target.value)}
               rows={3}
               maxLength={1000}
             />
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Btn variant="ghost" onClick={() => setCompleteTarget(null)}>Cancel</Btn>
-              <Btn type="submit" disabled={completing}>{completing ? 'Saving…' : 'Mark complete'}</Btn>
+              <Btn variant="ghost" onClick={() => setCompleteTarget(null)}>{t('Cancel')}</Btn>
+              <Btn type="submit" disabled={completing}>{completing ? t('Saving…') : t('Mark complete')}</Btn>
             </div>
           </form>
         </ModalShell>
       )}
 
       {copyTarget && (
-        <ModalShell title={`Copy: ${copyTarget.title}`} onClose={() => setCopyTarget(null)}>
+        <ModalShell title={t('Copy: {title}', { title: copyTarget.title })} onClose={() => setCopyTarget(null)}>
           <form onSubmit={handleCopy} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <Btn
@@ -399,7 +412,7 @@ export default function MaintenancePage() {
                 variant={copyMode === 'all' ? 'primary' : 'ghost'}
                 onClick={() => setCopyMode('all')}
               >
-                All branches
+                {t('All branches')}
               </Btn>
               <Btn
                 size="sm"
@@ -407,7 +420,7 @@ export default function MaintenancePage() {
                 onClick={() => setCopyMode('selected')}
                 disabled={!otherLocations.length}
               >
-                Selected branches
+                {t('Selected branches')}
               </Btn>
             </div>
             {copyMode === 'selected' && (
@@ -435,8 +448,8 @@ export default function MaintenancePage() {
               </div>
             )}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <Btn variant="ghost" onClick={() => setCopyTarget(null)}>Cancel</Btn>
-              <Btn type="submit" disabled={copying}>{copying ? 'Copying…' : 'Copy'}</Btn>
+              <Btn variant="ghost" onClick={() => setCopyTarget(null)}>{t('Cancel')}</Btn>
+              <Btn type="submit" disabled={copying}>{copying ? t('Copying…') : t('Copy')}</Btn>
             </div>
           </form>
         </ModalShell>
@@ -446,20 +459,21 @@ export default function MaintenancePage() {
 }
 
 function BoardSection({ board, onComplete }) {
+  const { t } = useI18n();
   if (!board.length) {
     return (
       <EmptyState
         icon={Wrench}
-        message="No maintenance items"
-        sub="Ask an owner or general manager to define the checklist for this branch."
+        message={t('No maintenance items')}
+        sub={t('Ask an owner or general manager to define the checklist for this branch.')}
       />
     );
   }
 
   const groups = [
-    { key: 'overdue', title: 'Overdue', items: board.filter((i) => i.status === 'overdue') },
-    { key: 'due', title: 'Due now', items: board.filter((i) => i.status === 'due') },
-    { key: 'ok', title: 'Up to date', items: board.filter((i) => i.status === 'ok') },
+    { key: 'overdue', title: t('Overdue'), items: board.filter((i) => i.status === 'overdue') },
+    { key: 'due', title: t('Due now'), items: board.filter((i) => i.status === 'due') },
+    { key: 'ok', title: t('Up to date'), items: board.filter((i) => i.status === 'ok') },
   ];
 
   return (
@@ -469,7 +483,7 @@ function BoardSection({ board, onComplete }) {
           <div key={group.key}>
             <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', marginBottom: 10 }}>
               {group.title}
-              <span style={{ marginLeft: 8, color: 'var(--t4)', fontWeight: 600 }}>{group.items.length}</span>
+              <span style={{ marginInlineStart: 8, color: 'var(--t4)', fontWeight: 600 }}>{group.items.length}</span>
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               {group.items.map((item) => (
@@ -484,6 +498,8 @@ function BoardSection({ board, onComplete }) {
 }
 
 function BoardCard({ item, onComplete }) {
+  const { t } = useI18n();
+  const fmt = useFormat();
   const meta = STATUS_META[item.status] || STATUS_META.due;
   return (
     <div style={{
@@ -510,7 +526,7 @@ function BoardCard({ item, onComplete }) {
             padding: '2px 8px',
           }}
           >
-            {meta.label}
+            {t(meta.label)}
           </span>
         </div>
         {item.description ? (
@@ -518,19 +534,21 @@ function BoardCard({ item, onComplete }) {
         ) : null}
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 12, color: 'var(--t4)' }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-            <Clock3 size={13} /> {formatInterval(item.intervalValue, item.intervalUnit)}
+            <Clock3 size={13} /> {formatInterval(item.intervalValue, item.intervalUnit, t)}
           </span>
           <span>
-            Last: {item.lastCompletion
-              ? `${personName(item.lastCompletion.completedBy)} · ${whenLabel(item.lastCompletedAt)}`
-              : 'Never'}
+            {t('Last: {value}', {
+              value: item.lastCompletion
+                ? `${personName(item.lastCompletion.completedBy, t)} · ${whenLabel(item.lastCompletedAt, t, fmt)}`
+                : t('Never'),
+            })}
           </span>
-          <span>Next due: {whenLabel(item.nextDueAt)}</span>
+          <span>{t('Next due: {date}', { date: whenLabel(item.nextDueAt, t, fmt) })}</span>
         </div>
       </div>
       <Btn size="sm" onClick={() => onComplete(item)}>
-        <CheckCircle2 size={14} style={{ marginRight: 6 }} />
-        Complete
+        <CheckCircle2 size={14} style={{ marginInlineEnd: 6 }} />
+        {t('Complete')}
       </Btn>
     </div>
   );
@@ -547,6 +565,7 @@ function ManageSection({
   otherLocations,
   multiEnabled,
 }) {
+  const { t } = useI18n();
   return (
     <div style={{ display: 'grid', gap: 20, gridTemplateColumns: 'minmax(0, 1fr)' }}>
       <form
@@ -563,17 +582,17 @@ function ManageSection({
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Plus size={16} />
-          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>Add maintenance item</h2>
+          <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>{t('Add maintenance item')}</h2>
         </div>
         <Input
-          label="Title"
+          label={t('Title')}
           value={form.title}
           onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-          placeholder="Clean equipment"
+          placeholder={t('Clean equipment')}
           required
         />
         <Textarea
-          label="Description (optional)"
+          label={t('Description (optional)')}
           value={form.description}
           onChange={(e) => setForm((prev) => ({ ...prev, description: e.target.value }))}
           rows={2}
@@ -581,7 +600,7 @@ function ManageSection({
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
           <div style={{ flex: '1 1 120px' }}>
             <Input
-              label="Every"
+              label={t('Every')}
               type="number"
               min={1}
               value={form.intervalValue}
@@ -590,7 +609,7 @@ function ManageSection({
           </div>
           <div style={{ flex: '1 1 160px' }}>
             <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>
-              Interval
+              {t('Interval')}
             </label>
             <MenuSelect
               value={form.intervalUnit}
@@ -598,7 +617,7 @@ function ManageSection({
                 ...prev,
                 intervalUnit: String(e?.target?.value ?? e ?? 'day'),
               }))}
-              options={INTERVAL_OPTIONS}
+              options={INTERVAL_OPTIONS.map((opt) => ({ ...opt, label: t(opt.label) }))}
             />
           </div>
         </div>
@@ -606,13 +625,13 @@ function ManageSection({
         {multiEnabled && (
           <div>
             <p style={{ margin: '0 0 8px', fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>
-              Also create on
+              {t('Also create on')}
             </p>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
               {[
-                { id: 'this', label: 'This branch only' },
-                { id: 'all', label: 'All branches' },
-                { id: 'selected', label: 'This + other branches' },
+                { id: 'this', label: t('This branch only') },
+                { id: 'all', label: t('All branches') },
+                { id: 'selected', label: t('This + other branches') },
               ].map((opt) => (
                 <Btn
                   key={opt.id}
@@ -648,7 +667,7 @@ function ManageSection({
                   );
                 })}
                 {!otherLocations.length && (
-                  <p style={{ margin: 0, fontSize: 12, color: 'var(--t4)' }}>No other branches available.</p>
+                  <p style={{ margin: 0, fontSize: 12, color: 'var(--t4)' }}>{t('No other branches available.')}</p>
                 )}
               </div>
             )}
@@ -656,14 +675,14 @@ function ManageSection({
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <Btn type="submit" disabled={saving}>{saving ? 'Saving…' : 'Add item'}</Btn>
+          <Btn type="submit" disabled={saving}>{saving ? t('Saving…') : t('Add item')}</Btn>
         </div>
       </form>
 
       <div>
-        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>Items for this branch</h2>
+        <h2 style={{ fontSize: 15, fontWeight: 700, marginBottom: 10 }}>{t('Items for this branch')}</h2>
         {!items.length ? (
-          <EmptyState icon={Wrench} message="No items yet" sub="Add the first maintenance task above." />
+          <EmptyState icon={Wrench} message={t('No items yet')} sub={t('Add the first maintenance task above.')} />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {items.map((item) => (
@@ -697,19 +716,19 @@ function ManageSection({
                     padding: '3px 8px',
                   }}
                   >
-                    {formatInterval(item.intervalValue, item.intervalUnit)}
+                    {formatInterval(item.intervalValue, item.intervalUnit, t)}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                   {(multiEnabled || otherLocations.length > 0) && (
                     <Btn size="sm" variant="ghost" onClick={() => onCopy(item)}>
-                      <Copy size={14} style={{ marginRight: 6 }} />
-                      Copy
+                      <Copy size={14} style={{ marginInlineEnd: 6 }} />
+                      {t('Copy')}
                     </Btn>
                   )}
                   <Btn size="sm" variant="ghost" onClick={() => onDeactivate(item)}>
-                    <Trash2 size={14} style={{ marginRight: 6 }} />
-                    Remove
+                    <Trash2 size={14} style={{ marginInlineEnd: 6 }} />
+                    {t('Remove')}
                   </Btn>
                 </div>
               </div>

@@ -42,33 +42,46 @@ import {
   Wallet,
   Zap,
 } from 'lucide-react';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
+import { tr } from '../../i18n/translate';
+import { formatNumber } from '../../i18n/format';
 
-function formatPiasters(value, currency = 'EGP') {
+const NOT_ENOUGH_DATA = tr('Not enough data');
+const UNIT_LABELS = { count: tr('count') };
+const GRAIN_WINDOW_LABELS = { day: tr('Day window'), period: tr('Period window') };
+const GRAIN_LABELS = { day: tr('Day'), period: tr('Period') };
+
+function formatPiasters(value, currency = 'EGP', lang) {
   const n = Math.round(Number(value) || 0);
   const sign = n < 0 ? '-' : '';
   const abs = Math.abs(n);
-  const pounds = Math.floor(abs / 100).toLocaleString('en-EG');
+  const pounds = formatNumber(lang, Math.floor(abs / 100));
   const fils = String(abs % 100).padStart(2, '0');
   return `${sign}${currency} ${pounds}.${fils}`;
 }
 
-function formatNumberOnly(piasters) {
+function formatNumberOnly(piasters, lang) {
   const n = Math.round(Number(piasters) || 0);
   const sign = n < 0 ? '-' : '';
   const abs = Math.abs(n);
-  const pounds = Math.floor(abs / 100).toLocaleString('en-EG');
+  const pounds = formatNumber(lang, Math.floor(abs / 100));
   const fils = String(abs % 100).padStart(2, '0');
   return `${sign}${pounds}.${fils}`;
 }
 
-function _formatValue(kpi, currency = 'EGP') {
-  if (kpi.value == null) return 'Not enough data';
-  if (kpi.unit === 'piasters') return formatPiasters(kpi.value, currency);
-  if (kpi.unit === 'rate') return `${(Number(kpi.value) * 100).toFixed(1)}%`;
-  return Number(kpi.value).toLocaleString('en-EG');
+function unitLabel(unit, t) {
+  return UNIT_LABELS[unit] ? t(UNIT_LABELS[unit]) : unit;
 }
 
-function renderDeltaBadge(kpi, currency = 'EGP') {
+function _formatValue(kpi, currency = 'EGP', lang, t) {
+  if (kpi.value == null) return t(NOT_ENOUGH_DATA);
+  if (kpi.unit === 'piasters') return formatPiasters(kpi.value, currency, lang);
+  if (kpi.unit === 'rate') return `${(Number(kpi.value) * 100).toFixed(1)}%`;
+  return formatNumber(lang, kpi.value);
+}
+
+function renderDeltaBadge(kpi, currency = 'EGP', lang, t) {
   if (kpi.delta == null) return null;
   const up = kpi.delta > 0;
   const down = kpi.delta < 0;
@@ -85,10 +98,10 @@ function renderDeltaBadge(kpi, currency = 'EGP') {
 
   const shown =
     kpi.unit === 'piasters'
-      ? formatPiasters(Math.abs(kpi.delta), currency)
+      ? formatPiasters(Math.abs(kpi.delta), currency, lang)
       : kpi.unit === 'rate'
       ? `${(Math.abs(kpi.delta) * 100).toFixed(1)}%`
-      : Math.abs(kpi.delta).toLocaleString();
+      : formatNumber(lang, Math.abs(kpi.delta));
 
   return (
     <span
@@ -107,41 +120,42 @@ function renderDeltaBadge(kpi, currency = 'EGP') {
       }}
     >
       <span>{arrow}</span>
-      <span>{isZero ? 'Flat' : `${up ? '+' : '-'}${shown}`} vs prev</span>
+      <span>{isZero ? t('Flat vs prev') : t('{change} vs prev', { change: `${up ? '+' : '-'}${shown}` })}</span>
     </span>
   );
 }
 
 const KPI_CATEGORIES = [
-  { id: 'all', label: 'All Telemetry', icon: BarChart3 },
+  { id: 'all', label: tr('All Telemetry'), icon: BarChart3 },
   {
     id: 'financial',
-    label: 'Revenue & Sales',
+    label: tr('Revenue & Sales'),
     icon: Wallet,
     keys: ['membershipSalesPiasters', 'ptSalesPiasters', 'refundsPiasters', 'discountGapPiasters'],
   },
   {
     id: 'membership',
-    label: 'Members & Retention',
+    label: tr('Members & Retention'),
     icon: Users,
     keys: ['activeMembers', 'newJoins', 'renewalRate', 'churnEvents'],
   },
   {
     id: 'operations',
-    label: 'Activity & Leads',
+    label: tr('Activity & Leads'),
     icon: Zap,
     keys: ['checkIns', 'ptSessionsSold', 'ptSessionsUsed', 'peopleAdded', 'peopleConverted'],
   },
 ];
 
 function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
+  const { t, lang } = useI18n();
   const [hoverIndex, setHoverIndex] = useState(null);
   const [viewMode, setViewMode] = useState('chart');
 
   if (!points || !points.length) {
     return (
       <div style={{ padding: 48, textAlign: 'center', color: 'var(--t4)' }}>
-        No historical points recorded for this window
+        {t('No historical points recorded for this window')}
       </div>
     );
   }
@@ -171,8 +185,8 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
     ` L ${getX(points.length - 1)},${padT + chartH} L ${getX(0)},${padT + chartH} Z`;
 
   const formatTick = (val) => {
-    if (unit === 'piasters') return `${Math.round(val / 100).toLocaleString()}`;
-    return Number(val).toLocaleString();
+    if (unit === 'piasters') return formatNumber(lang, Math.round(val / 100));
+    return formatNumber(lang, val);
   };
 
   const hoveredPoint = hoverIndex !== null ? points[hoverIndex] : null;
@@ -200,10 +214,10 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
             }}
           >
             <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t4)', letterSpacing: '0.4px' }}>
-              30-Day Cumulative
+              {t('30-Day Cumulative')}
             </div>
             <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--t1)', marginTop: 2 }}>
-              {unit === 'piasters' ? formatPiasters(total, currency) : total.toLocaleString()}
+              {unit === 'piasters' ? formatPiasters(total, currency, lang) : formatNumber(lang, total)}
             </div>
           </div>
           <div
@@ -215,10 +229,10 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
             }}
           >
             <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t4)', letterSpacing: '0.4px' }}>
-              Daily Average
+              {t('Daily Average')}
             </div>
             <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--navy)', marginTop: 2 }}>
-              {unit === 'piasters' ? formatPiasters(avg, currency) : avg.toLocaleString()}
+              {unit === 'piasters' ? formatPiasters(avg, currency, lang) : formatNumber(lang, avg)}
             </div>
           </div>
           <div
@@ -230,10 +244,10 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
             }}
           >
             <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t4)', letterSpacing: '0.4px' }}>
-              Peak Recorded
+              {t('Peak Recorded')}
             </div>
             <div style={{ fontSize: 16, fontWeight: 800, color: 'var(--green)', marginTop: 2 }}>
-              {unit === 'piasters' ? formatPiasters(maxVal, currency) : maxVal.toLocaleString()}
+              {unit === 'piasters' ? formatPiasters(maxVal, currency, lang) : formatNumber(lang, maxVal)}
             </div>
           </div>
         </div>
@@ -260,7 +274,7 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
             }}
           >
             <TrendingUp size={14} aria-hidden />
-            <span>Trend Chart</span>
+            <span>{t('Trend Chart')}</span>
           </button>
           <button
             type="button"
@@ -282,13 +296,13 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
             }}
           >
             <Table size={14} aria-hidden />
-            <span>Data Table</span>
+            <span>{t('Data Table')}</span>
           </button>
         </div>
       </div>
 
       {viewMode === 'chart' ? (
-        <div style={{ position: 'relative' }}>
+        <div dir="ltr" style={{ position: 'relative' }}>
           <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', height: 'auto', maxHeight: 240, overflow: 'visible' }}>
             <defs>
               <linearGradient id="analyticsGrad" x1="0" y1="0" x2="0" y2="1">
@@ -410,6 +424,7 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
           {/* Interactive Floating Tooltip */}
           {hoveredPoint && hoverIndex !== null && (
             <div
+              dir="auto"
               style={{
                 position: 'absolute',
                 top: 0,
@@ -428,8 +443,8 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
               <div style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600 }}>{hoveredPoint.date}</div>
               <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--navy)' }}>
                 {unit === 'piasters'
-                  ? formatPiasters(hoveredPoint.value, currency)
-                  : `${Number(hoveredPoint.value).toLocaleString()} ${unit}`}
+                  ? formatPiasters(hoveredPoint.value, currency, lang)
+                  : `${formatNumber(lang, hoveredPoint.value)} ${unitLabel(unit, t)}`}
               </div>
             </div>
           )}
@@ -439,9 +454,9 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
           <table style={{ width: '100%', fontSize: 12, borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-                <th style={{ textAlign: 'start', padding: '8px 12px', color: 'var(--t3)' }}>Date</th>
+                <th style={{ textAlign: 'start', padding: '8px 12px', color: 'var(--t3)' }}>{t('Date')}</th>
                 <th style={{ textAlign: 'end', padding: '8px 12px', color: 'var(--t3)' }}>
-                  Value {unit === 'piasters' ? `(${currency})` : `(${unit})`}
+                  {t('Value ({unit})', { unit: unit === 'piasters' ? currency : unitLabel(unit, t) })}
                 </th>
               </tr>
             </thead>
@@ -453,7 +468,7 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
                   <tr key={point.date} style={{ borderBottom: '1px solid var(--border)' }}>
                     <td style={{ padding: '8px 12px', color: 'var(--t2)' }}>{point.date}</td>
                     <td style={{ textAlign: 'end', padding: '8px 12px', fontWeight: 600, color: 'var(--t1)' }}>
-                      {unit === 'piasters' ? formatPiasters(point.value, currency) : Number(point.value).toLocaleString()}
+                      {unit === 'piasters' ? formatPiasters(point.value, currency, lang) : formatNumber(lang, point.value)}
                     </td>
                   </tr>
                 ))}
@@ -466,6 +481,7 @@ function InteractiveAreaChart({ points, unit, currency = 'EGP' }) {
 }
 
 function MemberList({ title, rows, empty, icon: ListIcon = User }) {
+  const { t } = useI18n();
   return (
     <Card noPad>
       <div
@@ -538,10 +554,10 @@ function MemberList({ title, rows, empty, icon: ListIcon = User }) {
                   >
                     {row.name}
                   </Link>
-                  {row.systemId && <span style={{ fontSize: 11, color: 'var(--t4)' }}>#{row.systemId}</span>}
+                  {row.systemId && <span dir="ltr" style={{ fontSize: 11, color: 'var(--t4)' }}>#{row.systemId}</span>}
                 </div>
               </div>
-              <div style={{ textAlign: 'end', flexShrink: 0, marginLeft: 12 }}>
+              <div style={{ textAlign: 'end', flexShrink: 0, marginInlineStart: 12 }}>
                 {row.ends && (
                   <span
                     style={{
@@ -554,7 +570,7 @@ function MemberList({ title, rows, empty, icon: ListIcon = User }) {
                       borderRadius: 4,
                     }}
                   >
-                    Ends {row.ends.slice(0, 10)}
+                    {t('Ends {date}', { date: row.ends.slice(0, 10) })}
                   </span>
                 )}
                 {row.sessions !== undefined && (
@@ -569,7 +585,7 @@ function MemberList({ title, rows, empty, icon: ListIcon = User }) {
                       borderRadius: 4,
                     }}
                   >
-                    {row.sessions} session{row.sessions !== 1 ? 's' : ''} left
+                    {row.sessions === 1 ? t('1 session left') : t('{count} sessions left', { count: row.sessions })}
                   </span>
                 )}
               </div>
@@ -582,7 +598,9 @@ function MemberList({ title, rows, empty, icon: ListIcon = User }) {
 }
 
 export default function AnalyticsHome() {
-  usePageTitle('Analytics');
+  const { t, lang } = useI18n();
+  const { fmtDateTime, fmtNumber } = useFormat();
+  usePageTitle(t('Analytics'));
   const { user } = useAuth();
   const { hasFeature, currency = 'EGP' } = useTenant() || {};
   const {
@@ -607,8 +625,8 @@ export default function AnalyticsHome() {
     || selectedLocationId === allKey
     || selectedLocationId === ALL_LOCATIONS;
   const branchLabel = viewingAllBranches
-    ? 'All locations'
-    : (selectedLocation?.name || 'Selected branch');
+    ? t('All locations')
+    : (selectedLocation?.name || t('Selected branch'));
 
   async function load() {
     setLoading(true);
@@ -628,7 +646,7 @@ export default function AnalyticsHome() {
       setError(
         err?.response?.data?.error?.message ||
           err?.response?.data?.message ||
-          'Analytics could not be loaded.'
+          t('Analytics could not be loaded.')
       );
     } finally {
       setLoading(false);
@@ -654,24 +672,24 @@ export default function AnalyticsHome() {
     const configs = [
       {
         key: 'membershipSalesPiasters',
-        label: 'Membership Sales',
+        label: tr('Membership Sales'),
         icon: CreditCard,
         unit: 'piasters',
-        description: 'Daily net sales from new and renewed memberships over the past 30 days',
+        description: tr('Daily net sales from new and renewed memberships over the past 30 days'),
       },
       {
         key: 'checkIns',
-        label: 'Daily Check-Ins',
+        label: tr('Daily Check-Ins'),
         icon: Timer,
         unit: 'count',
-        description: 'Daily gym attendance and member visit volume over the past 30 days',
+        description: tr('Daily gym attendance and member visit volume over the past 30 days'),
       },
       {
         key: 'newJoins',
-        label: 'New Joins',
+        label: tr('New Joins'),
         icon: Handshake,
         unit: 'count',
-        description: 'New member subscriptions initiated over the past 30 days',
+        description: tr('New member subscriptions initiated over the past 30 days'),
       },
     ];
     return configs.filter((c) => data.series[c.key]?.length > 0);
@@ -683,17 +701,17 @@ export default function AnalyticsHome() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="analytics-header" title="Analytics">
+      <PageHeader walkthrough="analytics-header" title={t('Analytics')}>
         <span style={{ fontSize: 12, color: 'var(--t4)', display: 'inline-flex', flexWrap: 'wrap', gap: '6px 12px', alignItems: 'center' }}>
           {multiEnabled && (
             <span style={{ color: 'var(--t2)', fontWeight: 600 }}>{branchLabel}</span>
           )}
           <span>
             {data?.asOf
-              ? `Updated ${new Date(data.asOf).toLocaleString('en-EG', {
-                  timeZone: data.timezone || 'Africa/Cairo',
-                })}`
-              : 'Waiting for the first snapshot'}
+              ? t('Updated {time}', {
+                  time: fmtDateTime(data.asOf, { timeZone: data.timezone || 'Africa/Cairo' }, 'en-EG'),
+                })
+              : t('Waiting for the first snapshot')}
           </span>
         </span>
       </PageHeader>
@@ -724,7 +742,7 @@ export default function AnalyticsHome() {
           >
             <AlertTriangle size={20} color="var(--amber)" aria-hidden />
             <div style={{ fontSize: 13, color: 'var(--t2)', lineHeight: 1.4 }}>
-              <strong>Snapshot Pending:</strong> The latest telemetry snapshot is older than yesterday. Metrics reflect the last computed interval.
+              <strong>{t('Snapshot Pending:')}</strong> {t('The latest telemetry snapshot is older than yesterday. Metrics reflect the last computed interval.')}
             </div>
           </div>
         )}
@@ -745,10 +763,10 @@ export default function AnalyticsHome() {
               >
                 <div>
                   <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--t1)' }}>
-                    Executive Metrics
+                    {t('Executive Metrics')}
                   </h2>
                   <p style={{ fontSize: 12, color: 'var(--t4)', margin: '2px 0 0' }}>
-                    Key performance indicators calculated from verified gym records
+                    {t('Key performance indicators calculated from verified gym records')}
                   </p>
                 </div>
 
@@ -793,7 +811,7 @@ export default function AnalyticsHome() {
                         }}
                       >
                         <CatIcon size={14} aria-hidden />
-                        <span>{cat.label}</span>
+                        <span>{t(cat.label)}</span>
                         <span
                           style={{
                             fontSize: 10,
@@ -847,12 +865,13 @@ export default function AnalyticsHome() {
                     {/* Card Header */}
                     <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                       <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)', lineHeight: 1.3 }}>
-                        {kpi.name}
+                        {t(kpi.name)}
                       </span>
                       <button
                         type="button"
                         onClick={() => setActiveFormulaModal(kpi)}
-                        title="How this is calculated"
+                        title={t('How this is calculated')}
+                        aria-label={t('How this is calculated')}
                         style={{
                           background: 'none',
                           border: 'none',
@@ -875,12 +894,12 @@ export default function AnalyticsHome() {
                     <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
                       {kpi.value == null ? (
                         <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--t4)', fontStyle: 'italic' }}>
-                          Not enough data
+                          {t(NOT_ENOUGH_DATA)}
                         </span>
                       ) : kpi.unit === 'piasters' ? (
                         <>
                           <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--t1)', letterSpacing: '-0.5px' }}>
-                            {formatNumberOnly(kpi.value)}
+                            {formatNumberOnly(kpi.value, lang)}
                           </span>
                           <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t3)' }}>
                             {currency}
@@ -892,16 +911,16 @@ export default function AnalyticsHome() {
                         </span>
                       ) : (
                         <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--t1)', letterSpacing: '-0.5px' }}>
-                          {Number(kpi.value).toLocaleString()}
+                          {fmtNumber(kpi.value)}
                         </span>
                       )}
                     </div>
 
                     {/* Card Footer */}
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, flexWrap: 'wrap' }}>
-                      {renderDeltaBadge(kpi, currency) || (
+                      {renderDeltaBadge(kpi, currency, lang, t) || (
                         <span style={{ fontSize: 11, color: 'var(--t4)', textTransform: 'capitalize' }}>
-                          {kpi.grain} window
+                          {GRAIN_WINDOW_LABELS[kpi.grain] ? t(GRAIN_WINDOW_LABELS[kpi.grain]) : t('{grain} window', { grain: kpi.grain })}
                         </span>
                       )}
                       {kpi.rate?.insufficient && (
@@ -915,9 +934,9 @@ export default function AnalyticsHome() {
                             padding: '1px 6px',
                             borderRadius: 10,
                           }}
-                          title={`Needs at least ${kpi.rate.min} events. Currently ${kpi.rate.sample}.`}
+                          title={t('Needs at least {min} events. Currently {sample}.', { min: kpi.rate.min, sample: kpi.rate.sample })}
                         >
-                          {kpi.rate.sample}/{kpi.rate.min} samples
+                          {t('{sample}/{min} samples', { sample: kpi.rate.sample, min: kpi.rate.min })}
                         </span>
                       )}
                     </div>
@@ -942,10 +961,10 @@ export default function AnalyticsHome() {
                 >
                   <div>
                     <h2 style={{ fontSize: 15, fontWeight: 700, margin: 0, color: 'var(--t1)' }}>
-                      30-Day Historical Trend
+                      {t('30-Day Historical Trend')}
                     </h2>
                     <p style={{ fontSize: 12, color: 'var(--t4)', margin: '2px 0 0' }}>
-                      {activeSeriesConfig?.description}
+                      {activeSeriesConfig?.description ? t(activeSeriesConfig.description) : null}
                     </p>
                   </div>
 
@@ -986,7 +1005,7 @@ export default function AnalyticsHome() {
                           }}
                         >
                           <SeriesIcon size={14} aria-hidden />
-                          <span>{series.label}</span>
+                          <span>{t(series.label)}</span>
                         </button>
                       );
                     })}
@@ -1024,10 +1043,10 @@ export default function AnalyticsHome() {
                     </div>
                     <div>
                       <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--t1)' }}>
-                        Renewal Revenue Forecast
+                        {t('Renewal Revenue Forecast')}
                       </h2>
                       <p style={{ margin: 0, fontSize: 12, color: 'var(--t4)' }}>
-                        Predictive modeling based on historical renewal & churn patterns
+                        {t('Predictive modeling based on historical renewal & churn patterns')}
                       </p>
                     </div>
                   </div>
@@ -1042,16 +1061,16 @@ export default function AnalyticsHome() {
                       border: `1px solid ${data.forecast.insufficient ? 'var(--amber-bd)' : 'var(--green-bd)'}`,
                     }}
                   >
-                    {data.forecast.insufficient ? 'Calibrating Model' : 'Active Prediction'}
+                    {data.forecast.insufficient ? t('Calibrating Model') : t('Active Prediction')}
                   </span>
                 </div>
 
                 {data.forecast.insufficient || data.forecast.revenuePiasters == null ? (
                   <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '14px 16px', border: '1px solid var(--border)' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
-                      <span style={{ fontWeight: 600, color: 'var(--t2)' }}>Historical Sample Progression</span>
+                      <span style={{ fontWeight: 600, color: 'var(--t2)' }}>{t('Historical Sample Progression')}</span>
                       <span style={{ fontWeight: 700, color: 'var(--navy)' }}>
-                        {data.forecast.sample || 0} / 20 ended memberships
+                        {t('{count} / {total} ended memberships', { count: data.forecast.sample || 0, total: 20 })}
                       </span>
                     </div>
                     <div style={{ height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden', marginBottom: 8 }}>
@@ -1065,7 +1084,7 @@ export default function AnalyticsHome() {
                       />
                     </div>
                     <p style={{ margin: 0, fontSize: 12, color: 'var(--t3)', lineHeight: 1.5 }}>
-                      The forecasting engine requires at least 20 historical ended memberships to establish statistically sound churn and renewal curves. Projections will automatically activate once the threshold is met.
+                      {t('The forecasting engine requires at least 20 historical ended memberships to establish statistically sound churn and renewal curves. Projections will automatically activate once the threshold is met.')}
                     </p>
                   </div>
                 ) : (
@@ -1081,9 +1100,9 @@ export default function AnalyticsHome() {
                     }}
                   >
                     <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--green)' }}>
-                      {formatPiasters(data.forecast.revenuePiasters, currency)}
+                      {formatPiasters(data.forecast.revenuePiasters, currency, lang)}
                     </div>
-                    <div style={{ fontSize: 13, color: 'var(--t2)' }}>{data.forecast.label}</div>
+                    <div dir="auto" style={{ fontSize: 13, color: 'var(--t2)' }}>{data.forecast.label}</div>
                   </div>
                 )}
               </Card>
@@ -1092,33 +1111,33 @@ export default function AnalyticsHome() {
             {/* ── ACTION LISTS / RADAR SECTION ── */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: 14 }}>
               <MemberList
-                title="Expiring Soon"
+                title={t('Expiring Soon')}
                 icon={Clock}
                 rows={data.lists?.expiring}
-                empty="No memberships end in the next 14 days."
+                empty={t('No memberships end in the next 14 days.')}
               />
               {hasFeature('exec_analytics') && (
                 <MemberList
-                  title="At-Risk Members"
+                  title={t('At-Risk Members')}
                   icon={AlertTriangle}
                   rows={data.lists?.atRisk}
-                  empty="No members flagged for quiet or low-visit warning."
+                  empty={t('No members flagged for quiet or low-visit warning.')}
                 />
               )}
               {hasFeature('pt_tracking') && (
                 <MemberList
-                  title="PT Sessions Expiring"
+                  title={t('PT Sessions Expiring')}
                   icon={Dumbbell}
                   rows={data.lists?.ptExpiring}
-                  empty="No unused sessions expire in the next 30 days."
+                  empty={t('No unused sessions expire in the next 30 days.')}
                 />
               )}
               {data.lists?.frozenDue && (
                 <MemberList
-                  title="Freezes Ending Today"
+                  title={t('Freezes Ending Today')}
                   icon={Snowflake}
                   rows={data.lists.frozenDue}
-                  empty="No member freeze periods end today."
+                  empty={t('No member freeze periods end today.')}
                 />
               )}
             </div>
@@ -1128,32 +1147,32 @@ export default function AnalyticsHome() {
         {/* ── BUSINESS INTELLIGENCE (PLATINUM) — tenant-wide only ── */}
         {hasFeature('business_intelligence') && canSeeInsights && (
           <Card>
-            <h2 style={{ marginTop: 0, fontSize: 16 }}>What to do next</h2>
+            <h2 style={{ marginTop: 0, fontSize: 16 }}>{t('What to do next')}</h2>
             {multiEnabled && (
               <p style={{ margin: '0 0 12px', color: 'var(--t3)', fontSize: 13 }}>
-                Based on {branchLabel}.
+                {t('Based on {branch}.', { branch: branchLabel })}
               </p>
             )}
-            {!insights.length && <p>No insight met its minimum sample. That is expected on a new or small gym.</p>}
+            {!insights.length && <p>{t('No insight met its minimum sample. That is expected on a new or small gym.')}</p>}
             {insights.map((insight) => (
               <article key={insight._id} style={{ paddingBlock: 12, borderBottom: '1px solid var(--border)' }}>
-                <h3 style={{ fontSize: 15, margin: '0 0 6px' }}>{insight.title}</h3>
-                <p style={{ margin: '0 0 8px' }}>{insight.action}</p>
+                <h3 dir="auto" style={{ fontSize: 15, margin: '0 0 6px' }}>{insight.title}</h3>
+                <p dir="auto" style={{ margin: '0 0 8px' }}>{insight.action}</p>
                 <Btn
                   variant="outline"
                   size="sm"
                   onClick={() => dismissBiInsight(insight._id, 'Not useful').then(load)}
                 >
-                  Dismiss
+                  {t('Dismiss')}
                 </Btn>
               </article>
             ))}
-            <h3 style={{ fontSize: 15 }}>Suggested goals</h3>
-            {!suggestions.length && <p>Goals appear after 14 daily snapshots.</p>}
+            <h3 style={{ fontSize: 15 }}>{t('Suggested goals')}</h3>
+            {!suggestions.length && <p>{t('Goals appear after 14 daily snapshots.')}</p>}
             {suggestions.map((suggestion) => (
               <div key={suggestion.key} style={{ paddingBlock: 8 }}>
-                <strong>{suggestion.name}</strong>
-                <p style={{ fontSize: 13 }}>{suggestion.why}</p>
+                <strong dir="auto">{suggestion.name}</strong>
+                <p dir="auto" style={{ fontSize: 13 }}>{suggestion.why}</p>
                 {!suggestion.linked && (
                   <Btn
                     variant="primary"
@@ -1168,7 +1187,7 @@ export default function AnalyticsHome() {
                       }).then(load)
                     }
                   >
-                    Use the achievable target
+                    {t('Use the achievable target')}
                   </Btn>
                 )}
               </div>
@@ -1179,7 +1198,7 @@ export default function AnalyticsHome() {
         {!hasFeature('business_intelligence') && (
           <Card>
             <p style={{ margin: 0, color: 'var(--t3)', fontSize: 13 }}>
-              Cohorts, forecasts, insights, and goals are included on the Platinum tier. The telemetry metrics above are included in your current subscription plan.
+              {t('Cohorts, forecasts, insights, and goals are not enabled for your gym. The metrics above are included in your current plan.')}
             </p>
           </Card>
         )}
@@ -1189,25 +1208,26 @@ export default function AnalyticsHome() {
       {activeFormulaModal && (
         <Modal
           open={!!activeFormulaModal}
-          title={`Calculation: ${activeFormulaModal.name}`}
+          title={t('Calculation: {name}', { name: t(activeFormulaModal.name) })}
           onClose={() => setActiveFormulaModal(null)}
           size="sm"
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t4)', marginBottom: 4, letterSpacing: '0.4px' }}>
-                Operational Meaning
+                {t('Operational Meaning')}
               </div>
-              <div style={{ fontSize: 13, color: 'var(--t1)', lineHeight: 1.5 }}>
-                {activeFormulaModal.meaning || 'No description available for this metric.'}
+              <div dir="auto" style={{ fontSize: 13, color: 'var(--t1)', lineHeight: 1.5 }}>
+                {activeFormulaModal.meaning || t('No description available for this metric.')}
               </div>
             </div>
 
             <div>
               <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--t4)', marginBottom: 4, letterSpacing: '0.4px' }}>
-                Mathematical Formula
+                {t('Mathematical Formula')}
               </div>
               <div
+                dir="auto"
                 style={{
                   fontSize: 12,
                   fontFamily: 'monospace',
@@ -1219,21 +1239,23 @@ export default function AnalyticsHome() {
                   lineHeight: 1.4,
                 }}
               >
-                {activeFormulaModal.formula || 'Direct aggregation'}
+                {activeFormulaModal.formula || t('Direct aggregation')}
               </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, paddingTop: 10, borderTop: '1px solid var(--border)' }}>
               <div>
-                <div style={{ fontSize: 11, color: 'var(--t4)' }}>Data Source</div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginTop: 2 }}>
-                  {activeFormulaModal.source || 'Database records'}
+                <div style={{ fontSize: 11, color: 'var(--t4)' }}>{t('Data Source')}</div>
+                <div dir="auto" style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', marginTop: 2 }}>
+                  {activeFormulaModal.source || t('Database records')}
                 </div>
               </div>
               <div>
-                <div style={{ fontSize: 11, color: 'var(--t4)' }}>Measurement Grain</div>
+                <div style={{ fontSize: 11, color: 'var(--t4)' }}>{t('Measurement Grain')}</div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)', textTransform: 'capitalize', marginTop: 2 }}>
-                  {activeFormulaModal.grain || 'Daily snapshot'}
+                  {activeFormulaModal.grain
+                    ? (GRAIN_LABELS[activeFormulaModal.grain] ? t(GRAIN_LABELS[activeFormulaModal.grain]) : activeFormulaModal.grain)
+                    : t('Daily snapshot')}
                 </div>
               </div>
             </div>

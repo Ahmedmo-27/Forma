@@ -14,10 +14,12 @@ import {
 import {
   toLocalDateString, taskPermissions,
 } from './taskMembers';
-import { ArrowRight, Search, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Search, X } from 'lucide-react';
+import { useI18n } from '../../i18n/useI18n.js';
 
 export default function TaskFilterPage() {
-  usePageTitle('Filter Members');
+  const { t } = useI18n();
+  usePageTitle(t('Filter Members'));
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
@@ -99,7 +101,7 @@ export default function TaskFilterPage() {
 
   const handleResetFilters = () => {
     setSearch('');
-    setStatusFilter('all');
+    setStatusFilter('all'); // i18n-ignore
     setKind('all');
     setPersonId('');
     setPackageFilter('all');
@@ -170,10 +172,10 @@ export default function TaskFilterPage() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="task-filter-header" title="Filter Members">
+      <PageHeader walkthrough="task-filter-header" title={t('Filter Members')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Btn variant="ghost" size="sm" onClick={() => navigate('/tasks/assign')}>
-            ← Back to Tasks
+            <ArrowLeft size={14} className="rtl-flip" aria-hidden /> {t('Back to Tasks')}
           </Btn>
         </div>
       </PageHeader>
@@ -189,10 +191,10 @@ export default function TaskFilterPage() {
 
               {/* ── Section: Search ── */}
               <div>
-                <p style={{ ...labelStyle, marginBottom: 10, fontSize: 12 }}>Search</p>
+                <p style={{ ...labelStyle, marginBottom: 10, fontSize: 12 }}>{t('Search')}</p>
                 <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <svg
-                    style={{ position: 'absolute', left: 11, color: 'var(--t4)', pointerEvents: 'none' }}
+                    style={{ position: 'absolute', insetInlineStart: 11, color: 'var(--t4)', pointerEvents: 'none' }}
                     width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
                   >
                     <circle cx="11" cy="11" r="8" />
@@ -201,10 +203,10 @@ export default function TaskFilterPage() {
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    placeholder="Name, phone, Member ID, System ID…"
+                    placeholder={t('Name, phone, Member ID, System ID…')}
                     style={{
-                      width: '100%', height: 42, paddingLeft: 36,
-                      paddingRight: search ? 36 : 14, borderRadius: 8,
+                      width: '100%', height: 42, paddingInlineStart: 36,
+                      paddingInlineEnd: search ? 36 : 14, borderRadius: 8,
                       border: '1px solid var(--border)', background: 'var(--card)',
                       color: 'var(--t1)', fontSize: 14, fontFamily: 'inherit', outline: 'none',
                     }}
@@ -214,7 +216,7 @@ export default function TaskFilterPage() {
                       type="button"
                       onClick={() => setSearch('')}
                       style={{
-                        position: 'absolute', right: 10, background: 'none',
+                        position: 'absolute', insetInlineEnd: 10, background: 'none',
                         border: 'none', color: 'var(--t4)', cursor: 'pointer', padding: 4, fontSize: 14,
                       }}
                     ><X size={14} aria-hidden /></button>
@@ -224,15 +226,15 @@ export default function TaskFilterPage() {
 
               {/* ── Section: Status ── */}
               <div style={sectionDivider}>
-                <p style={{ ...labelStyle, marginBottom: 10, fontSize: 12 }}>Member Status</p>
+                <p style={{ ...labelStyle, marginBottom: 10, fontSize: 12 }}>{t('Member Status')}</p>
                 <FilterTabs
                   options={[
-                    { value: 'all', label: 'All' },
-                    { value: 'active', label: 'Active' },
-                    { value: 'expired', label: 'Expired' },
-                    { value: 'frozen', label: 'Frozen' },
-                    { value: 'guest', label: 'Guest' },
-                    { value: 'blocked', label: 'Blocked' },
+                    { value: 'all', label: t('All') },
+                    { value: 'active', label: t('Active') },
+                    { value: 'expired', label: t('Expired') },
+                    { value: 'frozen', label: t('Frozen') },
+                    { value: 'guest', label: t('Guest') },
+                    { value: 'blocked', label: t('Blocked') },
                   ]}
                   active={statusFilter}
                   onChange={setStatusFilter}
@@ -241,28 +243,28 @@ export default function TaskFilterPage() {
 
               {/* ── Section: View Scope + Staff ── */}
               <div style={sectionDivider}>
-                <p style={{ ...labelStyle, marginBottom: 10, fontSize: 12 }}>View Scope</p>
+                <p style={{ ...labelStyle, marginBottom: 10, fontSize: 12 }}>{t('View Scope')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
                   <div>
-                    <label style={labelStyle}>Scope</label>
+                    <label style={labelStyle}>{t('Scope')}</label>
                     <MenuSelect
                       value={kind}
                       onChange={(e) => { setKind(e.target.value); setPersonId(''); }}
                       style={{ width: '100%' }}
-                      aria-label="View scope"
+                      aria-label={t('View scope')}
                     >
-                      <option value="all">All Gym Members</option>
-                      <option value="sales">By Sales Rep</option>
-                      <option value="coach">By Coach</option>
-                      <option value="sales_manager">Assigned to Sales Manager</option>
-                      <option value="head_coach">Assigned to Head Coach</option>
+                      <option value="all">{t('All Gym Members')}</option>
+                      <option value="sales">{t('By Sales Rep')}</option>
+                      <option value="coach">{t('By Coach')}</option>
+                      <option value="sales_manager">{t('Assigned to Sales Manager')}</option>
+                      <option value="head_coach">{t('Assigned to Head Coach')}</option>
                     </MenuSelect>
                   </div>
                   {(kind === 'sales' || kind === 'coach') && (
                     <div>
-                      <label style={labelStyle}>{kind === 'sales' ? 'Select Sales Rep' : 'Select Coach'}</label>
-                      <MenuSelect value={personId} onChange={(e) => setPersonId(e.target.value)} style={{ width: '100%' }} aria-label={kind === 'sales' ? 'Select sales rep' : 'Select coach'}>
-                        <option value="">All {kind === 'sales' ? 'Sales Reps' : 'Coaches'}</option>
+                      <label style={labelStyle}>{kind === 'sales' ? t('Select Sales Rep') : t('Select Coach')}</label>
+                      <MenuSelect value={personId} onChange={(e) => setPersonId(e.target.value)} style={{ width: '100%' }} aria-label={kind === 'sales' ? t('Select sales rep') : t('Select coach')}>
+                        <option value="">{kind === 'sales' ? t('All Sales Reps') : t('All Coaches')}</option>
                         {people.map((p) => (
                           <option key={p._id} value={p._id}>{p.name}</option>
                         ))}
@@ -274,32 +276,32 @@ export default function TaskFilterPage() {
 
               {/* ── Section: Package / Gender / Transfer Status ── */}
               <div style={sectionDivider}>
-                <p style={{ ...labelStyle, marginBottom: 10, fontSize: 12 }}>Additional Filters</p>
+                <p style={{ ...labelStyle, marginBottom: 10, fontSize: 12 }}>{t('Additional Filters')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 14 }}>
                   <div>
-                    <label style={labelStyle}>Package</label>
-                    <MenuSelect value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)} style={{ width: '100%' }} aria-label="Package">
-                      <option value="all">All Packages</option>
+                    <label style={labelStyle}>{t('Package')}</label>
+                    <MenuSelect value={packageFilter} onChange={(e) => setPackageFilter(e.target.value)} style={{ width: '100%' }} aria-label={t('Package')}>
+                      <option value="all">{t('All Packages')}</option>
                       {allPackages.map((pkg) => (
                         <option key={pkg._id} value={pkg._id}>{pkg.name}</option>
                       ))}
                     </MenuSelect>
                   </div>
                   <div>
-                    <label style={labelStyle}>Gender</label>
-                    <MenuSelect value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} style={{ width: '100%' }} aria-label="Gender">
-                      <option value="all">All Genders</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
+                    <label style={labelStyle}>{t('Gender')}</label>
+                    <MenuSelect value={genderFilter} onChange={(e) => setGenderFilter(e.target.value)} style={{ width: '100%' }} aria-label={t('Gender')}>
+                      <option value="all">{t('All Genders')}</option>
+                      <option value="male">{t('Male')}</option>
+                      <option value="female">{t('Female')}</option>
                     </MenuSelect>
                   </div>
                   <div>
-                    <label style={labelStyle}>Transfer Status</label>
-                    <MenuSelect value={transferTypeFilter} onChange={(e) => setTransferTypeFilter(e.target.value)} style={{ width: '100%' }} aria-label="Transfer status">
-                      <option value="all">All</option>
-                      <option value="transferred">Transferred</option>
-                      <option value="never">Never Transferred</option>
-                      <option value="bulk">Bulk Transferred</option>
+                    <label style={labelStyle}>{t('Transfer Status')}</label>
+                    <MenuSelect value={transferTypeFilter} onChange={(e) => setTransferTypeFilter(e.target.value)} style={{ width: '100%' }} aria-label={t('Transfer status')}>
+                      <option value="all">{t('All')}</option>
+                      <option value="transferred">{t('Transferred')}</option>
+                      <option value="never">{t('Never Transferred')}</option>
+                      <option value="bulk">{t('Bulk Transferred')}</option>
                     </MenuSelect>
                   </div>
                 </div>
@@ -307,29 +309,29 @@ export default function TaskFilterPage() {
 
               {/* ── Section: Date Range ── */}
               <div style={sectionDivider}>
-                <p style={{ ...labelStyle, marginBottom: 10, fontSize: 12 }}>Date Range</p>
+                <p style={{ ...labelStyle, marginBottom: 10, fontSize: 12 }}>{t('Date Range')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 14, marginBottom: 14 }}>
                   <div>
-                    <label style={labelStyle}>Date Field</label>
-                    <MenuSelect value={dateField} onChange={(e) => setDateField(e.target.value)} style={{ width: '100%' }} aria-label="Date field">
-                      <option value="endDate">End Date</option>
-                      <option value="startDate">Start Date</option>
-                      <option value="createdAt">Join Date</option>
-                      <option value="transferDate">Transfer Date</option>
+                    <label style={labelStyle}>{t('Date Field')}</label>
+                    <MenuSelect value={dateField} onChange={(e) => setDateField(e.target.value)} style={{ width: '100%' }} aria-label={t('Date field')}>
+                      <option value="endDate">{t('End Date')}</option>
+                      <option value="startDate">{t('Start Date')}</option>
+                      <option value="createdAt">{t('Join Date')}</option>
+                      <option value="transferDate">{t('Transfer Date')}</option>
                     </MenuSelect>
                   </div>
                   <div>
-                    <label style={labelStyle}>From Date</label>
+                    <label style={labelStyle}>{t('From Date')}</label>
                     <input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} style={inputStyle} />
                   </div>
                   <div>
-                    <label style={labelStyle}>To Date</label>
+                    <label style={labelStyle}>{t('To Date')}</label>
                     <input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} style={inputStyle} />
                   </div>
                 </div>
                 {/* Quick presets */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 11, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>Quick:</span>
+                  <span style={{ fontSize: 11, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{t('Quick:')}</span>
                   {['today', 'next30', 'last30'].map((p) => (
                     <button
                       key={p}
@@ -341,7 +343,7 @@ export default function TaskFilterPage() {
                         cursor: 'pointer', fontFamily: 'inherit',
                       }}
                     >
-                      {p === 'today' ? 'Today' : p === 'next30' ? 'Next 30d' : 'Last 30d'}
+                      {p === 'today' ? t('Today') : p === 'next30' ? t('Next 30d') : t('Last 30d')}
                     </button>
                   ))}
                   {(dateFrom || dateTo) && (
@@ -354,23 +356,23 @@ export default function TaskFilterPage() {
                         color: 'var(--red, #dc2626)', fontSize: 12, fontWeight: 600,
                         cursor: 'pointer', fontFamily: 'inherit',
                       }}
-                    >Clear Dates</button>
+                    >{t('Clear Dates')}</button>
                   )}
                 </div>
               </div>
 
               {/* ── Section: Selection & Display ── */}
               <div style={sectionDivider}>
-                <p style={{ ...labelStyle, marginBottom: 10, fontSize: 12 }}>Selection & Display</p>
+                <p style={{ ...labelStyle, marginBottom: 10, fontSize: 12 }}>{t('Selection & Display')}</p>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
                   <div>
-                    <label style={labelStyle}>How many members to select</label>
+                    <label style={labelStyle}>{t('How many members to select')}</label>
                     <input
                       type="number"
                       min="1"
                       value={selectCount}
                       onChange={(e) => setSelectCount(e.target.value)}
-                      placeholder="e.g. 25"
+                      placeholder={t('e.g. 25')}
                       className="no-spinners"
                       style={{ ...inputStyle, MozAppearance: 'textfield' }}
                     />
@@ -385,7 +387,7 @@ export default function TaskFilterPage() {
                           fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                         }}
                       >
-                        First
+                        {t('First')}
                       </button>
                       <button
                         type="button"
@@ -397,24 +399,24 @@ export default function TaskFilterPage() {
                           fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
                         }}
                       >
-                        Last
+                        {t('Last')}
                       </button>
                     </div>
                   </div>
                   <div>
-                    <label style={labelStyle}>Members per page</label>
+                    <label style={labelStyle}>{t('Members per page')}</label>
                     <input
                       type="number"
                       min="1"
                       max="500"
                       value={pageSize}
                       onChange={(e) => setPageSize(e.target.value)}
-                      placeholder="e.g. 20"
+                      placeholder={t('e.g. 20')}
                       className="no-spinners"
                       style={{ ...inputStyle, MozAppearance: 'textfield' }}
                     />
                     <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--t4)' }}>
-                      Controls how many rows show on the results table.
+                      {t('Controls how many rows show on the results table.')}
                     </p>
                   </div>
                 </div>
@@ -438,7 +440,7 @@ export default function TaskFilterPage() {
                     opacity: activeFilterCount === 0 ? 0.5 : 1,
                   }}
                 >
-                  ↺ Reset All Filters
+                  ↺ {t('Reset All Filters')}
                 </button>
 
                 <button
@@ -452,14 +454,14 @@ export default function TaskFilterPage() {
                     boxShadow: '0 2px 10px color-mix(in srgb, var(--navy) 30%, transparent)',
                   }}
                 >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Search size={16} aria-hidden /> Filter Members</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Search size={16} aria-hidden /> {t('Filter Members')}</span>
                   {activeFilterCount > 0 && (
                     <span style={{
                       background: 'rgba(255,255,255,0.25)', color: '#fff',
                       fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
-                    }}>{activeFilterCount} active</span>
+                    }}>{t('{count} active', { count: activeFilterCount })}</span>
                   )}
-                  <ArrowRight size={16} aria-hidden />
+                  <ArrowRight size={16} className="rtl-flip" aria-hidden />
                 </button>
               </div>
 

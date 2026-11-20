@@ -15,17 +15,31 @@ import {
   bulkTransferSalesReps, bulkTransferCoach,
 } from '../../api/endpoints';
 import {
-  CircleDot, Dumbbell, MessageCircle, RefreshCw, UserRound, Users,
+  ArrowLeft, CircleDot, Dumbbell, MessageCircle, RefreshCw, UserRound, Users,
 } from 'lucide-react';
 import {
   filterMembersAdvanced, packageName, columnValue, coachName, salesmanName, primaryByRole,
   taskPermissions, toggleId, toggleIds,
 } from './taskMembers';
 import { formatSystemId } from '../../lib/systemId';
+import { useI18n } from '../../i18n/useI18n.js';
+import { useFormat } from '../../i18n/useFormat.js';
+import { tr } from '../../i18n/translate.js';
 import BulkWhatsAppSendModal from '../../components/BulkWhatsAppSendModal';
 
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
+
+const STATUS_LABELS = {
+  active: tr('Active'),
+  expired: tr('Expired'),
+  frozen: tr('Frozen'),
+  guest: tr('Guest'),
+  blocked: tr('Blocked'),
+};
+const GENDER_LABELS = { male: tr('Male'), female: tr('Female') };
+const TRANSFER_LABELS = { transferred: tr('Transferred'), never: tr('Never Transferred'), bulk: tr('Bulk Transferred') };
+const DATE_FIELD_LABELS = { endDate: tr('End Date'), startDate: tr('Start Date'), createdAt: tr('Join Date'), transferDate: tr('Transfer Date') };
 
 async function loadAllMembers() {
   const members = [];
@@ -57,7 +71,9 @@ export default function TaskFilterResultsPage() {
 }
 
 function TaskFilterResults({ filters }) {
-  usePageTitle('Filter Results');
+  const { t } = useI18n();
+  const { lang } = useFormat();
+  usePageTitle(t('Filter Results'));
   const navigate = useNavigate();
   const { user } = useAuth();
   const { hasFeature } = useTenant();
@@ -147,11 +163,11 @@ function TaskFilterResults({ filters }) {
       setMembers(list);
       setLoaded(true);
     } catch {
-      toast.error('Failed to load members');
+      toast.error(t('Failed to load members'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useLocationEffect(() => { fetchMembers(); }, [fetchMembers]);
   useLocationEffect(() => {
@@ -192,24 +208,26 @@ function TaskFilterResults({ filters }) {
   // ── Filter summary for header ──
   const filterSummaryParts = useMemo(() => {
     const parts = [];
-    if (search.trim()) parts.push(`Search: "${search.trim()}"`);
-    if (statusFilter !== 'all') parts.push(`Status: ${statusFilter.charAt(0).toUpperCase() + statusFilter.slice(1)}`);
-    if (kind === 'sales') parts.push(personId ? `Sales Rep: (selected)` : 'By Sales Rep');
-    else if (kind === 'coach') parts.push(personId ? `Coach: (selected)` : 'By Coach');
-    else if (kind === 'sales_manager') parts.push('Assigned to Sales Manager');
-    else if (kind === 'head_coach') parts.push('Assigned to Head Coach');
-    if (packageFilter !== 'all') parts.push('Package: (selected)');
-    if (genderFilter !== 'all') parts.push(`Gender: ${genderFilter.charAt(0).toUpperCase() + genderFilter.slice(1)}`);
+    if (search.trim()) parts.push(t('Search: "{query}"', { query: search.trim() }));
+    if (statusFilter !== 'all') parts.push(t('Status: {value}', { value: STATUS_LABELS[statusFilter] ? t(STATUS_LABELS[statusFilter]) : statusFilter }));
+    if (kind === 'sales') parts.push(personId ? t('Sales Rep: (selected)') : t('By Sales Rep'));
+    else if (kind === 'coach') parts.push(personId ? t('Coach: (selected)') : t('By Coach'));
+    else if (kind === 'sales_manager') parts.push(t('Assigned to Sales Manager'));
+    else if (kind === 'head_coach') parts.push(t('Assigned to Head Coach'));
+    if (packageFilter !== 'all') parts.push(t('Package: (selected)'));
+    if (genderFilter !== 'all') parts.push(t('Gender: {value}', { value: GENDER_LABELS[genderFilter] ? t(GENDER_LABELS[genderFilter]) : genderFilter }));
     if (transferTypeFilter !== 'all') {
-      const labels = { transferred: 'Transferred', never: 'Never Transferred', bulk: 'Bulk Transferred' };
-      parts.push(`Transfer: ${labels[transferTypeFilter] || transferTypeFilter}`);
+      parts.push(t('Transfer: {value}', { value: TRANSFER_LABELS[transferTypeFilter] ? t(TRANSFER_LABELS[transferTypeFilter]) : transferTypeFilter }));
     }
     if (dateFrom || dateTo) {
-      const fieldLabels = { endDate: 'End Date', startDate: 'Start Date', createdAt: 'Join Date', transferDate: 'Transfer Date' };
-      parts.push(`${fieldLabels[dateField] || dateField}: ${dateFrom || '?'} → ${dateTo || '?'}`);
+      parts.push(t('{field}: {from} → {to}', {
+        field: DATE_FIELD_LABELS[dateField] ? t(DATE_FIELD_LABELS[dateField]) : dateField,
+        from: dateFrom || '?',
+        to: dateTo || '?',
+      }));
     }
     return parts;
-  }, [search, statusFilter, kind, personId, packageFilter, genderFilter, transferTypeFilter, dateField, dateFrom, dateTo]);
+  }, [t, search, statusFilter, kind, personId, packageFilter, genderFilter, transferTypeFilter, dateField, dateFrom, dateTo]);
 
   // ── Handlers ──
   const isAllFilteredSelected = filtered.length > 0 && filtered.every((m) => selectedSet.has(m._id));
@@ -222,11 +240,11 @@ function TaskFilterResults({ filters }) {
   const applySelectByCount = useCallback((count, order, { silent = false } = {}) => {
     const parsed = parseInt(count, 10);
     if (!Number.isFinite(parsed) || parsed <= 0) {
-      if (!silent) toast.error('Please enter a valid positive number');
+      if (!silent) toast.error(t('Please enter a valid positive number'));
       return false;
     }
     if (!filtered.length) {
-      if (!silent) toast.error('No members match the current filters');
+      if (!silent) toast.error(t('No members match the current filters'));
       return false;
     }
     const n = Math.min(parsed, filtered.length);
@@ -242,10 +260,12 @@ function TaskFilterResults({ filters }) {
       setPage(1);
     }
     if (!silent) {
-      toast.success(`Selected ${isLast ? 'last' : 'first'} ${slice.length} member${slice.length !== 1 ? 's' : ''}`);
+      toast.success(isLast
+        ? t('Selected last {count} member(s)', { count: slice.length })
+        : t('Selected first {count} member(s)', { count: slice.length }));
     }
     return true;
-  }, [filtered, pageSize]);
+  }, [filtered, pageSize, t]);
 
   const handleSelectByCount = (order = selectCountOrder) => {
     applySelectByCount(selectCountInput, order);
@@ -278,7 +298,7 @@ function TaskFilterResults({ filters }) {
 
   // ── Bulk Transfer ──
   const openTransferModal = (targetKind) => {
-    if (!selectedSet.size) { toast.error('Select at least one member'); return; }
+    if (!selectedSet.size) { toast.error(t('Select at least one member')); return; }
     setDestKind(targetKind);
     setDestId('');
     setTransferOpen(true);
@@ -286,7 +306,7 @@ function TaskFilterResults({ filters }) {
 
   const executeBulkTransfer = async () => {
     if (!destId) {
-      toast.error(destKind === 'sales' ? 'Choose a sales rep' : 'Choose a coach');
+      toast.error(destKind === 'sales' ? t('Choose a sales rep') : t('Choose a coach'));
       return;
     }
     const ids = Array.from(selectedSet);
@@ -298,12 +318,12 @@ function TaskFilterResults({ filters }) {
       } else {
         await bulkTransferCoach({ memberIds: ids, coachId: destId, source: 'filter' });
       }
-      toast.success(`Successfully assigned ${ids.length} members!`);
+      toast.success(t('Successfully assigned {count} members!', { count: ids.length }));
       setSelected(new Set());
       setTransferOpen(false);
       fetchMembers();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Transfer failed');
+      toast.error(err.response?.data?.message || t('Transfer failed'));
     } finally {
       setBusy(false);
     }
@@ -311,7 +331,7 @@ function TaskFilterResults({ filters }) {
 
   // ── WhatsApp Bulk Send ──
   const openWaModal = () => {
-    if (!selectedSet.size) { toast.error('Select at least one member'); return; }
+    if (!selectedSet.size) { toast.error(t('Select at least one member')); return; }
     setWaOpen(true);
   };
 
@@ -322,13 +342,13 @@ function TaskFilterResults({ filters }) {
 
   return (
     <Layout>
-      <PageHeader title="Filter Results">
+      <PageHeader title={t('Filter Results')}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <Btn variant="ghost" size="sm" onClick={handleModifyFilters}>
-            ← Modify Filters
+            <ArrowLeft size={14} className="rtl-flip" aria-hidden /> {t('Modify Filters')}
           </Btn>
           <Btn variant="outline" size="sm" onClick={fetchMembers} disabled={loading}>
-            {loading ? <Spinner size="sm" /> : <><RefreshCw size={14} aria-hidden /> Reload</>}
+            {loading ? <Spinner size="sm" /> : <><RefreshCw size={14} aria-hidden /> {t('Reload')}</>}
           </Btn>
         </div>
       </PageHeader>
@@ -340,15 +360,15 @@ function TaskFilterResults({ filters }) {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
-                {loaded ? `${filtered.length} result${filtered.length !== 1 ? 's' : ''}` : 'Loading…'}
+                {loaded ? (filtered.length === 1 ? t('1 result') : t('{count} results', { count: filtered.length })) : t('Loading…')}
               </span>
               {filterSummaryParts.length > 0 && (
                 <span style={{ fontSize: 12, color: 'var(--t3)' }}>
-                  for: {filterSummaryParts.join(' · ')}
+                  {t('for: {filters}', { filters: filterSummaryParts.join(' · ') })}
                 </span>
               )}
               {filterSummaryParts.length === 0 && (
-                <span style={{ fontSize: 12, color: 'var(--t4)' }}>No filters applied — showing all members</span>
+                <span style={{ fontSize: 12, color: 'var(--t4)' }}>{t('No filters applied — showing all members')}</span>
               )}
             </div>
             <button
@@ -361,7 +381,7 @@ function TaskFilterResults({ filters }) {
                 display: 'inline-flex', alignItems: 'center', gap: 5,
               }}
             >
-              ← Modify Filters
+              <ArrowLeft size={14} className="rtl-flip" aria-hidden /> {t('Modify Filters')}
             </button>
           </div>
         </Card>
@@ -381,7 +401,7 @@ function TaskFilterResults({ filters }) {
                   onChange={handleSelectAllFiltered}
                   disabled={!filtered.length || loading}
                 />
-                <span>Select All Filtered ({filtered.length})</span>
+                <span>{t('Select All Filtered ({count})', { count: filtered.length })}</span>
               </label>
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                 <input
@@ -389,8 +409,8 @@ function TaskFilterResults({ filters }) {
                   min="1"
                   value={selectCountInput}
                   onChange={(e) => setSelectCountInput(e.target.value)}
-                  placeholder="How many?"
-                  aria-label="Number of members to select"
+                  placeholder={t('How many?')}
+                  aria-label={t('Number of members to select')}
                   disabled={!filtered.length || loading}
                   className="no-spinners"
                   style={{
@@ -413,7 +433,7 @@ function TaskFilterResults({ filters }) {
                     fontFamily: 'inherit',
                   }}
                 >
-                  First
+                  {t('First')}
                 </button>
                 <button
                   type="button"
@@ -428,7 +448,7 @@ function TaskFilterResults({ filters }) {
                     fontFamily: 'inherit',
                   }}
                 >
-                  Last
+                  {t('Last')}
                 </button>
               </div>
               {selectedSet.size > 0 && (
@@ -437,12 +457,12 @@ function TaskFilterResults({ filters }) {
                   borderRadius: 6, background: 'color-mix(in srgb, var(--navy) 8%, transparent)', color: 'var(--navy, var(--navy))',
                   fontSize: 12, fontWeight: 700,
                 }}>
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CircleDot size={12} aria-hidden /> {selectedSet.size} selected</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><CircleDot size={12} aria-hidden /> {t('{count} selected', { count: selectedSet.size })}</span>
                   <button
                     type="button"
                     onClick={() => setSelected(new Set())}
                     style={{ background: 'none', border: 'none', color: 'var(--red, #dc2626)', fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: '0 2px' }}
-                  >(Clear)</button>
+                  >{t('(Clear)')}</button>
                 </div>
               )}
             </div>
@@ -450,12 +470,12 @@ function TaskFilterResults({ filters }) {
             <div data-walkthrough="filter-results-actions" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {canSalesman && (
                 <Btn size="sm" variant="primary" disabled={!selectedSet.size} onClick={() => openTransferModal('sales')}>
-                  <UserRound size={14} aria-hidden /> Assign Sales Rep ({selectedSet.size})
+                  <UserRound size={14} aria-hidden /> {t('Assign Sales Rep ({count})', { count: selectedSet.size })}
                 </Btn>
               )}
               {canCoach && (
                 <Btn size="sm" variant="outline" disabled={!selectedSet.size} onClick={() => openTransferModal('coach')}>
-                  <Dumbbell size={14} aria-hidden /> Assign Coach ({selectedSet.size})
+                  <Dumbbell size={14} aria-hidden /> {t('Assign Coach ({count})', { count: selectedSet.size })}
                 </Btn>
               )}
               {canWhatsApp && (
@@ -470,9 +490,9 @@ function TaskFilterResults({ filters }) {
 
           {/* Table Body */}
           {loading || !loaded ? (
-            <Table loading skeletonRows={8} headers={['#', 'Member', 'Member ID', 'Phone', 'Sales Rep', 'Coach', 'Status', 'Package']} />
+            <Table loading skeletonRows={8} headers={['#', t('Member'), t('Member ID'), t('Phone'), t('Sales Rep'), t('Coach'), t('Status'), t('Package')]} />
           ) : filtered.length === 0 ? (
-            <EmptyState icon={Users} message="No members found" sub="Go back and adjust your filters to see results." />
+            <EmptyState icon={Users} message={t('No members found')} sub={t('Go back and adjust your filters to see results.')} />
           ) : (
             <>
               <div className="table-responsive-container">
@@ -480,14 +500,14 @@ function TaskFilterResults({ filters }) {
                   <thead>
                     <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
                       <th style={{ width: 40, padding: '10px 14px', textAlign: 'center' }}>#</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Member ID</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Phone</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Sales Rep</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Coach</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Package</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>End Date</th>
-                      <th style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>Status</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Member')}</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Member ID')}</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Phone')}</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Sales Rep')}</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Coach')}</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Package')}</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('End Date')}</th>
+                      <th style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{t('Status')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -518,10 +538,10 @@ function TaskFilterResults({ filters }) {
                             </span>
                           </td>
                           <td style={{ padding: '12px 14px', color: 'var(--t2)', fontFamily: 'monospace', fontSize: 12 }}>
-                            {member.memberId ? `#${member.memberId}` : (member.systemId ? formatSystemId(member.systemId) : '—')}
+                            {member.memberId || member.systemId ? <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{member.memberId ? `#${member.memberId}` : formatSystemId(member.systemId)}</span> : '—'}
                           </td>
                           <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
-                            {member.phones || '—'}
+                            {member.phones ? <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{member.phones}</span> : '—'}
                           </td>
                           <td style={{ padding: '12px 14px', color: 'var(--t2)' }}>
                             {salesmanName(member, salesManager) || '—'}
@@ -533,7 +553,7 @@ function TaskFilterResults({ filters }) {
                             {packageName(member) || '—'}
                           </td>
                           <td style={{ padding: '12px 14px', color: 'var(--t3)', fontSize: 12 }}>
-                            {columnValue(member, 'endDate') || '—'}
+                            {columnValue(member, 'endDate', lang, t) || '—'}
                           </td>
                           <td style={{ padding: '12px 14px' }}>
                             <Badge status={member.isBlocked ? 'blocked' : member.status || 'active'} />
@@ -563,28 +583,29 @@ function TaskFilterResults({ filters }) {
       {transferOpen && (
         <Modal
           open={transferOpen}
-          title={`Assign to ${destKind === 'sales' ? 'Sales Rep' : 'Coach'}`}
+          title={destKind === 'sales' ? t('Assign to Sales Rep') : t('Assign to Coach')}
           onClose={() => setTransferOpen(false)}
         >
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <p style={{ margin: 0, fontSize: 13, color: 'var(--t2)' }}>
-              You are assigning <strong>{selectedSet.size} member(s)</strong> to a{' '}
-              {destKind === 'sales' ? 'sales rep' : 'coach'}.
+              {destKind === 'sales'
+                ? t('You are assigning {count} member(s) to a sales rep.', { count: selectedSet.size })
+                : t('You are assigning {count} member(s) to a coach.', { count: selectedSet.size })}
             </p>
             <Select
-              label={destKind === 'sales' ? 'Select Sales Rep' : 'Select Coach'}
+              label={destKind === 'sales' ? t('Select Sales Rep') : t('Select Coach')}
               value={destId}
               onChange={(e) => setDestId(e.target.value)}
             >
-              <option value="">Choose recipient…</option>
+              <option value="">{t('Choose recipient…')}</option>
               {(destKind === 'sales' ? salesUsers.filter((u) => u.role === 'Sales') : coaches).map((p) => (
                 <option key={p._id} value={p._id}>{p.name}</option>
               ))}
             </Select>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
-              <Btn variant="outline" onClick={() => setTransferOpen(false)} disabled={busy}>Cancel</Btn>
+              <Btn variant="outline" onClick={() => setTransferOpen(false)} disabled={busy}>{t('Cancel')}</Btn>
               <Btn variant="primary" onClick={executeBulkTransfer} disabled={busy || !destId}>
-                {busy ? <Spinner size="sm" /> : `Confirm & Assign (${selectedSet.size})`}
+                {busy ? <Spinner size="sm" /> : t('Confirm & Assign ({count})', { count: selectedSet.size })}
               </Btn>
             </div>
           </div>

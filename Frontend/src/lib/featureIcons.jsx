@@ -25,12 +25,15 @@ import {
   MessageSquare,
   Package,
   Phone,
+  Receipt,
   RefreshCw,
   Repeat,
   ScrollText,
   Settings,
   Shield,
+  ShoppingCart,
   Smartphone,
+  Store,
   Target,
   TrendingUp,
   Users,
@@ -79,6 +82,9 @@ export const FEATURE_ICONS = {
   BadgeCheck,
   ArrowLeftRight,
   Inbox,
+  ShoppingCart,
+  Receipt,
+  Store,
 };
 
 export function FeatureIcon({ name, size = 20, className, style, strokeWidth = 2, ...rest }) {

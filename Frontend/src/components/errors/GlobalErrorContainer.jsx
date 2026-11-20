@@ -9,8 +9,10 @@ import { ImportErrorsModal } from "./ImportErrorsModal";
 import { PaymentFailedModal } from "./PaymentFailedModal";
 import { OfflineBanner } from "./OfflineBanner";
 import { GlobalStatusBanner } from "./GlobalStatusBanner";
+import { useI18n } from "../../i18n/useI18n";
 
 export function GlobalErrorContainer() {
+  const { t } = useI18n();
   const [activeModal, setActiveModal] = useState(null); // { type, error, options }
   const [persistentStatus, setPersistentStatus] = useState(null); // { type, message }
 
@@ -126,14 +128,14 @@ export function GlobalErrorContainer() {
           error={activeModal.error}
           severity="critical"
           primaryAction={{
-            label: "Try Again",
+            label: t("Try Again"),
             onClick: () => {
               closeModal();
               window.location.reload();
             },
           }}
           secondaryAction={{
-            label: "Dismiss",
+            label: t("Dismiss"),
             onClick: closeModal,
           }}
         />

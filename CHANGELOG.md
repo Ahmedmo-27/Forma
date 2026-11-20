@@ -2,9 +2,16 @@
 
 All notable changes to the Forma multi-tenant SaaS platform are documented in this file.
 
-## [Unreleased] - 2026-11-07
+## [Unreleased] - 2026-11-20
 
 ### Added
+- **Maintenance reminders**: an hourly scheduled job finds due and overdue maintenance items per tenant and branch, and drops one in-app notification (type `maintenance_due`) per eligible user per branch per repeat window.
+  - Eligible users follow the same rules as the maintenance routes (role defaults, per-user grants and revokes, role checklist, area overrides) and are limited to the branches they can access.
+  - Duplicate-safe: `Notification.dedupeKey` has a partial unique index on `(tenantId, recipient, dedupeKey)`, so re-runs, restarts and overlapping instances never remind twice in one window. The window is `MAINTENANCE_REMINDER_REPEAT_HOURS` (default 24).
+  - Clicking the notification opens `/maintenance?locationId=<branch>`. Completing an item marks the branch's reminders read once nothing is left due.
+  - Status logic moved to the shared `utils/maintenanceStatus.js`, so the board and the reminders always agree.
+- **Scheduler lock**: freeze, expiry, assignment and reminder jobs run at most once per interval across instances (`SchedulerLock`), so overlapping deploys and replicas do not double-run them.
+- **Production hardening**: graceful `SIGTERM`/`SIGINT` shutdown, boot-time rejection of `.env.example` placeholder secrets in production (`config/validateEnv.js`), log files off by default in production (stdout only), `Retry-After` on a degraded `/health`, `Backend/railway.json`, `engines.node >= 20`, an `npm audit` CI step, and `docs/PRODUCTION_CHECKLIST.md`.
 - **Gym business intelligence snapshots**:
   - Daily tenant snapshots for membership, check-ins, PT, funnel counts, renewals, and churn, computed in integer piasters from `pricePaid` and `packageSnapshot`.
   - Role dashboards at `/analytics`, SMART goals, and rule-based insights for Platinum.
@@ -26,6 +33,10 @@ All notable changes to the Forma multi-tenant SaaS platform are documented in th
   - Integrated Axios interceptors across Tenant and Platform apps with 4-second deduplication, `skipGlobalError: true`, and elimination of double-toast bugs.
   - Added comprehensive test suites (`errorHandler.test.js`, `sanitizeLog.test.js`, `errorHandlingContract.test.js`) verifying 172 backend tests pass.
   - Created complete architectural documentation in `docs/ERROR_HANDLING.md`.
+
+### Removed
+- Facebook Messenger and Instagram (Meta) inbox channels: webhook and OAuth routes, Graph API client, `META_*` settings and UI. The shared inbox is WhatsApp-only. `sessionManager.sendReply` and the inbox session hooks are wired again so WhatsApp inbox replies and inbound messages work.
+- `Backend/logs/*.log` are no longer tracked in git.
 
 ## [1.1.0] - 2026-11-05
 

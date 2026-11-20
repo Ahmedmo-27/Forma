@@ -4,6 +4,9 @@ import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import usePageTitle from '../hooks/usePageTitle';
 import { Spinner } from '../components/ui';
+import LanguageSwitch from '../components/LanguageSwitch';
+import { useI18n } from '../i18n/useI18n';
+import { tr } from '../i18n/translate';
 import { goToStaffHome, staffHomeHref, shouldHardRedirectToApp } from '../marketing/host';
 
 function roleHomePath(role) {
@@ -15,7 +18,8 @@ function roleHomePath(role) {
 }
 
 export default function Login() {
-  usePageTitle('Sign In');
+  const { t } = useI18n();
+  usePageTitle(t('Sign In'));
   const { signIn, user } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
@@ -35,8 +39,8 @@ export default function Login() {
 
   const validate = () => {
     const e = {};
-    if (!username.trim())                  e.username = 'Username is required';
-    if (!password)                         e.password = 'Password is required';
+    if (!username.trim())                  e.username = t('Username is required');
+    if (!password)                         e.password = t('Password is required');
     setErrors(e);
     return !Object.keys(e).length;
   };
@@ -47,26 +51,26 @@ export default function Login() {
     setLoading(true);
     try {
       const user = await signIn(username.trim(), password);
-      toast.success(`Welcome back, ${user.name}!`);
+      toast.success(t('Welcome back, {name}!', { name: user.name }));
       goToStaffHome(roleHomePath(user.role), navigate);
     } catch (err) {
       let msg;
       if (!err.response) {
         msg = (import.meta.env.BACKEND_ORIGIN || import.meta.env.VITE_API_URL)
-          ? 'Cannot reach the server. Check your connection and API URL.'
-          : 'App is misconfigured: Backend origin is missing (BACKEND_ORIGIN).';
+          ? t('Cannot reach the server. Check your connection and API URL.')
+          : t('App is misconfigured: Backend origin is missing (BACKEND_ORIGIN).');
       } else if (err.response.status === 404) {
-        msg = err.response.data?.error?.message || err.response.data?.message || 'API endpoint not found. Please check your API URL.';
+        msg = err.response.data?.error?.message || err.response.data?.message || t('API endpoint not found. Please check your API URL.');
       } else if (err.response.status === 429) {
-        msg = err.response.data?.error?.message || err.response.data?.message || 'Account temporarily locked due to failed login attempts. Please wait.';
+        msg = err.response.data?.error?.message || err.response.data?.message || t('Account temporarily locked due to failed login attempts. Please wait.');
       } else {
         const data = err.response.data || {};
         const fieldErrors = data.fieldErrors || data.error?.fieldErrors || {};
         const emailIssue = Array.isArray(fieldErrors.email) ? fieldErrors.email[0] : '';
         if (emailIssue && !username.includes('@')) {
-          msg = 'This server still expects your email address. Sign in with the full email, such as owner@test.com. The username works after the API update is deployed.';
+          msg = t('This server still expects your email address. Sign in with the full email, such as owner@test.com. The username works after the API update is deployed.');
         } else {
-          msg = data.error?.message || data.message || 'Invalid username or password.';
+          msg = data.error?.message || data.message || t('Invalid username or password.');
         }
       }
       setErrors({ form: msg });
@@ -85,7 +89,7 @@ export default function Login() {
       padding: '24px 16px',
       position: 'relative',
       overflow: 'hidden',
-      fontFamily: "'Inter','Segoe UI',system-ui,sans-serif",
+      fontFamily: "'Inter','IBM Plex Sans Arabic','Segoe UI',system-ui,sans-serif",
     }}>
 
       {/* ── Subtle background glows ───────────────────────────── */}
@@ -93,12 +97,12 @@ export default function Login() {
         <div style={{
           position: 'absolute', width: 600, height: 600, borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(252,243,226,0.16) 0%, transparent 65%)',
-          top: -150, left: -150,
+          top: -150, insetInlineStart: -150,
         }} />
         <div style={{
           position: 'absolute', width: 500, height: 500, borderRadius: '50%',
           background: 'radial-gradient(circle, rgba(252,243,226,0.10) 0%, transparent 65%)',
-          bottom: -120, right: -120,
+          bottom: -120, insetInlineEnd: -120,
         }} />
         <div style={{
           position: 'absolute', inset: 0,
@@ -118,6 +122,8 @@ export default function Login() {
         padding: 'clamp(28px, 6vw, 44px) clamp(18px, 5vw, 40px)',
       }}>
 
+        <LanguageSwitch tone="light" showLabel={false} style={{ justifyContent: 'flex-end', marginBottom: 12 }} />
+
         {/* Logo + Brand */}
         <div style={{ textAlign: 'center', marginBottom: 36 }}>
           <img
@@ -126,7 +132,7 @@ export default function Login() {
             style={{ width: '100%', maxWidth: 280, height: 'auto', display: 'block', margin: '0 auto 14px' }}
           />
           <p style={{ fontSize: 13, color: '#6B7280', letterSpacing: '0.2px' }}>
-            Gym & Fitness Management Platform
+            {t('Gym & Fitness Management Platform')}
           </p>
         </div>
 
@@ -141,10 +147,10 @@ export default function Login() {
             fontSize: 20, fontWeight: 700, color: '#111827',
             letterSpacing: '-0.2px', marginBottom: 4,
           }}>
-            Welcome back
+            {t('Welcome back')}
           </h2>
           <p style={{ fontSize: 14, color: '#6B7280' }}>
-            Sign in to access your dashboard
+            {t('Sign in to access your dashboard')}
           </p>
         </div>
 
@@ -174,11 +180,11 @@ export default function Login() {
               color: '#374151', letterSpacing: '0.3px',
               textTransform: 'uppercase', marginBottom: 7,
             }}>
-              Username
+              {t('Username')}
             </label>
             <div style={{ position: 'relative' }}>
               <svg style={{
-                position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)',
+                position: 'absolute', insetInlineStart: 13, top: '50%', transform: 'translateY(-50%)',
                 color: '#9CA3AF', pointerEvents: 'none',
               }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -189,9 +195,9 @@ export default function Login() {
                 autoComplete="username"
                 value={username}
                 onChange={(e) => { setUsername(e.target.value); setErrors((p) => ({ ...p, username: '', form: '' })); }}
-                placeholder="your username"
+                placeholder={t('your username')}
                 style={{
-                  width: '100%', padding: '12px 14px 12px 40px', fontSize: 14,
+                  width: '100%', paddingBlock: 12, paddingInlineStart: 40, paddingInlineEnd: 14, fontSize: 14,
                   border: `1.5px solid ${errors.username ? '#FCA5A5' : '#E6DCC8'}`,
                   borderRadius: 10, outline: 'none', color: '#142843',
                   background: errors.username ? '#FEF2F2' : '#FFFFFF',
@@ -220,11 +226,11 @@ export default function Login() {
               color: '#374151', letterSpacing: '0.3px',
               textTransform: 'uppercase', marginBottom: 7,
             }}>
-              Password
+              {t('Password')}
             </label>
             <div style={{ position: 'relative' }}>
               <svg style={{
-                position: 'absolute', left: 13, top: '50%', transform: 'translateY(-50%)',
+                position: 'absolute', insetInlineStart: 13, top: '50%', transform: 'translateY(-50%)',
                 color: '#9CA3AF', pointerEvents: 'none',
               }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
@@ -235,9 +241,9 @@ export default function Login() {
                 autoComplete="current-password"
                 value={password}
                 onChange={(e) => { setPassword(e.target.value); setErrors((p) => ({ ...p, password: '', form: '' })); }}
-                placeholder="Enter your password"
+                placeholder={t('Enter your password')}
                 style={{
-                  width: '100%', padding: '12px 44px 12px 40px', fontSize: 14,
+                  width: '100%', paddingBlock: 12, paddingInlineStart: 40, paddingInlineEnd: 44, fontSize: 14,
                   border: `1.5px solid ${errors.password ? '#FCA5A5' : '#E6DCC8'}`,
                   borderRadius: 10, outline: 'none', color: '#142843',
                   background: errors.password ? '#FEF2F2' : '#FFFFFF',
@@ -259,14 +265,14 @@ export default function Login() {
                 type="button"
                 onClick={() => setShowPwd((s) => !s)}
                 style={{
-                  position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)',
+                  position: 'absolute', insetInlineEnd: 4, top: '50%', transform: 'translateY(-50%)',
                   background: 'none', border: 'none', cursor: 'pointer',
                   color: '#9CA3AF', width: 44, height: 44,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'color 0.15s',
                 }}
                 onMouseEnter={e => e.currentTarget.style.color = '#142843'}
                 onMouseLeave={e => e.currentTarget.style.color = '#9CA3AF'}
-                aria-label={showPwd ? 'Hide password' : 'Show password'}
+                aria-label={t(showPwd ? 'Hide password' : 'Show password')}
               >
                 {showPwd ? (
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -286,9 +292,9 @@ export default function Login() {
             {errors.password && <p style={{ margin: '5px 0 0', fontSize: 12, color: '#DC2626' }}>{errors.password}</p>}
           </div>
 
-          <div style={{ textAlign: 'right', marginTop: -8 }}>
+          <div style={{ textAlign: 'end', marginTop: -8 }}>
             <Link to="/auth/forgot-password" style={{ fontSize: 13, color: '#142843', fontWeight: 600 }}>
-              Forgot password?
+              {t('Forgot password?')}
             </Link>
           </div>
 
@@ -323,10 +329,10 @@ export default function Login() {
             }}
           >
             {loading
-              ? <><Spinner size="sm" /> Signing in…</>
+              ? <><Spinner size="sm" /> {t('Signing in…')}</>
               : <>
-                  Sign In
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  {t('Sign In')}
+                  <svg className="rtl-flip" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>
                   </svg>
                 </>
@@ -341,19 +347,19 @@ export default function Login() {
           display: 'flex', justifyContent: 'center', gap: 24,
         }}>
           {[
-            { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>, label: 'Encrypted' },
-            { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>, label: 'Protected' },
-            { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>, label: '24/7 Access' },
+            { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>, label: tr('Encrypted') },
+            { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>, label: tr('Protected') },
+            { icon: <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>, label: tr('24/7 Access') },
           ].map((b) => (
             <div key={b.label} style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#9CA3AF', fontSize: 12 }}>
               {b.icon}
-              {b.label}
+              {t(b.label)}
             </div>
           ))}
         </div>
 
         <p style={{ textAlign: 'center', marginTop: 16, fontSize: 11, color: '#7A8B9C' }}>
-          © {new Date().getFullYear()} Forma. All rights reserved.
+          {t('© {year} Forma. All rights reserved.', { year: new Date().getFullYear() })}
         </p>
       </div>
     </div>

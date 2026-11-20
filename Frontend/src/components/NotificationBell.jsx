@@ -6,20 +6,22 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
 } from '../api/endpoints';
+import { useI18n } from '../i18n/useI18n';
 
-function timeAgo(date) {
+function timeAgo(date, t) {
   const diff = Date.now() - new Date(date).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t('just now');
+  if (mins < 60) return t('{count}m ago', { count: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return t('{count}h ago', { count: hrs });
   const days = Math.floor(hrs / 24);
-  return `${days}d ago`;
+  return t('{count}d ago', { count: days });
 }
 
 export default function NotificationBell({ variant = 'bar' }) {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [count, setCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
@@ -74,6 +76,11 @@ export default function NotificationBell({ variant = 'bar' }) {
       } catch { /* silent */ }
     }
     setOpen(false);
+    if (n.type === 'maintenance_due') {
+      const locationId = n.metadata?.locationId;
+      navigate(locationId ? `/maintenance?locationId=${encodeURIComponent(locationId)}` : '/maintenance');
+      return;
+    }
     if (n.type === 'sales_rep_request_pending') {
       navigate('/sales/requests');
       return;
@@ -102,7 +109,7 @@ export default function NotificationBell({ variant = 'bar' }) {
     <div ref={ref} style={{ position: 'relative', width: isDrawer ? '100%' : 'auto' }}>
       <button
         onClick={handleOpen}
-        aria-label="Notifications"
+        aria-label={t('Notifications')}
         style={{
           position: 'relative',
           background: isDrawer ? 'color-mix(in srgb, var(--navy) 7%, transparent)' : 'color-mix(in srgb, var(--navy) 7%, transparent)',
@@ -126,11 +133,11 @@ export default function NotificationBell({ variant = 'bar' }) {
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
         {isDrawer && (
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>Notifications</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: 'rgba(255,255,255,0.85)' }}>{t('Notifications')}</span>
         )}
         {count > 0 && (
           <span style={{
-            position: 'absolute', top: -4, right: -4,
+            position: 'absolute', top: -4, insetInlineEnd: -4,
             minWidth: 16, height: 16, borderRadius: 8,
             background: '#ef4444', color: '#fff',
             fontSize: 10, fontWeight: 700,
@@ -144,7 +151,7 @@ export default function NotificationBell({ variant = 'bar' }) {
 
       {open && (
         <div className="overlay-in notif-panel dropdown-panel" style={{
-          position: 'absolute', top: 'calc(100% + 8px)', right: isDrawer ? 'auto' : 0, left: isDrawer ? 0 : 'auto',
+          position: 'absolute', top: 'calc(100% + 8px)', insetInlineEnd: isDrawer ? 'auto' : 0, insetInlineStart: isDrawer ? 0 : 'auto',
           background: 'var(--card)', border: '1px solid var(--border)',
           borderRadius: 8, width: 320, maxHeight: 400,
           boxShadow: '0 4px 20px rgba(0,0,0,0.12)',
@@ -155,7 +162,7 @@ export default function NotificationBell({ variant = 'bar' }) {
             display: 'flex', alignItems: 'center', justifyContent: 'space-between',
             padding: '10px 14px', borderBottom: '1px solid var(--border)',
           }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Notifications</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t('Notifications')}</span>
             {count > 0 && (
               <button
                 onClick={handleMarkAll}
@@ -164,23 +171,23 @@ export default function NotificationBell({ variant = 'bar' }) {
                   fontSize: 11, fontWeight: 600, color: 'var(--blue)', fontFamily: 'inherit',
                 }}
               >
-                Mark all read
+                {t('Mark all read')}
               </button>
             )}
           </div>
 
           <div style={{ overflowY: 'auto', flex: 1 }}>
             {loading ? (
-              <div style={{ padding: 24, textAlign: 'center', fontSize: 12, color: 'var(--t4)' }}>Loading…</div>
+              <div style={{ padding: 24, textAlign: 'center', fontSize: 12, color: 'var(--t4)' }}>{t('Loading…')}</div>
             ) : !notifications.length ? (
-              <div style={{ padding: 24, textAlign: 'center', fontSize: 12, color: 'var(--t4)' }}>No notifications</div>
+              <div style={{ padding: 24, textAlign: 'center', fontSize: 12, color: 'var(--t4)' }}>{t('No notifications')}</div>
             ) : (
               notifications.map((n) => (
                 <button
                   key={n._id}
                   onClick={() => handleClick(n)}
                   style={{
-                    width: '100%', textAlign: 'left', padding: '10px 14px',
+                    width: '100%', textAlign: 'start', padding: '10px 14px',
                     border: 'none', borderBottom: '1px solid var(--border)',
                     background: n.read ? 'var(--card)' : 'color-mix(in srgb, var(--navy) 6%, transparent)',
                     cursor: 'pointer', fontFamily: 'inherit',
@@ -191,7 +198,7 @@ export default function NotificationBell({ variant = 'bar' }) {
                 >
                   <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{n.title}</div>
                   <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 4 }}>{n.message}</div>
-                  <div style={{ fontSize: 10, color: 'var(--t4)' }}>{timeAgo(n.createdAt)}</div>
+                  <div style={{ fontSize: 10, color: 'var(--t4)' }}>{timeAgo(n.createdAt, t)}</div>
                 </button>
               ))
             )}

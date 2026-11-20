@@ -7,19 +7,23 @@ import Layout from '../../components/Layout';
 import { PageHeader, Spinner, EmptyState, Avatar, Pagination } from '../../components/ui';
 import { getSalesTeam, getCoachTeam } from '../../api/endpoints';
 import api from '../../api/axios';
+import { tr } from '../../i18n/translate';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 
 const DEFAULT_PAGE_SIZE = 12;
 const PAGE_SIZE_OPTIONS = [12, 24, 48];
 
 const TABS = [
-  { id: 'sales',        label: 'Sales' },
-  { id: 'coach',        label: 'Coach' },
-  { id: 'accountant',   label: 'Accountant' },
-  { id: 'receptionist', label: 'Receptionist' },
+  { id: 'sales',        label: tr('Sales') },
+  { id: 'coach',        label: tr('Coach') },
+  { id: 'accountant',   label: tr('Accountant') },
+  { id: 'receptionist', label: tr('Receptionist') },
 ];
 
 export default function OwnerTeams() {
-  usePageTitle('All Teams');
+  const { t } = useI18n();
+  usePageTitle(t('All Teams'));
   const navigate = useNavigate();
 
   const [tab, setTab]               = useState('sales');
@@ -62,11 +66,11 @@ export default function OwnerTeams() {
         setAccountants(all.filter(u => u.role === 'Accountant'));
       }
     } catch {
-      toast.error('Failed to load team data');
+      toast.error(t('Failed to load team data'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useLocationEffect(() => { load(); }, [load]);
   useLocationEffect(() => { setPage(1); }, []);
@@ -106,13 +110,13 @@ export default function OwnerTeams() {
   };
 
   const tabLabel = (id) => {
-    const base = TABS.find(t => t.id === id)?.label ?? id;
-    return `${base} (${counts[id] ?? 0})`;
+    const base = TABS.find(x => x.id === id)?.label;
+    return t('{label} ({count})', { label: base ? t(base) : id, count: counts[id] ?? 0 });
   };
 
   return (
     <Layout>
-      <PageHeader walkthrough="teams-header" title="All Teams" />
+      <PageHeader walkthrough="teams-header" title={t('All Teams')} />
 
       <div className="page-wrap" data-walkthrough="teams-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
 
@@ -127,21 +131,21 @@ export default function OwnerTeams() {
           overflow: 'hidden',
           marginBottom: 20,
         }}>
-          {TABS.map(t => (
-            <div key={t.id}
-              onClick={() => setTab(t.id)}
+          {TABS.map(x => (
+            <div key={x.id}
+              onClick={() => setTab(x.id)}
               style={{
-                background: tab === t.id ? 'var(--navy)' : 'var(--card)',
+                background: tab === x.id ? 'var(--navy)' : 'var(--card)',
                 padding: '14px 16px',
                 cursor: 'pointer',
                 transition: 'background 0.12s',
               }}
             >
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: tab === t.id ? 'rgba(255,255,255,0.6)' : 'var(--t4)', marginBottom: 4 }}>
-                {t.label}
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: tab === x.id ? 'rgba(255,255,255,0.6)' : 'var(--t4)', marginBottom: 4 }}>
+                {t(x.label)}
               </div>
-              <div style={{ fontSize: 24, fontWeight: 800, color: tab === t.id ? '#fff' : 'var(--t1)' }}>
-                {loading ? '—' : counts[t.id]}
+              <div style={{ fontSize: 24, fontWeight: 800, color: tab === x.id ? '#fff' : 'var(--t1)' }}>
+                {loading ? '—' : counts[x.id]}
               </div>
             </div>
           ))}
@@ -149,20 +153,20 @@ export default function OwnerTeams() {
 
         {/* ── Filter tabs ──────────────────────────────────────── */}
         <div className="tabs-scroll" style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
-          {TABS.map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
+          {TABS.map(x => (
+            <button key={x.id} onClick={() => setTab(x.id)} style={{
               padding: '8px 18px', background: 'none', border: 'none',
-              borderBottom: `2px solid ${tab === t.id ? 'var(--navy)' : 'transparent'}`,
+              borderBottom: `2px solid ${tab === x.id ? 'var(--navy)' : 'transparent'}`,
               marginBottom: -1,
-              color: tab === t.id ? 'var(--t1)' : 'var(--t3)',
-              fontSize: 13, fontWeight: tab === t.id ? 700 : 400,
+              color: tab === x.id ? 'var(--t1)' : 'var(--t3)',
+              fontSize: 13, fontWeight: tab === x.id ? 700 : 400,
               cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
               transition: 'color 0.12s',
             }}
-              onMouseEnter={e => { if (tab !== t.id) e.currentTarget.style.color = 'var(--t2)'; }}
-              onMouseLeave={e => { if (tab !== t.id) e.currentTarget.style.color = 'var(--t3)'; }}
+              onMouseEnter={e => { if (tab !== x.id) e.currentTarget.style.color = 'var(--t2)'; }}
+              onMouseLeave={e => { if (tab !== x.id) e.currentTarget.style.color = 'var(--t3)'; }}
             >
-              {tabLabel(t.id)}
+              {tabLabel(x.id)}
             </button>
           ))}
         </div>
@@ -173,7 +177,7 @@ export default function OwnerTeams() {
             <Spinner size="lg" />
           </div>
         ) : currentList.length === 0 ? (
-          <EmptyState message={`No ${TABS.find(t => t.id === tab)?.label ?? ''} members found`} />
+          <EmptyState message={t('No {label} members found', { label: t(TABS.find(x => x.id === tab)?.label ?? '') })} />
         ) : (
           <>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
@@ -207,6 +211,8 @@ export default function OwnerTeams() {
 
 // ── User card ─────────────────────────────────────────────────────────────────
 function UserCard({ member, tab, onClick }) {
+  const { t } = useI18n();
+  const { fmtNumber } = useFormat();
   const stats = member.stats;
   const pct = (tab === 'sales' && member.monthlyTarget > 0 && stats?.monthlyRevenue != null)
     ? Math.min(100, Math.round((stats.monthlyRevenue / member.monthlyTarget) * 100))
@@ -252,7 +258,7 @@ function UserCard({ member, tab, onClick }) {
         e.currentTarget.style.boxShadow = '0 10px 24px -4px rgba(68, 41, 140, 0.10), 0 4px 8px -2px rgba(0, 0, 0, 0.03)';
         const arrow = e.currentTarget.querySelector('.card-chevron');
         if (arrow) {
-          arrow.style.transform = 'translateX(2px)';
+          arrow.style.transform = document.documentElement.dir === 'rtl' ? 'translateX(-2px)' : 'translateX(2px)';
           arrow.style.color = 'var(--navy)';
           arrow.style.background = 'rgba(68, 41, 140, 0.08)';
         }
@@ -297,7 +303,7 @@ function UserCard({ member, tab, onClick }) {
                 borderRadius: 999,
                 letterSpacing: '0.2px',
               }}>
-                {member.role}
+                {t(member.role)}
               </span>
             </div>
           </div>
@@ -318,7 +324,7 @@ function UserCard({ member, tab, onClick }) {
               transition: 'all 0.15s ease',
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="rtl-flip" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="m9 18 6-6-6-6" />
             </svg>
           </div>
@@ -341,7 +347,7 @@ function UserCard({ member, tab, onClick }) {
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
                 </svg>
-                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.email}</span>
+                <span dir="ltr" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.email}</span>
               </div>
             )}
             {member.mobile_number && (
@@ -349,7 +355,7 @@ function UserCard({ member, tab, onClick }) {
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                 </svg>
-                <span style={{ fontFamily: 'monospace' }}>{member.mobile_number}</span>
+                <span dir="ltr" style={{ fontFamily: 'monospace' }}>{member.mobile_number}</span>
               </div>
             )}
           </div>
@@ -366,17 +372,17 @@ function UserCard({ member, tab, onClick }) {
             overflow: 'hidden',
           }}>
             {[
-              { l: 'Active',  v: stats.active,  c: 'var(--green)' },
-              { l: 'Frozen',  v: stats.frozen,  c: 'var(--sky)' },
-              { l: 'Expired', v: stats.expired, c: 'var(--red)' },
-              { l: 'Guests',  v: stats.guests,  c: 'var(--slate)' },
+              { l: tr('Active'),  v: stats.active,  c: 'var(--green)' },
+              { l: tr('Frozen'),  v: stats.frozen,  c: 'var(--sky)' },
+              { l: tr('Expired'), v: stats.expired, c: 'var(--red)' },
+              { l: tr('Guests'),  v: stats.guests,  c: 'var(--slate)' },
             ].map((s, idx) => (
               <div
                 key={s.l}
                 style={{
                   padding: '8px 2px',
                   textAlign: 'center',
-                  borderRight: idx < 3 ? '1px solid var(--border)' : 'none',
+                  borderInlineEnd: idx < 3 ? '1px solid var(--border)' : 'none',
                 }}
               >
                 <div style={{
@@ -396,7 +402,7 @@ function UserCard({ member, tab, onClick }) {
                   letterSpacing: '0.5px',
                   marginTop: 3,
                 }}>
-                  {s.l}
+                  {t(s.l)}
                 </div>
               </div>
             ))}
@@ -414,17 +420,17 @@ function UserCard({ member, tab, onClick }) {
             overflow: 'hidden',
           }}>
             {[
-              { l: 'Members',     v: stats.total,           c: 'var(--navy)' },
-              { l: 'Active',      v: stats.active,          c: 'var(--green)' },
-              { l: 'PT Total',    v: stats.totalPTSessions, c: 'var(--sky)' },
-              { l: 'PT Used',     v: stats.usedPTSessions,  c: 'var(--amber)' },
+              { l: tr('Members'),     v: stats.total,           c: 'var(--navy)' },
+              { l: tr('Active'),      v: stats.active,          c: 'var(--green)' },
+              { l: tr('PT Total'),    v: stats.totalPTSessions, c: 'var(--sky)' },
+              { l: tr('PT Used'),     v: stats.usedPTSessions,  c: 'var(--amber)' },
             ].map((s, idx) => (
               <div
                 key={s.l}
                 style={{
                   padding: '8px 2px',
                   textAlign: 'center',
-                  borderRight: idx < 3 ? '1px solid var(--border)' : 'none',
+                  borderInlineEnd: idx < 3 ? '1px solid var(--border)' : 'none',
                 }}
               >
                 <div style={{
@@ -444,7 +450,7 @@ function UserCard({ member, tab, onClick }) {
                   letterSpacing: '0.5px',
                   marginTop: 3,
                 }}>
-                  {s.l}
+                  {t(s.l)}
                 </div>
               </div>
             ))}
@@ -463,13 +469,13 @@ function UserCard({ member, tab, onClick }) {
                 <circle cx="12" cy="12" r="2" />
               </svg>
               <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--t3)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                Monthly Target
+                {t('Monthly Target')}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t1)' }}>
-                EGP {stats.monthlyRevenue.toLocaleString()}
-                <span style={{ color: 'var(--t4)', fontWeight: 500, fontSize: 10.5 }}> / {member.monthlyTarget.toLocaleString()}</span>
+                {t('EGP {amount}', { amount: fmtNumber(stats.monthlyRevenue) })}
+                <span style={{ color: 'var(--t4)', fontWeight: 500, fontSize: 10.5 }}> / {fmtNumber(member.monthlyTarget)}</span>
               </span>
               <span style={{
                 fontSize: 10,

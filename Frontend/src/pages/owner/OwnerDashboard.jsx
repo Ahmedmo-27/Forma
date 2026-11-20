@@ -7,6 +7,7 @@ import { useTenant } from '../../context/TenantContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
+import OnboardingChecklist from './OnboardingChecklist';
 import {
   PageHeader, Card, CardHeader, StatCard,
   Avatar, EmptyState, fmtDate, fmtTimeWithSeconds, toLocalDateString,
@@ -39,8 +40,9 @@ import {
   Wallet,
   X,
 } from 'lucide-react';
-
-const fmt = (n) => Number(n ?? 0).toLocaleString();
+import { useI18n } from '../../i18n/useI18n';
+import { tr } from '../../i18n/translate';
+import { useFormat } from '../../i18n/useFormat';
 
 function _monthStart() {
   return `${toLocalDateString().slice(0, 7)}-01`;
@@ -48,10 +50,12 @@ function _monthStart() {
 const TODAY = toLocalDateString();
 
 export default function OwnerDashboard() {
-  usePageTitle('Owner Dashboard');
+  const { t } = useI18n();
+  const { fmtNumber: fmt, fmtDate: fmtLocaleDate } = useFormat();
+  usePageTitle(t('Owner Dashboard'));
   const { user } = useAuth();
   const { hasFeature, branding, tenant } = useTenant();
-  const gymName = branding?.displayName || tenant?.name || 'your gym';
+  const gymName = branding?.displayName || tenant?.name || t('your gym');
   const navigate = useNavigate();
 
   const [loading, setLoading]       = useState(true);
@@ -99,11 +103,11 @@ export default function OwnerDashboard() {
       if (pkgRes.status === 'fulfilled') setPendingCount(pkgRes.value.data.pagination?.total ?? 0);
       if (contractRes.status === 'fulfilled') setRecentContracts(contractRes.value.data.contracts ?? []);
     } catch {
-      toast.error('Failed to load dashboard data');
+      toast.error(t('Failed to load dashboard data'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useLocationEffect(() => { load(); }, [load]);
 
@@ -127,14 +131,14 @@ export default function OwnerDashboard() {
     return end >= now && end <= weekFromNow;
   });
 
-  const firstName = user?.name?.split(' ')[0] ?? 'there';
-  const dateLabel = new Date().toLocaleDateString('en-GB', {
+  const firstName = user?.name?.split(' ')[0] ?? t('there');
+  const dateLabel = fmtLocaleDate(new Date(), {
     weekday: 'long', day: '2-digit', month: 'long', year: 'numeric',
   });
 
   return (
     <Layout>
-      <PageHeader walkthrough="owner-dash-header" title="Dashboard">
+      <PageHeader walkthrough="owner-dash-header" title={t('Dashboard')}>
         <span style={{ fontSize: 12, color: 'var(--t4)' }}>{dateLabel}</span>
       </PageHeader>
 
@@ -145,21 +149,23 @@ export default function OwnerDashboard() {
           <>
             {/* Welcome banner */}
             <Card style={{ background: 'linear-gradient(135deg, var(--navy) 0%, #1e3a5f 100%)', border: 'none', color: '#fff', marginBottom: 20 }}>
-              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>Welcome back</p>
+              <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 4 }}>{t('Welcome back')}</p>
               <h2 style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.3px', marginBottom: 8 }}>{firstName}</h2>
               <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5, maxWidth: 560 }}>
-                Full overview of {gymName} — members, sales, coaches, packages and revenue all in one place.
+                {t('Full overview of {gymName} — members, sales, coaches, packages and revenue all in one place.', { gymName })}
               </p>
             </Card>
 
+            <OnboardingChecklist user={user} />
+
             {/* KPI row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12, marginBottom: 20 }}>
-              <StatCard label="Total Members"    value={members.length}   color="brand"    onClick={hasAccess(user, 'members') ? () => navigate('/members') : undefined} />
-              <StatCard label="Today's Revenue"  value={`${fmt(revenue?.todayRevenue ?? 0)} EGP`} color="success" onClick={hasAccess(user, 'targets') ? () => navigate('/sales/targets') : undefined} />
-              <StatCard label="This Month"       value={`${fmt(monthRevenue)} EGP`}             color="brand"   onClick={hasAccess(user, 'targets') ? () => navigate('/sales/targets') : undefined} />
-              <StatCard label="Pending Packages" value={pendingCount}     color={pendingCount > 0 ? 'warning' : 'default'} onClick={hasAccess(user, 'package_approvals') ? () => navigate('/accounting/package-requests') : undefined} />
-              <StatCard label="Pending Requests" value={pendingReqs}      color={pendingReqs > 0 ? 'warning' : 'default'}  onClick={hasAccess(user, 'approve_requests') ? () => navigate('/sales/requests') : undefined} />
-              <StatCard label="Today's Check-Ins" value={checkIns.length} color="blue"    onClick={() => setShowActivity(true)} />
+              <StatCard label={t('Total Members')}    value={members.length}   color="brand"    onClick={hasAccess(user, 'members') ? () => navigate('/members') : undefined} />
+              <StatCard label={t("Today's Revenue")}  value={t('{amount} EGP', { amount: fmt(revenue?.todayRevenue ?? 0) })} color="success" onClick={hasAccess(user, 'targets') ? () => navigate('/sales/targets') : undefined} />
+              <StatCard label={t('This Month')}       value={t('{amount} EGP', { amount: fmt(monthRevenue) })}             color="brand"   onClick={hasAccess(user, 'targets') ? () => navigate('/sales/targets') : undefined} />
+              <StatCard label={t('Pending Packages')} value={pendingCount}     color={pendingCount > 0 ? 'warning' : 'default'} onClick={hasAccess(user, 'package_approvals') ? () => navigate('/accounting/package-requests') : undefined} />
+              <StatCard label={t('Pending Requests')} value={pendingReqs}      color={pendingReqs > 0 ? 'warning' : 'default'}  onClick={hasAccess(user, 'approve_requests') ? () => navigate('/sales/requests') : undefined} />
+              <StatCard label={t("Today's Check-Ins")} value={checkIns.length} color="blue"    onClick={() => setShowActivity(true)} />
             </div>
 
             {/* Main grid */}
@@ -168,15 +174,15 @@ export default function OwnerDashboard() {
               {/* Expiring soon */}
               <Card noPad>
                 <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Expiring This Week ({expiringSoon.length})</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t('Expiring This Week ({count})', { count: expiringSoon.length })}</span>
                   {expiringSoon.length > 0 && (
                     <span style={{ fontSize: 11, background: 'var(--red-bg)', color: 'var(--red)', border: '1px solid var(--red-bd)', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
-                      Needs Renewal
+                      {t('Needs Renewal')}
                     </span>
                   )}
                 </div>
                 {expiringSoon.length === 0 ? (
-                  <EmptyState icon={CheckCircle2} message="No members expiring this week" />
+                  <EmptyState icon={CheckCircle2} message={t('No members expiring this week')} />
                 ) : (
                   <div style={{ maxHeight: 300, overflowY: 'auto' }}>
                     {expiringSoon.slice(0, 10).map(m => {
@@ -190,10 +196,10 @@ export default function OwnerDashboard() {
                           <Avatar name={m.name} size="sm" />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{m.name}</div>
-                            <div style={{ fontSize: 11, color: 'var(--t4)' }}>#{m.systemId}</div>
+                            <div style={{ fontSize: 11, color: 'var(--t4)' }}><span dir="ltr" style={{ unicodeBidi: 'isolate' }}>#{m.systemId}</span></div>
                           </div>
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--red)' }}>Expires {fmtDate(sub?.endDate)}</div>
+                          <div style={{ textAlign: 'end', flexShrink: 0 }}>
+                            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--red)' }}>{t('Expires {date}', { date: fmtDate(sub?.endDate) })}</div>
                             <div style={{ fontSize: 11, color: 'var(--t4)' }}>{sub?.package?.name}</div>
                           </div>
                         </div>
@@ -206,11 +212,11 @@ export default function OwnerDashboard() {
               {/* Recent contracts */}
               <Card noPad>
                 <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Recent Contracts</span>
-                  <span onClick={() => navigate('/accounting/contract-history')} style={{ fontSize: 11, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>View all →</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t('Recent Contracts')}</span>
+                  <span onClick={() => navigate('/accounting/contract-history')} style={{ fontSize: 11, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>{t('View all')} <span className="rtl-flip" style={{ display: 'inline-block' }}>→</span></span>
                 </div>
                 {recentContracts.length === 0 ? (
-                  <EmptyState message="No contracts yet" />
+                  <EmptyState message={t('No contracts yet')} />
                 ) : (
                   <div style={{ maxHeight: 300, overflowY: 'auto' }}>
                     {recentContracts.map(c => (
@@ -225,7 +231,7 @@ export default function OwnerDashboard() {
                           <div style={{ fontSize: 11, color: 'var(--t4)' }}>{c.package?.name} · {fmtDate(c.startDate)}</div>
                         </div>
                         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)', flexShrink: 0 }}>
-                          {fmt(c.netPaid ?? c.pricePaid)} EGP
+                          {t('{amount} EGP', { amount: fmt(c.netPaid ?? c.pricePaid) })}
                         </div>
                       </div>
                     ))}
@@ -239,27 +245,27 @@ export default function OwnerDashboard() {
 
               {/* Team overview */}
               <Card>
-                <CardHeader title="Team Overview">
+                <CardHeader title={t('Team Overview')}>
                   {hasAccess(user, 'teams_overview') && (
-                    <span onClick={() => navigate('/owner/teams')} style={{ fontSize: 11, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>Manage →</span>
+                    <span onClick={() => navigate('/owner/teams')} style={{ fontSize: 11, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>{t('Manage')} <span className="rtl-flip" style={{ display: 'inline-block' }}>→</span></span>
                   )}
                 </CardHeader>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {[
-                    { label: 'Sales Reps',    count: salesReps.length,        icon: Briefcase, route: '/owner/teams' },
-                    { label: 'Coaches',       count: coachTeam.length,        icon: Dumbbell, route: '/owner/teams' },
-                    { label: 'Receptionists', count: receptionists.length,    icon: Monitor, route: '/owner/teams' },
-                  ].map(t => {
-                    const TeamIcon = t.icon;
+                    { label: tr('Sales Reps'),    count: salesReps.length,        icon: Briefcase, route: '/owner/teams' },
+                    { label: tr('Coaches'),       count: coachTeam.length,        icon: Dumbbell, route: '/owner/teams' },
+                    { label: tr('Receptionists'), count: receptionists.length,    icon: Monitor, route: '/owner/teams' },
+                  ].map(row => {
+                    const TeamIcon = row.icon;
                     return (
-                    <div key={t.label} onClick={hasAccess(user, 'teams_overview') ? () => navigate(t.route) : undefined}
+                    <div key={row.label} onClick={hasAccess(user, 'teams_overview') ? () => navigate(row.route) : undefined}
                       style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', background: 'var(--bg)', borderRadius: 6, border: '1px solid var(--border)', cursor: hasAccess(user, 'teams_overview') ? 'pointer' : 'default' }}
                       onMouseEnter={e => e.currentTarget.style.borderColor = 'var(--navy)'}
                       onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
                     >
                       <span style={{ display: 'flex', color: 'var(--icon, var(--navy))' }}><TeamIcon size={20} aria-hidden /></span>
-                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{t.label}</span>
-                      <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--navy)' }}>{t.count}</span>
+                      <span style={{ flex: 1, fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{t(row.label)}</span>
+                      <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--navy)' }}>{row.count}</span>
                     </div>
                   );})}
                 </div>
@@ -267,26 +273,26 @@ export default function OwnerDashboard() {
 
               {/* Quick links */}
               <Card>
-                <CardHeader title="Quick Links" />
+                <CardHeader title={t('Quick Links')} />
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
                   {[
-                    ...(hasFeature('business_intelligence') && hasAccess(user, ['reports', 'owner_dashboard']) ? [{ label: 'Executive Summary', icon: TrendingUp, to: '/reports/executive', accent: 'var(--navy)' }] : []),
-                    { label: 'All Members',       icon: Users, to: '/members',                      accent: 'var(--navy)', access: 'members' },
-                    { label: 'Sales Dashboard',   icon: LayoutDashboard, to: '/sales/dashboard',              accent: 'var(--blue)', access: 'sales_dashboard' },
-                    { label: 'Packages',          icon: Package, to: '/sales/packages',               accent: 'var(--green)', access: 'packages' },
-                    { label: 'Transfer',          icon: RefreshCw, to: '/tasks',                        accent: 'var(--amber)', access: 'members' },
-                    { label: 'Contracts',         icon: ClipboardList, to: '/accounting/contract-history',  accent: 'var(--sky)', access: 'contracts' },
-                    { label: 'Revenue',           icon: Wallet, to: '/sales/targets',                accent: 'var(--green)', access: 'targets' },
-                    { label: 'Pkg Requests',      icon: Bell, to: '/accounting/package-requests',  accent: 'var(--amber)', access: 'package_approvals' },
-                    { label: 'Check-In',          icon: CheckCircle2, to: '/checkin',                       accent: 'var(--green)', access: 'check_in' },
-                    { label: 'Role Access',       icon: Shield, to: '/owner/access',                 accent: 'var(--navy)', access: 'access_control' },
+                    ...(hasFeature('business_intelligence') && hasAccess(user, ['reports', 'owner_dashboard']) ? [{ label: t('Executive Summary'), icon: TrendingUp, to: '/reports/executive', accent: 'var(--navy)' }] : []),
+                    { label: t('All Members'),       icon: Users, to: '/members',                      accent: 'var(--navy)', access: 'members' },
+                    { label: t('Sales Dashboard'),   icon: LayoutDashboard, to: '/sales/dashboard',              accent: 'var(--blue)', access: 'sales_dashboard' },
+                    { label: t('Packages'),          icon: Package, to: '/sales/packages',               accent: 'var(--green)', access: 'packages' },
+                    { label: t('Transfer'),          icon: RefreshCw, to: '/tasks',                        accent: 'var(--amber)', access: 'members' },
+                    { label: t('Contracts'),         icon: ClipboardList, to: '/accounting/contract-history',  accent: 'var(--sky)', access: 'contracts' },
+                    { label: t('Revenue'),           icon: Wallet, to: '/sales/targets',                accent: 'var(--green)', access: 'targets' },
+                    { label: t('Pkg Requests'),      icon: Bell, to: '/accounting/package-requests',  accent: 'var(--amber)', access: 'package_approvals' },
+                    { label: t('Check-In'),          icon: CheckCircle2, to: '/checkin',                       accent: 'var(--green)', access: 'check_in' },
+                    { label: t('Role Access'),       icon: Shield, to: '/owner/access',                 accent: 'var(--navy)', access: 'access_control' },
                   ].filter((q) => hasAccess(user, q.access)).map(q => {
                     const LinkIcon = q.icon;
                     return (
                     <button key={q.to} onClick={() => navigate(q.to)} style={{
                       background: 'var(--bg)', border: '1px solid var(--border)',
-                      borderLeft: `3px solid ${q.accent}`, borderRadius: 7,
-                      padding: '12px 14px', textAlign: 'left', cursor: 'pointer',
+                      borderInlineStart: `3px solid ${q.accent}`, borderRadius: 7,
+                      padding: '12px 14px', textAlign: 'start', cursor: 'pointer',
                       fontFamily: 'inherit', transition: 'box-shadow 0.12s',
                     }}
                       onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 8px rgba(15,23,42,0.08)'}
@@ -316,12 +322,12 @@ export default function OwnerDashboard() {
             boxShadow: '0 12px 40px rgba(15,23,42,0.18)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
-              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>Today's Check-Ins ({checkIns.length})</h2>
-              <button type="button" onClick={() => setShowActivity(false)} aria-label="Close" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} aria-hidden /></button>
+              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>{t("Today's Check-Ins ({count})", { count: checkIns.length })}</h2>
+              <button type="button" onClick={() => setShowActivity(false)} aria-label={t('Close')} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} aria-hidden /></button>
             </div>
             {checkIns.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                <p style={{ fontSize: 14, color: 'var(--t3)' }}>No check-ins yet today</p>
+                <p style={{ fontSize: 14, color: 'var(--t3)' }}>{t('No check-ins yet today')}</p>
               </div>
             ) : (
               <div>
@@ -335,14 +341,14 @@ export default function OwnerDashboard() {
                     <Avatar name={entry.member.name} size="sm" />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{entry.member.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--t4)' }}>#{entry.member.systemId}</div>
+                      <div style={{ fontSize: 11, color: 'var(--t4)' }}><span dir="ltr" style={{ unicodeBidi: 'isolate' }}>#{entry.member.systemId}</span></div>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ textAlign: 'end', flexShrink: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t2)' }}>
                         {fmtTimeWithSeconds(entry.time)}
                       </div>
                       {entry.checkedInBy?.name && (
-                        <div style={{ fontSize: 10, color: 'var(--t4)' }}>by {entry.checkedInBy.name}</div>
+                        <div style={{ fontSize: 10, color: 'var(--t4)' }}>{t('by {name}', { name: entry.checkedInBy.name })}</div>
                       )}
                     </div>
                   </div>

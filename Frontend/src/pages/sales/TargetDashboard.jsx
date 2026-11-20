@@ -4,7 +4,9 @@ import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, CardHeader, EmptyState, Badge, Avatar, fmtDate, toLocalDateString, DashboardSkeleton, StatCardSkeleton, Table, Skeleton, MenuSelect } from '../../components/ui';
+import { PageHeader, Card, CardHeader, EmptyState, Badge, Avatar, CAIRO_ZONE, toLocalDateString, DashboardSkeleton, StatCardSkeleton, Table, Skeleton, MenuSelect } from '../../components/ui';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 import { getSalesManagerRevenue, getSubscriptionsByDate, getSalesUsers, getCoachTeam, getAllMembers, getPackages } from '../../api/endpoints';
 import { primaryByRole } from '../tasks/taskMembers';
 import {
@@ -13,9 +15,18 @@ import {
 import { ClipboardList, Dumbbell, Package } from 'lucide-react';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-const fmt  = (n) => Number(n ?? 0).toLocaleString('en-EG');
 const TODAY = toLocalDateString();
 const MONTH_START = `${TODAY.slice(0, 7)}-01`;
+
+/** Number and date formatters bound to the active language. */
+function useLocaleFmt() {
+  const { fmtNumber, fmtDate: fmtLocaleDate } = useFormat();
+  return {
+    fmt: (n) => fmtNumber(n ?? 0),
+    fmtDate: (d) => (d ? fmtLocaleDate(d, { timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric' }, 'en-GB') : '—'),
+    fmtLocaleDate,
+  };
+}
 
 function _ProgressBar({ value, max, height = 6 }) {
   if (!max) return null;
@@ -32,7 +43,7 @@ function Stat({ label, value, sub, color = 'var(--t1)', accent }) {
   return (
     <div style={{
       background: 'var(--card)', border: '1px solid var(--border)',
-      borderLeft: accent ? `3px solid ${accent}` : '1px solid var(--border)',
+      borderInlineStart: accent ? `3px solid ${accent}` : '1px solid var(--border)',
       borderRadius: 8, padding: '14px 16px',
     }}>
       <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 6 }}>{label}</div>
@@ -66,6 +77,8 @@ function TabBar({ tabs, active, onChange }) {
 
 // ── Tab: Today ────────────────────────────────────────────────────────────────
 function TodayTab({ data, selectedDate, setSelectedDate, loading }) {
+  const { t } = useI18n();
+  const { fmt } = useLocaleFmt();
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
@@ -79,14 +92,14 @@ function TodayTab({ data, selectedDate, setSelectedDate, loading }) {
         ) : (
           <>
             <Stat
-              label="Today's Revenue"
+              label={t("Today's Revenue")}
               value={`${fmt(data?.todayRevenue)} EGP`}
               sub={data?.today}
               accent="var(--blue)"
               color="var(--blue)"
             />
             <Stat
-              label="This Year's Revenue"
+              label={t("This Year's Revenue")}
               value={`${fmt(data?.currentYearRevenue)} EGP`}
               sub={String(data?.currentYear ?? '')}
               accent="var(--green)"
@@ -98,11 +111,11 @@ function TodayTab({ data, selectedDate, setSelectedDate, loading }) {
 
       {/* Date picker */}
       <Card>
-        <CardHeader title="Revenue on a Specific Date" />
+        <CardHeader title={t('Revenue on a Specific Date')} />
         <div style={{ display: 'flex', gap: 12, alignItems: 'flex-end', flexWrap: 'wrap' }}>
           <div style={{ flex: 1, minWidth: 180 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-              Pick a Date
+              {t('Pick a Date')}
             </label>
             <input
               type="date" value={selectedDate} max={TODAY}
@@ -112,7 +125,7 @@ function TodayTab({ data, selectedDate, setSelectedDate, loading }) {
           </div>
           {selectedDate && (
             <button onClick={() => setSelectedDate('')} style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border-md)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'var(--t3)', fontFamily: 'inherit' }}>
-              Clear
+              {t('Clear')}
             </button>
           )}
         </div>
@@ -126,13 +139,13 @@ function TodayTab({ data, selectedDate, setSelectedDate, loading }) {
         {selectedDate && !loading && (
           <div style={{ marginTop: 16, padding: '14px 16px', background: 'var(--bg)', borderRadius: 7, border: '1px solid var(--border)' }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 6 }}>
-              Revenue on {selectedDate}
+              {t('Revenue on {date}', { date: selectedDate })}
             </div>
             <div style={{ fontSize: 28, fontWeight: 800, color: data?.selectedDateRevenue > 0 ? 'var(--blue)' : 'var(--t3)' }}>
               {fmt(data?.selectedDateRevenue)} EGP
             </div>
             {data?.selectedDateRevenue === 0 && (
-              <div style={{ fontSize: 12, color: 'var(--t4)', marginTop: 4 }}>No revenue recorded on this date.</div>
+              <div style={{ fontSize: 12, color: 'var(--t4)', marginTop: 4 }}>{t('No revenue recorded on this date.')}</div>
             )}
           </div>
         )}
@@ -143,6 +156,8 @@ function TodayTab({ data, selectedDate, setSelectedDate, loading }) {
 
 // ── Tab: Monthly ──────────────────────────────────────────────────────────────
 function MonthlyTab({ data, loading }) {
+  const { t } = useI18n();
+  const { fmt } = useLocaleFmt();
   const months = data?.monthlyBreakdown ?? [];
   const maxRevenue = Math.max(...months.map(m => m.revenue), 1);
   const total = months.reduce((s, m) => s + m.revenue, 0);
@@ -160,9 +175,9 @@ function MonthlyTab({ data, loading }) {
           </>
         ) : (
           <>
-            <Stat label="12-Month Total"   value={`${fmt(total)} EGP`}             accent="var(--navy)"  color="var(--navy)" />
-            <Stat label="Year-to-Date"     value={`${fmt(data?.currentYearRevenue)} EGP`} accent="var(--green)" color="var(--green)" />
-            <Stat label="Months Tracked"   value={months.length}                   accent="var(--sky)"   color="var(--sky)" />
+            <Stat label={t('12-Month Total')}   value={`${fmt(total)} EGP`}             accent="var(--navy)"  color="var(--navy)" />
+            <Stat label={t('Year-to-Date')}     value={`${fmt(data?.currentYearRevenue)} EGP`} accent="var(--green)" color="var(--green)" />
+            <Stat label={t('Months Tracked')}   value={months.length}                   accent="var(--sky)"   color="var(--sky)" />
           </>
         )}
       </div>
@@ -170,8 +185,8 @@ function MonthlyTab({ data, loading }) {
       {/* Bar chart */}
       {!loading && months.length > 0 && (
         <Card>
-          <CardHeader title="Monthly Revenue — Last 12 Months" />
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, marginBottom: 8 }}>
+          <CardHeader title={t('Monthly Revenue — Last 12 Months')} />
+          <div dir="ltr" style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 120, marginBottom: 8 }}>
             {[...months].reverse().map(m => {
               const h = Math.max(4, Math.round((m.revenue / maxRevenue) * 110));
               const isCurrentMonth = data?.today?.startsWith(m.month);
@@ -179,7 +194,7 @@ function MonthlyTab({ data, loading }) {
                 <div key={m.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }} title={`${m.month}: ${fmt(m.revenue)} EGP`}>
                   {m.revenue > 0 && (
                     <div style={{ fontSize: 8, color: 'var(--t4)', fontWeight: 600 }}>
-                      {m.revenue >= 1000 ? `${Math.round(m.revenue / 1000)}k` : m.revenue}
+                      {m.revenue >= 1000 ? t('{count}k', { count: Math.round(m.revenue / 1000) }) : m.revenue}
                     </div>
                   )}
                   <div style={{
@@ -192,7 +207,7 @@ function MonthlyTab({ data, loading }) {
               );
             })}
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--t4)' }}>
+          <div dir="ltr" style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--t4)' }}>
             {[...months].reverse().filter((_, i) => i % 3 === 0).map(m => (
               <span key={m.month}>{m.month.slice(5)}/{m.month.slice(2, 4)}</span>
             ))}
@@ -202,18 +217,18 @@ function MonthlyTab({ data, loading }) {
 
       {/* Table */}
       <Card noPad>
-        <CardHeader title="Month-by-Month Breakdown" />
+        <CardHeader title={t('Month-by-Month Breakdown')} />
         {loading ? (
-          <Table loading skeletonRows={6} headers={['Month', 'Revenue (EGP)', 'Subscriptions', 'Share']} />
+          <Table loading skeletonRows={6} headers={[t('Month'), t('Revenue (EGP)'), t('Subscriptions'), t('Share')]} />
         ) : months.length === 0 ? (
-          <EmptyState message="No data available" />
+          <EmptyState message={t('No data available')} />
         ) : (
           <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                {['Month', 'Revenue (EGP)', 'Subscriptions', 'Share'].map(h => (
-                  <th key={h} style={{ padding: '8px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{h}</th>
+                {[t('Month'), t('Revenue (EGP)'), t('Subscriptions'), t('Share')].map(h => (
+                  <th key={h} style={{ padding: '8px 16px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -229,7 +244,7 @@ function MonthlyTab({ data, loading }) {
                     <td style={{ padding: '10px 16px', fontWeight: isCurrentMonth ? 700 : 400, color: 'var(--t1)' }}>
                       {m.month}
                       {isCurrentMonth && (
-                        <span style={{ marginLeft: 7, fontSize: 10, fontWeight: 600, background: 'var(--navy)', color: '#fff', padding: '1px 6px', borderRadius: 3 }}>NOW</span>
+                        <span style={{ marginInlineStart: 7, fontSize: 10, fontWeight: 600, background: 'var(--navy)', color: '#fff', padding: '1px 6px', borderRadius: 3 }}>{t('NOW')}</span>
                       )}
                     </td>
                     <td style={{ padding: '10px 16px', fontWeight: 700, color: m.revenue > 0 ? 'var(--green)' : 'var(--t4)' }}>
@@ -250,7 +265,7 @@ function MonthlyTab({ data, loading }) {
             </tbody>
             <tfoot>
               <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--bg)' }}>
-                <td style={{ padding: '10px 16px', fontWeight: 700, color: 'var(--t1)' }}>Total</td>
+                <td style={{ padding: '10px 16px', fontWeight: 700, color: 'var(--t1)' }}>{t('Total')}</td>
                 <td style={{ padding: '10px 16px', fontWeight: 800, color: 'var(--navy)' }}>{fmt(total)}</td>
                 <td style={{ padding: '10px 16px', fontWeight: 700, color: 'var(--t2)' }}>{months.reduce((s, m) => s + m.salesCount, 0)}</td>
                 <td style={{ padding: '10px 16px' }}></td>
@@ -266,6 +281,8 @@ function MonthlyTab({ data, loading }) {
 
 // ── Tab: Annual ───────────────────────────────────────────────────────────────
 function AnnualTab({ data, loading }) {
+  const { t } = useI18n();
+  const { fmt, fmtLocaleDate } = useLocaleFmt();
   const months = data?.monthlyBreakdown ?? [];
   const yearMonths = months.filter(m => m.month.startsWith(String(data?.currentYear ?? '')));
   const yearTotal  = yearMonths.reduce((s, m) => s + m.revenue, 0);
@@ -285,27 +302,27 @@ function AnnualTab({ data, loading }) {
           </>
         ) : (
           <>
-            <Stat label={`${data?.currentYear} Revenue`} value={`${fmt(yearTotal)} EGP`} accent="var(--navy)" color="var(--navy)" />
-            <Stat label="Subscriptions This Year" value={yearSales} accent="var(--blue)" color="var(--blue)" />
-            <Stat label="Best Month" value={bestMonth ? `${bestMonth.month}` : '—'} sub={bestMonth ? `${fmt(bestMonth.revenue)} EGP` : ''} accent="var(--green)" color="var(--green)" />
-            <Stat label="Monthly Average" value={yearMonths.length > 0 ? `${fmt(Math.round(yearTotal / yearMonths.length))} EGP` : '—'} accent="var(--amber)" color="var(--amber)" />
+            <Stat label={t('{year} Revenue', { year: data?.currentYear })} value={`${fmt(yearTotal)} EGP`} accent="var(--navy)" color="var(--navy)" />
+            <Stat label={t('Subscriptions This Year')} value={yearSales} accent="var(--blue)" color="var(--blue)" />
+            <Stat label={t('Best Month')} value={bestMonth ? `${bestMonth.month}` : '—'} sub={bestMonth ? `${fmt(bestMonth.revenue)} EGP` : ''} accent="var(--green)" color="var(--green)" />
+            <Stat label={t('Monthly Average')} value={yearMonths.length > 0 ? `${fmt(Math.round(yearTotal / yearMonths.length))} EGP` : '—'} accent="var(--amber)" color="var(--amber)" />
           </>
         )}
       </div>
 
       <Card noPad>
-        <CardHeader title={`${data?.currentYear ?? ''} Monthly Breakdown`} />
+        <CardHeader title={t('{year} Monthly Breakdown', { year: data?.currentYear ?? '' })} />
         {loading ? (
-          <Table loading skeletonRows={6} headers={['Month', 'Revenue (EGP)', 'Subscriptions']} />
+          <Table loading skeletonRows={6} headers={[t('Month'), t('Revenue (EGP)'), t('Subscriptions')]} />
         ) : yearMonths.length === 0 ? (
-          <EmptyState message="No data for this year" />
+          <EmptyState message={t('No data for this year')} />
         ) : (
           <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                {['Month', 'Revenue (EGP)', 'Subscriptions'].map(h => (
-                  <th key={h} style={{ padding: '8px 16px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{h}</th>
+                {[t('Month'), t('Revenue (EGP)'), t('Subscriptions')].map(h => (
+                  <th key={h} style={{ padding: '8px 16px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -318,9 +335,9 @@ function AnnualTab({ data, loading }) {
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     <td style={{ padding: '10px 16px', fontWeight: isCurrentMonth ? 700 : 400, color: 'var(--t1)' }}>
-                      {new Date(m.month + '-01').toLocaleString('en-GB', { month: 'long', year: 'numeric' })}
+                      {fmtLocaleDate(new Date(m.month + '-01'), { month: 'long', year: 'numeric' }, 'en-GB')}
                       {isCurrentMonth && (
-                        <span style={{ marginLeft: 7, fontSize: 10, fontWeight: 600, background: 'var(--navy)', color: '#fff', padding: '1px 6px', borderRadius: 3 }}>NOW</span>
+                        <span style={{ marginInlineStart: 7, fontSize: 10, fontWeight: 600, background: 'var(--navy)', color: '#fff', padding: '1px 6px', borderRadius: 3 }}>{t('NOW')}</span>
                       )}
                     </td>
                     <td style={{ padding: '10px 16px', fontWeight: 700, color: m.revenue > 0 ? 'var(--green)' : 'var(--t4)' }}>
@@ -333,7 +350,7 @@ function AnnualTab({ data, loading }) {
             </tbody>
             <tfoot>
               <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--bg)' }}>
-                <td style={{ padding: '10px 16px', fontWeight: 700, color: 'var(--t1)' }}>Year Total</td>
+                <td style={{ padding: '10px 16px', fontWeight: 700, color: 'var(--t1)' }}>{t('Year Total')}</td>
                 <td style={{ padding: '10px 16px', fontWeight: 800, color: 'var(--navy)' }}>{fmt(yearTotal)}</td>
                 <td style={{ padding: '10px 16px', fontWeight: 700, color: 'var(--t2)' }}>{yearSales}</td>
               </tr>
@@ -348,6 +365,7 @@ function AnnualTab({ data, loading }) {
 
 // ── Tab: Subscriptions ────────────────────────────────────────────────────────
 function SubscriptionsTab() {
+  const { t } = useI18n();
   const [subTab, setSubTab] = useState('sales'); // 'sales' | 'coaches'
 
   return (
@@ -355,21 +373,21 @@ function SubscriptionsTab() {
       {/* Sub-tabs */}
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
         {[
-          { id: 'sales', label: 'Sales Subscriptions' },
-          { id: 'coaches', label: 'Coach Private Sessions' },
-        ].map(t => (
-          <button key={t.id} onClick={() => setSubTab(t.id)} style={{
+          { id: 'sales', label: t('Sales Subscriptions') },
+          { id: 'coaches', label: t('Coach Private Sessions') },
+        ].map(tabItem => (
+          <button key={tabItem.id} onClick={() => setSubTab(tabItem.id)} style={{
             padding: '8px 18px', background: 'none', border: 'none',
-            borderBottom: `2px solid ${subTab === t.id ? 'var(--navy)' : 'transparent'}`,
+            borderBottom: `2px solid ${subTab === tabItem.id ? 'var(--navy)' : 'transparent'}`,
             marginBottom: -1,
-            color: subTab === t.id ? 'var(--t1)' : 'var(--t3)',
-            fontSize: 13, fontWeight: subTab === t.id ? 700 : 400,
+            color: subTab === tabItem.id ? 'var(--t1)' : 'var(--t3)',
+            fontSize: 13, fontWeight: subTab === tabItem.id ? 700 : 400,
             cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
             transition: 'color 0.12s',
           }}
-            onMouseEnter={e => { if (subTab !== t.id) e.currentTarget.style.color = 'var(--t2)'; }}
-            onMouseLeave={e => { if (subTab !== t.id) e.currentTarget.style.color = 'var(--t3)'; }}
-          >{t.label}</button>
+            onMouseEnter={e => { if (subTab !== tabItem.id) e.currentTarget.style.color = 'var(--t2)'; }}
+            onMouseLeave={e => { if (subTab !== tabItem.id) e.currentTarget.style.color = 'var(--t3)'; }}
+          >{tabItem.label}</button>
         ))}
       </div>
 
@@ -381,6 +399,13 @@ function SubscriptionsTab() {
 
 // ── Sales Subscriptions Content ───────────────────────────────────────────────
 function SalesSubscriptionsContent() {
+  const { t } = useI18n();
+  const { fmt, fmtDate } = useLocaleFmt();
+  const pkgLabel = (label) => {
+    if (label === 'Unknown package') return t('Unknown package');
+    if (label === 'Selected package') return t('Selected package');
+    return label;
+  };
   const navigate = useNavigate();
   const [dateFrom,    setDateFrom]    = useState(MONTH_START);
   const [dateTo,      setDateTo]      = useState(TODAY);
@@ -408,17 +433,17 @@ function SalesSubscriptionsContent() {
       const res = await getSubscriptionsByDate(params);
       setData(res.data);
     } catch {
-      toast.error('Failed to load subscriptions');
+      toast.error(t('Failed to load subscriptions'));
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo, salesRepId]);
+  }, [dateFrom, dateTo, salesRepId, t]);
 
   useLocationEffect(() => { load(); }, [load]);
 
   const allEntries = data?.entries ?? [];
-  const packageStats = summarizePackages(allEntries);
-  const packageOptions = buildPackageOptions(packages, packageStats, packageId);
+  const packageStats = summarizePackages(allEntries, t);
+  const packageOptions = buildPackageOptions(packages, packageStats, packageId, t);
   const entries = filterByPackage(allEntries, packageId);
   const totalRevenue = entries.reduce((s, e) => s + subscriptionNet(e.subscription), 0);
   const newCount     = entries.filter(e => !e.subscription.isRenewal).length;
@@ -439,7 +464,7 @@ function SalesSubscriptionsContent() {
 
           {/* From */}
           <div style={{ flex: 1, minWidth: 150 }}>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>From</label>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{t('From')}</label>
             <input type="date" value={dateFrom} max={dateTo || TODAY}
               onChange={e => setDateFrom(e.target.value)}
               style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)' }}
@@ -448,7 +473,7 @@ function SalesSubscriptionsContent() {
 
           {/* To */}
           <div style={{ flex: 1, minWidth: 150 }}>
-            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>To</label>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{t('To')}</label>
             <input type="date" value={dateTo} min={dateFrom} max={TODAY}
               onChange={e => setDateTo(e.target.value)}
               style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)' }}
@@ -458,32 +483,32 @@ function SalesSubscriptionsContent() {
           {/* Sales rep filter */}
           <div style={{ flex: 2, minWidth: 200 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-              Sales Rep
+              {t('Sales Rep')}
             </label>
             <MenuSelect
               value={salesRepId}
               onChange={e => setSalesRepId(e.target.value)}
               style={{ width: '100%' }}
-              aria-label="Sales Rep"
+              aria-label={t('Sales Rep')}
             >
-              <option value="">All Sales Reps</option>
-              {salesReps.map(r => <option key={r._id} value={r._id}>{r.name} ({r.role})</option>)}
+              <option value="">{t('All Sales Reps')}</option>
+              {salesReps.map(r => <option key={r._id} value={r._id}>{r.name} ({t(r.role)})</option>)}
             </MenuSelect>
           </div>
 
           {/* Package filter */}
           <div style={{ flex: 2, minWidth: 220 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-              Package
+              {t('Package')}
             </label>
             <MenuSelect
               value={packageId}
               onChange={e => setPackageId(e.target.value)}
               style={{ width: '100%' }}
-              aria-label="Package"
+              aria-label={t('Package')}
             >
-              <option value="">All Packages</option>
-              {packageOptions.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+              <option value="">{t('All Packages')}</option>
+              {packageOptions.map(p => <option key={p.key} value={p.key}>{pkgLabel(p.label)}</option>)}
             </MenuSelect>
           </div>
 
@@ -496,13 +521,13 @@ function SalesSubscriptionsContent() {
               color: isThisMonth ? '#fff' : 'var(--t2)',
             }}
           >
-            This month
+            {t('This month')}
           </button>
 
           {/* Reset */}
           {!isToday && (
             <button onClick={resetToToday} style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border-md)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'var(--t3)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-              Reset to Today
+              {t('Reset to Today')}
             </button>
           )}
         </div>
@@ -511,23 +536,23 @@ function SalesSubscriptionsContent() {
       {/* ── Packages sold in the selected range ─────────────────── */}
       <Card noPad>
         <div style={{ padding: '16px 14px 0' }}>
-          <CardHeader title={isThisMonth ? 'Packages sold this month' : 'Packages sold'}>
+          <CardHeader title={isThisMonth ? t('Packages sold this month') : t('Packages sold')}>
             <span style={{ fontSize: 11, color: 'var(--t4)', fontWeight: 500 }}>
-              {packageId ? 'Click the package again to show all' : 'Click a package to filter the list'}
+              {packageId ? t('Click the package again to show all') : t('Click a package to filter the list')}
             </span>
           </CardHeader>
         </div>
         {loading ? (
-          <Table loading skeletonRows={5} headers={['Package', 'Sold', 'Revenue (EGP)', 'Share']} />
+          <Table loading skeletonRows={5} headers={[t('Package'), t('Sold'), t('Revenue (EGP)'), t('Share')]} />
         ) : packageStats.length === 0 ? (
-          <EmptyState icon={Package} message="No packages sold in this range" sub="Try This month or widen the dates" />
+          <EmptyState icon={Package} message={t('No packages sold in this range')} sub={t('Try This month or widen the dates')} />
         ) : (
           <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                {['Package', 'Sold', 'Revenue (EGP)', 'Share'].map(h => (
-                  <th key={h} style={{ padding: '8px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{h}</th>
+                {[t('Package'), t('Sold'), t('Revenue (EGP)'), t('Share')].map(h => (
+                  <th key={h} style={{ padding: '8px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -544,9 +569,9 @@ function SalesSubscriptionsContent() {
                     onMouseLeave={ev => { ev.currentTarget.style.background = selected ? 'var(--bg)' : 'transparent'; }}
                   >
                     <td style={{ padding: '10px 14px', fontWeight: selected ? 700 : 500, color: 'var(--t1)' }}>
-                      {p.label}
+                      {pkgLabel(p.label)}
                       {p.activityType && (
-                        <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'capitalize', marginTop: 1 }}>{p.activityType}</div>
+                        <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'capitalize', marginTop: 1 }}>{t(p.activityType)}</div>
                       )}
                     </td>
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--blue)' }}>{p.count}</td>
@@ -579,12 +604,12 @@ function SalesSubscriptionsContent() {
           </>
         ) : (
           [
-            { label: 'Subscriptions', value: entries.length,              color: 'var(--blue)',  accent: 'var(--blue)' },
-            { label: 'Revenue',       value: `${fmt(totalRevenue)} EGP`, color: 'var(--green)', accent: 'var(--green)' },
-            { label: 'New Members',   value: newCount,                       color: 'var(--navy)',  accent: 'var(--navy)' },
-            { label: 'Renewals',      value: renewalCount,                   color: 'var(--amber)', accent: 'var(--amber)' },
+            { label: t('Subscriptions'), value: entries.length,              color: 'var(--blue)',  accent: 'var(--blue)' },
+            { label: t('Revenue'),       value: `${fmt(totalRevenue)} EGP`, color: 'var(--green)', accent: 'var(--green)' },
+            { label: t('New Members'),   value: newCount,                       color: 'var(--navy)',  accent: 'var(--navy)' },
+            { label: t('Renewals'),      value: renewalCount,                   color: 'var(--amber)', accent: 'var(--amber)' },
           ].map(s => (
-            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderLeft: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
+            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderInlineStart: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{s.label}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
             </div>
@@ -595,16 +620,16 @@ function SalesSubscriptionsContent() {
       {/* ── Table ────────────────────────────────────────────────── */}
       <Card noPad>
         {loading ? (
-          <Table loading skeletonRows={6} headers={['Member', 'Package', 'Price Paid', 'Start Date', 'Expires', 'Sales Rep', 'Type']} />
+          <Table loading skeletonRows={6} headers={[t('Member'), t('Package'), t('Price Paid'), t('Start Date'), t('Expires'), t('Sales Rep'), t('Type')]} />
         ) : entries.length === 0 ? (
-          <EmptyState icon={ClipboardList} message="No subscriptions found" sub="Try adjusting the date range, package, or sales rep filter" />
+          <EmptyState icon={ClipboardList} message={t('No subscriptions found')} sub={t('Try adjusting the date range, package, or sales rep filter')} />
         ) : (
           <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                {['Member', 'Package', 'Price Paid', 'Start Date', 'Expires', 'Sales Rep', 'Type'].map(h => (
-                  <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)', whiteSpace: 'nowrap' }}>{h}</th>
+                {[t('Member'), t('Package'), t('Price Paid'), t('Start Date'), t('Expires'), t('Sales Rep'), t('Type')].map(h => (
+                  <th key={h} style={{ padding: '9px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -620,26 +645,26 @@ function SalesSubscriptionsContent() {
                       <Avatar name={e.member.name} size="sm" />
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{e.member.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--t4)' }}>#{e.member.systemId}</div>
+                        <div style={{ fontSize: 11, color: 'var(--t4)' }}><span dir="ltr" style={{ unicodeBidi: 'isolate' }}>#{e.member.systemId}</span></div>
                       </div>
                     </div>
                   </td>
                   <td style={{ padding: '10px 14px', color: 'var(--t2)', fontSize: 13 }}>
                     {e.subscription.package?.name ?? '—'}
                     {e.subscription.package?.activityType && (
-                      <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'capitalize', marginTop: 1 }}>{e.subscription.package.activityType}</div>
+                      <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'capitalize', marginTop: 1 }}>{t(e.subscription.package.activityType)}</div>
                     )}
                   </td>
                   <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--green)', fontSize: 13, whiteSpace: 'nowrap' }}>
                     {fmt(subscriptionNet(e.subscription))} EGP
                     {(Number(e.subscription.refundAmount) > 0 || e.subscription.refunded) && (
-                      <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>Refunded</span>
+                      <span style={{ marginInlineStart: 5, fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>{t('Refunded')}</span>
                     )}
                     {e.subscription.cancelReason && !(Number(e.subscription.refundAmount) > 0 || e.subscription.refunded) && (
-                      <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>Cancelled</span>
+                      <span style={{ marginInlineStart: 5, fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>{t('Cancelled')}</span>
                     )}
                     {e.subscription.discountPercent > 0 && (
-                      <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--amber)', fontWeight: 600 }}>-{e.subscription.discountPercent}%</span>
+                      <span dir="ltr" style={{ marginInlineStart: 5, fontSize: 10, color: 'var(--amber)', fontWeight: 600, unicodeBidi: 'isolate' }}>-{e.subscription.discountPercent}%</span>
                     )}
                   </td>
                   <td style={{ padding: '10px 14px', color: 'var(--t3)', fontSize: 12 }}>{fmtDate(e.subscription.startDate)}</td>
@@ -654,7 +679,7 @@ function SalesSubscriptionsContent() {
                       color:      e.subscription.isRenewal ? 'var(--amber)'    : 'var(--green)',
                       border: `1px solid ${e.subscription.isRenewal ? 'var(--amber-bd)' : 'var(--green-bd)'}`,
                     }}>
-                      {e.subscription.isRenewal ? 'Renewal' : 'New'}
+                      {e.subscription.isRenewal ? t('Renewal') : t('New')}
                     </span>
                   </td>
                 </tr>
@@ -662,7 +687,7 @@ function SalesSubscriptionsContent() {
             </tbody>
             <tfoot>
               <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--bg)' }}>
-                <td colSpan={2} style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--t1)' }}>Total ({entries.length})</td>
+                <td colSpan={2} style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--t1)' }}>{t('Total ({count})', { count: entries.length })}</td>
                 <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--green)' }}>{fmt(totalRevenue)} EGP</td>
                 <td colSpan={4} />
               </tr>
@@ -677,6 +702,8 @@ function SalesSubscriptionsContent() {
 
 // ── Coach Sessions Content ────────────────────────────────────────────────────
 function CoachSessionsContent() {
+  const { t } = useI18n();
+  const { fmt } = useLocaleFmt();
   const navigate = useNavigate();
   const [team, setTeam] = useState([]);
   const coaches = team.filter((person) => person.role === 'Coach');
@@ -697,9 +724,9 @@ function CoachSessionsContent() {
       const res = await getAllMembers({ all: 'true' });
       setMembers(res.data.members ?? []);
     } catch {
-      toast.error('Failed to load members');
+      toast.error(t('Failed to load members'));
     } finally { setLoading(false); }
-  }, []);
+  }, [t]);
 
   useLocationEffect(() => { load(); }, [load]);
 
@@ -725,15 +752,15 @@ function CoachSessionsContent() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
           <div style={{ flex: 1, minWidth: 200 }}>
             <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-              Coach
+              {t('Coach')}
             </label>
             <MenuSelect
               value={coachId}
               onChange={e => setCoachId(e.target.value)}
               style={{ width: '100%' }}
-              aria-label="Coach"
+              aria-label={t('Coach')}
             >
-              <option value="">All Coaches</option>
+              <option value="">{t('All Coaches')}</option>
               {coaches.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
             </MenuSelect>
           </div>
@@ -751,12 +778,12 @@ function CoachSessionsContent() {
           </>
         ) : (
           [
-            { label: 'Members with PT', value: ptMembers.length, color: 'var(--blue)', accent: 'var(--blue)' },
-            { label: 'Total Sessions', value: totalSessions, color: 'var(--navy)', accent: 'var(--navy)' },
-            { label: 'Used', value: usedSessions, color: 'var(--amber)', accent: 'var(--amber)' },
-            { label: 'Remaining', value: remainingSessions, color: 'var(--green)', accent: 'var(--green)' },
+            { label: t('Members with PT'), value: ptMembers.length, color: 'var(--blue)', accent: 'var(--blue)' },
+            { label: t('Total Sessions'), value: totalSessions, color: 'var(--navy)', accent: 'var(--navy)' },
+            { label: t('Used'), value: usedSessions, color: 'var(--amber)', accent: 'var(--amber)' },
+            { label: t('Remaining'), value: remainingSessions, color: 'var(--green)', accent: 'var(--green)' },
           ].map(s => (
-            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderLeft: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
+            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderInlineStart: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
               <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{s.label}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
             </div>
@@ -767,16 +794,16 @@ function CoachSessionsContent() {
       {/* Table */}
       <Card noPad>
         {loading ? (
-          <Table loading skeletonRows={6} headers={['Member', 'Coach', 'Total Sessions', 'Used', 'Remaining', 'Price Paid', 'Status']} />
+          <Table loading skeletonRows={6} headers={[t('Member'), t('Coach'), t('Total Sessions'), t('Used'), t('Remaining'), t('Price Paid'), t('Status')]} />
         ) : ptMembers.length === 0 ? (
-          <EmptyState icon={Dumbbell} message="No members with private sessions" sub="Adjust the coach filter or add PT sessions to members" />
+          <EmptyState icon={Dumbbell} message={t('No members with private sessions')} sub={t('Adjust the coach filter or add PT sessions to members')} />
         ) : (
           <div className="table-responsive-container">
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                {['Member', 'Coach', 'Total Sessions', 'Used', 'Remaining', 'Price Paid', 'Status'].map(h => (
-                  <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)', whiteSpace: 'nowrap' }}>{h}</th>
+                {[t('Member'), t('Coach'), t('Total Sessions'), t('Used'), t('Remaining'), t('Price Paid'), t('Status')].map(h => (
+                  <th key={h} style={{ padding: '9px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
@@ -794,7 +821,7 @@ function CoachSessionsContent() {
                         <Avatar name={m.name} size="sm" />
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{m.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--t4)' }}>#{m.systemId}</div>
+                          <div style={{ fontSize: 11, color: 'var(--t4)' }}><span dir="ltr" style={{ unicodeBidi: 'isolate' }}>#{m.systemId}</span></div>
                         </div>
                       </div>
                     </td>
@@ -806,7 +833,7 @@ function CoachSessionsContent() {
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: remaining > 0 ? 'var(--green)' : 'var(--red)' }}>{remaining}</td>
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--green)' }}>
                       {m.pt_subscriptions?.reduce((s, sub) => s + subscriptionNet(sub), 0)
-                        ? `EGP ${m.pt_subscriptions.reduce((s, sub) => s + subscriptionNet(sub), 0).toLocaleString()}`
+                        ? `EGP ${fmt(m.pt_subscriptions.reduce((s, sub) => s + subscriptionNet(sub), 0))}`
                         : '—'}
                     </td>
                     <td style={{ padding: '10px 14px' }}>
@@ -818,12 +845,12 @@ function CoachSessionsContent() {
             </tbody>
             <tfoot>
               <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--bg)' }}>
-                <td colSpan={2} style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--t1)' }}>Total ({ptMembers.length})</td>
+                <td colSpan={2} style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--t1)' }}>{t('Total ({count})', { count: ptMembers.length })}</td>
                 <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--blue)' }}>{totalSessions}</td>
                 <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--t2)' }}>{usedSessions}</td>
                 <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--green)' }}>{remainingSessions}</td>
                 <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--green)' }}>
-                  EGP {ptMembers.reduce((s, m) => s + (m.pt_subscriptions?.reduce((a, sub) => a + subscriptionNet(sub), 0) || 0), 0).toLocaleString()}
+                  EGP {fmt(ptMembers.reduce((s, m) => s + (m.pt_subscriptions?.reduce((a, sub) => a + subscriptionNet(sub), 0) || 0), 0))}
                 </td>
                 <td />
               </tr>
@@ -838,7 +865,8 @@ function CoachSessionsContent() {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function TargetDashboard() {
-  usePageTitle('Targets');
+  const { t } = useI18n();
+  usePageTitle(t('Targets'));
 
   const [data,         setData]         = useState(null);
   const [loading,      setLoading]      = useState(true);
@@ -853,11 +881,11 @@ export default function TargetDashboard() {
       const res = await getSalesManagerRevenue(params);
       setData(res.data);
     } catch {
-      toast.error('Failed to load revenue data');
+      toast.error(t('Failed to load revenue data'));
     } finally {
       setLoading(false);
     }
-  }, [selectedDate]);
+  }, [selectedDate, t]);
 
   useLocationEffect(() => {
     setData(null);
@@ -865,17 +893,17 @@ export default function TargetDashboard() {
   }, [load]);
 
   const TABS = [
-    { id: 'today',         label: 'Today / Date' },
-    { id: 'monthly',       label: 'Monthly' },
-    { id: 'annual',        label: 'Annual' },
-    { id: 'subscriptions', label: 'Subscriptions' },
+    { id: 'today',         label: t('Today / Date') },
+    { id: 'monthly',       label: t('Monthly') },
+    { id: 'annual',        label: t('Annual') },
+    { id: 'subscriptions', label: t('Subscriptions') },
   ];
 
   const showBoardSkeleton = loading && !data && tab !== 'subscriptions' && tab !== 'today';
 
   return (
     <Layout>
-      <PageHeader walkthrough="targets-header" title="Targets" />
+      <PageHeader walkthrough="targets-header" title={t('Targets')} />
 
       <div className="page-wrap" data-walkthrough="targets-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <TabBar tabs={TABS} active={tab} onChange={setTab} />

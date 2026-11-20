@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import useWhatsNew from '../hooks/useWhatsNew';
+import { useI18n } from '../i18n/useI18n';
 import WhatsNewModal from './WhatsNewModal';
 import WhatsNewDrawer from './WhatsNewDrawer';
 
@@ -7,6 +8,7 @@ import WhatsNewDrawer from './WhatsNewDrawer';
  * Top-bar What's New control + auto modal + history drawer.
  */
 export default function WhatsNewButton() {
+  const { t } = useI18n();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const {
     items,
@@ -23,8 +25,8 @@ export default function WhatsNewButton() {
       <button
         type="button"
         onClick={() => setDrawerOpen(true)}
-        aria-label={unreadCount ? `What's new, ${unreadCount} unread` : "What's new"}
-        title="What's new"
+        aria-label={unreadCount ? t("What's new, {count} unread", { count: unreadCount }) : t("What's new")}
+        title={t("What's new")}
         style={{
           position: 'relative',
           display: 'flex',
@@ -65,7 +67,7 @@ export default function WhatsNewButton() {
             style={{
               position: 'absolute',
               top: 4,
-              right: 4,
+              insetInlineEnd: 4,
               minWidth: 16,
               height: 16,
               padding: '0 4px',

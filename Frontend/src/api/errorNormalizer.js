@@ -1,6 +1,7 @@
 import axios from "axios";
 import { ERROR_CODES } from "../lib/errorCodes";
 import { ERROR_MESSAGES, formatErrorMessage } from "../lib/errorCatalog";
+import { tActive, tr } from "../i18n/translate.js";
 
 /**
  * Normalizes any error (Axios, Network, Timeout, Cancel, DOM, or Runtime)
@@ -28,8 +29,8 @@ export function normalizeError(err) {
       isCancelled: true,
       isOffline: false,
       code: "REQUEST_CANCELLED",
-      title: "Request Cancelled",
-      message: "The operation was cancelled.",
+      title: tActive(tr("Request Cancelled")),
+      message: tActive(tr("The operation was cancelled.")),
       status: 0,
       requestId: null,
       fieldErrors: {},
@@ -48,8 +49,8 @@ export function normalizeError(err) {
       isCancelled: false,
       isOffline: true,
       code,
-      title: catalogItem.title,
-      message: catalogItem.message,
+      title: tActive(catalogItem.title),
+      message: tActive(catalogItem.message),
       status: 0,
       requestId: null,
       fieldErrors: {},
@@ -68,8 +69,8 @@ export function normalizeError(err) {
       isCancelled: false,
       isOffline: false,
       code,
-      title: catalogItem.title,
-      message: catalogItem.message,
+      title: tActive(catalogItem.title),
+      message: tActive(catalogItem.message),
       status: 408,
       requestId: err?.config?.headers?.["X-Request-Id"] || null,
       fieldErrors: {},
@@ -97,8 +98,8 @@ export function normalizeError(err) {
         isCancelled: false,
         isOffline: false,
         code,
-        title: catalogItem.title,
-        message: "The server returned an unexpected response. Please try again shortly.",
+        title: tActive(catalogItem.title),
+        message: tActive(tr("The server returned an unexpected response. Please try again shortly.")),
         status,
         requestId: err.response.headers?.["x-request-id"] || null,
         fieldErrors: {},
@@ -155,7 +156,7 @@ export function normalizeError(err) {
         : null;
 
     const catalogItem = ERROR_MESSAGES[code] || ERROR_MESSAGES.INTERNAL_ERROR;
-    const title = envelope.title || catalogItem.title;
+    const title = tActive(envelope.title || catalogItem.title);
     const message = formatErrorMessage(
       code,
       details,
@@ -190,8 +191,8 @@ export function normalizeError(err) {
     isCancelled: false,
     isOffline: false,
     code,
-    title: catalogItem.title,
-    message: err?.message || catalogItem.message,
+    title: tActive(catalogItem.title),
+    message: err?.message || tActive(catalogItem.message),
     status: 500,
     requestId: null,
     fieldErrors: {},

@@ -26,6 +26,9 @@ import {
   UPLOAD_INTAKE_MB,
 } from '../../lib/validation';
 import { Check, LayoutDashboard, Package, Plus, RefreshCw, Users } from 'lucide-react';
+import { tr } from '../../i18n/translate';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 const KNOWN_ACTIVITIES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 
 const DEFAULT_PALETTE = {
@@ -39,22 +42,83 @@ const DEFAULT_PALETTE = {
 };
 
 const PALETTE_FIELDS = [
-  { key: 'navbar', label: 'Nav Bar / Header', default: '#142843', hint: 'Top navigation bar, mobile drawer, and bottom nav' },
-  { key: 'primary', label: 'Primary Brand', default: '#142843', hint: 'Main buttons, active focus rings, and primary highlights' },
-  { key: 'secondary', label: 'Secondary / Sub-nav', default: '#1E3A5F', hint: 'Sub-nav active pills and secondary action buttons' },
-  { key: 'accent', label: 'Accent Highlight', default: '#1E3A5F', hint: 'Special badges, active tags, and accent chips' },
-  { key: 'background', label: 'Page Background', default: '#FCF3E2', hint: 'Workspace surface and canvas background' },
-  { key: 'text', label: 'Primary Text', default: '#142843', hint: 'Headings, labels, and readable body text' },
-  { key: 'icon', label: 'Icon Color', default: '#142843', hint: 'Lucide SVG icons on cards, empty states, and feature lists' },
+  { key: 'navbar', label: tr('Nav Bar / Header'), default: '#142843', hint: tr('Top navigation bar, mobile drawer, and bottom nav') },
+  { key: 'primary', label: tr('Primary Brand'), default: '#142843', hint: tr('Main buttons, active focus rings, and primary highlights') },
+  { key: 'secondary', label: tr('Secondary / Sub-nav'), default: '#1E3A5F', hint: tr('Sub-nav active pills and secondary action buttons') },
+  { key: 'accent', label: tr('Accent Highlight'), default: '#1E3A5F', hint: tr('Special badges, active tags, and accent chips') },
+  { key: 'background', label: tr('Page Background'), default: '#FCF3E2', hint: tr('Workspace surface and canvas background') },
+  { key: 'text', label: tr('Primary Text'), default: '#142843', hint: tr('Headings, labels, and readable body text') },
+  { key: 'icon', label: tr('Icon Color'), default: '#142843', hint: tr('Lucide SVG icons on cards, empty states, and feature lists') },
 ];
 
 import LocationsSettingsPanel from './LocationsSettingsPanel';
+import BillingProfilePanel from './BillingProfilePanel';
+import { useAuth } from '../../context/AuthContext';
 
-const SETTINGS_TABS = ['branding', 'locale', 'whatsapp', 'locations', 'plan'];
+const SETTINGS_TABS = ['branding', 'locale', 'whatsapp', 'locations', 'billing', 'plan'];
+
+const ACTIVITY_LABELS = {
+  gym: tr('Gym'),
+  crossfit: tr('Crossfit'),
+  box: tr('Box'),
+  mma: tr('MMA'),
+  kickboxing: tr('Kickboxing'),
+  calisthenics: tr('Calisthenics'),
+};
+
+const TENANT_STATUS_LABELS = {
+  trial: tr('Trial'),
+  active: tr('Active'),
+  past_due: tr('Past due'),
+  suspended: tr('Suspended'),
+  cancelled: tr('Cancelled'),
+};
+
+const BILLING_CYCLE_LABELS = {
+  monthly: tr('Monthly'),
+  yearly: tr('Yearly'),
+  lifetime: tr('Lifetime'),
+};
+
+function hasCap(max) {
+  return max != null && Number(max) > 0;
+}
+
+function quotaMaxLabel(max, unit, fmtNumber) {
+  return hasCap(max) ? `${fmtNumber(Number(max))}${unit}` : '∞';
+}
+
+function quotaPercent(used, max) {
+  if (!hasCap(max)) return 0;
+  return Math.min(100, ((Number(used) || 0) / Number(max)) * 100);
+}
+
+function QuotaMeter({ label, used, max, unit = '', color, overMessage }) {
+  const { fmtNumber } = useFormat();
+  const value = Number(used) || 0;
+  const over = hasCap(max) && value > Number(max);
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
+        <span>{label}</span>
+        <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{fmtNumber(value)}{unit} / {quotaMaxLabel(max, unit, fmtNumber)}</span>
+      </div>
+      <div style={{ height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
+        <div style={{ height: '100%', background: over ? '#DC2626' : color, width: `${quotaPercent(value, max)}%` }} />
+      </div>
+      {over && overMessage && (
+        <div style={{ fontSize: 11, color: '#DC2626', fontWeight: 600, marginTop: 4 }}>{overMessage}</div>
+      )}
+    </div>
+  );
+}
 
 export default function TenantSettings() {
-  usePageTitle('Gym Settings');
+  const { t } = useI18n();
+  const { fmtNumber, fmtDate } = useFormat();
+  usePageTitle(t('Gym Settings'));
   const { tenant, refreshTenant, applyTenant, applyBranding, loading: tenantLoading } = useTenant();
+  const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const settingsTab = searchParams.get('tab');
 
@@ -189,9 +253,9 @@ export default function TenantSettings() {
     try {
       const res = await startWhatsAppSession();
       setWaSession(res.data);
-      toast.success('WhatsApp session initiated. Scan the QR code.');
+      toast.success(t('WhatsApp session initiated. Scan the QR code.'));
     } catch (err) {
-      toast.error(err.normalized?.message || err.response?.data?.message || 'Failed to start WhatsApp session');
+      toast.error(err.normalized?.message || err.response?.data?.message || t('Failed to start WhatsApp session'));
     } finally {
       setWaBusy(false);
     }
@@ -203,9 +267,9 @@ export default function TenantSettings() {
       const res = await logoutWhatsAppSession();
       setWaSession(res.data);
       setWaQrUrl('');
-      toast.success('WhatsApp account disconnected successfully');
+      toast.success(t('WhatsApp account disconnected successfully'));
     } catch (err) {
-      toast.error(err.normalized?.message || err.response?.data?.message || 'Failed to disconnect WhatsApp');
+      toast.error(err.normalized?.message || err.response?.data?.message || t('Failed to disconnect WhatsApp'));
     } finally {
       setWaBusy(false);
     }
@@ -215,7 +279,7 @@ export default function TenantSettings() {
     setWaBusy(true);
     try {
       await checkWhatsAppStatus(false);
-      toast.success('WhatsApp status refreshed');
+      toast.success(t('WhatsApp status refreshed'));
     } finally {
       setWaBusy(false);
     }
@@ -242,20 +306,20 @@ export default function TenantSettings() {
   const handleResetPalette = () => {
     setPalette(savedPalette);
     if (applyBranding) applyBranding({ palette: savedPalette });
-    toast.success('Reset to saved palette');
+    toast.success(t('Reset to saved palette'));
   };
 
   const handleDefaultPalette = () => {
     setPalette(DEFAULT_PALETTE);
     if (applyBranding) applyBranding({ palette: DEFAULT_PALETTE });
-    toast.success('Forma palette restored. Save settings to keep it.');
+    toast.success(t('Forma palette restored. Save settings to keep it.'));
   };
 
   const handleSaveSettings = async (e) => {
     e?.preventDefault();
 
     if (displayName && displayName.trim().length > 120) {
-      toast.error('Gym display name must not exceed 120 characters');
+      toast.error(t('Gym display name must not exceed 120 characters'));
       return;
     }
 
@@ -265,7 +329,7 @@ export default function TenantSettings() {
         if (color) {
           const norm = normalizeHexColor(color);
           if (!norm) {
-            toast.error(`Invalid hex color format for ${key}: "${color}". Example: #142843`);
+            toast.error(t('Invalid hex color format for {key}: "{color}". Example: #142843', { key, color }));
             return;
           }
           normalizedPalette[key] = norm;
@@ -274,13 +338,13 @@ export default function TenantSettings() {
     }
 
     if (timezone && timezone.trim().length > 100) {
-      toast.error('Timezone must not exceed 100 characters');
+      toast.error(t('Timezone must not exceed 100 characters'));
       return;
     }
 
     const transferFee = Number(packageTransferFee);
     if (!Number.isFinite(transferFee) || transferFee < 0) {
-      toast.error('Enter a valid package transfer fee');
+      toast.error(t('Enter a valid package transfer fee'));
       return;
     }
 
@@ -322,11 +386,11 @@ export default function TenantSettings() {
       if (applyBranding) applyBranding({ palette: normalizedPalette });
       setPalette(normalizedPalette);
       setSavedPalette(normalizedPalette);
-      toast.success('Gym settings saved successfully!');
+      toast.success(t('Gym settings saved successfully!'));
       await refreshTenant();
     } catch (err) {
       if (err.normalized?.status !== 403 && err.normalized?.status !== 429) {
-        toast.error(err.normalized?.message || err.response?.data?.message || 'Failed to update gym settings');
+        toast.error(err.normalized?.message || err.response?.data?.message || t('Failed to update gym settings'));
       }
     } finally {
       setSaving(false);
@@ -351,11 +415,11 @@ export default function TenantSettings() {
       const res = await uploadTenantLogo(fd);
       const nextTenant = res.data?.tenant;
       if (nextTenant) applyTenant(nextTenant);
-      toast.success('Logo uploaded successfully!');
+      toast.success(t('Logo uploaded successfully!'));
       await refreshTenant();
     } catch (err) {
       if (err.normalized?.status !== 403 && err.normalized?.status !== 429) {
-        toast.error(err.normalized?.message || err.response?.data?.message || 'Failed to upload logo');
+        toast.error(err.normalized?.message || err.response?.data?.message || t('Failed to upload logo'));
       }
     } finally {
       e.target.value = '';
@@ -366,7 +430,7 @@ export default function TenantSettings() {
   const toggleActivity = (act) => {
     if (activities.includes(act)) {
       if (activities.length === 1) {
-        toast.error('At least one activity must be enabled');
+        toast.error(t('At least one activity must be enabled'));
         return;
       }
       setActivities(activities.filter(a => a !== act));
@@ -379,7 +443,7 @@ export default function TenantSettings() {
     const trimmed = customActivity.trim().toLowerCase();
     if (!trimmed) return;
     if (activities.includes(trimmed)) {
-      toast.error('Activity already exists');
+      toast.error(t('Activity already exists'));
       return;
     }
     setActivities([...activities, trimmed]);
@@ -409,11 +473,11 @@ export default function TenantSettings() {
       <div style={{ maxWidth: 1040, margin: '0 auto', padding: '24px 16px' }}>
         <PageHeader
           walkthrough="settings-header"
-          title="Gym & Tenant Settings"
-          sub="Manage your gym's brand identity, locale, offerings, and plan"
+          title={t('Gym & Tenant Settings')}
+          sub={t("Manage your gym's brand identity, locale, offerings, and plan")}
           action={
             <Btn variant="primary" onClick={handleSaveSettings} disabled={saving}>
-              {saving ? <><Spinner size="sm" /> Saving…</> : 'Save Settings'}
+              {saving ? <><Spinner size="sm" /> {t('Saving…')}</> : t('Save Settings')}
             </Btn>
           }
         />
@@ -421,21 +485,22 @@ export default function TenantSettings() {
         {/* Navigation Tabs */}
         <div className="tabs-scroll" data-walkthrough="settings-tabs" style={{ display: 'flex', gap: 8, borderBottom: '1px solid #E5E7EB', marginBottom: 24 }}>
           {[
-            { id: 'branding', label: 'Branding & Palette' },
-            { id: 'locale', label: 'Locale & Activities' },
+            { id: 'branding', label: t('Branding & Palette') },
+            { id: 'locale', label: t('Locale & Activities') },
             {
               id: 'whatsapp',
-              label: 'WhatsApp',
+              label: 'WhatsApp', // i18n-ignore
               badge: waSession?.status === 'connected' ? 'connected' : (waSession?.status === 'qr' ? 'qr' : 'disconnected'),
             },
-            { id: 'locations', label: 'Locations' },
-            { id: 'plan', label: 'Plan & Usage' },
-          ].map(t => {
-            const isTabActive = activeTab === t.id;
+            { id: 'locations', label: t('Locations') },
+            { id: 'billing', label: t('Billing & Reports') },
+            { id: 'plan', label: t('Plan & Usage') },
+          ].map(tabItem => {
+            const isTabActive = activeTab === tabItem.id;
             return (
               <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id)}
+                key={tabItem.id}
+                onClick={() => setActiveTab(tabItem.id)}
                 style={{
                   padding: '10px 18px',
                   fontSize: 13,
@@ -452,18 +517,18 @@ export default function TenantSettings() {
                   gap: 8,
                 }}
               >
-                <span>{t.label}</span>
-                {t.badge && (
+                <span>{tabItem.label}</span>
+                {tabItem.badge && (
                   <span
                     style={{
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      background: t.badge === 'connected' ? '#16A34A' : (t.badge === 'qr' ? '#D97706' : '#9CA3AF'),
-                      boxShadow: t.badge === 'connected' ? '0 0 6px rgba(22,163,74,0.6)' : 'none',
+                      background: tabItem.badge === 'connected' ? '#16A34A' : (tabItem.badge === 'qr' ? '#D97706' : '#9CA3AF'),
+                      boxShadow: tabItem.badge === 'connected' ? '0 0 6px rgba(22,163,74,0.6)' : 'none',
                       display: 'inline-block',
                     }}
-                    title={t.badge === 'connected' ? 'WhatsApp Linked' : (t.badge === 'qr' ? 'QR Code Pending' : 'Not Linked')}
+                    title={tabItem.badge === 'connected' ? t('WhatsApp Linked') : (tabItem.badge === 'qr' ? t('QR Code Pending') : t('Not Linked'))}
                   />
                 )}
               </button>
@@ -475,7 +540,7 @@ export default function TenantSettings() {
         {activeTab === 'branding' && (
           <div data-walkthrough="settings-brand" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <Card>
-              <CardHeader title="Gym Brand Identity" sub="Customize the name and logo that appear across your workspace" />
+              <CardHeader title={t('Gym Brand Identity')} sub={t('Customize the name and logo that appear across your workspace')} />
               <div style={{ display: 'flex', gap: 24, alignItems: 'center', marginTop: 16, flexWrap: 'wrap' }}>
                 <div style={{
                   width: 90, height: 90, borderRadius: 16,
@@ -485,11 +550,11 @@ export default function TenantSettings() {
                   overflow: 'hidden', flexShrink: 0,
                   boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                 }}>
-                  <img key={logoUrl} src={logoUrl} alt="Logo" style={{ maxWidth: '80%', maxHeight: '80%', objectFit: 'contain' }} />
+                  <img key={logoUrl} src={logoUrl} alt={t('Logo')} style={{ maxWidth: '80%', maxHeight: '80%', objectFit: 'contain' }} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6 }}>
-                    Upload New Logo (PNG, JPG, WebP, or SVG)
+                    {t('Upload New Logo (PNG, JPG, WebP, or SVG)')}
                   </label>
                   <input
                     type="file"
@@ -498,15 +563,15 @@ export default function TenantSettings() {
                     disabled={uploadingLogo}
                     style={{ fontSize: 13 }}
                   />
-                  {uploadingLogo && <span style={{ marginLeft: 10, fontSize: 12, color: 'var(--navy)' }}>Uploading…</span>}
+                  {uploadingLogo && <span style={{ marginInlineStart: 10, fontSize: 12, color: 'var(--navy)' }}>{t('Uploading…')}</span>}
                 </div>
               </div>
               <div style={{ marginTop: 20 }}>
                 <Input
-                  label="Gym Display Name"
+                  label={t('Gym Display Name')}
                   value={displayName}
                   onChange={e => setDisplayName(e.target.value)}
-                  placeholder="e.g. Spartan Gym"
+                  placeholder={t('e.g. Spartan Gym')}
                 />
               </div>
             </Card>
@@ -515,21 +580,21 @@ export default function TenantSettings() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
                 <div>
                   <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: 'var(--t1)' }}>
-                    Theme Palette & Live Preview
+                    {t('Theme Palette & Live Preview')}
                   </h3>
                   <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--t3)' }}>
-                    These colors belong to this gym. They load after sign-in, once this workspace finishes loading. If none are saved yet, the theme stays on. Showcase workspaces can change them too. The sign-in screen and the platform console keep Forma’s navy and cream.
+                    {t('These colors belong to this gym. They load after sign-in, once this workspace finishes loading. If none are saved yet, the theme stays on. Showcase workspaces can change them too. The sign-in screen and the platform console keep Forma’s navy and cream.')}
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <Btn variant="outline" size="sm" onClick={handleResetPalette} disabled={saving}>
-                    Revert to Saved
+                    {t('Revert to Saved')}
                   </Btn>
                   <Btn variant="ghost" size="sm" onClick={handleDefaultPalette} disabled={saving}>
-                    Default Theme
+                    {t('Default Theme')}
                   </Btn>
                   <Btn variant="primary" size="sm" onClick={handleSaveSettings} disabled={saving}>
-                    {saving ? <><Spinner size="sm" /> Saving…</> : 'Save Palette'}
+                    {saving ? <><Spinner size="sm" /> {t('Saving…')}</> : t('Save Palette')}
                   </Btn>
                 </div>
               </div>
@@ -543,9 +608,9 @@ export default function TenantSettings() {
                   return (
                     <div key={c.key} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: '#4B5563' }}>{c.label}</label>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: '#4B5563' }}>{t(c.label)}</label>
                         {isInvalid && (
-                          <span style={{ fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>Invalid Hex</span>
+                          <span style={{ fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>{t('Invalid Hex')}</span>
                         )}
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -559,7 +624,7 @@ export default function TenantSettings() {
                             cursor: 'pointer',
                             padding: 2, background: '#fff',
                           }}
-                          title={`Pick ${c.label}`}
+                          title={t('Pick {label}', { label: t(c.label) })}
                         />
                         <input
                           type="text"
@@ -567,6 +632,7 @@ export default function TenantSettings() {
                           onChange={e => handleColorChange(c.key, e.target.value)}
                           onBlur={() => handleColorBlur(c.key)}
                           placeholder={c.default}
+                          dir="ltr"
                           maxLength={9}
                           style={{
                             width: 105, padding: '7px 8px', fontSize: 12,
@@ -578,7 +644,7 @@ export default function TenantSettings() {
                           }}
                         />
                       </div>
-                      <span style={{ fontSize: 11, color: '#9CA3AF' }}>{c.hint}</span>
+                      <span style={{ fontSize: 11, color: '#9CA3AF' }}>{t(c.hint)}</span>
                     </div>
                   );
                 })}
@@ -605,7 +671,7 @@ export default function TenantSettings() {
                       boxShadow: `0 0 6px ${palette.primary}`,
                     }} />
                     <span style={{ fontSize: 12, fontWeight: 700, color: palette.text, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                      Interactive Live Workspace Preview
+                      {t('Interactive Live Workspace Preview')}
                     </span>
                   </div>
                   <span style={{
@@ -616,7 +682,7 @@ export default function TenantSettings() {
                     background: palette.accent,
                     color: '#FFFFFF',
                   }}>
-                    Active Accent
+                    {t('Active Accent')}
                   </span>
                 </div>
 
@@ -643,7 +709,7 @@ export default function TenantSettings() {
                       {((displayName || 'G').trim()[0] || 'G').toUpperCase()}
                     </div>
                     <span style={{ fontSize: 14, fontWeight: 800, color: '#FFFFFF', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                      {displayName || 'GYM WORKSPACE'}
+                      {displayName || t('GYM WORKSPACE')}
                     </span>
                   </div>
 
@@ -657,13 +723,13 @@ export default function TenantSettings() {
                       fontSize: 12,
                       fontWeight: 700,
                     }}>
-                      Active Tab
+                      {t('Active Tab')}
                     </div>
                     <div style={{ padding: '6px 12px', fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
-                      Members
+                      {t('Members')}
                     </div>
                     <div style={{ padding: '6px 12px', fontSize: 12, color: 'rgba(255,255,255,0.7)', fontWeight: 500 }}>
-                      Reports
+                      {t('Reports')}
                     </div>
                   </div>
                 </div>
@@ -684,13 +750,13 @@ export default function TenantSettings() {
                     background: palette.secondary || DEFAULT_PALETTE.secondary,
                     padding: '3px 8px', borderRadius: 6,
                   }}>
-                    Sub-nav Tab
+                    {t('Sub-nav Tab')}
                   </span>
                   <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
-                    Overview
+                    {t('Overview')}
                   </span>
                   <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: 500 }}>
-                    Activity Logs
+                    {t('Activity Logs')}
                   </span>
                 </div>
 
@@ -706,7 +772,7 @@ export default function TenantSettings() {
                 }}>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <h4 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: palette.text }}>
-                      Live Workspace Content
+                      {t('Live Workspace Content')}
                     </h4>
                     <span style={{
                       fontSize: 11,
@@ -716,12 +782,12 @@ export default function TenantSettings() {
                       padding: '2px 8px',
                       borderRadius: 6,
                     }}>
-                      Sub-nav Pill
+                      {t('Sub-nav Pill')}
                     </span>
                   </div>
 
                   <p style={{ margin: 0, fontSize: 13, color: palette.text, opacity: 0.85, lineHeight: 1.5 }}>
-                    Adjusting the color pickers or hex codes above immediately updates this preview, the navigation bar above, and the actual live application layout.
+                    {t('Adjusting the color pickers or hex codes above immediately updates this preview, the navigation bar above, and the actual live application layout.')}
                   </p>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: 4 }}>
@@ -739,7 +805,7 @@ export default function TenantSettings() {
                         boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
                       }}
                     >
-                      Primary Button
+                      {t('Primary Button')}
                     </button>
                     <button
                       type="button"
@@ -754,7 +820,7 @@ export default function TenantSettings() {
                         cursor: 'default',
                       }}
                     >
-                      Secondary Action
+                      {t('Secondary Action')}
                     </button>
                     <span style={{
                       padding: '4px 10px',
@@ -765,7 +831,7 @@ export default function TenantSettings() {
                       color: palette.text,
                       border: '1px solid #D1D5DB',
                     }}>
-                      Page Surface Chip
+                      {t('Page Surface Chip')}
                     </span>
                   </div>
 
@@ -780,7 +846,7 @@ export default function TenantSettings() {
                     background: palette.background,
                   }}>
                     <span style={{ fontSize: 11, fontWeight: 700, color: palette.text, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.4px' }}>
-                      Icons
+                      {t('Icons')}
                     </span>
                     {[LayoutDashboard, Users, Package].map((Icon, i) => (
                       <span
@@ -806,7 +872,7 @@ export default function TenantSettings() {
                 <div style={{ marginTop: 12, fontSize: 12, color: palette.text, opacity: 0.75, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <Check size={14} aria-hidden style={{ color: palette.icon || DEFAULT_PALETTE.icon }} />
                   <span>
-                    Colors chosen here update this workspace immediately. Click Save Palette to keep them for the next sign-in.
+                    {t('Colors chosen here update this workspace immediately. Click Save Palette to keep them for the next sign-in.')}
                   </span>
                 </div>
               </div>
@@ -814,13 +880,24 @@ export default function TenantSettings() {
           </div>
         )}
 
+        {activeTab === 'billing' && (
+          <BillingProfilePanel
+            tenant={tenant}
+            isOwner={user?.role === 'Owner'}
+            onSaved={async (nextTenant) => {
+              if (nextTenant) applyTenant(nextTenant);
+              await refreshTenant();
+            }}
+          />
+        )}
+
         {/* Tab 2: Locale & Activities */}
         {activeTab === 'locale' && (
           <div data-walkthrough="settings-locale" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <Card>
-              <CardHeader title="Regional & Locale Settings" sub="Controls currency symbols, timezone dates, and system formatting" />
+              <CardHeader title={t('Regional & Locale Settings')} sub={t('Controls currency symbols, timezone dates, and system formatting')} />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginTop: 16 }}>
-                <Select label="Operating Currency" value={currency} onChange={e => setCurrency(e.target.value)}>
+                <Select label={t('Operating Currency')} value={currency} onChange={e => setCurrency(e.target.value)}>
                   {[
                     'EGP', 'USD', 'EUR', 'GBP', 'SAR', 'AED', 'KWD', 'QAR', 'BHD', 'OMR', 'JOD'
                   ].map(c => (
@@ -829,13 +906,14 @@ export default function TenantSettings() {
                 </Select>
 
                 <Input
-                  label="Default Phone Country Code"
+                  label={t('Default Phone Country Code')}
                   value={countryCode}
                   onChange={e => setCountryCode(e.target.value)}
                   placeholder="20"
+                  dir="ltr"
                 />
 
-                <Select label="Timezone" value={timezone} onChange={e => setTimezone(e.target.value)}>
+                <Select label={t('Timezone')} value={timezone} onChange={e => setTimezone(e.target.value)}>
                   {[
                     'Africa/Cairo',
                     'Asia/Riyadh',
@@ -849,24 +927,29 @@ export default function TenantSettings() {
                   ))}
                 </Select>
 
-                <Select label="Language" value={language} onChange={e => setLanguage(e.target.value)}>
-                  <option value="en">English (US)</option>
-                  <option value="ar">العربية (Arabic)</option>
+                <Select
+                  label={t('Language')}
+                  value={language}
+                  onChange={e => setLanguage(e.target.value)}
+                  hint={t('Gym default language for staff. Each person can switch from their profile menu.')}
+                >
+                  <option value="en">{t('English (US)')}</option>
+                  <option value="ar">{t('العربية (Arabic)')}</option>
                 </Select>
 
                 <Input
-                  label="Package transfer fee"
+                  label={t('Package transfer fee')}
                   type="number"
                   min="0"
                   value={packageTransferFee}
                   onChange={e => setPackageTransferFee(e.target.value)}
-                  hint="Default fee charged to the original member when their current package is transferred. Staff can change it on each transfer."
+                  hint={t('Default fee charged to the original member when their current package is transferred. Staff can change it on each transfer.')}
                 />
               </div>
             </Card>
 
             <Card>
-              <CardHeader title="Enabled Activity Offerings" sub="Define which workout and class types are available when configuring packages" />
+              <CardHeader title={t('Enabled Activity Offerings')} sub={t('Define which workout and class types are available when configuring packages')} />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10, marginTop: 16 }}>
                 {Array.from(new Set([...KNOWN_ACTIVITIES, ...activities])).map(act => {
                   const active = activities.includes(act);
@@ -890,7 +973,7 @@ export default function TenantSettings() {
                         textTransform: 'capitalize',
                       }}
                     >
-                      <span>{act}</span>
+                      <span>{ACTIVITY_LABELS[act] ? t(ACTIVITY_LABELS[act]) : act}</span>
                       {active ? <Check size={14} aria-hidden /> : <Plus size={14} aria-hidden />}
                     </button>
                   );
@@ -901,10 +984,10 @@ export default function TenantSettings() {
                 <Input
                   value={customActivity}
                   onChange={e => setCustomActivity(e.target.value)}
-                  placeholder="Add custom activity (e.g. Pilates)"
+                  placeholder={t('Add custom activity (e.g. Pilates)')}
                 />
                 <Btn variant="outline" type="button" onClick={addCustomActivity}>
-                  Add
+                  {t('Add')}
                 </Btn>
               </div>
             </Card>
@@ -916,14 +999,14 @@ export default function TenantSettings() {
           <div data-walkthrough="settings-whatsapp" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
             <Card>
               <CardHeader
-                title="WhatsApp Account Linking"
-                sub="Check and manage WhatsApp connectivity for your account to send invoices, messages, and QR passes."
+                title={t('WhatsApp Account Linking')}
+                sub={t('Check and manage WhatsApp connectivity for your account to send invoices, messages, and QR passes.')}
               />
 
               {waLoading && !waSession ? (
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '40px 0', gap: 10, color: 'var(--t3)' }}>
                   <Spinner size="md" />
-                  <span>Checking WhatsApp account status…</span>
+                  <span>{t('Checking WhatsApp account status…')}</span>
                 </div>
               ) : (
                 <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -945,7 +1028,7 @@ export default function TenantSettings() {
                             boxShadow: '0 0 8px rgba(22, 163, 74, 0.7)',
                           }} />
                           <span style={{ fontSize: 15, fontWeight: 700, color: '#166534' }}>
-                            WhatsApp Account Linked & Active
+                            {t('WhatsApp Account Linked & Active')}
                           </span>
                         </div>
                         <span style={{
@@ -953,12 +1036,12 @@ export default function TenantSettings() {
                           background: '#DCFCE7', padding: '4px 10px', borderRadius: 20,
                           border: '1px solid #86EFAC',
                         }}>
-                          CONNECTED
+                          {t('CONNECTED')}
                         </span>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                        <div style={{
+                        <div dir="ltr" style={{
                           padding: '8px 16px', borderRadius: 8, background: '#FFFFFF',
                           border: '1px solid #86EFAC', fontSize: 16, fontWeight: 800,
                           color: '#166534', letterSpacing: '0.5px',
@@ -966,7 +1049,7 @@ export default function TenantSettings() {
                           +{waSession.phone}
                         </div>
                         <span style={{ fontSize: 13, color: '#374151' }}>
-                          Linked to your user profile. Automated triggers and manual templates will be sent from this number.
+                          {t('Linked to your user profile. Automated triggers and manual templates will be sent from this number.')}
                         </span>
                       </div>
 
@@ -978,7 +1061,7 @@ export default function TenantSettings() {
                           disabled={waBusy}
                           style={{ borderColor: '#F87171', color: '#DC2626' }}
                         >
-                          {waBusy ? <><Spinner size="sm" /> Disconnecting…</> : 'Disconnect WhatsApp'}
+                          {waBusy ? <><Spinner size="sm" /> {t('Disconnecting…')}</> : t('Disconnect WhatsApp')}
                         </Btn>
                         <Btn
                           variant="ghost"
@@ -986,13 +1069,13 @@ export default function TenantSettings() {
                           onClick={handleRefreshWhatsApp}
                           disabled={waBusy}
                         >
-                          {waBusy ? <Spinner size="sm" /> : <><RefreshCw size={14} aria-hidden /> Refresh Status</>}
+                          {waBusy ? <Spinner size="sm" /> : <><RefreshCw size={14} aria-hidden /> {t('Refresh Status')}</>}
                         </Btn>
                         <Link
                           to="/account/whatsapp"
-                          style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)', marginLeft: 8 }}
+                          style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)', marginInlineStart: 8 }}
                         >
-                          Open Dedicated WhatsApp Page →
+                          {t('Open Dedicated WhatsApp Page')} <span className="rtl-flip" style={{ display: 'inline-block' }}>→</span>
                         </Link>
                       </div>
                     </div>
@@ -1013,7 +1096,7 @@ export default function TenantSettings() {
                             boxShadow: '0 0 8px rgba(217, 119, 6, 0.7)',
                           }} />
                           <span style={{ fontSize: 15, fontWeight: 700, color: '#92400E' }}>
-                            Waiting for WhatsApp QR Scan
+                            {t('Waiting for WhatsApp QR Scan')}
                           </span>
                         </div>
                         <span style={{
@@ -1021,18 +1104,18 @@ export default function TenantSettings() {
                           background: '#FEF3C7', padding: '4px 10px', borderRadius: 20,
                           border: '1px solid #FCD34D',
                         }}>
-                          SCAN CODE
+                          {t('SCAN CODE')}
                         </span>
                       </div>
 
                       <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
                         {waQrUrl ? (
-                          <div style={{
+                          <div dir="ltr" style={{
                             padding: 12, background: '#FFFFFF', borderRadius: 12,
                             border: '1px solid #E5E7EB', display: 'inline-block',
                             boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                           }}>
-                            <img src={waQrUrl} alt="WhatsApp QR Code" width={220} height={220} style={{ display: 'block' }} />
+                            <img src={waQrUrl} alt={t('WhatsApp QR Code')} width={220} height={220} style={{ display: 'block' }} />
                           </div>
                         ) : (
                           <div style={{ width: 220, height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', borderRadius: 12 }}>
@@ -1042,23 +1125,23 @@ export default function TenantSettings() {
 
                         <div style={{ flex: 1, minWidth: 240 }}>
                           <h4 style={{ margin: '0 0 8px 0', fontSize: 14, fontWeight: 700, color: '#78350F' }}>
-                            Scan from WhatsApp on your phone:
+                            {t('Scan from WhatsApp on your phone:')}
                           </h4>
-                          <ol style={{ margin: 0, paddingLeft: 20, fontSize: 13, color: '#4B5563', lineHeight: 1.6 }}>
-                            <li>Open <strong>WhatsApp</strong> on your mobile phone</li>
-                            <li>Navigate to <strong>Settings</strong> &gt; <strong>Linked Devices</strong></li>
-                            <li>Tap <strong>Link a Device</strong> and point your camera at this QR code</li>
-                            <li>The status will update automatically once scanned</li>
+                          <ol style={{ margin: 0, paddingInlineStart: 20, fontSize: 13, color: '#4B5563', lineHeight: 1.6 }}>
+                            <li>{t('Open WhatsApp on your mobile phone')}</li>
+                            <li>{t('Navigate to Settings > Linked Devices')}</li>
+                            <li>{t('Tap Link a Device and point your camera at this QR code')}</li>
+                            <li>{t('The status will update automatically once scanned')}</li>
                           </ol>
                         </div>
                       </div>
 
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
                         <Btn variant="outline" size="sm" onClick={handleDisconnectWhatsApp} disabled={waBusy}>
-                          Cancel Connection
+                          {t('Cancel Connection')}
                         </Btn>
                         <Btn variant="ghost" size="sm" onClick={handleRefreshWhatsApp} disabled={waBusy}>
-                          <><RefreshCw size={14} aria-hidden /> Refresh Status</>
+                          <><RefreshCw size={14} aria-hidden /> {t('Refresh Status')}</>
                         </Btn>
                       </div>
                     </div>
@@ -1075,10 +1158,10 @@ export default function TenantSettings() {
                       <Spinner size="md" />
                       <div>
                         <div style={{ fontSize: 14, fontWeight: 700, color: '#0369A1' }}>
-                          Connecting to WhatsApp Servers…
+                          {t('Connecting to WhatsApp Servers…')}
                         </div>
                         <div style={{ fontSize: 12, color: '#0284C7', marginTop: 2 }}>
-                          Please wait while the connection handshake completes.
+                          {t('Please wait while the connection handshake completes.')}
                         </div>
                       </div>
                     </div>
@@ -1098,22 +1181,22 @@ export default function TenantSettings() {
                             width: 10, height: 10, borderRadius: '50%', background: '#9CA3AF',
                           }} />
                           <span style={{ fontSize: 15, fontWeight: 700, color: '#374151' }}>
-                            No WhatsApp Account Linked
+                            {t('No WhatsApp Account Linked')}
                           </span>
                         </div>
                         <span style={{
                           fontSize: 12, fontWeight: 700, color: '#6B7280',
                           background: '#E5E7EB', padding: '4px 10px', borderRadius: 20,
                         }}>
-                          NOT LINKED
+                          {t('NOT LINKED')}
                         </span>
                       </div>
 
                       <p style={{ margin: 0, fontSize: 13, color: '#4B5563', lineHeight: 1.5, maxWidth: 640 }}>
-                        This user account currently has no active WhatsApp connection. Connect your number so you can send WhatsApp invitations, renewals, check-in barcodes, and customer service messages directly through Forma.
+                        {t('This user account currently has no active WhatsApp connection. Connect your number so you can send WhatsApp invitations, renewals, check-in barcodes, and customer service messages directly through Forma.')}
                         {waSession?.phone && (
                           <span style={{ display: 'block', marginTop: 6, fontWeight: 600, color: '#6B7280' }}>
-                            Previously linked number: +{waSession.phone}
+                            {t('Previously linked number:')} <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>+{waSession.phone}</span>
                           </span>
                         )}
                       </p>
@@ -1125,7 +1208,7 @@ export default function TenantSettings() {
                           onClick={handleConnectWhatsApp}
                           disabled={waBusy}
                         >
-                          {waBusy ? <><Spinner size="sm" /> Starting…</> : 'Link WhatsApp Account'}
+                          {waBusy ? <><Spinner size="sm" /> {t('Starting…')}</> : t('Link WhatsApp Account')}
                         </Btn>
                         <Btn
                           variant="outline"
@@ -1133,13 +1216,13 @@ export default function TenantSettings() {
                           onClick={handleRefreshWhatsApp}
                           disabled={waBusy}
                         >
-                          <><RefreshCw size={14} aria-hidden /> Refresh Status</>
+                          <><RefreshCw size={14} aria-hidden /> {t('Refresh Status')}</>
                         </Btn>
                         <Link
                           to="/account/whatsapp"
-                          style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)', marginLeft: 8 }}
+                          style={{ fontSize: 13, fontWeight: 600, color: 'var(--navy)', marginInlineStart: 8 }}
                         >
-                          Dedicated Connect Page →
+                          {t('Dedicated Connect Page')} <span className="rtl-flip" style={{ display: 'inline-block' }}>→</span>
                         </Link>
                       </div>
                     </div>
@@ -1151,24 +1234,24 @@ export default function TenantSettings() {
             {/* Monthly WhatsApp Allowance & Quota Meter */}
             <Card>
               <CardHeader
-                title="Gym-wide WhatsApp Quotas"
-                sub="Aggregated message consumption against current billing entitlement"
+                title={t('Gym-wide WhatsApp Quotas')}
+                sub={t('Aggregated message consumption against current billing entitlement')}
               />
               <div style={{ marginTop: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 8 }}>
-                  <span>Messages Sent This Month</span>
-                  <span>{usage.whatsappMonthlyMessages ?? 0} / {limits.whatsappMonthlyMessages ?? 2000}</span>
+                  <span>{t('Messages Sent This Month')}</span>
+                  <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{fmtNumber(usage.whatsappMonthlyMessages ?? 0)} / {quotaMaxLabel(limits.whatsappMonthlyMessages, '', fmtNumber)}</span>
                 </div>
                 <div style={{ height: 10, background: '#E5E7EB', borderRadius: 6, overflow: 'hidden' }}>
                   <div style={{
                     height: '100%',
                     background: 'var(--green)',
-                    width: `${Math.min(100, ((usage.whatsappMonthlyMessages || 0) / (limits.whatsappMonthlyMessages || 2000)) * 100)}%`,
+                    width: `${quotaPercent(usage.whatsappMonthlyMessages, limits.whatsappMonthlyMessages)}%`,
                     transition: 'width 0.3s ease',
                   }} />
                 </div>
                 <div style={{ marginTop: 8, fontSize: 12, color: '#6B7280' }}>
-                  Quotas reset at the start of each calendar month based on your gym&rsquo;s current plan ({plan?.name || 'Standard'}).
+                  {t('Quotas reset at the start of each calendar month based on your gym’s current plan ({plan}).', { plan: plan?.name || t('Standard') })}
                 </div>
               </div>
             </Card>
@@ -1189,108 +1272,65 @@ export default function TenantSettings() {
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, color: '#111827' }}>
-                      Subscription Details
+                      {t('Subscription Details')}
                     </h3>
                   </div>
                   <p style={{ margin: '4px 0 0', fontSize: 13, color: '#6B7280' }}>
-                    Current Plan: <strong>{plan?.name || 'Standard Plan'}</strong>
-                    {` • Billing Cycle: ${tenant?.billing?.cycle || 'Monthly'}`}
+                    {t('Current Plan:')} <strong>{plan?.name || t('Standard Plan')}</strong>
+                    {' • '}{t('Billing Cycle: {cycle}', { cycle: tenant?.billing?.cycle ? (BILLING_CYCLE_LABELS[tenant.billing.cycle] ? t(BILLING_CYCLE_LABELS[tenant.billing.cycle]) : tenant.billing.cycle) : t('Monthly') })}
                   </p>
                 </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16, marginTop: 20 }}>
                 <div style={{ padding: 16, background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB' }}>
-                  <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>STATUS</div>
+                  <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>{t('STATUS')}</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: '#16A34A', textTransform: 'uppercase', marginTop: 4 }}>
-                    {tenant?.status || 'Active'}
+                    {tenant?.status ? (TENANT_STATUS_LABELS[tenant.status] ? t(TENANT_STATUS_LABELS[tenant.status]) : tenant.status) : t('Active')}
                   </div>
                 </div>
                 <div style={{ padding: 16, background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB' }}>
-                  <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>PLAN TIER</div>
+                  <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>{t('PLAN TIER')}</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--navy)', textTransform: 'capitalize', marginTop: 4 }}>
-                    {plan?.key || 'Platinum'}
+                    {plan?.key || '—'}
                   </div>
                 </div>
                 <div style={{ padding: 16, background: '#F9FAFB', borderRadius: 10, border: '1px solid #E5E7EB' }}>
                   <div style={{ fontSize: 12, color: '#6B7280', fontWeight: 600 }}>
-                    RENEWAL / EXPIRY
+                    {t('RENEWAL / EXPIRY')}
                   </div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginTop: 4 }}>
-                    {tenant?.currentPeriodEnd ? new Date(tenant.currentPeriodEnd).toLocaleDateString() : 'Never'}
+                    {tenant?.currentPeriodEnd ? fmtDate(tenant.currentPeriodEnd) : t('Never')}
                   </div>
                 </div>
               </div>
             </Card>
 
             <Card>
-              <CardHeader title="Plan Quotas & Fair-Use Meters" sub="Track your active usage against subscription allocations" />
+              <CardHeader title={t('Plan Quotas & Fair-Use Meters')} sub={t('Track your active usage against subscription allocations')} />
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 20, marginTop: 16 }}>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                    <span>Active Members</span>
-                    <span>{usage.members ?? 0} / {limits.maxMembers ?? '∞'}</span>
-                  </div>
-                  <div style={{ height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%',
-                      background: 'var(--navy)',
-                      width: `${Math.min(100, ((usage.members || 0) / (limits.maxMembers || 100)) * 100)}%`,
-                    }} />
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                    <span>Staff Users</span>
-                    <span>{usage.staff ?? 0} / {limits.maxStaff ?? '∞'}</span>
-                  </div>
-                  <div style={{ height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%',
-                      background: 'var(--navy-2)',
-                      width: `${Math.min(100, ((usage.staff || 0) / (limits.maxStaff || 10)) * 100)}%`,
-                    }} />
-                  </div>
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                    <span>Storage Capacity</span>
-                    <span>{usage.storageGb ?? 0} GB / {limits.storageGb ?? 25} GB</span>
-                  </div>
-                  <div style={{ height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%',
-                      background: (usage.storageGb || 0) > (limits.storageGb || 25) ? '#DC2626' : '#0284C7',
-                      width: `${Math.min(100, ((usage.storageGb || 0) / (limits.storageGb || 25)) * 100)}%`,
-                    }} />
-                  </div>
-                  {(usage.storageGb || 0) > (limits.storageGb || 25) && (
-                    <div style={{ fontSize: 11, color: '#DC2626', fontWeight: 600, marginTop: 4 }}>
-                      Capacity limit exceeded. Please contact platform support or upgrade your plan.
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, fontWeight: 600, marginBottom: 6 }}>
-                    <span>WhatsApp Messages (Monthly)</span>
-                    <span>{usage.whatsappMonthlyMessages ?? 0} / {limits.whatsappMonthlyMessages ?? 2000}</span>
-                  </div>
-                  <div style={{ height: 8, background: '#E5E7EB', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{
-                      height: '100%',
-                      background: '#16A34A',
-                      width: `${Math.min(100, ((usage.whatsappMonthlyMessages || 0) / (limits.whatsappMonthlyMessages || 2000)) * 100)}%`,
-                    }} />
-                  </div>
-                </div>
+                <QuotaMeter label={t('Active Members')} used={usage.members} max={limits.maxMembers} color="var(--navy)" />
+                <QuotaMeter label={t('Staff Users')} used={usage.staff} max={limits.maxStaff} color="var(--navy-2)" />
+                <QuotaMeter label={t('Branches')} used={usage.branches} max={limits.maxBranches} color="#7C3AED" />
+                <QuotaMeter
+                  label={t('Storage Capacity')}
+                  used={usage.storageGb}
+                  max={limits.storageGb}
+                  unit=" GB"
+                  color="#0284C7"
+                  overMessage={t('Capacity limit exceeded. Please contact platform support or upgrade your plan.')}
+                />
+                <QuotaMeter
+                  label={t('WhatsApp Messages (Monthly)')}
+                  used={usage.whatsappMonthlyMessages}
+                  max={limits.whatsappMonthlyMessages}
+                  color="#16A34A"
+                />
               </div>
             </Card>
 
             <Card>
-              <CardHeader title="Active Features Matrix" sub="Features unlocked by your plan and overrides" />
+              <CardHeader title={t('Active Features Matrix')} sub={t('Features unlocked by your plan and overrides')} />
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 16 }}>
                 {tenant?.effectiveFeatures?.map(feat => (
                   <span

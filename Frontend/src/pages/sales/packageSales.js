@@ -1,5 +1,8 @@
-export function packageLabel(pkg) {
-  if (!pkg?.name) return 'Unknown package';
+const identity = (text) => text;
+
+/** `t` is optional so display callers can translate the fallback label; logic keeps the English default. */
+export function packageLabel(pkg, t = identity) {
+  if (!pkg?.name) return t('Unknown package');
   return pkg.duration ? `${pkg.name} · ${pkg.duration}` : pkg.name;
 }
 
@@ -18,14 +21,14 @@ export function subscriptionNet(sub) {
   return Math.max(0, paid - refund);
 }
 
-export function summarizePackages(entries) {
+export function summarizePackages(entries, t = identity) {
   const map = new Map();
   for (const entry of entries) {
     const key = entryPackageKey(entry);
     const pkg = entry.subscription?.package;
     const current = map.get(key) || {
       key,
-      label: packageLabel(pkg?.name ? pkg : entry.subscription?.packageSnapshot),
+      label: packageLabel(pkg?.name ? pkg : entry.subscription?.packageSnapshot, t),
       activityType: pkg?.activityType || entry.subscription?.packageSnapshot?.activityType || '',
       count: 0,
       revenue: 0,
@@ -37,14 +40,14 @@ export function summarizePackages(entries) {
   return [...map.values()].sort((a, b) => b.revenue - a.revenue || b.count - a.count || a.label.localeCompare(b.label));
 }
 
-export function buildPackageOptions(packages, packageStats, packageId) {
+export function buildPackageOptions(packages, packageStats, packageId, t = identity) {
   const seen = new Set();
   const options = [];
   for (const pkg of packages) {
     const key = String(pkg._id);
     if (seen.has(key)) continue;
     seen.add(key);
-    options.push({ key, label: packageLabel(pkg) });
+    options.push({ key, label: packageLabel(pkg, t) });
   }
   for (const stat of packageStats) {
     if (seen.has(stat.key)) continue;
@@ -54,7 +57,7 @@ export function buildPackageOptions(packages, packageStats, packageId) {
   if (packageId && !seen.has(packageId)) {
     const fallback = packageId.startsWith('name:')
       ? packageId.slice(5).replace('|', ' · ')
-      : 'Selected package';
+      : t('Selected package');
     options.push({ key: packageId, label: fallback });
   }
   options.sort((a, b) => a.label.localeCompare(b.label));

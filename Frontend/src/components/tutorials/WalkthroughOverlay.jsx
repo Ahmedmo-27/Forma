@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { useWalkthrough } from '../../tutorials/walkthrough-context';
+import { useI18n } from '../../i18n/useI18n';
 
 export default function WalkthroughOverlay() {
+  const { t } = useI18n();
+  const tx = (value) => (value ? t(value) : value);
   const {
     isActive,
     activeScenario,
@@ -49,8 +52,8 @@ export default function WalkthroughOverlay() {
       const holeInBottomHalf = hole && hole.top > windowSize.height / 2;
       return {
         position: 'fixed',
-        left: 12,
-        right: 12,
+        insetInlineStart: 12,
+        insetInlineEnd: 12,
         width: 'calc(100% - 24px)',
         zIndex: 10060,
         ...(holeInBottomHalf ? { top: 16 } : { bottom: 16 }),
@@ -61,6 +64,7 @@ export default function WalkthroughOverlay() {
       return {
         position: 'fixed',
         top: '50%',
+        // eslint-disable-next-line no-restricted-syntax -- centered, direction-agnostic
         left: '50%',
         transform: 'translate(-50%, -50%)',
         width: cardWidth,
@@ -83,6 +87,7 @@ export default function WalkthroughOverlay() {
     return {
       position: 'fixed',
       top: Math.max(16, Math.min(top, windowSize.height - estimatedCardHeight - 16)),
+      // Physical coordinate taken from getBoundingClientRect, so it must stay a physical left.
       left: Math.max(16, left),
       width: cardWidth,
       zIndex: 10060,
@@ -149,16 +154,16 @@ export default function WalkthroughOverlay() {
               maxWidth: 180,
             }}
             >
-              {activeScenario.title}
+              {tx(activeScenario.title)}
             </span>
-            <span style={{ fontSize: 11, color: 'var(--t4)', flexShrink: 0 }}>
+            <span dir="ltr" style={{ fontSize: 11, color: 'var(--t4)', flexShrink: 0 }}>
               {stepIndex + 1} / {totalSteps}
             </span>
           </div>
           <button
             type="button"
             onClick={skipTutorial}
-            aria-label="Exit tutorial"
+            aria-label={t('Exit tutorial')}
             style={{
               border: 'none',
               background: 'transparent',
@@ -177,10 +182,10 @@ export default function WalkthroughOverlay() {
         </div>
 
         <h3 style={{ fontSize: 15, fontWeight: 800, margin: '0 0 6px', letterSpacing: '-0.2px' }}>
-          {currentStep.title}
+          {tx(currentStep.title)}
         </h3>
         <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--t3)', margin: '0 0 12px' }}>
-          {isNavigating ? 'Opening that page…' : currentStep.description}
+          {isNavigating ? t('Opening that page…') : tx(currentStep.description)}
         </p>
 
         <div style={{ height: 4, borderRadius: 99, background: 'var(--border)', overflow: 'hidden', marginBottom: 12 }}>
@@ -191,19 +196,19 @@ export default function WalkthroughOverlay() {
           <div style={{ display: 'flex', gap: 4 }}>
             {stepIndex > 0 && (
               <button type="button" onClick={prevStep} style={ghostBtn}>
-                <ChevronLeft size={16} /> Back
+                <ChevronLeft size={16} className="rtl-flip" /> {t('Back')}
               </button>
             )}
-            <button type="button" onClick={skipTutorial} style={ghostBtn}>Skip</button>
+            <button type="button" onClick={skipTutorial} style={ghostBtn}>{t('Skip')}</button>
           </div>
           <button type="button" onClick={nextStep} style={primaryBtn}>
             {isLastStep ? (
               <>
-                <Check size={16} /> Finish
+                <Check size={16} /> {t('Finish')}
               </>
             ) : (
               <>
-                Next <ChevronRight size={16} />
+                {t('Next')} <ChevronRight size={16} className="rtl-flip" />
               </>
             )}
           </button>

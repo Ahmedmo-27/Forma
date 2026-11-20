@@ -2,14 +2,21 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import { useAuth } from '../../context/AuthContext';
+import { useTenant } from '../../context/TenantContext';
+import { featureAllowed } from '../../lib/canSeeRoute';
 import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Tabs, Badge, Btn, Spinner, Skeleton, Modal, Input, fmtDateTime } from '../../components/ui';
+import { PageHeader, Tabs, Badge, Btn, Spinner, Skeleton, Modal, Input } from '../../components/ui';
 import { getMemberProfile, checkInMember, blockMember, unblockMember } from '../../api/endpoints';
 import ProfilePhotoUpload from '../../components/ProfilePhotoUpload';
 import MemberQrButton from '../../components/MemberQrButton';
+import CheckInTypeModal from '../../components/CheckInTypeModal';
+import { isCheckInTypeRequired } from '../../lib/checkInType';
 import { formatSystemId } from '../../lib/systemId';
+import { useI18n } from '../../i18n/useI18n';
+import { tr } from '../../i18n/translate';
+import { useMemberDates } from './useMemberDates';
 import PersonalTab    from './tabs/PersonalTab';
 import PackagesTab    from './tabs/PackagesTab';
 import CallCenterTab  from './tabs/CallCenterTab';
@@ -52,39 +59,43 @@ function coveringSubscription(subscriptions, now = new Date()) {
 }
 
 const TABS = [
-  { id: 'dashboard',   label: 'Dashboard' },
-  { id: 'personal',    label: 'Personal Info' },
-  { id: 'packages',    label: 'Packages' },
-  { id: 'files',       label: 'Files' },
-  { id: 'alerts',      label: 'Alerts' },
-  { id: 'callcenter',  label: 'Call Center' },
-  { id: 'freeze',      label: 'Freeze' },
-  { id: 'invitations', label: 'Invitations' },
-  { id: 'checkins',    label: 'Check-In History' },
-  { id: 'others',      label: 'Others' },
+  { id: 'dashboard',   label: tr('Dashboard') },
+  { id: 'personal',    label: tr('Personal Info') },
+  { id: 'packages',    label: tr('Packages'), feature: 'packages' },
+  { id: 'files',       label: tr('Files') },
+  { id: 'alerts',      label: tr('Alerts') },
+  { id: 'callcenter',  label: tr('Call Center'), feature: 'sales_crm' },
+  { id: 'freeze',      label: tr('Freeze') },
+  { id: 'invitations', label: tr('Invitations') },
+  { id: 'checkins',    label: tr('Check-In History'), feature: 'checkin' },
+  { id: 'others',      label: tr('Others') },
 ];
 
 export default function MemberProfile() {
+  const { t } = useI18n();
   const { id } = useParams();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
+  const { hasFeature } = useTenant();
   const { multiEnabled, selectedLocationId, locations } = useLocationScope();
   const navigate = useNavigate();
   const [data, setData]         = useState(null);
   const [loading, setLoading]   = useState(true);
   const [activeTab, setTab]     = useState(() => searchParams.get('tab') || 'dashboard');
   const [checkingIn, setChecking] = useState(false);
+  const [typePrompt, setTypePrompt] = useState(null); // 409 payload when the member has both gym and PT
+
   const [alertPopup, setAlertPopup] = useState(null); // array of alert texts or null
   const alertShownRef = useRef(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
   const [blockReason, setBlockReason]       = useState('');
   const [blocking, setBlocking]             = useState(false);
 
-  usePageTitle(data?.member?.name ?? 'Profile');
+  usePageTitle(data?.member?.name ?? t('Profile'));
 
   useEffect(() => {
     const tab = searchParams.get('tab');
-    if (tab && TABS.some(t => t.id === tab)) setTab(tab);
+    if (tab && TABS.some(tb => tb.id === tab)) setTab(tab);
   }, [searchParams]);
 
   const fetchProfile = useCallback(async () => {
@@ -92,7 +103,7 @@ export default function MemberProfile() {
     try {
       const res = await getMemberProfile(id);
       if (!res.data?.member) {
-        toast.error('Member not found.');
+        toast.error(t('Member not found.'));
         navigate(-1);
         return;
       }
@@ -107,25 +118,26 @@ export default function MemberProfile() {
       }
     } catch (e) {
       const msg = e.response?.data?.message;
-      toast.error(msg === 'Access denied' ? 'You do not have permission to view this profile.' : (msg ?? 'Member not found.'));
+      toast.error(msg === 'Access denied' ? t('You do not have permission to view this profile.') : (msg ?? t('Member not found.')));
       navigate(-1);
     }
     finally { setLoading(false); }
-  }, [id, navigate]);
+  }, [id, navigate, t]);
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
-  const handleCheckIn = async () => {
+  // `type` is 'gym' or 'pt' once the member has said what they are attending.
+  const handleCheckIn = async (type) => {
     if (!canCheckIn) {
       const reason = member?.isBlocked
-        ? 'Cannot check in — member is blocked'
+        ? t('Cannot check in — member is blocked')
         : isGuest
-        ? 'Cannot check in — this member is a guest and does not have a package'
+        ? t('Cannot check in — this member is a guest and does not have a package')
         : !currentPkg
-        ? 'Cannot check in — this member does not have a package'
+        ? t('Cannot check in — this member does not have a package')
         : isExpired
-        ? 'Cannot check in — this member has an expired package'
-        : 'Cannot check in';
+        ? t('Cannot check in — this member has an expired package')
+        : t('Cannot check in');
       toast.error(reason);
       return;
     }
@@ -140,23 +152,35 @@ export default function MemberProfile() {
           || '';
         if (desk) payload.locationId = String(desk);
       }
+      if (typeof type === 'string') payload.type = type;
       const res = await checkInMember(id, payload);
       toast.success(res.data.message);
       fetchProfile();
     }
-    catch (e) { toast.error(e.response?.data?.message ?? 'Check-in failed.'); }
+    catch (e) {
+      if (isCheckInTypeRequired(e)) {
+        setTypePrompt(e.response.data);
+        return;
+      }
+      toast.error(e.response?.data?.message ?? t('Check-in failed.'));
+    }
     finally { setChecking(false); }
+  };
+
+  const chooseCheckInType = (type) => {
+    setTypePrompt(null);
+    handleCheckIn(type);
   };
 
   const handleBlock = async () => {
     setBlocking(true);
     try {
       await blockMember(member.systemId, blockReason.trim());
-      toast.success('Member blocked');
+      toast.success(t('Member blocked'));
       setShowBlockModal(false);
       setBlockReason('');
       fetchProfile();
-    } catch (e) { toast.error(e.response?.data?.message ?? 'Failed to block member.'); }
+    } catch (e) { toast.error(e.response?.data?.message ?? t('Failed to block member.')); }
     finally { setBlocking(false); }
   };
 
@@ -164,9 +188,9 @@ export default function MemberProfile() {
     setBlocking(true);
     try {
       await unblockMember(member.systemId);
-      toast.success('Member unblocked');
+      toast.success(t('Member unblocked'));
       fetchProfile();
-    } catch (e) { toast.error(e.response?.data?.message ?? 'Failed to unblock member.'); }
+    } catch (e) { toast.error(e.response?.data?.message ?? t('Failed to unblock member.')); }
     finally { setBlocking(false); }
   };
 
@@ -178,47 +202,55 @@ export default function MemberProfile() {
   const hasMemberId = member?.memberId != null && String(member.memberId).trim() !== '';
   const canSendQr = Boolean(member && !isGuest && hasMemberId);
   const isExpired = member?.status === 'expired' || (currentSub?.endDate && new Date(currentSub.endDate) < new Date());
-  const canCheckIn = Boolean(member && !member.isBlocked && !isGuest && currentPkg && (!isExpired || member.status === 'frozen'));
+  const gymEligible = Boolean(member && !member.isBlocked && !isGuest && currentPkg && (!isExpired || member.status === 'frozen'));
+  const ptLeft = Math.max(0, (member?.PT_sessions || 0) - (member?.used_PT_sessions || 0));
+  const ptExpired = Boolean(member?.PT_sessions_expDate && new Date(member.PT_sessions_expDate) < new Date(new Date().setHours(0, 0, 0, 0)));
+  const ptEligible = Boolean(member && !member.isBlocked && member.couch_subscription_status === 'active' && ptLeft > 0 && !ptExpired);
+  const canCheckIn = gymEligible || ptEligible;
+  const tabAllowed = (tabId) => featureAllowed(hasFeature, TABS.find((tb) => tb.id === tabId)?.feature);
+  const visibleTabs = TABS.filter((tb) => tabAllowed(tb.id));
+  const shownTab = tabAllowed(activeTab) ? activeTab : 'dashboard';
+  const canUseCheckIn = featureAllowed(hasFeature, 'checkin');
 
   return (
     <Layout>
       <PageHeader walkthrough="member-header" title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => navigate(-1)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', fontSize: 12, display: 'flex', alignItems: 'center', gap: 4 }}>
-            ← Back
+            <span className="rtl-flip" style={{ display: 'inline-block' }} aria-hidden>←</span> {t('Back')}
           </button>
           <span style={{ color: 'var(--border-md)' }}>/</span>
-          <span>{loading ? 'Loading…' : (member?.name ?? 'Profile')}</span>
+          <span>{loading ? t('Loading…') : (member?.name ?? t('Profile'))}</span>
         </div>
       }>
         <div className="member-profile-actions" data-walkthrough="member-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           {canSendQr && <MemberQrButton member={member} onSent={fetchProfile} />}
-          {member && ['Receptionist', 'Owner', 'Sales Manager'].includes(user?.role) && (
+          {member && canUseCheckIn && ['Receptionist', 'Owner', 'Sales Manager'].includes(user?.role) && (
             <Btn variant={canCheckIn ? 'success' : 'outline'} size="sm"
-              onClick={handleCheckIn} disabled={checkingIn || !canCheckIn}
+              onClick={() => handleCheckIn()} disabled={checkingIn || !canCheckIn}
               title={
                 !canCheckIn
                   ? member.isBlocked
-                    ? 'Member is blocked'
+                    ? t('Member is blocked')
                     : isGuest
-                    ? 'This member is a guest and does not have a package'
+                    ? t('This member is a guest and does not have a package')
                     : !currentPkg
-                    ? 'This member does not have a package'
+                    ? t('This member does not have a package')
                     : isExpired
-                    ? 'This member has an expired package'
-                    : 'Cannot check in'
-                  : 'Check In'
+                    ? t('This member has an expired package')
+                    : t('Cannot check in')
+                  : t('Check In')
               }>
-              {checkingIn ? <Spinner size="sm" /> : 'Check In'}
+              {checkingIn ? <Spinner size="sm" /> : t('Check In')}
             </Btn>
           )}
           {member && user?.role === 'Sales Manager' && (
             member.isBlocked
               ? <Btn variant="outline" size="sm" onClick={handleUnblock} disabled={blocking}>
-                  {blocking ? <Spinner size="sm" /> : 'Unblock'}
+                  {blocking ? <Spinner size="sm" /> : t('Unblock')}
                 </Btn>
               : <Btn variant="danger" size="sm" onClick={() => setShowBlockModal(true)}>
-                  Block
+                  {t('Block')}
                 </Btn>
           )}
         </div>
@@ -232,56 +264,62 @@ export default function MemberProfile() {
             {member.isBlocked && (
               <div style={{
                 background: 'var(--red-bg)', border: '1px solid var(--red-bd)',
-                borderLeft: '4px solid var(--red)', borderRadius: 8,
+                borderInlineStart: '4px solid var(--red)', borderRadius: 8,
                 padding: '12px 16px', marginBottom: 14,
                 display: 'flex', alignItems: 'center', gap: 12,
               }}>
                 <Ban size={22} color="var(--red)" aria-hidden />
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--red)', marginBottom: 2 }}>This member is blocked</p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--red)', marginBottom: 2 }}>{t('This member is blocked')}</p>
                   {member.blockedReason && (
-                    <p style={{ fontSize: 12, color: 'var(--red)', opacity: 0.8 }}>Reason: {member.blockedReason}</p>
+                    <p style={{ fontSize: 12, color: 'var(--red)', opacity: 0.8 }}>{t('Reason: {reason}', { reason: member.blockedReason })}</p>
                   )}
                 </div>
               </div>
             )}
             <ProfileHeader member={member} stats={stats} user={user} onPhotoUploaded={fetchProfile} />
             <div data-walkthrough="member-tabs">
-              <Tabs tabs={TABS} active={activeTab} onChange={setTab} />
+              <Tabs tabs={visibleTabs.map(({ id: tabId, label }) => ({ id: tabId, label: t(label) }))} active={shownTab} onChange={setTab} />
             </div>
             <div className="fade-up" data-walkthrough="member-panel">
-              {activeTab === 'dashboard'   && <DashboardTab   member={member} user={user} data={data} onTabChange={setTab} />}
-              {activeTab === 'personal'    && <PersonalTab    member={member} user={user} onRefresh={fetchProfile} />}
-              {activeTab === 'packages'    && <PackagesTab    member={member} user={user} onRefresh={fetchProfile} />}
-              {activeTab === 'files'       && <FilesTab       member={member} user={user} onRefresh={fetchProfile} />}
-              {activeTab === 'alerts'      && <AlertsTab      member={member} user={user} onRefresh={fetchProfile} />}
-              {activeTab === 'callcenter'  && <CallCenterTab  member={member} user={user} onRefresh={fetchProfile} />}
-              {activeTab === 'freeze'      && <FreezeTab      member={member} user={user} onRefresh={fetchProfile} />}
-              {activeTab === 'invitations' && <InvitationsTab member={member} user={user} onRefresh={fetchProfile} />}
-              {activeTab === 'checkins'    && <CheckInsTab    checkIns={data?.checkIns ?? []} ptSessions={data?.ptSessions ?? []} stats={data?.stats} member={member} />}
-              {activeTab === 'others'      && <OthersTab      profileViews={data?.profileViews ?? []} member={member} user={user} />}
+              {shownTab === 'dashboard'   && <DashboardTab   member={member} user={user} data={data} onTabChange={setTab} tabAllowed={tabAllowed} />}
+              {shownTab === 'personal'    && <PersonalTab    member={member} user={user} onRefresh={fetchProfile} />}
+              {shownTab === 'packages'    && <PackagesTab    member={member} user={user} onRefresh={fetchProfile} />}
+              {shownTab === 'files'       && <FilesTab       member={member} user={user} onRefresh={fetchProfile} />}
+              {shownTab === 'alerts'      && <AlertsTab      member={member} user={user} onRefresh={fetchProfile} />}
+              {shownTab === 'callcenter'  && <CallCenterTab  member={member} user={user} onRefresh={fetchProfile} />}
+              {shownTab === 'freeze'      && <FreezeTab      member={member} user={user} onRefresh={fetchProfile} />}
+              {shownTab === 'invitations' && <InvitationsTab member={member} user={user} onRefresh={fetchProfile} />}
+              {shownTab === 'checkins'    && <CheckInsTab    checkIns={data?.checkIns ?? []} ptSessions={data?.ptSessions ?? []} stats={data?.stats} member={member} />}
+              {shownTab === 'others'      && <OthersTab      profileViews={data?.profileViews ?? []} member={member} user={user} />}
             </div>
           </>
         )}
       </div>
 
       {/* ── Block Modal ─────────────────────────────────────────── */}
-      <Modal open={showBlockModal} onClose={() => setShowBlockModal(false)} title="Block Member" size="sm"
+      <CheckInTypeModal
+        prompt={typePrompt}
+        onChoose={chooseCheckInType}
+        onClose={() => setTypePrompt(null)}
+      />
+
+      <Modal open={showBlockModal} onClose={() => setShowBlockModal(false)} title={t('Block Member')} size="sm"
         footer={<>
-          <Btn variant="ghost" size="sm" onClick={() => setShowBlockModal(false)} disabled={blocking}>Cancel</Btn>
+          <Btn variant="ghost" size="sm" onClick={() => setShowBlockModal(false)} disabled={blocking}>{t('Cancel')}</Btn>
           <Btn variant="danger" size="sm" onClick={handleBlock} disabled={blocking}>
-            {blocking ? <Spinner size="sm" /> : 'Block Member'}
+            {blocking ? <Spinner size="sm" /> : t('Block Member')}
           </Btn>
         </>}
       >
         <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 14, lineHeight: 1.6 }}>
-          Blocking this member will prevent check-ins and flag their profile. Are you sure?
+          {t('Blocking this member will prevent check-ins and flag their profile. Are you sure?')}
         </p>
         <Input
-          label="Reason (optional)"
+          label={t('Reason (optional)')}
           value={blockReason}
           onChange={e => setBlockReason(e.target.value)}
-          placeholder="e.g. Outstanding balance, inappropriate behavior"
+          placeholder={t('e.g. Outstanding balance, inappropriate behavior')}
         />
       </Modal>
 
@@ -306,7 +344,7 @@ export default function MemberProfile() {
               <AlertTriangle size={48} strokeWidth={1.5} aria-hidden />
             </div>
             <h2 style={{ fontSize: 20, fontWeight: 800, color: '#92400e', marginBottom: 16 }}>
-              Member Alert
+              {t('Member Alert')}
             </h2>
             {alertPopup.map((text, i) => (
               <p key={i} style={{ fontSize: 18, fontWeight: 600, color: '#78350f', lineHeight: 1.6, marginBottom: 8 }}>
@@ -314,7 +352,7 @@ export default function MemberProfile() {
               </p>
             ))}
             <p style={{ fontSize: 12, color: '#b45309', marginTop: 16 }}>
-              Click anywhere to dismiss · Auto-closes in 5 seconds
+              {t('Click anywhere to dismiss · Auto-closes in 5 seconds')}
             </p>
           </div>
         </div>
@@ -324,6 +362,8 @@ export default function MemberProfile() {
 }
 
 function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
+  const { t } = useI18n();
+  const { fmtDateTime } = useMemberDates();
   const sub = member.subscriptions?.at(-1);
   const _pkg = sub?.packageSnapshot ?? sub?.package;
   const totalCheckIns = stats?.totalCheckIns ?? 0;
@@ -332,7 +372,7 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
     .filter(l => l.type === 'check-in')
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
 
-  const copy = (val) => { navigator.clipboard?.writeText(String(val)); toast.success('Copied!'); };
+  const copy = (val) => { navigator.clipboard?.writeText(String(val)); toast.success(t('Copied!')); };
 
   // ── reusable chip ──────────────────────────────────────────
   const Chip = ({ icon: Icon, label, copyVal, accent }) => (
@@ -347,10 +387,10 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
       {copyVal && (
         <button
           onClick={() => copy(copyVal)}
-          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', padding: '0 0 0 3px', display: 'inline-flex', alignItems: 'center', transition: 'color 0.12s' }}
+          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', paddingInlineStart: 3, display: 'inline-flex', alignItems: 'center', transition: 'color 0.12s' }}
           onMouseEnter={e => e.currentTarget.style.color = 'var(--navy)'}
           onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
-          title="Copy"
+          title={t('Copy')}
         >
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
@@ -372,12 +412,12 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
         <Phone size={13} style={{ opacity: 0.8, flexShrink: 0 }} aria-hidden />
         {visible ? (
           <>
-            <span style={{ fontFamily: 'monospace' }}>{phone}</span>
+            <span dir="ltr" style={{ fontFamily: 'monospace', unicodeBidi: 'isolate' }}>{phone}</span>
             <button onClick={() => copy(phone)}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', padding: '0 0 0 2px', display: 'inline-flex', alignItems: 'center', transition: 'color 0.12s' }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', paddingInlineStart: 2, display: 'inline-flex', alignItems: 'center', transition: 'color 0.12s' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--navy)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
-              title="Copy"
+              title={t('Copy')}
             >
               <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
             </button>
@@ -385,14 +425,14 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', fontSize: 11, fontFamily: 'inherit', padding: 0, transition: 'color 0.12s' }}
               onMouseEnter={e => e.currentTarget.style.color = 'var(--t3)'}
               onMouseLeave={e => e.currentTarget.style.color = 'var(--t4)'}
-            >Hide</button>
+            >{t('Hide')}</button>
           </>
         ) : (
           <button onClick={() => setVisible(true)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--navy)', fontWeight: 600, fontSize: 12, fontFamily: 'inherit', padding: 0 }}
             onMouseEnter={e => e.currentTarget.style.opacity = '0.75'}
             onMouseLeave={e => e.currentTarget.style.opacity = '1'}
-          >Show Number</button>
+          >{t('Show Number')}</button>
         )}
       </span>
     );
@@ -425,20 +465,20 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
 
         {/* Row 2: IDs + gender + phone + last check-in */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-          {member.memberId  && <Chip icon={IdCard} label={`Member ID: ${member.memberId}`}    copyVal={String(member.memberId)} />}
-          {member.systemId  && <Chip icon={Hash} label={`System ID: ${formatSystemId(member.systemId)}`}  copyVal={formatSystemId(member.systemId)} />}
-          {member.gender    && <Chip icon={User} label={member.gender.charAt(0).toUpperCase() + member.gender.slice(1)} />}
+          {member.memberId  && <Chip icon={IdCard} label={<>{t('Member ID:')} <bdi dir="ltr">{member.memberId}</bdi></>}    copyVal={String(member.memberId)} />}
+          {member.systemId  && <Chip icon={Hash} label={<>{t('System ID:')} <bdi dir="ltr">{formatSystemId(member.systemId)}</bdi></>}  copyVal={formatSystemId(member.systemId)} />}
+          {member.gender    && <Chip icon={User} label={t(member.gender.charAt(0).toUpperCase() + member.gender.slice(1))} />}
           {member.phones && <PhoneChip phone={member.phones} />}
           {lastCheckIn      && (
-            <Chip icon={Clock} label={`Last Check-In: ${fmtDateTime(lastCheckIn.createdAt)}`} />
+            <Chip icon={Clock} label={t('Last Check-In: {date}', { date: fmtDateTime(lastCheckIn.createdAt) })} />
           )}
         </div>
 
         {/* Row 3: Coach + Sales + Total Visits — separated by a divider dot */}
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6 }}>
-          <Chip icon={Dumbbell} label={`Coach: ${member.current_couch?.name || '—'}`} accent="var(--sky)" />
-          <Chip icon={Briefcase} label={`Sales: ${member.assignedSales?.name || '—'}`} accent="var(--amber)" />
-          <Chip icon={BarChart3} label={`${totalCheckIns} Total Visits`} />
+          <Chip icon={Dumbbell} label={t('Coach: {name}', { name: member.current_couch?.name || '—' })} accent="var(--sky)" />
+          <Chip icon={Briefcase} label={t('Sales: {name}', { name: member.assignedSales?.name || '—' })} accent="var(--amber)" />
+          <Chip icon={BarChart3} label={t('{count} Total Visits', { count: totalCheckIns })} />
         </div>
       </div>
     </div>

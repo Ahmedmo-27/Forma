@@ -1,5 +1,7 @@
-import { fmtDate } from '../ui';
+import { CAIRO_ZONE } from '../ui';
 import { useTenant } from '../../context/TenantContext';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 
 function DetailRow({ label, value }) {
   return (
@@ -11,13 +13,14 @@ function DetailRow({ label, value }) {
 }
 
 function ExceptionFlag() {
+  const { t } = useI18n();
   return (
     <span style={{
       display: 'inline-block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
       letterSpacing: '0.4px', background: 'var(--amber-bg)', color: 'var(--amber)',
       border: '1px solid var(--amber-bd)', padding: '2px 7px', borderRadius: 4,
     }}>
-      Exception
+      {t('Exception')}
     </span>
   );
 }
@@ -27,7 +30,16 @@ function ExceptionFlag() {
  */
 export default function PackageTermsGrid({ data, title, showEndDate = false }) {
   const { currency = 'EGP' } = useTenant() || {};
+  const { t } = useI18n();
+  const { fmtNumber, fmtDate: formatDay } = useFormat();
   if (!data) return null;
+
+  const fmtDate = (value) => formatDay(value, {
+    timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric',
+  });
+
+  // Numbers are localized; string values pass through unchanged.
+  const num = (value) => (typeof value === 'number' ? fmtNumber(value) : value);
 
   // Prefer purchase-time snapshot so catalog edits never rewrite payment history
   const snap = data.packageSnapshot;
@@ -63,25 +75,25 @@ export default function PackageTermsGrid({ data, title, showEndDate = false }) {
         gap: 1, background: 'var(--border)', border: '1px solid var(--border)',
         borderRadius: 6, overflow: 'hidden',
       }}>
-        <DetailRow label="Package Name" value={name} />
-        {basePackageName && <DetailRow label="Based On" value={basePackageName} />}
-        <DetailRow label="Activity" value={activityType} />
-        <DetailRow label="Duration" value={duration} />
-        <DetailRow label={`Price (${currency})`} value={price?.toLocaleString?.() ?? price} />
-        <DetailRow label={`Price Paid (${currency})`} value={pricePaid?.toLocaleString?.() ?? pricePaid} />
-        <DetailRow label="Discount %" value={discountPercent ? `${discountPercent}%` : '0%'} />
-        <DetailRow label="Freeze Limit" value={`${freezeLimitDays ?? 0} days`} />
-        <DetailRow label="Invitation Slots" value={invitationLimit ?? 0} />
-        <DetailRow label="Renewal Discount" value={renewalDiscountPercent ? `${renewalDiscountPercent}%` : 'None'} />
-        <DetailRow label="Start Date" value={startDate ? fmtDate(startDate) : 'Today'} />
-        {showEndDate && endDate && <DetailRow label="End Date" value={fmtDate(endDate)} />}
+        <DetailRow label={t('Package Name')} value={name} />
+        {basePackageName && <DetailRow label={t('Based On')} value={basePackageName} />}
+        <DetailRow label={t('Activity')} value={activityType ? t(activityType) : activityType} />
+        <DetailRow label={t('Duration')} value={duration ? t(duration) : duration} />
+        <DetailRow label={t('Price ({currency})', { currency })} value={num(price)} />
+        <DetailRow label={t('Price Paid ({currency})', { currency })} value={num(pricePaid)} />
+        <DetailRow label={t('Discount %')} value={discountPercent ? `${discountPercent}%` : '0%'} />
+        <DetailRow label={t('Freeze Limit')} value={t('{count} days', { count: freezeLimitDays ?? 0 })} />
+        <DetailRow label={t('Invitation Slots')} value={invitationLimit ?? 0} />
+        <DetailRow label={t('Renewal Discount')} value={renewalDiscountPercent ? `${renewalDiscountPercent}%` : t('None')} />
+        <DetailRow label={t('Start Date')} value={startDate ? fmtDate(startDate) : t('Today')} />
+        {showEndDate && endDate && <DetailRow label={t('End Date')} value={fmtDate(endDate)} />}
         {data.isRenewal != null && (
-          <DetailRow label="Type" value={data.isRenewal ? 'Renewal' : 'New subscription'} />
+          <DetailRow label={t('Type')} value={data.isRenewal ? t('Renewal') : t('New subscription')} />
         )}
       </div>
       {(data.description ?? pkg?.description) && (
         <p style={{ fontSize: 12, color: 'var(--t2)', marginTop: 12 }}>
-          <strong style={{ color: 'var(--t3)' }}>Description:</strong> {data.description ?? pkg?.description}
+          <strong style={{ color: 'var(--t3)' }}>{t('Description:')}</strong> {data.description ?? pkg?.description}
         </p>
       )}
     </div>

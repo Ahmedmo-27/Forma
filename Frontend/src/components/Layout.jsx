@@ -20,12 +20,17 @@ import { useLocationScope, ALL_LOCATIONS } from '../context/LocationContext';
 import GlobalSearch from './GlobalSearch';
 import NotificationBell from './NotificationBell';
 import WhatsNewButton from './WhatsNewButton';
+import PlanUsageBanner from './PlanUsageBanner';
 import { updateMyProfile } from '../api/endpoints';
 import { bottomNavFor, visibleNavItems } from '../lib/tenantNav';
+import { routeFeatureAllowed } from '../lib/canSeeRoute';
 import HelpButton from './tutorials/HelpButton';
 import { MenuSelect } from './ui';
+import LanguageSwitch from './LanguageSwitch';
+import { useI18n } from '../i18n/useI18n';
 
 function LocationSwitcher({ compact = false }) {
+  const { t } = useI18n();
   const {
     showSwitcher,
     locations,
@@ -38,14 +43,14 @@ function LocationSwitcher({ compact = false }) {
 
   const options = [
     ...((canAccessAllLocations || locations.length > 1)
-      ? [{ value: ALL_LOCATIONS, label: 'All locations' }]
+      ? [{ value: ALL_LOCATIONS, label: t('All locations') }]
       : []),
     ...locations.map((loc) => ({ value: loc._id, label: loc.name })),
   ];
 
   return (
     <MenuSelect
-      aria-label="Select location"
+      aria-label={t('Select location')}
       tone="nav"
       value={selectedLocationId}
       onChange={(e) => setSelectedLocationId(e.target.value)}
@@ -84,6 +89,7 @@ function NavIcon({ name, size = 20 }) {
 }
 
 // ── Check if a navigation tab should be highlighted as active ──────────────────
+// eslint-disable-next-line react-refresh/only-export-components -- pure helper, not a component
 export function isNavItemActive(item, pathname, visibleItems = []) {
   if (!item?.to || !pathname) return false;
 
@@ -191,6 +197,7 @@ export function isNavItemActive(item, pathname, visibleItems = []) {
 
 // ── Tab button (second row on desktop) ─────────────────────────────────────────
 function TabItem({ item, active }) {
+  const { t } = useI18n();
   return (
     <NavLink to={item.to} style={{ textDecoration: 'none', flexShrink: 0 }}>
       {({ isActive: navActive }) => {
@@ -224,7 +231,7 @@ function TabItem({ item, active }) {
               }
             }}
           >
-            {item.label}
+            {t(item.label)}
           </span>
         );
       }}
@@ -234,6 +241,7 @@ function TabItem({ item, active }) {
 
 // ── Drawer nav item ───────────────────────────────────────────────────────────
 function DrawerItem({ item, active, onNavigate }) {
+  const { t } = useI18n();
   return (
     <NavLink to={item.to} onClick={onNavigate} style={{ textDecoration: 'none', display: 'block' }}>
       {({ isActive: navActive }) => {
@@ -249,7 +257,7 @@ function DrawerItem({ item, active, onNavigate }) {
             transition: 'all 0.12s',
             minHeight: 44,
           }}>
-            {item.label}
+            {t(item.label)}
           </div>
         );
       }}
@@ -262,6 +270,7 @@ export default function Layout({ children }) {
   const { user, signOut } = useAuth();
   const { tenant, branding, hasFeature } = useTenant();
   const { version: locationVersion } = useLocationScope();
+  const { t, isRtl } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
   const [mob, setMob]         = useState(false);
@@ -274,9 +283,11 @@ export default function Layout({ children }) {
   const dropRef         = useRef(null);
 
   const items = useMemo(() => visibleNavItems(user, hasFeature), [user, hasFeature]);
-  const bottomNavItems = useMemo(() => bottomNavFor(user?.role), [user?.role]);
+  const bottomNavItems = useMemo(() => bottomNavFor(user?.role, user, hasFeature), [user, hasFeature]);
 
-  const showNotif = ['Sales', 'Sales Manager', 'Accountant'].includes(user?.role);
+  const showNotif = ['Sales', 'Sales Manager', 'Accountant'].includes(user?.role) && hasFeature('notifications');
+  const showWhatsNew = hasFeature('notifications');
+  const showConnectWhatsApp = routeFeatureAllowed(hasFeature, '/account/whatsapp');
 
   const homeTo = useMemo(
     () => items.find((item) => item.label === 'Dashboard')?.to || items[0]?.to || '/',
@@ -286,7 +297,7 @@ export default function Layout({ children }) {
   const logoKey = branding?.logoKey;
   const logoFile = logoKey ? String(logoKey).split(/[/\\]/).pop() : null;
   const logoUrl = logoFile ? `${apiOrigin}/uploads/${encodeURIComponent(logoFile)}` : '/forma-favicon.png';
-  const displayName = branding?.displayName || tenant?.name || 'Workspace';
+  const displayName = branding?.displayName || tenant?.name || t('Workspace');
 
   useEffect(() => {
     const h = e => { if (dropRef.current && !dropRef.current.contains(e.target)) setDrop(false); };
@@ -326,7 +337,7 @@ export default function Layout({ children }) {
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, overflow: 'hidden' }}>
             <AlertTriangle size={14} aria-hidden="true" />
             <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              Support Mode ({user?.readOnly ? 'READ-ONLY' : 'READ-WRITE'})
+              {t('Support Mode ({mode})', { mode: t(user?.readOnly ? 'READ-ONLY' : 'READ-WRITE') })}
             </span>
           </div>
           <button
@@ -347,7 +358,7 @@ export default function Layout({ children }) {
               flexShrink: 0,
             }}
           >
-            Exit
+            {t('Exit')}
           </button>
         </div>
       )}
@@ -365,7 +376,7 @@ export default function Layout({ children }) {
         }}>
 
           {/* Logo */}
-          <div onClick={() => navigate(homeTo)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexShrink: 0 }} role="link" aria-label="Go to dashboard">
+          <div onClick={() => navigate(homeTo)} style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', flexShrink: 0 }} role="link" aria-label={t('Go to dashboard')}>
             <div className="nav-logo-box" style={{
               width: 44, height: 44, borderRadius: 12,
               flexShrink: 0,
@@ -379,22 +390,22 @@ export default function Layout({ children }) {
             <span className="nav-logo-text" style={{ fontSize: 18, fontWeight: 900, color: '#fff', letterSpacing: '2px', textTransform: 'uppercase' }}>{displayName}</span>
           </div>
 
-          <div className="nav-location-switcher" data-walkthrough="location-switcher" style={{ flexShrink: 0, marginLeft: 4 }}>
+          <div className="nav-location-switcher" data-walkthrough="location-switcher" style={{ flexShrink: 0, marginInlineStart: 4 }}>
             <LocationSwitcher />
           </div>
 
           {/* Desktop Search */}
-          <div id="desk-search" data-walkthrough="global-search" style={{ flex: '1 1 auto', maxWidth: 460, minWidth: 0, marginLeft: 8 }}>
+          <div id="desk-search" data-walkthrough="global-search" style={{ flex: '1 1 auto', maxWidth: 460, minWidth: 0, marginInlineStart: 8 }}>
             <GlobalSearch />
           </div>
 
           {/* Right Controls */}
-          <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto', flexShrink: 0 }}>
+          <div className="topbar-actions" style={{ display: 'flex', alignItems: 'center', gap: 8, marginInlineStart: 'auto', flexShrink: 0 }}>
             {/* Mobile Search Toggle Button */}
             <button
               id="mob-search-btn"
               onClick={() => setShowMobileSearch(p => !p)}
-              aria-label="Search members"
+              aria-label={t('Search members')}
               style={{
                 display: 'none',
                 background: showMobileSearch ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.08)',
@@ -412,9 +423,11 @@ export default function Layout({ children }) {
 
             <HelpButton />
 
-            <div style={{ display: 'flex', alignItems: 'center' }}>
-              <WhatsNewButton />
-            </div>
+            {showWhatsNew && (
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                <WhatsNewButton />
+              </div>
+            )}
 
             {/* Notification Bell (Visible on both desktop & mobile) */}
             {showNotif && (
@@ -428,13 +441,13 @@ export default function Layout({ children }) {
               <button className="topbar-profile" data-walkthrough="profile-menu" onClick={() => setDrop(p => !p)} style={{
                 display: 'flex', alignItems: 'center', gap: 8,
                 background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)',
-                borderRadius: 8, padding: '5px 10px 5px 5px',
+                borderRadius: 8, paddingBlock: 5, paddingInlineStart: 5, paddingInlineEnd: 10,
                 cursor: 'pointer', transition: 'background 0.12s',
                 minHeight: 40,
               }}
                 onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.13)'}
                 onMouseLeave={e => { if (!drop) e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-                aria-label="User Profile Menu"
+                aria-label={t('User Profile Menu')}
               >
                 <div style={{
                   width: 34, height: 34, borderRadius: '50%',
@@ -445,9 +458,9 @@ export default function Layout({ children }) {
                 }}>
                   {ini(user?.name)}
                 </div>
-                <div id="prof-text" style={{ textAlign: 'left', lineHeight: 1.25 }}>
+                <div id="prof-text" style={{ textAlign: 'start', lineHeight: 1.25 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{user?.name}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.50)' }}>{user?.role}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.50)' }}>{t(user?.role || '')}</div>
                 </div>
                 <svg id="prof-arrow" width="10" height="10" viewBox="0 0 10 10" fill="none" style={{ color: 'rgba(255,255,255,0.40)', transition: 'transform 0.15s', transform: drop ? 'rotate(180deg)' : 'none' }}>
                   <path d="M2 3.5l3 3 3-3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -456,14 +469,14 @@ export default function Layout({ children }) {
 
               {drop && (
                 <div className="overlay-in" style={{
-                  position: 'absolute', top: 'calc(100% + 8px)', right: 0,
+                  position: 'absolute', top: 'calc(100% + 8px)', insetInlineEnd: 0,
                   background: 'var(--card)', border: '1px solid var(--border)',
-                  borderRadius: 8, width: 200, padding: 4,
+                  borderRadius: 8, width: 240, padding: 4,
                   boxShadow: '0 8px 24px rgba(0,0,0,0.15)', zIndex: 100,
                 }}>
                   <div style={{ padding: '8px 12px 10px', borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{user?.name}</p>
-                    <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>{user?.role}</p>
+                    <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>{t(user?.role || '')}</p>
                   </div>
                   {user?.role === 'Owner' && (
                     <button onClick={() => { setDrop(false); navigate('/owner/settings'); }} style={{
@@ -477,22 +490,24 @@ export default function Layout({ children }) {
                       onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-                      Gym Settings
+                      {t('Gym Settings')}
                     </button>
                   )}
-                  <button onClick={() => { setDrop(false); navigate('/account/whatsapp'); }} style={{
-                    width: '100%', display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '8px 12px', borderRadius: 6, border: 'none',
-                    background: 'transparent', cursor: 'pointer',
-                    fontSize: 13, fontWeight: 600, color: 'var(--t2)', fontFamily: 'inherit',
-                    transition: 'background 0.12s',
-                  }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.52 3.48A11.8 11.8 0 0 0 12.04 0C5.5 0 .2 5.3.2 11.84c0 2.09.55 4.13 1.59 5.93L0 24l6.4-1.67a11.86 11.86 0 0 0 5.64 1.44h.01c6.54 0 11.84-5.3 11.84-11.84 0-3.16-1.23-6.13-3.37-8.45z"/></svg>
-                    Connect WhatsApp
-                  </button>
+                  {showConnectWhatsApp && (
+                    <button onClick={() => { setDrop(false); navigate('/account/whatsapp'); }} style={{
+                      width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '8px 12px', borderRadius: 6, border: 'none',
+                      background: 'transparent', cursor: 'pointer',
+                      fontSize: 13, fontWeight: 600, color: 'var(--t2)', fontFamily: 'inherit',
+                      transition: 'background 0.12s',
+                    }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.52 3.48A11.8 11.8 0 0 0 12.04 0C5.5 0 .2 5.3.2 11.84c0 2.09.55 4.13 1.59 5.93L0 24l6.4-1.67a11.86 11.86 0 0 0 5.64 1.44h.01c6.54 0 11.84-5.3 11.84-11.84 0-3.16-1.23-6.13-3.37-8.45z"/></svg>
+                      {t('Connect WhatsApp')}
+                    </button>
+                  )}
                   <button onClick={() => { setDrop(false); setProfileForm({ name: user?.name || '', currentPassword: '', newPassword: '', confirmPassword: '' }); setProfileErrors({}); setEditProfile(true); }} style={{
                     width: '100%', display: 'flex', alignItems: 'center', gap: 8,
                     padding: '8px 12px', borderRadius: 6, border: 'none',
@@ -504,8 +519,11 @@ export default function Layout({ children }) {
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
-                    Edit Profile
+                    {t('Edit Profile')}
                   </button>
+                  <div style={{ padding: '8px 12px', borderTop: '1px solid var(--border)', borderBottom: '1px solid var(--border)', margin: '4px 0' }}>
+                    <LanguageSwitch tone="menu" />
+                  </div>
                   <button onClick={logout} style={{
                     width: '100%', display: 'flex', alignItems: 'center', gap: 8,
                     padding: '8px 12px', borderRadius: 6, border: 'none',
@@ -516,8 +534,8 @@ export default function Layout({ children }) {
                     onMouseEnter={e => e.currentTarget.style.background = 'var(--red-bg)'}
                     onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                   >
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-                    Sign Out
+                    <svg className="rtl-flip" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                    {t('Sign Out')}
                   </button>
                 </div>
               )}
@@ -527,7 +545,7 @@ export default function Layout({ children }) {
             <button id="mob-btn" onClick={() => setMob(true)} style={{
               display: 'none', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)',
               borderRadius: 8, width: 40, height: 40, cursor: 'pointer', alignItems: 'center', justifyContent: 'center',
-            }} aria-label="Open Navigation Menu">
+            }} aria-label={t('Open Navigation Menu')}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="2" strokeLinecap="round">
                 <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
               </svg>
@@ -571,13 +589,13 @@ export default function Layout({ children }) {
       {/* ── MOBILE DRAWER ──────────────────────────────────────── */}
       {mob && <div onClick={() => setMob(false)} className="modal-backdrop-in" style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }} />}
       <div style={{
-        position: 'fixed', top: 0, left: 0, bottom: 0, width: 280, maxWidth: '85vw', zIndex: 100,
+        position: 'fixed', top: 0, insetInlineStart: 0, bottom: 0, width: 280, maxWidth: '85vw', zIndex: 100,
         background: NAVBAR_BG,
-        borderRight: '1px solid rgba(255,255,255,0.06)',
-        transform: mob ? 'translateX(0)' : 'translateX(-100%)',
+        borderInlineEnd: '1px solid rgba(255,255,255,0.06)',
+        transform: mob ? 'translateX(0)' : `translateX(${isRtl ? '100%' : '-100%'})`,
         transition: 'transform 0.24s cubic-bezier(.4,0,.2,1)',
         display: 'flex', flexDirection: 'column',
-        boxShadow: '4px 0 32px rgba(0,0,0,0.4)',
+        boxShadow: `${isRtl ? -4 : 4}px 0 32px rgba(0,0,0,0.4)`,
         paddingTop: 'env(safe-area-inset-top, 0px)',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}>
@@ -588,7 +606,7 @@ export default function Layout({ children }) {
             </div>
             <span style={{ fontSize: 15, fontWeight: 900, color: '#fff', letterSpacing: '2px', textTransform: 'uppercase' }}>{displayName}</span>
           </div>
-          <button onClick={() => setMob(false)} aria-label="Close menu" style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 6, width: 32, height: 32, cursor: 'pointer', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
+          <button onClick={() => setMob(false)} aria-label={t('Close menu')} style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 6, width: 32, height: 32, cursor: 'pointer', color: 'rgba(255,255,255,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={16} /></button>
         </div>
         <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <LocationSwitcher compact />
@@ -611,25 +629,30 @@ export default function Layout({ children }) {
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ fontSize: 13, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{user?.name}</p>
-              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>{user?.role}</p>
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>{t(user?.role || '')}</p>
             </div>
           </div>
-          <button onClick={() => { setMob(false); navigate('/account/whatsapp'); }} style={{ width: '100%', minHeight: 42, padding: '9px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-            Connect WhatsApp
-          </button>
+          <LanguageSwitch tone="dark" style={{ marginBottom: 10 }} />
+          {showConnectWhatsApp && (
+            <button onClick={() => { setMob(false); navigate('/account/whatsapp'); }} style={{ width: '100%', minHeight: 42, padding: '9px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.14)', color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              {t('Connect WhatsApp')}
+            </button>
+          )}
           <button onClick={logout} style={{ width: '100%', minHeight: 42, padding: '9px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.30)', color: '#f87171', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            Sign Out
+            <svg className="rtl-flip" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            {t('Sign Out')}
           </button>
         </div>
       </div>
+
+      <PlanUsageBanner tenant={tenant} user={user} />
 
       {/* ── PAGE CONTENT ───────────────────────────────────────── */}
       <main className="app-main-content" key={`loc-${locationVersion}`}>{children}</main>
 
       {/* ── MOBILE BOTTOM NAVIGATION BAR (1-Thumb Ergonomics) ────── */}
-      <nav className="mobile-bottom-nav" data-walkthrough="mobile-nav" aria-label="Quick Navigation" style={{
-        position: 'fixed', bottom: 0, left: 0, right: 0,
+      <nav className="mobile-bottom-nav" data-walkthrough="mobile-nav" aria-label={t('Quick Navigation')} style={{
+        position: 'fixed', bottom: 0, insetInlineStart: 0, insetInlineEnd: 0,
         height: 'calc(60px + env(safe-area-inset-bottom, 0px))',
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
         background: 'color-mix(in srgb, var(--nav-bg) 96%, transparent)',
@@ -659,7 +682,7 @@ export default function Layout({ children }) {
               }}>
                 <NavIcon name={item.icon} size={20} />
                 <span style={{ fontSize: 10, fontWeight: isActive ? 700 : 500, letterSpacing: '0.2px' }}>
-                  {item.label}
+                  {t(item.label)}
                 </span>
                 {isActive && (
                   <span style={{
@@ -684,12 +707,12 @@ export default function Layout({ children }) {
             color: 'rgba(255,255,255,0.60)',
             fontFamily: 'inherit',
           }}
-          aria-label="More Options"
+          aria-label={t('More Options')}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
             <line x1="4" y1="7" x2="20" y2="7"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="17" x2="20" y2="17"/>
           </svg>
-          <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.2px' }}>More</span>
+          <span style={{ fontSize: 10, fontWeight: 500, letterSpacing: '0.2px' }}>{t('More')}</span>
         </button>
       </nav>
 
@@ -706,8 +729,8 @@ export default function Layout({ children }) {
             boxShadow: '0 8px 40px rgba(0,0,0,0.15)', overflow: 'hidden',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', margin: 0 }}>Edit Profile</h2>
-              <button onClick={() => setEditProfile(false)} disabled={profileSaving} aria-label="Close" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 28, height: 28, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--t1)', margin: 0 }}>{t('Edit Profile')}</h2>
+              <button onClick={() => setEditProfile(false)} disabled={profileSaving} aria-label={t('Close')} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 28, height: 28, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 onMouseEnter={e => { e.currentTarget.style.background = 'var(--red-bg)'; e.currentTarget.style.color = 'var(--red)'; }}
                 onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--t3)'; }}
               ><X size={14} /></button>
@@ -717,11 +740,11 @@ export default function Layout({ children }) {
               <form onSubmit={async e => {
                 e.preventDefault();
                 const errs = {};
-                if (!profileForm.name.trim()) errs.name = 'Name is required';
+                if (!profileForm.name.trim()) errs.name = t('Name is required');
                 if (profileForm.newPassword) {
-                  if (!profileForm.currentPassword) errs.currentPassword = 'Required to change password';
-                  if (profileForm.newPassword.length < 8) errs.newPassword = 'At least 8 characters';
-                  if (profileForm.newPassword !== profileForm.confirmPassword) errs.confirmPassword = 'Passwords do not match';
+                  if (!profileForm.currentPassword) errs.currentPassword = t('Required to change password');
+                  if (profileForm.newPassword.length < 8) errs.newPassword = t('At least 8 characters');
+                  if (profileForm.newPassword !== profileForm.confirmPassword) errs.confirmPassword = t('Passwords do not match');
                 }
                 setProfileErrors(errs);
                 if (Object.keys(errs).length) return;
@@ -733,10 +756,10 @@ export default function Layout({ children }) {
                     payload.newPassword = profileForm.newPassword;
                   }
                   await updateMyProfile(payload);
-                  toast.success('Profile updated! Please sign in again to see your new name.');
+                  toast.success(t('Profile updated! Please sign in again to see your new name.'));
                   setEditProfile(false);
                 } catch (err) {
-                  const msg = err.response?.data?.message || 'Failed to update profile';
+                  const msg = err.response?.data?.message || t('Failed to update profile');
                   if (msg.toLowerCase().includes('password')) setProfileErrors({ currentPassword: msg });
                   else toast.error(msg);
                 } finally {
@@ -746,8 +769,8 @@ export default function Layout({ children }) {
 
                 {/* Name */}
                 <div style={{ marginBottom: 16 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Display Name</label>
-                  <input value={profileForm.name} onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))} placeholder="Your name"
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{t('Display Name')}</label>
+                  <input value={profileForm.name} onChange={e => setProfileForm(f => ({ ...f, name: e.target.value }))} placeholder={t('Your name')}
                     style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: `1px solid ${profileErrors.name ? 'var(--red-bd)' : 'var(--border)'}`, borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
                     onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
                     onBlur={e => { e.target.style.borderColor = profileErrors.name ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
@@ -756,13 +779,13 @@ export default function Layout({ children }) {
 
                 <div style={{ height: 1, background: 'var(--border)', margin: '18px 0 14px' }} />
                 <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 14 }}>
-                  Change Password <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</span>
+                  {t('Change Password')} <span style={{ fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>{t('(optional)')}</span>
                 </p>
 
                 {/* Current Password */}
                 <div style={{ marginBottom: 12 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>Current Password</label>
-                  <input type="password" value={profileForm.currentPassword} onChange={e => setProfileForm(f => ({ ...f, currentPassword: e.target.value }))} placeholder="Enter current password"
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>{t('Current Password')}</label>
+                  <input type="password" value={profileForm.currentPassword} onChange={e => setProfileForm(f => ({ ...f, currentPassword: e.target.value }))} placeholder={t('Enter current password')}
                     style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: `1px solid ${profileErrors.currentPassword ? 'var(--red-bd)' : 'var(--border)'}`, borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
                     onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
                     onBlur={e => { e.target.style.borderColor = profileErrors.currentPassword ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
@@ -771,8 +794,8 @@ export default function Layout({ children }) {
 
                 {/* New Password */}
                 <div style={{ marginBottom: 12 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>New Password</label>
-                  <input type="password" value={profileForm.newPassword} onChange={e => setProfileForm(f => ({ ...f, newPassword: e.target.value }))} placeholder="Min 8 characters"
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>{t('New Password')}</label>
+                  <input type="password" value={profileForm.newPassword} onChange={e => setProfileForm(f => ({ ...f, newPassword: e.target.value }))} placeholder={t('Min 8 characters')}
                     style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: `1px solid ${profileErrors.newPassword ? 'var(--red-bd)' : 'var(--border)'}`, borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
                     onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
                     onBlur={e => { e.target.style.borderColor = profileErrors.newPassword ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
@@ -781,8 +804,8 @@ export default function Layout({ children }) {
 
                 {/* Confirm Password */}
                 <div style={{ marginBottom: 24 }}>
-                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>Confirm New Password</label>
-                  <input type="password" value={profileForm.confirmPassword} onChange={e => setProfileForm(f => ({ ...f, confirmPassword: e.target.value }))} placeholder="Repeat new password"
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>{t('Confirm New Password')}</label>
+                  <input type="password" value={profileForm.confirmPassword} onChange={e => setProfileForm(f => ({ ...f, confirmPassword: e.target.value }))} placeholder={t('Repeat new password')}
                     style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: `1px solid ${profileErrors.confirmPassword ? 'var(--red-bd)' : 'var(--border)'}`, borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
                     onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
                     onBlur={e => { e.target.style.borderColor = profileErrors.confirmPassword ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
@@ -792,13 +815,13 @@ export default function Layout({ children }) {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
                   <button type="button" onClick={() => setEditProfile(false)} disabled={profileSaving}
                     style={{ padding: '9px 18px', borderRadius: 8, border: '1px solid var(--border)', background: 'transparent', color: 'var(--t2)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Cancel
+                    {t('Cancel')}
                   </button>
                   <button type="submit" disabled={profileSaving}
                     style={{ padding: '9px 22px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, var(--navy), var(--navy-2))', color: '#fff', fontSize: 13, fontWeight: 700, cursor: profileSaving ? 'not-allowed' : 'pointer', fontFamily: 'inherit', opacity: profileSaving ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
                     {profileSaving
-                      ? <><span style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite' }} />Saving…</>
-                      : 'Save Changes'}
+                      ? <><span style={{ width: 12, height: 12, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.6s linear infinite' }} />{t('Saving…')}</>
+                      : t('Save Changes')}
                   </button>
                 </div>
               </form>
@@ -807,6 +830,7 @@ export default function Layout({ children }) {
         </div>
       )}
 
+      {/* i18n-ignore */}
       <style>{`
         #tab-nav-bar::-webkit-scrollbar { display: none; }
         #desk-search > * { width: 100% !important; max-width: 100% !important; flex: none !important; }
@@ -826,7 +850,7 @@ export default function Layout({ children }) {
             flex: 1 1 auto !important;
             min-width: 0 !important;
             max-width: 180px;
-            margin-left: 0 !important;
+            margin-inline-start: 0 !important;
             overflow: hidden;
           }
           .nav-location-switcher > div {

@@ -5,8 +5,17 @@ import { createMember, getSalesUsers, getCoachTeam } from '../api/endpoints';
 import { mapFieldErrors, focusFirstInvalidField } from '../lib/formErrors';
 import { isValidPhone, isDateInFuture } from '../lib/validation';
 import { useLocationScope, ALL_LOCATIONS } from '../context/LocationContext';
+import { useI18n } from '../i18n/useI18n';
+import { tr } from '../i18n/translate';
+
+// Values are sent to the API as-is; labels are translated at render time.
+const SOURCES = [
+  tr('Social media'), tr('Walk in'), tr('Word of mouth'), tr('referral'),
+  tr('sales call'), tr('data entry'), tr('others'),
+];
 
 export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesRep = null, initialPhone = '' }) {
+  const { t } = useI18n();
   const { multiEnabled, locations, selectedLocationId } = useLocationScope();
   const defaultLoc =
     selectedLocationId && selectedLocationId !== ALL_LOCATIONS
@@ -51,19 +60,19 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
     const phoneTrim = form.phones.trim();
 
     if (!nameTrim) {
-      e.name = 'Name is required';
+      e.name = t('Name is required');
     } else if (nameTrim.length > 120) {
-      e.name = 'Name must not exceed 120 characters';
+      e.name = t('Name must not exceed 120 characters');
     }
 
     if (!phoneTrim) {
-      e.phones = 'Phone is required';
+      e.phones = t('Phone is required');
     } else if (!isValidPhone(phoneTrim)) {
-      e.phones = 'Phone must be 5–40 characters and contain valid phone digits';
+      e.phones = t('Phone must be 5–40 characters and contain valid phone digits');
     }
 
     if (form.birthdate && isDateInFuture(form.birthdate)) {
-      e.birthdate = 'Birthdate cannot be in the future';
+      e.birthdate = t('Birthdate cannot be in the future');
     }
 
     setErrors(e); 
@@ -84,7 +93,7 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
         coachId: form.coachId || null,
         locationId: form.locationId || null,
       });
-      toast.success('Member added!');
+      toast.success(t('Member added!'));
       setForm({
         name: '', phones: '', gender: '', birthdate: '', source: '',
         assignedSales: '', coachId: '', locationId: defaultLoc,
@@ -97,7 +106,7 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
         setErrors(mapFieldErrors(e.normalized.fieldErrors));
         focusFirstInvalidField(e.normalized.fieldErrors);
       } else if (e.normalized?.status !== 403 && e.normalized?.status !== 429) {
-        toast.error(e.normalized?.message || e.response?.data?.message || 'Failed to add member.');
+        toast.error(e.normalized?.message || e.response?.data?.message || t('Failed to add member.'));
       }
     } finally { 
       setLoading(false); 
@@ -105,34 +114,34 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
   };
 
   return (
-    <Modal open={open} onClose={onClose} title="Add Person"
+    <Modal open={open} onClose={onClose} title={t('Add Person')}
       footer={
         <>
-          <Btn variant="ghost" size="sm" onClick={onClose}>Cancel</Btn>
+          <Btn variant="ghost" size="sm" onClick={onClose}>{t('Cancel')}</Btn>
           <Btn size="sm" onClick={handleSubmit} disabled={loading}>
-            {loading ? <Spinner size="sm" /> : 'Add'}
+            {loading ? <Spinner size="sm" /> : t('Add')}
           </Btn>
         </>
       }>
       <div data-walkthrough="add-guest-form" className="grid-2-form">
-        <Input label="Full Name *" value={form.name} onChange={e => set('name', e.target.value)} error={errors.name} />
-        <Input label="Phone *" value={form.phones} onChange={e => set('phones', e.target.value)} error={errors.phones} />
-        <Select label="Gender" value={form.gender} onChange={e => set('gender', e.target.value)}>
-          <option value="">— Select —</option>
-          <option value="male">Male</option>
-          <option value="female">Female</option>
+        <Input label={t('Full Name *')} value={form.name} onChange={e => set('name', e.target.value)} error={errors.name} />
+        <Input label={t('Phone *')} value={form.phones} onChange={e => set('phones', e.target.value)} error={errors.phones} />
+        <Select label={t('Gender')} value={form.gender} onChange={e => set('gender', e.target.value)}>
+          <option value="">{t('— Select —')}</option>
+          <option value="male">{t('Male')}</option>
+          <option value="female">{t('Female')}</option>
         </Select>
-        <Input label="Birthdate" type="date" value={form.birthdate} onChange={e => set('birthdate', e.target.value)} error={errors.birthdate} />
-        <Select label="Source" value={form.source} onChange={e => set('source', e.target.value)}>
-          <option value="">— Select —</option>
-          {['Social media','Walk in','Word of mouth','referral','sales call','data entry','others'].map(s => 
-            <option key={s} value={s}>{s}</option>
+        <Input label={t('Birthdate')} type="date" value={form.birthdate} onChange={e => set('birthdate', e.target.value)} error={errors.birthdate} />
+        <Select label={t('Source')} value={form.source} onChange={e => set('source', e.target.value)}>
+          <option value="">{t('— Select —')}</option>
+          {SOURCES.map(s =>
+            <option key={s} value={s}>{t(s)}</option>
           )}
         </Select>
       </div>
       {multiEnabled && locations.length > 0 && (
         <div style={{ marginTop: 12 }}>
-          <Select label="Location" value={form.locationId} onChange={e => set('locationId', e.target.value)}>
+          <Select label={t('Location')} value={form.locationId} onChange={e => set('locationId', e.target.value)}>
             {locations.map((loc) => (
               <option key={loc._id} value={loc._id}>{loc.name}</option>
             ))}
@@ -140,12 +149,12 @@ export default function AddMemberModal({ open, onClose, onSuccess, defaultSalesR
         </div>
       )}
       <div className="grid-2-form" style={{ marginTop: 12 }}>
-        <Select label="Assign Sales Rep" value={form.assignedSales} onChange={e => set('assignedSales', e.target.value)}>
-          <option value="">— None —</option>
-          {sales.map(s => <option key={s._id} value={s._id}>{s.name} ({s.role})</option>)}
+        <Select label={t('Assign Sales Rep')} value={form.assignedSales} onChange={e => set('assignedSales', e.target.value)}>
+          <option value="">{t('— None —')}</option>
+          {sales.map(s => <option key={s._id} value={s._id}>{`${s.name} (${t(s.role)})`}</option>)}
         </Select>
-        <Select label="Assign Coach" value={form.coachId} onChange={e => set('coachId', e.target.value)}>
-          <option value="">— None —</option>
+        <Select label={t('Assign Coach')} value={form.coachId} onChange={e => set('coachId', e.target.value)}>
+          <option value="">{t('— None —')}</option>
           {coaches.filter(c => ['Coach', 'Head Coach'].includes(c.role)).map(c =>
             <option key={c._id} value={c._id}>{c.name}</option>
           )}

@@ -4,16 +4,21 @@ import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, EmptyState, Avatar, fmtDate, toLocalDateString, StatCardSkeleton, Table } from '../../components/ui';
+import { PageHeader, Card, EmptyState, Avatar, CAIRO_ZONE, toLocalDateString, StatCardSkeleton, Table } from '../../components/ui';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 import { getSalesMySubscriptions } from '../../api/endpoints';
 import { subscriptionNet } from './packageSales';
 import { ClipboardList } from 'lucide-react';
 
-const fmt   = (n) => Number(n ?? 0).toLocaleString('en-EG');
 const TODAY = toLocalDateString();
 
 export default function SalesSubscriptions() {
-  usePageTitle('My Subscriptions');
+  const { t } = useI18n();
+  const { fmtNumber, fmtDate: fmtLocaleDate } = useFormat();
+  const fmt = (n) => fmtNumber(n);
+  const fmtDate = (d) => (d ? fmtLocaleDate(d, { timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric' }, 'en-GB') : '—');
+  usePageTitle(t('My Subscriptions'));
   const navigate = useNavigate();
 
   const [dateFrom,  setDateFrom]  = useState(TODAY);
@@ -27,11 +32,11 @@ export default function SalesSubscriptions() {
       const res = await getSalesMySubscriptions({ dateFrom, dateTo });
       setData(res.data);
     } catch {
-      toast.error('Failed to load subscriptions');
+      toast.error(t('Failed to load subscriptions'));
     } finally {
       setLoading(false);
     }
-  }, [dateFrom, dateTo]);
+  }, [t, dateFrom, dateTo]);
 
   useLocationEffect(() => { load(); }, [load]);
 
@@ -42,7 +47,7 @@ export default function SalesSubscriptions() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="subs-header" title="My Subscriptions" />
+      <PageHeader walkthrough="subs-header" title={t('My Subscriptions')} />
 
       <div className="page-wrap" data-walkthrough="subs-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
 
@@ -50,14 +55,14 @@ export default function SalesSubscriptions() {
         <Card style={{ marginBottom: 20 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
             <div style={{ flex: 1, minWidth: 150 }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>From</label>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{t('From')}</label>
               <input type="date" value={dateFrom} max={dateTo || TODAY}
                 onChange={e => setDateFrom(e.target.value)}
                 style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)' }}
               />
             </div>
             <div style={{ flex: 1, minWidth: 150 }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>To</label>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{t('To')}</label>
               <input type="date" value={dateTo} min={dateFrom} max={TODAY}
                 onChange={e => setDateTo(e.target.value)}
                 style={{ width: '100%', padding: '7px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, fontFamily: 'inherit', color: 'var(--t1)', background: 'var(--card)' }}
@@ -66,7 +71,7 @@ export default function SalesSubscriptions() {
             {!isToday && (
               <button onClick={() => { setDateFrom(TODAY); setDateTo(TODAY); }}
                 style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border-md)', borderRadius: 6, background: 'transparent', cursor: 'pointer', color: 'var(--t3)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                Back to Today
+                {t('Back to Today')}
               </button>
             )}
           </div>
@@ -83,12 +88,12 @@ export default function SalesSubscriptions() {
             </>
           ) : (
             [
-              { label: 'Subscriptions', value: data?.count ?? 0,                  color: 'var(--blue)',  accent: 'var(--blue)' },
-              { label: 'Revenue',       value: `${fmt(data?.totalRevenue)} EGP`,  color: 'var(--green)', accent: 'var(--green)' },
-              { label: 'New Members',   value: newCount,                           color: 'var(--navy)',  accent: 'var(--navy)' },
-              { label: 'Renewals',      value: renewalCount,                       color: 'var(--amber)', accent: 'var(--amber)' },
+              { label: t('Subscriptions'), value: data?.count ?? 0,                  color: 'var(--blue)',  accent: 'var(--blue)' },
+              { label: t('Revenue'),       value: `${fmt(data?.totalRevenue)} EGP`,  color: 'var(--green)', accent: 'var(--green)' },
+              { label: t('New Members'),   value: newCount,                           color: 'var(--navy)',  accent: 'var(--navy)' },
+              { label: t('Renewals'),      value: renewalCount,                       color: 'var(--amber)', accent: 'var(--amber)' },
             ].map(s => (
-              <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderLeft: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
+              <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderInlineStart: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{s.label}</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
               </div>
@@ -99,16 +104,16 @@ export default function SalesSubscriptions() {
         {/* ── Table ────────────────────────────────────────────────── */}
         <Card noPad>
           {loading ? (
-            <Table loading skeletonRows={6} headers={['Member', 'Package', 'Price Paid', 'Start Date', 'Expires', 'Type']} />
+            <Table loading skeletonRows={6} headers={[t('Member'), t('Package'), t('Price Paid'), t('Start Date'), t('Expires'), t('Type')]} />
           ) : entries.length === 0 ? (
-            <EmptyState icon={ClipboardList} message="No subscriptions in this period" sub="Try adjusting the date range" />
+            <EmptyState icon={ClipboardList} message={t('No subscriptions in this period')} sub={t('Try adjusting the date range')} />
           ) : (
             <div className="table-responsive-container">
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
-                  {['Member', 'Package', 'Price Paid', 'Start Date', 'Expires', 'Type'].map(h => (
-                    <th key={h} style={{ padding: '9px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)', whiteSpace: 'nowrap' }}>{h}</th>
+                  {[t('Member'), t('Package'), t('Price Paid'), t('Start Date'), t('Expires'), t('Type')].map(h => (
+                    <th key={h} style={{ padding: '9px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t3)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>
@@ -125,26 +130,26 @@ export default function SalesSubscriptions() {
                         <Avatar name={e.member.name} size="sm" />
                         <div>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{e.member.name}</div>
-                          <div style={{ fontSize: 11, color: 'var(--t4)' }}>#{e.member.systemId}</div>
+                          <div style={{ fontSize: 11, color: 'var(--t4)' }}><span dir="ltr" style={{ unicodeBidi: 'isolate' }}>#{e.member.systemId}</span></div>
                         </div>
                       </div>
                     </td>
                     <td style={{ padding: '10px 14px', color: 'var(--t2)', fontSize: 13 }}>
                       {e.subscription.package?.name ?? '—'}
                       {e.subscription.package?.activityType && (
-                        <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'capitalize', marginTop: 1 }}>{e.subscription.package.activityType}</div>
+                        <div style={{ fontSize: 10, color: 'var(--t4)', textTransform: 'capitalize', marginTop: 1 }}>{t(e.subscription.package.activityType)}</div>
                       )}
                     </td>
                     <td style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--green)', fontSize: 13, whiteSpace: 'nowrap' }}>
                       {fmt(subscriptionNet(e.subscription))} EGP
                       {(Number(e.subscription.refundAmount) > 0 || e.subscription.refunded) && (
-                        <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>Refunded</span>
+                        <span style={{ marginInlineStart: 5, fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>{t('Refunded')}</span>
                       )}
                       {e.subscription.cancelReason && !(Number(e.subscription.refundAmount) > 0 || e.subscription.refunded) && (
-                        <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>Cancelled</span>
+                        <span style={{ marginInlineStart: 5, fontSize: 10, color: 'var(--red)', fontWeight: 600 }}>{t('Cancelled')}</span>
                       )}
                       {e.subscription.discountPercent > 0 && (
-                        <span style={{ marginLeft: 5, fontSize: 10, color: 'var(--amber)', fontWeight: 600 }}>-{e.subscription.discountPercent}%</span>
+                        <span dir="ltr" style={{ marginInlineStart: 5, fontSize: 10, color: 'var(--amber)', fontWeight: 600, unicodeBidi: 'isolate' }}>-{e.subscription.discountPercent}%</span>
                       )}
                     </td>
                     <td style={{ padding: '10px 14px', color: 'var(--t3)', fontSize: 12 }}>{fmtDate(e.subscription.startDate)}</td>
@@ -156,7 +161,7 @@ export default function SalesSubscriptions() {
                         color:      e.subscription.isRenewal ? 'var(--amber)'    : 'var(--green)',
                         border: `1px solid ${e.subscription.isRenewal ? 'var(--amber-bd)' : 'var(--green-bd)'}`,
                       }}>
-                        {e.subscription.isRenewal ? 'Renewal' : 'New'}
+                        {e.subscription.isRenewal ? t('Renewal') : t('New')}
                       </span>
                     </td>
                   </tr>
@@ -164,7 +169,7 @@ export default function SalesSubscriptions() {
               </tbody>
               <tfoot>
                 <tr style={{ borderTop: '2px solid var(--border)', background: 'var(--bg)' }}>
-                  <td colSpan={2} style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--t1)' }}>Total ({entries.length})</td>
+                  <td colSpan={2} style={{ padding: '10px 14px', fontWeight: 700, color: 'var(--t1)' }}>{t('Total ({count})', { count: entries.length })}</td>
                   <td style={{ padding: '10px 14px', fontWeight: 800, color: 'var(--green)' }}>{fmt(data?.totalRevenue)} EGP</td>
                   <td colSpan={3} />
                 </tr>

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AlertCircle, AlertTriangle, Info, ShieldAlert, X, Copy, Check } from "lucide-react";
+import { useI18n } from "../../i18n/useI18n";
+import { tr } from "../../i18n/translate";
 
 /**
  * Accessible Error Modal Dialog
@@ -17,6 +19,7 @@ export function ErrorModal({
   secondaryAction,
   preventClose = false,
 }) {
+  const { t } = useI18n();
   const dialogRef = useRef(null);
   const previousFocusRef = useRef(null);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
@@ -85,36 +88,36 @@ export function ErrorModal({
 
   if (!isOpen) return null;
 
-  const displayTitle = title || error?.title || "An error occurred";
-  const displayMessage = message || error?.message || "Something went wrong. Please try again.";
+  const displayTitle = t(title || error?.title || tr("An error occurred"));
+  const displayMessage = t(message || error?.message || tr("Something went wrong. Please try again."));
   const displayCode = error?.code || "UNKNOWN_ERROR";
   const displayRequestId = error?.requestId || null;
 
   const severityConfigs = {
     info: {
       Icon: Info,
-      badgeText: "Information",
+      badgeText: tr("Information"),
       badgeClass: "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
       iconClass: "text-blue-500",
       buttonClass: "bg-blue-600 hover:bg-blue-700 text-white",
     },
     warning: {
       Icon: AlertTriangle,
-      badgeText: "Notice",
+      badgeText: tr("Notice"),
       badgeClass: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
       iconClass: "text-amber-500",
       buttonClass: "bg-amber-600 hover:bg-amber-700 text-white",
     },
     danger: {
       Icon: AlertCircle,
-      badgeText: "Action Required",
+      badgeText: tr("Action Required"),
       badgeClass: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20",
       iconClass: "text-red-500",
       buttonClass: "bg-red-600 hover:bg-red-700 text-white",
     },
     critical: {
       Icon: ShieldAlert,
-      badgeText: "System Error",
+      badgeText: tr("System Error"),
       badgeClass: "bg-red-600/15 text-red-600 dark:text-red-400 border-red-600/30",
       iconClass: "text-red-600",
       buttonClass: "bg-red-600 hover:bg-red-700 text-white",
@@ -148,14 +151,14 @@ export function ErrorModal({
         aria-labelledby="error-modal-title"
         aria-describedby="error-modal-description"
         tabIndex={-1}
-        className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 text-left outline-none animate-in fade-in zoom-in-95 duration-150 relative"
+        className="w-full max-w-md bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 text-start outline-none animate-in fade-in zoom-in-95 duration-150 relative"
       >
         {!preventClose && (
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close dialog"
-            className="absolute top-4 right-4 p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+            aria-label={t("Close dialog")}
+            className="absolute top-4 end-4 p-1.5 rounded-lg text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
           >
             <X className="w-4 h-4" />
           </button>
@@ -166,7 +169,7 @@ export function ErrorModal({
             <SeverityIcon className="w-5 h-5" />
           </div>
           <span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${config.badgeClass}`}>
-            {config.badgeText}
+            {t(config.badgeText)}
           </span>
         </div>
 
@@ -191,24 +194,24 @@ export function ErrorModal({
             onClick={() => setShowTechnicalDetails(!showTechnicalDetails)}
             className="text-[11px] font-medium text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 flex items-center gap-1 cursor-pointer"
           >
-            {showTechnicalDetails ? "Hide technical details" : "Show technical details"}
+            {showTechnicalDetails ? t("Hide technical details") : t("Show technical details")}
           </button>
 
           {showTechnicalDetails && (
             <div className="mt-2 p-3 rounded-lg bg-zinc-50 dark:bg-zinc-800/60 border border-zinc-200 dark:border-zinc-700/60 text-[11px] font-mono text-zinc-600 dark:text-zinc-400">
               <div className="flex justify-between items-center mb-1">
-                <span>Code: {displayCode}</span>
+                <span>{t("Code:")} <span dir="ltr">{displayCode}</span></span>
                 <button
                   type="button"
                   onClick={copyTechnicalDetails}
                   className="flex items-center gap-1 text-[10px] text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200 bg-white dark:bg-zinc-700 border border-zinc-300 dark:border-zinc-600 px-1.5 py-0.5 rounded"
                 >
                   {copied ? <Check className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3" />}
-                  {copied ? "Copied" : "Copy"}
+                  {copied ? t("Copied") : t("Copy")}
                 </button>
               </div>
               {displayRequestId && (
-                <div className="text-zinc-500 break-all">Request ID: {displayRequestId}</div>
+                <div className="text-zinc-500 break-all">{t("Request ID:")} <span dir="ltr">{displayRequestId}</span></div>
               )}
             </div>
           )}
@@ -224,7 +227,7 @@ export function ErrorModal({
               }}
               className="px-3.5 py-2 text-xs font-semibold text-zinc-700 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 rounded-xl transition-colors cursor-pointer"
             >
-              {secondaryAction.label || "Cancel"}
+              {t(secondaryAction.label || tr("Cancel"))}
             </button>
           )}
 
@@ -236,7 +239,7 @@ export function ErrorModal({
               }}
               className={`px-4 py-2 text-xs font-semibold rounded-xl transition-colors cursor-pointer shadow-xs ${config.buttonClass}`}
             >
-              {primaryAction.label || "Dismiss"}
+              {t(primaryAction.label || tr("Dismiss"))}
             </button>
           ) : (
             <button
@@ -244,7 +247,7 @@ export function ErrorModal({
               onClick={onClose}
               className="px-4 py-2 text-xs font-semibold text-white bg-zinc-900 dark:bg-zinc-100 dark:text-zinc-900 hover:bg-zinc-800 dark:hover:bg-white rounded-xl transition-colors cursor-pointer"
             >
-              Dismiss
+              {t("Dismiss")}
             </button>
           )}
         </div>

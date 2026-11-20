@@ -1,23 +1,38 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, EmptyState, Pagination, fmtDate, Avatar, toLocalDateString, parseDateBoundary, Table, MenuSelect } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, EmptyState, Pagination, Avatar, toLocalDateString, parseDateBoundary, Table, MenuSelect } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAllMembers, getSalesUsers, getCoachTeam, getPackages } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
 import { Calendar } from 'lucide-react';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
+import { tr } from '../../i18n/translate';
+import { SHORT_DATE } from './analyticsFormat';
 
 const TODAY       = toLocalDateString();
 const MONTH_START = `${TODAY.slice(0, 7)}-01`;
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
 
+const HEADERS = ['#', tr('Name'), tr('Phone'), tr('Package'), tr('Expired'), tr('Sales Rep'), tr('Trainer'), tr('Renewal'), tr('Gender')];
+const ACTIVITY_LABELS = {
+  gym: tr('Gym'),
+  crossfit: tr('Crossfit'),
+  box: tr('Box'),
+  mma: tr('MMA'),
+  kickboxing: tr('Kickboxing'),
+  calisthenics: tr('Calisthenics'),
+};
+const GENDER_LABELS = { male: tr('Male'), female: tr('Female') };
+
 // ── Reusable filter row ───────────────────────────────────────────────────────
 function FilterRow({ label, required, children }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
       <label style={{ width: 120, flexShrink: 0, fontSize: 13, fontWeight: 600, color: 'var(--t2)' }}>
-        {label}{required && <span style={{ color: 'var(--red)', marginLeft: 2 }}>*</span>}
+        {label}{required && <span style={{ color: 'var(--red)', marginInlineStart: 2 }}>*</span>}
       </label>
       <div style={{ flex: '1 1 220px', maxWidth: 380 }}>{children}</div>
     </div>
@@ -32,7 +47,9 @@ const inputStyle = {
 };
 
 export default function ExpiredMembers() {
-  usePageTitle('Members');
+  const { t } = useI18n();
+  const { fmtDate } = useFormat();
+  usePageTitle(t('Members'));
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -166,16 +183,17 @@ export default function ExpiredMembers() {
   }, [fromDate, toDate, salesMan, trainerName, packageId, type, status, gender]);
 
   const ACTIVITY_TYPES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
+  const headers = HEADERS.map(h => t(h));
 
   return (
     <Layout>
       <PageHeader walkthrough="records-header" title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => navigate('/reports')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
-            ← Reports
+            <span className="rtl-flip" aria-hidden>←</span> {t('Reports')}
           </button>
           <span style={{ color: 'var(--border-md)' }}>/</span>
-          <span>Members</span>
+          <span>{t('Members')}</span>
         </div>
       } />
 
@@ -186,80 +204,80 @@ export default function ExpiredMembers() {
           {/* Heading */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Members</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('Members')}</span>
           </div>
 
           <div style={{ maxWidth: 540 }}>
 
             {/* From Date */}
-            <FilterRow label="From Date" required>
+            <FilterRow label={t('From Date')} required>
               <input type="date" value={fromDate} max={toDate || TODAY}
                 onChange={e => setFromDate(e.target.value)} style={inputStyle} />
             </FilterRow>
 
             {/* To Date */}
-            <FilterRow label="To Date" required>
+            <FilterRow label={t('To Date')} required>
               <input type="date" value={toDate} min={fromDate} max={TODAY}
                 onChange={e => setToDate(e.target.value)} style={inputStyle} />
             </FilterRow>
 
             {/* Sales Man */}
-            <FilterRow label="Sales Man">
-              <MenuSelect value={salesMan} onChange={e => setSalesMan(e.target.value)} style={{ width: '100%' }} aria-label="Sales Man">
-                <option value="All">All</option>
+            <FilterRow label={t('Sales Man')}>
+              <MenuSelect value={salesMan} onChange={e => setSalesMan(e.target.value)} style={{ width: '100%' }} aria-label={t('Sales Man')}>
+                <option value="All">{t('All')}</option>
                 {salesUsers.map(u => <option key={u._id} value={u._id}>{u.name}</option>)}
               </MenuSelect>
             </FilterRow>
 
             {/* Trainer Name */}
-            <FilterRow label="Trainer Name">
-              <MenuSelect value={trainerName} onChange={e => setTrainerName(e.target.value)} style={{ width: '100%' }} aria-label="Trainer Name">
-                <option value="All">All</option>
+            <FilterRow label={t('Trainer Name')}>
+              <MenuSelect value={trainerName} onChange={e => setTrainerName(e.target.value)} style={{ width: '100%' }} aria-label={t('Trainer Name')}>
+                <option value="All">{t('All')}</option>
                 {coaches.map(c => <option key={c._id} value={c._id}>{c.name}</option>)}
               </MenuSelect>
             </FilterRow>
 
             {/* Package */}
-            <FilterRow label="Package">
-              <MenuSelect value={packageId} onChange={e => setPackageId(e.target.value)} style={{ width: '100%' }} aria-label="Package">
-                <option value="All">All</option>
+            <FilterRow label={t('Package')}>
+              <MenuSelect value={packageId} onChange={e => setPackageId(e.target.value)} style={{ width: '100%' }} aria-label={t('Package')}>
+                <option value="All">{t('All')}</option>
                 {packages.map(p => <option key={p._id} value={p._id}>{p.name}</option>)}
               </MenuSelect>
             </FilterRow>
 
             {/* Type (activity type) */}
-            <FilterRow label="Type">
-              <MenuSelect value={type} onChange={e => setType(e.target.value)} style={{ width: '100%' }} aria-label="Type">
-                <option value="All">All</option>
-                {ACTIVITY_TYPES.map(t => <option key={t} value={t}>{t.charAt(0).toUpperCase() + t.slice(1)}</option>)}
+            <FilterRow label={t('Type')}>
+              <MenuSelect value={type} onChange={e => setType(e.target.value)} style={{ width: '100%' }} aria-label={t('Type')}>
+                <option value="All">{t('All')}</option>
+                {ACTIVITY_TYPES.map(a => <option key={a} value={a}>{t(ACTIVITY_LABELS[a])}</option>)}
               </MenuSelect>
             </FilterRow>
 
             {/* Status */}
-            <FilterRow label="Status">
-              <MenuSelect value={status} onChange={e => setStatus(e.target.value)} style={{ width: '100%' }} aria-label="Status">
-                <option value="All">All</option>
-                <option value="expired">Expired</option>
-                <option value="active">Active</option>
-                <option value="frozen">Frozen</option>
+            <FilterRow label={t('Status')}>
+              <MenuSelect value={status} onChange={e => setStatus(e.target.value)} style={{ width: '100%' }} aria-label={t('Status')}>
+                <option value="All">{t('All')}</option>
+                <option value="expired">{t('Expired')}</option>
+                <option value="active">{t('Active')}</option>
+                <option value="frozen">{t('Frozen')}</option>
               </MenuSelect>
             </FilterRow>
 
             {/* Categories */}
-            <FilterRow label="Categories">
-              <MenuSelect value={categories} onChange={e => setCategories(e.target.value)} style={{ width: '100%' }} aria-label="Categories">
-                <option value="All">All</option>
-                <option value="Primary Membership">Primary Membership</option>
-                <option value="PT">PT Sessions</option>
+            <FilterRow label={t('Categories')}>
+              <MenuSelect value={categories} onChange={e => setCategories(e.target.value)} style={{ width: '100%' }} aria-label={t('Categories')}>
+                <option value="All">{t('All')}</option>
+                <option value="Primary Membership">{t('Primary Membership')}</option>
+                <option value="PT">{t('PT Sessions')}</option>
               </MenuSelect>
             </FilterRow>
 
             {/* Male / Female */}
-            <FilterRow label="Male / Female">
-              <MenuSelect value={gender} onChange={e => setGender(e.target.value)} style={{ width: '100%' }} aria-label="Male or Female">
-                <option value="All">All</option>
-                <option value="male">Male</option>
-                <option value="female">Female</option>
+            <FilterRow label={t('Male / Female')}>
+              <MenuSelect value={gender} onChange={e => setGender(e.target.value)} style={{ width: '100%' }} aria-label={t('Male or Female')}>
+                <option value="All">{t('All')}</option>
+                <option value="male">{t('Male')}</option>
+                <option value="female">{t('Female')}</option>
               </MenuSelect>
             </FilterRow>
 
@@ -268,7 +286,7 @@ export default function ExpiredMembers() {
           {/* Search */}
           <div style={{ marginTop: 8 }}>
             <Btn onClick={handleSearch} disabled={loading} size="md">
-              {loading ? <><Spinner size="sm" /> Searching…</> : 'Search'}
+              {loading ? <><Spinner size="sm" /> {t('Searching…')}</> : t('Search')}
             </Btn>
           </div>
         </Card>
@@ -277,23 +295,23 @@ export default function ExpiredMembers() {
         {searched && (
           <Card noPad>
             <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>Results</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>{t('Results')}</span>
               <span style={{ fontSize: 13, color: 'var(--t3)' }}>
-                {loading ? '…' : `${results.length} member${results.length !== 1 ? 's' : ''} found`}
+                {loading ? '…' : results.length === 1 ? t('1 member found') : t('{count} members found', { count: results.length })}
               </span>
             </div>
 
             {loading ? (
-              <Table loading skeletonRows={8} headers={['#', 'Name', 'Phone', 'Package', 'Expired', 'Sales Rep', 'Trainer', 'Renewal', 'Gender']} />
+              <Table loading skeletonRows={8} headers={headers} />
             ) : results.length === 0 ? (
-              <EmptyState icon={Calendar} message="No members found" sub="Try adjusting your filters." />
+              <EmptyState icon={Calendar} message={t('No members found')} sub={t('Try adjusting your filters.')} />
             ) : (
               <div className="table-responsive-container">
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-                      {['#', 'Name', 'Phone', 'Package', 'Expired', 'Sales Rep', 'Trainer', 'Renewal', 'Gender'].map(h => (
-                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)', whiteSpace: 'nowrap' }}>{h}</th>
+                      {HEADERS.map(h => (
+                        <th key={h} style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)', whiteSpace: 'nowrap' }}>{t(h)}</th>
                       ))}
                     </tr>
                   </thead>
@@ -301,35 +319,37 @@ export default function ExpiredMembers() {
                     {paginatedResults.map(m => {
                       const lastSub = m.subscriptions?.at(-1);
                       const pkg = lastSub?.packageSnapshot ?? lastSub?.package;
+                      const genderKey = String(m.gender ?? '').toLowerCase();
+                      const memberCode = `M${m.memberId}`;
                       return (
                         <tr key={m._id} className="tbl-row"
                           style={{ borderBottom: '1px solid var(--border)', cursor: 'pointer' }}
                           onClick={() => navigate(`/members/${m.systemId}`)}>
-                          <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}>#{m.systemId}</td>
+                          <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}><span dir="ltr">#{m.systemId}</span></td>
                           <td style={{ padding: '10px 14px' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                               <Avatar name={m.name} size="sm" photo={m.photo} />
                               <div>
                                 <div style={{ fontWeight: 600, color: 'var(--t1)' }}>{m.name}</div>
-                                {m.memberId && <div style={{ fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}>M{m.memberId}</div>}
+                                {m.memberId && <div style={{ fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}><span dir="ltr">{memberCode}</span></div>}
                               </div>
                             </div>
                           </td>
-                          <td style={{ padding: '10px 14px', color: 'var(--t2)', fontFamily: 'monospace', fontSize: 12 }}>{m.phones || '—'}</td>
+                          <td style={{ padding: '10px 14px', color: 'var(--t2)', fontFamily: 'monospace', fontSize: 12 }}><span dir="ltr">{m.phones || '—'}</span></td>
                           <td style={{ padding: '10px 14px', color: 'var(--t2)' }}>{pkg?.name ?? '—'}</td>
                           <td style={{ padding: '10px 14px', whiteSpace: 'nowrap' }}>
                             {lastSub?.endDate
-                              ? <span style={{ color: 'var(--red)', fontWeight: 600 }}>{fmtDate(lastSub.endDate)}</span>
+                              ? <span style={{ color: 'var(--red)', fontWeight: 600 }}>{fmtDate(lastSub.endDate, SHORT_DATE)}</span>
                               : '—'}
                           </td>
                           <td style={{ padding: '10px 14px', color: 'var(--t2)' }}>{m.assignedSales?.name ?? <span style={{ color: 'var(--t4)' }}>—</span>}</td>
                           <td style={{ padding: '10px 14px', color: 'var(--t2)' }}>{m.current_couch?.name ?? '—'}</td>
                           <td style={{ padding: '10px 14px' }}>
                             {lastSub?.isRenewal
-                              ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', background: 'var(--green-bg)', border: '1px solid var(--green-bd)', padding: '2px 8px', borderRadius: 5 }}>ON</span>
-                              : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t4)', background: 'var(--bg)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 5 }}>OFF</span>}
+                              ? <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--green)', background: 'var(--green-bg)', border: '1px solid var(--green-bd)', padding: '2px 8px', borderRadius: 5 }}>{t('ON')}</span>
+                              : <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t4)', background: 'var(--bg)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 5 }}>{t('OFF')}</span>}
                           </td>
-                          <td style={{ padding: '10px 14px', color: 'var(--t3)', textTransform: 'capitalize' }}>{m.gender ?? '—'}</td>
+                          <td style={{ padding: '10px 14px', color: 'var(--t3)', textTransform: 'capitalize' }}>{GENDER_LABELS[genderKey] ? t(GENDER_LABELS[genderKey]) : (m.gender ?? '—')}</td>
                         </tr>
                       );
                     })}

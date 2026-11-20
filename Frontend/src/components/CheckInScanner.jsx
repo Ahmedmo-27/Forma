@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
-import { Spinner, Badge, fmtTimeWithSeconds } from './ui';
+import { Spinner, Badge, CAIRO_ZONE } from './ui';
+import { useI18n } from '../i18n/useI18n';
+import { useFormat } from '../i18n/useFormat';
+import { tr } from '../i18n/translate';
 import { parseScannedIdentifier } from '../lib/scannerParser';
 import { formatSystemId } from '../lib/systemId';
 import { playCheckInSound } from '../lib/audioFeedback';
@@ -17,6 +20,12 @@ import {
   Zap,
 } from 'lucide-react';
 
+const SCAN_MODES = [
+  { id: 'auto', label: tr('Auto (All)'), Icon: Zap },
+  { id: 'systemId', label: tr('System ID'), Icon: IdCard },
+  { id: 'memberId', label: tr('Member ID'), Icon: Ticket },
+];
+
 export default function CheckInScanner({
   onScan,
   autoStart = false,
@@ -24,6 +33,8 @@ export default function CheckInScanner({
   embedded: _embedded = true,
   onClose = null,
 }) {
+  const { t } = useI18n();
+  const { fmtTime } = useFormat();
   const containerId = useRef(`checkin-scanner-${Math.random().toString(36).substring(2, 9)}`).current;
   const scannerRef = useRef(null);
   const lastCodeRef = useRef({ code: '', time: 0 });
@@ -230,17 +241,17 @@ export default function CheckInScanner({
     } catch (err) {
       console.error('Failed to start camera scanner:', err);
       if (err.message === 'SECURE_CONTEXT_REQUIRED') {
-        setError('Camera requires a secure connection (HTTPS). Please open this app via HTTPS or localhost.');
+        setError(tr('Camera requires a secure connection (HTTPS). Please open this app via HTTPS or localhost.'));
       } else if (err.message === 'NO_MEDIA_DEVICES') {
-        setError('Camera API is not supported in this browser. Please use Chrome or Safari.');
+        setError(tr('Camera API is not supported in this browser. Please use Chrome or Safari.'));
       } else if (err?.name === 'NotAllowedError' || /permission/i.test(err?.message || '')) {
-        setError('Camera permission was denied. Please allow camera access in your browser address bar settings.');
+        setError(tr('Camera permission was denied. Please allow camera access in your browser address bar settings.'));
       } else if (err?.name === 'NotFoundError') {
-        setError('No camera detected on this device.');
+        setError(tr('No camera detected on this device.'));
       } else if (err?.name === 'NotReadableError' || err?.name === 'TrackStartError') {
-        setError('Camera is currently in use by another app. Please close other camera apps and retry.');
+        setError(tr('Camera is currently in use by another app. Please close other camera apps and retry.'));
       } else {
-        setError('Could not open camera. Please check camera permissions and tap retry.');
+        setError(tr('Could not open camera. Please check camera permissions and tap retry.'));
       }
       setIsScanning(false);
     } finally {
@@ -309,14 +320,10 @@ export default function CheckInScanner({
       }}>
         {/* Mode Selector */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', marginRight: 4 }}>
-            Scan As:
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', marginInlineEnd: 4 }}>
+            {t('Scan As:')}
           </span>
-          {[
-            { id: 'auto', label: 'Auto (All)', Icon: Zap },
-            { id: 'systemId', label: 'System ID', Icon: IdCard },
-            { id: 'memberId', label: 'Member ID', Icon: Ticket },
-          ].map(m => (
+          {SCAN_MODES.map(m => (
             <button
               key={m.id}
               type="button"
@@ -338,18 +345,18 @@ export default function CheckInScanner({
               }}
             >
               <m.Icon size={12} aria-hidden />
-              {m.label}
+              {t(m.label)}
             </button>
           ))}
         </div>
 
         {/* Action Buttons: Open Camera vs Close Camera & Flip */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginLeft: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginInlineStart: 'auto' }}>
           {isScanning && (
             <button
               type="button"
               onClick={handleFlipCamera}
-              title="Switch between front and back camera"
+              title={t('Switch between front and back camera')}
               style={{
                 padding: '7px 12px',
                 borderRadius: 8,
@@ -364,7 +371,7 @@ export default function CheckInScanner({
                 gap: 5,
               }}
             >
-              <FlipHorizontal size={14} aria-hidden /> Flip Camera
+              <FlipHorizontal size={14} aria-hidden /> {t('Flip Camera')}
             </button>
           )}
 
@@ -388,7 +395,7 @@ export default function CheckInScanner({
                 boxShadow: '0 2px 8px rgba(34,197,94,0.30)',
               }}
             >
-              {starting ? <><Spinner size="sm" /> Opening Camera…</> : <><Camera size={15} aria-hidden /> Open Camera</>}
+              {starting ? <><Spinner size="sm" /> {t('Opening Camera…')}</> : <><Camera size={15} aria-hidden /> {t('Open Camera')}</>}
             </button>
           ) : (
             <button
@@ -409,7 +416,7 @@ export default function CheckInScanner({
                 boxShadow: '0 2px 8px rgba(239,68,68,0.15)',
               }}
             >
-              <Square size={14} fill="currentColor" aria-hidden /> Close Camera
+              <Square size={14} fill="currentColor" aria-hidden /> {t('Close Camera')}
             </button>
           )}
         </div>
@@ -429,7 +436,7 @@ export default function CheckInScanner({
           justifyContent: 'space-between',
           gap: 8,
         }}>
-          <span>{error}</span>
+          <span>{t(error)}</span>
           <button
             type="button"
             onClick={() => startScanner()}
@@ -445,7 +452,7 @@ export default function CheckInScanner({
               whiteSpace: 'nowrap',
             }}
           >
-            Retry
+            {t('Retry')}
           </button>
         </div>
       )}
@@ -468,6 +475,7 @@ export default function CheckInScanner({
         */}
         <div
           id={containerId}
+          dir="ltr"
           style={{
             width: '100%',
             minHeight: 280,
@@ -479,11 +487,11 @@ export default function CheckInScanner({
           <button
             type="button"
             onClick={stopScanner}
-            title="Close Camera"
+            title={t('Close Camera')}
             style={{
               position: 'absolute',
               top: 12,
-              right: 12,
+              insetInlineEnd: 12,
               zIndex: 30,
               background: 'rgba(0,0,0,0.72)',
               color: '#fff',
@@ -500,7 +508,7 @@ export default function CheckInScanner({
               boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
             }}
           >
-            <X size={14} aria-hidden /> Close Camera
+            <X size={14} aria-hidden /> {t('Close Camera')}
           </button>
         )}
 
@@ -533,10 +541,10 @@ export default function CheckInScanner({
               <Camera size={28} aria-hidden />
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#f8fafc', marginBottom: 4 }}>
-              QR Code Scanner Ready
+              {t('QR Code Scanner Ready')}
             </div>
             <div style={{ fontSize: 12, color: '#94a3b8', maxWidth: 340, lineHeight: 1.4, marginBottom: 14 }}>
-              Works with all cameras (laptop webcams, phone cameras, and USB cameras). The camera stays open until a QR code is scanned or you click close.
+              {t('Works with all cameras (laptop webcams, phone cameras, and USB cameras). The camera stays open until a QR code is scanned or you click close.')}
             </div>
             <button
               type="button"
@@ -557,7 +565,7 @@ export default function CheckInScanner({
                 boxShadow: '0 4px 14px color-mix(in srgb, var(--navy) 40%, transparent)',
               }}
             >
-              {starting ? <><Spinner size="sm" /> Opening Camera…</> : <><Play size={15} aria-hidden /> Open Camera</>}
+              {starting ? <><Spinner size="sm" /> {t('Opening Camera…')}</> : <><Play size={15} aria-hidden /> {t('Open Camera')}</>}
             </button>
           </div>
         )}
@@ -574,7 +582,7 @@ export default function CheckInScanner({
             zIndex: 10,
           }}>
             {/* Viewfinder box */}
-            <div style={{
+            <div dir="ltr" style={{
               width: 220,
               height: 220,
               position: 'relative',
@@ -582,16 +590,16 @@ export default function CheckInScanner({
               boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.45)',
             }}>
               {/* Corner brackets */}
-              <div style={{ position: 'absolute', top: 0, left: 0, width: 24, height: 24, borderTop: '3px solid #22c55e', borderLeft: '3px solid #22c55e', borderTopLeftRadius: 10 }} />
-              <div style={{ position: 'absolute', top: 0, right: 0, width: 24, height: 24, borderTop: '3px solid #22c55e', borderRight: '3px solid #22c55e', borderTopRightRadius: 10 }} />
-              <div style={{ position: 'absolute', bottom: 0, left: 0, width: 24, height: 24, borderBottom: '3px solid #22c55e', borderLeft: '3px solid #22c55e', borderBottomLeftRadius: 10 }} />
-              <div style={{ position: 'absolute', bottom: 0, right: 0, width: 24, height: 24, borderBottom: '3px solid #22c55e', borderRight: '3px solid #22c55e', borderBottomRightRadius: 10 }} />
+              <div style={{ position: 'absolute', top: 0, insetInlineStart: 0, width: 24, height: 24, borderTop: '3px solid #22c55e', borderInlineStart: '3px solid #22c55e', borderStartStartRadius: 10 }} />
+              <div style={{ position: 'absolute', top: 0, insetInlineEnd: 0, width: 24, height: 24, borderTop: '3px solid #22c55e', borderInlineEnd: '3px solid #22c55e', borderStartEndRadius: 10 }} />
+              <div style={{ position: 'absolute', bottom: 0, insetInlineStart: 0, width: 24, height: 24, borderBottom: '3px solid #22c55e', borderInlineStart: '3px solid #22c55e', borderEndStartRadius: 10 }} />
+              <div style={{ position: 'absolute', bottom: 0, insetInlineEnd: 0, width: 24, height: 24, borderBottom: '3px solid #22c55e', borderInlineEnd: '3px solid #22c55e', borderEndEndRadius: 10 }} />
 
               {/* Animated scan line */}
               <div style={{
                 position: 'absolute',
-                left: 6,
-                right: 6,
+                insetInlineStart: 6,
+                insetInlineEnd: 6,
                 height: 2,
                 background: 'linear-gradient(90deg, transparent, #22c55e, transparent)',
                 boxShadow: '0 0 8px #22c55e',
@@ -615,7 +623,7 @@ export default function CheckInScanner({
               fontWeight: 600,
             }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', boxShadow: '0 0 6px #22c55e' }} />
-              Camera Active · Ready to Scan
+              {t('Camera Active · Ready to Scan')}
             </div>
           </div>
         )}
@@ -626,7 +634,9 @@ export default function CheckInScanner({
         <input
           value={manualCode}
           onChange={(e) => setManualCode(e.target.value)}
-          placeholder={`Enter code manually (e.g. S100, M100, or ${scanMode === 'systemId' ? 'system ID' : 'member ID'})…`}
+          placeholder={scanMode === 'systemId'
+            ? t('Enter code manually (e.g. S100, M100, or system ID)…')
+            : t('Enter code manually (e.g. S100, M100, or member ID)…')}
           style={{
             flex: 1,
             padding: '8px 12px',
@@ -654,7 +664,7 @@ export default function CheckInScanner({
             whiteSpace: 'nowrap',
           }}
         >
-          {manualLoading ? <Spinner size="sm" /> : 'Scan / Check In'}
+          {manualLoading ? <Spinner size="sm" /> : t('Scan / Check In')}
         </button>
       </form>
 
@@ -686,25 +696,32 @@ export default function CheckInScanner({
               gap: 6,
               flexWrap: 'wrap',
             }}>
-              <span>{lastScannedResult.name || lastScannedResult.identifier || 'Checked In'}</span>
+              <span>{lastScannedResult.name || lastScannedResult.identifier || t('Checked In')}</span>
               {lastScannedResult.status && (
                 <Badge status={lastScannedResult.status === 'guest' ? 'guest' : lastScannedResult.status} />
               )}
             </div>
             <div style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2 }}>
-              {lastScannedResult.msg || (lastScannedResult.ok ? 'Check-in recorded' : 'Check-in failed')}
-              {lastScannedResult.systemId && ` · System ID: ${formatSystemId(lastScannedResult.systemId)}`}
-              {lastScannedResult.memberId && ` · Member ID: ${lastScannedResult.memberId}`}
+              {lastScannedResult.msg || (lastScannedResult.ok ? t('Check-in recorded') : t('Check-in failed'))}
+              {lastScannedResult.systemId && ` · ${t('System ID: {id}', { id: formatSystemId(lastScannedResult.systemId) })}`}
+              {lastScannedResult.memberId && ` · ${t('Member ID: {id}', { id: lastScannedResult.memberId })}`}
             </div>
           </div>
           {lastScannedResult.time && (
             <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--t4)' }}>
-              {fmtTimeWithSeconds(lastScannedResult.time)}
+              {fmtTime(lastScannedResult.time, {
+                timeZone: CAIRO_ZONE,
+                hour: 'numeric',
+                minute: '2-digit',
+                second: '2-digit',
+                hour12: true,
+              }, 'en-US')}
             </span>
           )}
         </div>
       )}
 
+      {/* i18n-ignore: CSS, not user-facing text */}
       <style>{`
         #${containerId} video {
           width: 100% !important;

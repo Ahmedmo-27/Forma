@@ -17,6 +17,8 @@ import usePageTitle from '../hooks/usePageTitle';
 import { useAuth } from '../context/AuthContext';
 import { hasAccess } from '../lib/access';
 import { useTenant } from '../context/TenantContext';
+import { routeFeatureAllowed } from '../lib/canSeeRoute';
+import { useI18n } from '../i18n/useI18n';
 
 const ANALYTICS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Accountant'];
 
@@ -44,7 +46,7 @@ function ReportCard({ icon: Icon, title, sub, to, iconBg = '#FEF2F2' }) {
         <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{title}</p>
         <p style={{ fontSize: 12, color: 'var(--t3)' }}>{sub}</p>
       </div>
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
+      <svg className="rtl-flip" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--t4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }}>
         <polyline points="9 18 15 12 9 6" />
       </svg>
     </div>
@@ -68,54 +70,66 @@ function ReportSection({ title, sub, children }) {
 
 // ── Reports page ──────────────────────────────────────────────────────────────
 export default function Reports() {
-  usePageTitle('Reports');
+  const { t } = useI18n();
+  usePageTitle(t('Reports'));
   const { user } = useAuth();
   const { hasFeature } = useTenant();
   const isDataManager = ['Sales Manager', 'Owner'].includes(user?.role);
   const canSeeAnalytics = ANALYTICS_ROLES.includes(user?.role);
+  const can = (to) => routeFeatureAllowed(hasFeature, to);
+  const showMembers = hasAccess(user, 'reports') && (can('/reports/guests') || can('/reports/expired'));
+  const showData = isDataManager && hasAccess(user, 'import_members') && (can('/sales/import') || can('/reports/imported'));
 
   return (
     <Layout>
-      <PageHeader walkthrough="reports-header" title="Reports" />
+      <PageHeader walkthrough="reports-header" title={t('Reports')} />
       <div className="page-wrap" data-walkthrough="reports-board" style={{ paddingTop: 24, paddingBottom: 40 }}>
 
         {canSeeAnalytics && (hasFeature('business_intelligence') || hasFeature('exec_analytics') || hasFeature('funnels')) && (
-          <ReportSection title="Platinum" sub="Whole-gym figures from members, subscriptions, and check-ins">
+          <ReportSection title={t('Advanced analytics')} sub={t('Whole-gym figures from members, subscriptions, and check-ins')}>
             {hasFeature('business_intelligence') && (
-              <ReportCard icon={TrendingUp} title="Executive Summary" sub="Active members, churn, forecast, and conversion" to="/reports/executive" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
+              <ReportCard icon={TrendingUp} title={t('Executive Summary')} sub={t('Active members, churn, forecast, and conversion')} to="/reports/executive" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
             )}
             {hasFeature('exec_analytics') && (
               <>
-                <ReportCard icon={TrendingDown} title="Churn" sub="Lapses, reactivations, and expiring coverage" to="/reports/churn" iconBg="#FEF2F2" />
-                <ReportCard icon={Wallet} title="Revenue Forecast" sub="Collected revenue and a three-month average" to="/reports/forecast" iconBg="#F0FFF4" />
-                <ReportCard icon={Calendar} title="Retention Cohorts" sub="Share of each joining month still covered" to="/reports/cohorts" iconBg="#F0FFF4" />
-                <ReportCard icon={Flame} title="Attendance" sub="Check-ins by weekday and hour" to="/reports/attendance" iconBg="#FEF2F2" />
+                <ReportCard icon={TrendingDown} title={t('Churn')} sub={t('Lapses, reactivations, and expiring coverage')} to="/reports/churn" iconBg="#FEF2F2" />
+                <ReportCard icon={Wallet} title={t('Revenue Forecast')} sub={t('Collected revenue and a three-month average')} to="/reports/forecast" iconBg="#F0FFF4" />
+                <ReportCard icon={Calendar} title={t('Retention Cohorts')} sub={t('Share of each joining month still covered')} to="/reports/cohorts" iconBg="#F0FFF4" />
+                <ReportCard icon={Flame} title={t('Attendance')} sub={t('Check-ins by weekday and hour')} to="/reports/attendance" iconBg="#FEF2F2" />
               </>
             )}
             {hasFeature('funnels') && (
-              <ReportCard icon={Magnet} title="Conversion Funnel" sub="Lead to member, drop-off, and revenue by source" to="/reports/funnel" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
+              <ReportCard icon={Magnet} title={t('Conversion Funnel')} sub={t('Lead to member, drop-off, and revenue by source')} to="/reports/funnel" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
             )}
           </ReportSection>
         )}
-        {hasAccess(user, 'reports') && (
-          <ReportSection title="Members" sub="Member status and activity">
-            <ReportCard icon={Users} title="Guest Members"   sub="Guest member list"            to="/reports/guests"  iconBg="#FEF2F2" />
-            <ReportCard icon={Calendar} title="Members" sub="Member records"                       to="/reports/expired" iconBg="#FEF2F2" />
+        {showMembers && (
+          <ReportSection title={t('Members')} sub={t('Member status and activity')}>
+            {can('/reports/guests') && (
+              <ReportCard icon={Users} title={t('Guest Members')} sub={t('Guest member list')} to="/reports/guests" iconBg="#FEF2F2" />
+            )}
+            {can('/reports/expired') && (
+              <ReportCard icon={Calendar} title={t('Members')} sub={t('Member records')} to="/reports/expired" iconBg="#FEF2F2" />
+            )}
           </ReportSection>
         )}
 
         {/* ── Revenue & Performance ───────────────────────────── */}
-        {hasAccess(user, 'targets') && (
-          <ReportSection title="Revenue & Performance" sub="Targets and financial reports">
-            <ReportCard icon={Target} title="Targets"       sub="Revenue targets & performance" to="/sales/targets"   iconBg="#F0FFF4" />
+        {hasAccess(user, 'targets') && can('/sales/targets') && (
+          <ReportSection title={t('Revenue & Performance')} sub={t('Targets and financial reports')}>
+            <ReportCard icon={Target} title={t('Targets')}       sub={t('Revenue targets & performance')} to="/sales/targets"   iconBg="#F0FFF4" />
           </ReportSection>
         )}
 
         {/* ── Data — Sales Manager & Owner only ───────────────── */}
-        {isDataManager && hasAccess(user, 'import_members') && (
-          <ReportSection title="Data" sub="Import and manage bulk data">
-            <ReportCard icon={Download} title="Import Members"   sub="Upload CSV of names & numbers"  to="/sales/import"     iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
-            <ReportCard icon={ClipboardList} title="Imported Members" sub="View all members added via CSV import" to="/reports/imported" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
+        {showData && (
+          <ReportSection title={t('Data')} sub={t('Import and manage bulk data')}>
+            {can('/sales/import') && (
+              <ReportCard icon={Download} title={t('Import Members')}   sub={t('Upload CSV of names & numbers')}  to="/sales/import"     iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
+            )}
+            {can('/reports/imported') && (
+              <ReportCard icon={ClipboardList} title={t('Imported Members')} sub={t('View all members added via CSV import')} to="/reports/imported" iconBg="color-mix(in srgb, var(--navy) 8%, transparent)" />
+            )}
           </ReportSection>
         )}
 

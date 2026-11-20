@@ -6,12 +6,15 @@ import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
 import { PageHeader, Spinner, EmptyState, Avatar, Pagination } from '../../components/ui';
 import { getSalesTeam, getReceptionistTeam } from '../../api/endpoints';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 
 const DEFAULT_PAGE_SIZE = 12;
 const PAGE_SIZE_OPTIONS = [12, 24, 48];
 
 export default function SalesTeam() {
-  usePageTitle('Team');
+  const { t } = useI18n();
+  usePageTitle(t('Team'));
   const navigate = useNavigate();
   const [tab, setTab] = useState('sales'); // 'sales' | 'receptionists'
 
@@ -40,18 +43,18 @@ export default function SalesTeam() {
     try {
       const res = await getSalesTeam();
       setSalesTeam(res.data.team ?? []);
-    } catch { toast.error('Failed to load sales team.'); }
+    } catch { toast.error(t('Failed to load sales team.')); }
     finally { setLoadingSales(false); }
-  }, []);
+  }, [t]);
 
   const fetchReceptionists = useCallback(async () => {
     setLoadingRecp(true);
     try {
       const res = await getReceptionistTeam();
       setReceptionists(res.data.team ?? []);
-    } catch { toast.error('Failed to load receptionists.'); }
+    } catch { toast.error(t('Failed to load receptionists.')); }
     finally { setLoadingRecp(false); }
-  }, []);
+  }, [t]);
 
   useLocationEffect(() => { fetchSales(); }, [fetchSales]);
   useLocationEffect(() => { fetchReceptionists(); }, [fetchReceptionists]);
@@ -88,28 +91,28 @@ export default function SalesTeam() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="sales-team-header" title="Team" />
+      <PageHeader walkthrough="sales-team-header" title={t('Team')} />
 
       <div className="page-wrap" data-walkthrough="sales-team-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
 
         {/* ── Tabs ──────────────────────────────────────────────── */}
         <div className="tabs-scroll" style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
           {[
-            { id: 'sales', label: `Sales (${salesTeam.length})` },
-            { id: 'receptionists', label: `Receptionists (${receptionists.length})` },
-          ].map(t => (
-            <button key={t.id} onClick={() => setTab(t.id)} style={{
+            { id: 'sales', label: t('Sales ({count})', { count: salesTeam.length }) },
+            { id: 'receptionists', label: t('Receptionists ({count})', { count: receptionists.length }) },
+          ].map(tabItem => (
+            <button key={tabItem.id} onClick={() => setTab(tabItem.id)} style={{
               padding: '8px 18px', background: 'none', border: 'none',
-              borderBottom: `2px solid ${tab === t.id ? 'var(--navy)' : 'transparent'}`,
+              borderBottom: `2px solid ${tab === tabItem.id ? 'var(--navy)' : 'transparent'}`,
               marginBottom: -1,
-              color: tab === t.id ? 'var(--t1)' : 'var(--t3)',
-              fontSize: 13, fontWeight: tab === t.id ? 700 : 400,
+              color: tab === tabItem.id ? 'var(--t1)' : 'var(--t3)',
+              fontSize: 13, fontWeight: tab === tabItem.id ? 700 : 400,
               cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
               transition: 'color 0.12s',
             }}
-              onMouseEnter={e => { if (tab !== t.id) e.currentTarget.style.color = 'var(--t2)'; }}
-              onMouseLeave={e => { if (tab !== t.id) e.currentTarget.style.color = 'var(--t3)'; }}
-            >{t.label}</button>
+              onMouseEnter={e => { if (tab !== tabItem.id) e.currentTarget.style.color = 'var(--t2)'; }}
+              onMouseLeave={e => { if (tab !== tabItem.id) e.currentTarget.style.color = 'var(--t3)'; }}
+            >{tabItem.label}</button>
           ))}
         </div>
 
@@ -119,9 +122,9 @@ export default function SalesTeam() {
             {/* Summary row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px,1fr))', gap: 1, background: 'var(--border)', border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', marginBottom: 16 }}>
               {[
-                { label: 'Total Members',  value: loadingSales ? '—' : salesTeam.reduce((s, u) => s + u.stats.total, 0) },
-                { label: 'Sales Reps',     value: loadingSales ? '—' : salesTeam.filter(u => u.role === 'Sales').length },
-                { label: 'Sales Managers', value: loadingSales ? '—' : salesTeam.filter(u => u.role === 'Sales Manager').length },
+                { label: t('Total Members'),  value: loadingSales ? '—' : salesTeam.reduce((s, u) => s + u.stats.total, 0) },
+                { label: t('Sales Reps'),     value: loadingSales ? '—' : salesTeam.filter(u => u.role === 'Sales').length },
+                { label: t('Sales Managers'), value: loadingSales ? '—' : salesTeam.filter(u => u.role === 'Sales Manager').length },
               ].map(s => (
                 <div key={s.label} style={{ background: 'var(--card)', padding: '12px 16px' }}>
                   <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{s.label}</div>
@@ -133,7 +136,7 @@ export default function SalesTeam() {
             {loadingSales ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
             ) : !salesTeam.length ? (
-              <EmptyState message="No sales team members found" />
+              <EmptyState message={t('No sales team members found')} />
             ) : (
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
@@ -164,7 +167,7 @@ export default function SalesTeam() {
             {loadingRecp ? (
               <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
             ) : !receptionists.length ? (
-              <EmptyState message="No receptionists found" />
+              <EmptyState message={t('No receptionists found')} />
             ) : (
               <>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 12 }}>
@@ -195,6 +198,9 @@ export default function SalesTeam() {
 
 // ── Sales Card ────────────────────────────────────────────────────────────────
 function SalesCard({ member, onClick }) {
+  const { t, isRtl } = useI18n();
+  const { fmtNumber } = useFormat();
+  const dirSign = isRtl ? -1 : 1;
   const { stats } = member;
   const pct = member.monthlyTarget > 0
     ? Math.min(100, Math.round((stats.monthlyRevenue / member.monthlyTarget) * 100))
@@ -221,7 +227,7 @@ function SalesCard({ member, onClick }) {
         e.currentTarget.style.boxShadow = '0 10px 24px -4px rgba(68, 41, 140, 0.10), 0 4px 8px -2px rgba(0, 0, 0, 0.03)';
         const arrow = e.currentTarget.querySelector('.card-chevron');
         if (arrow) {
-          arrow.style.transform = 'translateX(2px)';
+          arrow.style.transform = `translateX(${2 * dirSign}px)`;
           arrow.style.color = 'var(--navy)';
           arrow.style.background = 'rgba(68, 41, 140, 0.08)';
         }
@@ -266,7 +272,7 @@ function SalesCard({ member, onClick }) {
                 borderRadius: 999,
                 letterSpacing: '0.2px',
               }}>
-                {member.role}
+                {t(member.role)}
               </span>
             </div>
           </div>
@@ -287,7 +293,7 @@ function SalesCard({ member, onClick }) {
               transition: 'all 0.15s ease',
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="rtl-flip" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="m9 18 6-6-6-6" />
             </svg>
           </div>
@@ -303,17 +309,17 @@ function SalesCard({ member, onClick }) {
           overflow: 'hidden',
         }}>
           {[
-            { l: 'Active',  v: stats.active,  c: 'var(--green)' },
-            { l: 'Frozen',  v: stats.frozen,  c: 'var(--sky)' },
-            { l: 'Expired', v: stats.expired, c: 'var(--red)' },
-            { l: 'Guests',  v: stats.guests,  c: 'var(--slate)' },
+            { l: t('Active'),  v: stats.active,  c: 'var(--green)' },
+            { l: t('Frozen'),  v: stats.frozen,  c: 'var(--sky)' },
+            { l: t('Expired'), v: stats.expired, c: 'var(--red)' },
+            { l: t('Guests'),  v: stats.guests,  c: 'var(--slate)' },
           ].map((s, idx) => (
             <div
               key={s.l}
               style={{
                 padding: '8px 2px',
                 textAlign: 'center',
-                borderRight: idx < 3 ? '1px solid var(--border)' : 'none',
+                borderInlineEnd: idx < 3 ? '1px solid var(--border)' : 'none',
               }}
             >
               <div style={{
@@ -351,13 +357,13 @@ function SalesCard({ member, onClick }) {
                 <circle cx="12" cy="12" r="2" />
               </svg>
               <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--t3)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                Monthly Target
+                {t('Monthly Target')}
               </span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--t1)' }}>
-                EGP {stats.monthlyRevenue.toLocaleString()}
-                <span style={{ color: 'var(--t4)', fontWeight: 500, fontSize: 10.5 }}> / {member.monthlyTarget.toLocaleString()}</span>
+              <span dir="ltr" style={{ fontSize: 11, fontWeight: 700, color: 'var(--t1)', unicodeBidi: 'isolate' }}>
+                EGP {fmtNumber(stats.monthlyRevenue)}
+                <span style={{ color: 'var(--t4)', fontWeight: 500, fontSize: 10.5 }}> / {fmtNumber(member.monthlyTarget)}</span>
               </span>
               <span style={{
                 fontSize: 10,
@@ -395,6 +401,8 @@ function SalesCard({ member, onClick }) {
 
 // ── Receptionist Card ─────────────────────────────────────────────────────────
 function ReceptionistCard({ member, onClick }) {
+  const { t, isRtl } = useI18n();
+  const dirSign = isRtl ? -1 : 1;
   return (
     <div
       onClick={onClick}
@@ -416,7 +424,7 @@ function ReceptionistCard({ member, onClick }) {
         e.currentTarget.style.boxShadow = '0 10px 24px -4px rgba(22, 163, 74, 0.10), 0 4px 8px -2px rgba(0, 0, 0, 0.03)';
         const arrow = e.currentTarget.querySelector('.card-chevron');
         if (arrow) {
-          arrow.style.transform = 'translateX(2px)';
+          arrow.style.transform = `translateX(${2 * dirSign}px)`;
           arrow.style.color = 'var(--green)';
           arrow.style.background = 'var(--green-bg)';
         }
@@ -460,7 +468,7 @@ function ReceptionistCard({ member, onClick }) {
                 borderRadius: 999,
                 letterSpacing: '0.2px',
               }}>
-                Receptionist
+                {t('Receptionist')}
               </span>
             </div>
           </div>
@@ -481,7 +489,7 @@ function ReceptionistCard({ member, onClick }) {
               transition: 'all 0.15s ease',
             }}
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg className="rtl-flip" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
               <path d="m9 18 6-6-6-6" />
             </svg>
           </div>
@@ -503,7 +511,7 @@ function ReceptionistCard({ member, onClick }) {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--t4)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect width="20" height="16" x="2" y="4" rx="2" /><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
               </svg>
-              <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{member.email}</span>
+              <span dir="ltr" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', unicodeBidi: 'isolate' }}>{member.email}</span>
             </div>
           )}
           {member.mobile_number && (
@@ -511,7 +519,7 @@ function ReceptionistCard({ member, onClick }) {
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
               </svg>
-              <span style={{ fontFamily: 'monospace' }}>{member.mobile_number}</span>
+              <span dir="ltr" style={{ fontFamily: 'monospace', unicodeBidi: 'isolate' }}>{member.mobile_number}</span>
             </div>
           )}
         </div>

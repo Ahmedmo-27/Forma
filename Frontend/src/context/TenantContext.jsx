@@ -178,7 +178,9 @@ export function TenantProvider({ children }) {
   }, [fetchTenant]);
 
   const hasFeature = useCallback((featureKey) => {
-    if (!tenant) return true; // optimistic fallback while loading or single-tenant mode
+    // Until the gym's plan is known nothing is unlocked. Pages wait on `loading`
+    // (WorkspaceBoot / FeatureGate) so a gym never glimpses a module it lacks.
+    if (!tenant) return false;
     return Array.isArray(tenant.effectiveFeatures) && tenant.effectiveFeatures.includes(featureKey);
   }, [tenant]);
 

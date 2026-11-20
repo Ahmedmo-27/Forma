@@ -9,9 +9,14 @@ import Layout from '../../components/Layout';
 import { PageHeader, Card, StatCard, Avatar, Badge, EmptyState, DashboardSkeleton } from '../../components/ui';
 import { getAllMembers } from '../../api/endpoints';
 import { Check, Dumbbell, Users } from 'lucide-react';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
+import { tr } from '../../i18n/translate';
 
 export default function CoachDashboard() {
-  usePageTitle('Coach Dashboard');
+  const { t } = useI18n();
+  const { fmtDate } = useFormat();
+  usePageTitle(t('Coach Dashboard'));
   const { user } = useAuth();
   const navigate = useNavigate();
   const isManager = user?.role === 'Head Coach';
@@ -30,11 +35,11 @@ export default function CoachDashboard() {
         await new Promise(res => setTimeout(res, 3000));
         return load(1);
       }
-      toast.error('Failed to load data');
+      toast.error(t('Failed to load data'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useLocationEffect(() => { load(); }, [load]);
 
@@ -53,9 +58,9 @@ export default function CoachDashboard() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="coach-dash-header" title="Dashboard">
+      <PageHeader walkthrough="coach-dash-header" title={t('Dashboard')}>
         <span style={{ fontSize: 12, color: 'var(--t4)' }}>
-          {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+          {fmtDate(new Date(), { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }, 'en-GB')}
         </span>
       </PageHeader>
 
@@ -66,22 +71,22 @@ export default function CoachDashboard() {
           <>
             {/* KPIs */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12, marginBottom: 20 }}>
-              <StatCard label="My Members" value={coachMembers.length} color="brand" onClick={() => navigate('/coach/members')} />
-              <StatCard label="Active" value={activeCount} color="success" />
-              <StatCard label="Interested" value={interestedCount} color="warning" />
-              <StatCard label="Total Sessions" value={totalSessions} color="blue" />
-              <StatCard label="Used Sessions" value={usedSessions} color="info" />
-              <StatCard label="Remaining" value={totalSessions - usedSessions} color="danger" />
+              <StatCard label={t('My Members')} value={coachMembers.length} color="brand" onClick={() => navigate('/coach/members')} />
+              <StatCard label={t('Active')} value={activeCount} color="success" />
+              <StatCard label={t('Interested')} value={interestedCount} color="warning" />
+              <StatCard label={t('Total Sessions')} value={totalSessions} color="blue" />
+              <StatCard label={t('Used Sessions')} value={usedSessions} color="info" />
+              <StatCard label={t('Remaining')} value={totalSessions - usedSessions} color="danger" />
             </div>
 
             {/* Recent members */}
             <Card noPad>
               <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>My Members ({coachMembers.length})</span>
-                <span onClick={() => navigate('/coach/members')} style={{ fontSize: 11, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>View all →</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t('My Members ({count})', { count: coachMembers.length })}</span>
+                <span onClick={() => navigate('/coach/members')} style={{ fontSize: 11, color: 'var(--blue)', cursor: 'pointer', fontWeight: 600 }}>{t('View all')} <span className="rtl-flip" style={{ display: 'inline-block' }}>→</span></span>
               </div>
               {coachMembers.length === 0 ? (
-                <EmptyState icon={Dumbbell} message="No members assigned" sub="Members will appear here once assigned" />
+                <EmptyState icon={Dumbbell} message={t('No members assigned')} sub={t('Members will appear here once assigned')} />
               ) : (
                 <div style={{ maxHeight: 320, overflowY: 'auto' }}>
                   {coachMembers.slice(0, 10).map(m => (
@@ -93,7 +98,7 @@ export default function CoachDashboard() {
                       <Avatar name={m.name} size="sm" />
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{m.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--t4)' }}>#{m.systemId} · {m.PT_sessions - m.used_PT_sessions} sessions left</div>
+                        <div style={{ fontSize: 11, color: 'var(--t4)' }}>#{m.systemId} · {t('{count} sessions left', { count: m.PT_sessions - m.used_PT_sessions })}</div>
                       </div>
                       <Badge status={m.couch_subscription_status || 'guest'} />
                     </div>
@@ -105,8 +110,8 @@ export default function CoachDashboard() {
             {/* Quick actions */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginTop: 16 }}>
               {[
-                { label: 'Session Check-in', icon: Check, to: '/coach/checkin', access: 'coach_checkin' },
-                { label: 'My Members', icon: Users, to: '/coach/members', access: 'coach_members' },
+                { label: tr('Session Check-in'), icon: Check, to: '/coach/checkin', access: 'coach_checkin' },
+                { label: tr('My Members'), icon: Users, to: '/coach/members', access: 'coach_members' },
               ].filter((c) => hasAccess(user, c.access)).map(c => {
                 const ActionIcon = c.icon;
                 return (
@@ -121,7 +126,7 @@ export default function CoachDashboard() {
                   <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 6, color: 'var(--icon, var(--navy))' }}>
                     <ActionIcon size={24} aria-hidden />
                   </div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{c.label}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t(c.label)}</div>
                 </button>
               );})}
             </div>

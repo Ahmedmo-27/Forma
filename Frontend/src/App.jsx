@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { Toaster } from 'react-hot-toast';
+import DirectionalToaster from './components/DirectionalToaster';
 import { AuthProvider, useAuth } from './context/AuthContext';
-import { TenantProvider } from './context/TenantContext';
+import { TenantProvider, useTenant } from './context/TenantContext';
 import { LocationProvider } from './context/LocationContext';
+import LanguageProvider from './i18n/LanguageProvider';
 import { WalkthroughProvider } from './tutorials/walkthrough-context';
 import WalkthroughOverlay from './components/tutorials/WalkthroughOverlay';
 import HelpScenariosDialog from './components/tutorials/HelpScenariosDialog';
@@ -13,6 +14,7 @@ import GlobalErrorContainer from './components/errors/GlobalErrorContainer';
 import { isMarketingHost, shouldHardRedirectToApp } from './marketing/host';
 import { MarketingBootScreen, MarketingPageSkeleton } from './marketing/components/MarketingSkeleton';
 import { canEnterRoute, homePath } from './lib/routeAccess';
+import { routeFeatureAllowed } from './lib/canSeeRoute';
 import { TENANT_GUARDS } from './lib/tenantGuards';
 
 const MarketingLayout = lazy(() => import('./marketing/layout/MarketingLayout'));
@@ -47,6 +49,8 @@ import ManageStaff        from './pages/sales/ManageStaff';
 import ManagePackages     from './pages/sales/ManagePackages';
 import ManageWhatsAppTemplates from './pages/sales/ManageWhatsAppTemplates';
 import ConnectWhatsApp from './pages/account/ConnectWhatsApp';
+import ConnectChannels from './pages/account/ConnectChannels';
+import Inbox from './pages/inbox/Inbox';
 import TargetDashboard    from './pages/sales/TargetDashboard';
 import SalesSubscriptions from './pages/sales/SalesSubscriptions';
 import SalesCallCenter    from './pages/sales/SalesCallCenter';
@@ -74,6 +78,11 @@ import Management      from './pages/Management';
 import AccessControl   from './pages/management/AccessControl';
 import QuickTransfer  from './pages/management/QuickTransfer';
 import MaintenancePage from './pages/maintenance/MaintenancePage';
+import RetailPosPage from './pages/retail/RetailPosPage';
+import RetailSalesPage from './pages/retail/RetailSalesPage';
+import RetailProductsPage from './pages/retail/RetailProductsPage';
+import RetailVendorsPage from './pages/retail/RetailVendorsPage';
+import RetailReportsPage from './pages/retail/RetailReportsPage';
 import GuestMembers    from './pages/reports/GuestMembers';
 import ExpiredMembers  from './pages/reports/ExpiredMembers';
 import ImportedMembers from './pages/reports/ImportedMembers';
@@ -91,6 +100,8 @@ const PlatformApp = lazy(() => import('./platform/routes/PlatformRoutes'));
 
 const PAGES = {
   ConnectWhatsApp,
+  ConnectChannels,
+  Inbox,
   Members,
   Tasks,
   AssigningTasksPage,
@@ -134,6 +145,11 @@ const PAGES = {
   AccessControl,
   QuickTransfer,
   MaintenancePage,
+  RetailPosPage,
+  RetailSalesPage,
+  RetailProductsPage,
+  RetailVendorsPage,
+  RetailReportsPage,
   AnalyticsHome,
   Reports,
   ExecutiveSummary,
@@ -158,8 +174,9 @@ function PrivateRoute({ children, roles, feature, access }) {
 
 function RootRedirect() {
   const { user } = useAuth();
+  const { hasFeature } = useTenant();
   if (!user) return <Navigate to="/login" replace />;
-  return <Navigate to={homePath(user)} replace />;
+  return <Navigate to={homePath(user, (path) => routeFeatureAllowed(hasFeature, path))} replace />;
 }
 
 // ── Tenant Router ─────────────────────────────────────────────────────────────
@@ -203,7 +220,9 @@ function AuthShell({ children }) {
   return (
     <AuthProvider>
       <TenantProvider>
-        <LocationProvider>{children}</LocationProvider>
+        <LocationProvider>
+          <LanguageProvider>{children}</LanguageProvider>
+        </LocationProvider>
       </TenantProvider>
     </AuthProvider>
   );
@@ -214,11 +233,13 @@ function TenantShell() {
     <AuthProvider>
       <TenantProvider>
         <LocationProvider>
-          <WalkthroughProvider>
-            <TenantAppRoutes />
-            <WalkthroughOverlay />
-            <HelpScenariosDialog />
-          </WalkthroughProvider>
+          <LanguageProvider>
+            <WalkthroughProvider>
+              <TenantAppRoutes />
+              <WalkthroughOverlay />
+              <HelpScenariosDialog />
+            </WalkthroughProvider>
+          </LanguageProvider>
         </LocationProvider>
       </TenantProvider>
     </AuthProvider>
@@ -537,8 +558,7 @@ export default function App() {
           />
         </Routes>
 
-        <Toaster
-          position="bottom-right"
+        <DirectionalToaster
           toastOptions={{
             duration: 3500,
             style: {

@@ -3,6 +3,8 @@
  * Provides standardized, reusable validation functions aligned with backend schemas.
  */
 
+import { tActive, tr } from '../i18n/translate.js';
+
 // Email regex matching standard RFC 5322 simplified pattern
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 
@@ -111,15 +113,15 @@ function fileBaseName(name) {
 
 function dangerousNameError(name, { allowSvg = false } = {}) {
   const base = fileBaseName(name);
-  if (!base || base.includes('\0')) return 'Invalid file name';
+  if (!base || base.includes('\0')) return tActive(tr('Invalid file name'));
   const parts = base.toLowerCase().split('.');
-  if (parts.length < 2 || !parts[0]) return 'This file type is not allowed';
+  if (parts.length < 2 || !parts[0]) return tActive(tr('This file type is not allowed'));
   const extensions = parts.slice(1);
   const finalExt = extensions[extensions.length - 1];
   for (const ext of extensions) {
     if (!CODE_EXTENSIONS.has(ext)) continue;
     if (ext === 'svg' && allowSvg && finalExt === 'svg') continue;
-    return 'This file type is not allowed';
+    return tActive(tr('This file type is not allowed'));
   }
   return null;
 }
@@ -137,7 +139,7 @@ function dangerousNameError(name, { allowSvg = false } = {}) {
  */
 export function validateFile(file, { maxSizeMB = UPLOAD_INTAKE_MB, allowedExtensions = [], allowSvg = false } = {}) {
   if (!file) {
-    return { valid: false, error: 'Please select a file' };
+    return { valid: false, error: tActive(tr('Please select a file')) };
   }
 
   const nameError = dangerousNameError(file.name, { allowSvg });
@@ -147,7 +149,7 @@ export function validateFile(file, { maxSizeMB = UPLOAD_INTAKE_MB, allowedExtens
   if (file.size > maxBytes) {
     return {
       valid: false,
-      error: `File size exceeds the ${maxSizeMB} MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB selected)`
+      error: tActive(tr('File size exceeds the {max} MB limit ({selected} MB selected)'), { max: maxSizeMB, selected: (file.size / (1024 * 1024)).toFixed(1) })
     };
   }
 
@@ -157,7 +159,7 @@ export function validateFile(file, { maxSizeMB = UPLOAD_INTAKE_MB, allowedExtens
     if (!extMatches) {
       return {
         valid: false,
-        error: `Invalid file extension. Allowed: ${allowedExtensions.join(', ')}`
+        error: tActive(tr('Invalid file extension. Allowed: {allowed}'), { allowed: allowedExtensions.join(', ') })
       };
     }
   }

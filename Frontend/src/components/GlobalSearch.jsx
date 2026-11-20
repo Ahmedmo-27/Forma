@@ -6,6 +6,7 @@ import { useLocationScope } from '../context/LocationContext';
 import useDebounce from '../hooks/useDebounce';
 import { Avatar } from './ui';
 import AddMemberModal from './AddMemberModal';
+import { useI18n } from '../i18n/useI18n';
 
 const STATUS_DOT = {
   active:  '#22c55e',
@@ -45,6 +46,7 @@ function shouldSearch(q, field) {
 
 export default function GlobalSearch() {
   const navigate  = useNavigate();
+  const { t }     = useI18n();
   const { user }  = useAuth();
   const { version: locationVersion } = useLocationScope();
   const phoneRef  = useRef(null);
@@ -229,7 +231,7 @@ export default function GlobalSearch() {
   const showDropdown = open && shouldSearch(rawQuery, activeField);
 
   const inputStyle = {
-    width: '100%', paddingLeft: 32, paddingRight: 10,
+    width: '100%', paddingInlineStart: 32, paddingInlineEnd: 10,
     paddingTop: 8, paddingBottom: 8,
     background: 'rgba(0,0,0,0.20)',
     border: '1px solid rgba(255,255,255,0.14)',
@@ -243,7 +245,7 @@ export default function GlobalSearch() {
     <div ref={wrapRef} className="global-search-wrap" style={{ position: 'relative', display: 'flex', gap: 6, flex: '0 1 380px' }}>
       {/* Phone Search */}
       <div style={{ position: 'relative', flex: 1 }}>
-        <svg style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.45)', pointerEvents: 'none' }}
+        <svg style={{ position: 'absolute', insetInlineStart: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.45)', pointerEvents: 'none' }}
           width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"/>
         </svg>
@@ -254,7 +256,7 @@ export default function GlobalSearch() {
           onChange={e => { setPhoneQuery(e.target.value); setActiveField('phone'); }}
           onKeyDown={handleKeyDown}
           onFocus={() => { setActiveField('phone'); if (results.length > 0 && phoneQuery.trim()) setOpen(true); }}
-          placeholder="Phone…"
+          placeholder={t('Phone…')}
           autoComplete="off"
           style={inputStyle}
           onMouseEnter={e => { e.target.style.background = 'rgba(0,0,0,0.28)'; e.target.style.borderColor = 'rgba(255,255,255,0.22)'; }}
@@ -264,7 +266,7 @@ export default function GlobalSearch() {
 
       {/* ID Search */}
       <div style={{ position: 'relative', flex: 1 }}>
-        <svg style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.45)', pointerEvents: 'none' }}
+        <svg style={{ position: 'absolute', insetInlineStart: 8, top: '50%', transform: 'translateY(-50%)', color: 'rgba(255,255,255,0.45)', pointerEvents: 'none' }}
           width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="M4 4h16v16H4z"/><path d="M9 9h1"/><path d="M14 9h1"/><path d="M9 14h6"/>
         </svg>
@@ -286,7 +288,7 @@ export default function GlobalSearch() {
       {/* Dropdown */}
       {showDropdown && (
         <div className="global-search-dropdown dropdown-panel overlay-in" style={{
-          position: 'absolute', top: 'calc(100% + 6px)', left: 0,
+          position: 'absolute', top: 'calc(100% + 6px)', insetInlineStart: 0,
           width: 360, background: 'var(--card)',
           border: '1px solid var(--border)', borderRadius: 8,
           boxShadow: '0 8px 32px rgba(0,0,0,0.10)',
@@ -294,16 +296,16 @@ export default function GlobalSearch() {
         }}>
           {searching && results.length === 0 ? (
             <div style={{ padding: '16px', textAlign: 'center', fontSize: 12, color: 'var(--t4)' }}>
-              Searching…
+              {t('Searching…')}
             </div>
           ) : results.length === 0 ? (
             <div>
               <div style={{ padding: '20px 16px', textAlign: 'center', borderBottom: canAdd ? '1px solid var(--border)' : 'none' }}>
                 <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>
-                  No member found for "{displayQuery}"
+                  {t('No member found for "{query}"', { query: `\u2068${displayQuery}\u2069` })}
                 </p>
                 <p style={{ fontSize: 12, color: 'var(--t4)' }}>
-                  No results matching this {activeField === 'phone' ? 'phone number' : 'ID'}.
+                  {activeField === 'phone' ? t('No results matching this phone number.') : t('No results matching this ID.')}
                 </p>
               </div>
               {canAdd && (
@@ -313,7 +315,7 @@ export default function GlobalSearch() {
                     width: '100%', display: 'flex', alignItems: 'center', gap: 10,
                     padding: '12px 16px', border: 'none', background: 'var(--card)',
                     cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.1s',
-                    textAlign: 'left',
+                    textAlign: 'start',
                   }}
                   onMouseEnter={e => e.currentTarget.style.background = 'color-mix(in srgb, var(--navy) 25%, transparent)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'var(--card)'}
@@ -326,10 +328,10 @@ export default function GlobalSearch() {
                   }}>+</div>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
-                      Add new person
+                      {t('Add new person')}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 1 }}>
-                      Create a guest profile or assign a package
+                      {t('Create a guest profile or assign a package')}
                     </div>
                   </div>
                 </button>
@@ -362,12 +364,12 @@ export default function GlobalSearch() {
                         <span style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[m.status] ?? '#A6A0C2', flexShrink: 0 }} />
                       </div>
                       <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--t4)' }}>
-                        <span style={{ fontFamily: 'monospace' }}>#{highlight(String(m.systemId), q)}{m.memberId ? ` / ${highlight(String(m.memberId), q)}` : ''}</span>
-                        {m.phones && <span>{highlight(m.phones, q)}</span>}
+                        <span dir="ltr" style={{ fontFamily: 'monospace', unicodeBidi: 'isolate' }}>#{highlight(String(m.systemId), q)}{m.memberId ? ` / ${highlight(String(m.memberId), q)}` : ''}</span>
+                        {m.phones && <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{highlight(m.phones, q)}</span>}
                         {pkg && <span style={{ color: 'var(--t3)' }}>{pkg.name}</span>}
                       </div>
                     </div>
-                    <span style={{ fontSize: 12, color: 'var(--t4)', flexShrink: 0 }}>→</span>
+                    <span className="rtl-flip" style={{ fontSize: 12, color: 'var(--t4)', flexShrink: 0 }}>→</span>
                   </div>
                 );
               })}
@@ -385,15 +387,15 @@ export default function GlobalSearch() {
                   onMouseLeave={e => e.currentTarget.style.background = 'var(--card)'}
                 >
                   <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, background: 'color-mix(in srgb, var(--navy) 30%, transparent)', border: '1px dashed var(--border-md)', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700 }}>+</div>
-                  <span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600 }}>Add new person…</span>
+                  <span style={{ fontSize: 12, color: 'var(--t3)', fontWeight: 600 }}>{t('Add new person…')}</span>
                 </button>
               )}
 
               <div style={{ padding: '7px 12px', background: 'var(--bg)', borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, fontSize: 11, color: 'var(--t4)' }}>
-                <span>↑↓ navigate</span>
-                <span>↵ open</span>
-                <span>Esc close</span>
-                <span style={{ marginLeft: 'auto' }}>{results.length} result{results.length !== 1 ? 's' : ''}</span>
+                <span>{t('↑↓ navigate')}</span>
+                <span>{t('↵ open')}</span>
+                <span>{t('Esc close')}</span>
+                <span style={{ marginInlineStart: 'auto' }}>{results.length === 1 ? t('1 result') : t('{count} results', { count: results.length })}</span>
               </div>
             </>
           )}

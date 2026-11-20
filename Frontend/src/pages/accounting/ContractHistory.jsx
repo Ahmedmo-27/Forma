@@ -3,13 +3,29 @@ import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Table, EmptyState, fmtDate, fmtDateTime, Pagination, toLocalDateString, StatCardSkeleton } from '../../components/ui';
+import { PageHeader, Card, Table, EmptyState, Pagination, toLocalDateString, StatCardSkeleton, CAIRO_ZONE } from '../../components/ui';
 import { getContracts } from '../../api/endpoints';
 import { useTenant } from '../../context/TenantContext';
 import ContractDetailModal from '../../components/accounting/ContractDetailModal';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 
 const PAGE_SIZE = 10;
-const fmt = (n) => Number(n ?? 0).toLocaleString('en-EG');
+
+const CAIRO_DATE = { timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric' };
+const CAIRO_DATETIME = {
+  timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric',
+  hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true,
+};
+
+/** Cairo-zone date helpers that follow the active language (English output matches the shared ui helpers). */
+function useCairoDates() {
+  const { fmtDate: formatDate, fmtDateTime: formatDateTime } = useFormat();
+  return {
+    fmtDate: (v) => (v ? formatDate(v, CAIRO_DATE, 'en-GB') : '—'),
+    fmtDateTime: (v) => (v ? formatDateTime(v, CAIRO_DATETIME, 'en-US') : '—'),
+  };
+}
 
 function thirtyDaysAgo() {
   const d = new Date();
@@ -20,8 +36,12 @@ function thirtyDaysAgo() {
 const TODAY = toLocalDateString();
 
 export default function ContractHistory() {
-  usePageTitle('Contract History');
+  const { t } = useI18n();
+  const { fmtNumber } = useFormat();
+  const { fmtDate, fmtDateTime } = useCairoDates();
+  usePageTitle(t('Contract History'));
   const { currency = 'EGP' } = useTenant() || {};
+  const fmt = (n) => fmtNumber(n ?? 0);
 
   const [contracts, setContracts] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
@@ -43,26 +63,29 @@ export default function ContractHistory() {
       setPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
       setTotalRevenue(res.data.totalRevenue ?? 0);
     } catch {
-      toast.error('Failed to load contract history.');
+      toast.error(t('Failed to load contract history.'));
     } finally {
       setLoading(false);
     }
-  }, [page, dateFrom, dateTo]);
+  }, [page, dateFrom, dateTo, t]);
 
   useLocationEffect(() => { fetchContracts(); }, [fetchContracts]);
 
   const rowStyle = { borderBottom: '1px solid var(--border)', cursor: 'pointer' };
-  const headers = ['Contract #', 'Member', 'Package', 'Price Paid', 'Start Date', 'Sales Manager', 'Processed By', 'Date Added'];
+  const headers = [
+    t('Contract #'), t('Member'), t('Package'), t('Price Paid'), t('Start Date'),
+    t('Signed'), t('Sales Manager'), t('Processed By'), t('Date Added'),
+  ];
 
   return (
     <Layout>
-      <PageHeader walkthrough="contracts-header" title="Contract History" />
+      <PageHeader walkthrough="contracts-header" title={t('Contract History')} />
 
       <div className="page-wrap" data-walkthrough="contracts-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <Card style={{ marginBottom: 16 }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'flex-end' }}>
             <div style={{ flex: 1, minWidth: 150 }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>From</label>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{t('From')}</label>
               <input
                 type="date"
                 value={dateFrom}
@@ -72,7 +95,7 @@ export default function ContractHistory() {
               />
             </div>
             <div style={{ flex: 1, minWidth: 150 }}>
-              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>To</label>
+              <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--t3)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.4px' }}>{t('To')}</label>
               <input
                 type="date"
                 value={dateTo}
@@ -87,7 +110,7 @@ export default function ContractHistory() {
               onClick={() => { setPage(1); setDateFrom(''); setDateTo(''); }}
               style={{ padding: '7px 14px', fontSize: 12, fontWeight: 600, border: '1px solid var(--border-md)', borderRadius: 6, background: 'var(--card)', cursor: 'pointer', color: 'var(--t3)', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
             >
-              All Time
+              {t('All Time')}
             </button>
           </div>
         </Card>
@@ -100,10 +123,10 @@ export default function ContractHistory() {
             </>
           ) : (
             [
-              { label: 'Contracts', value: pagination.total, color: 'var(--blue)', accent: 'var(--blue)' },
-              { label: 'Total Revenue', value: `${fmt(totalRevenue)} ${currency}`, color: 'var(--green)', accent: 'var(--green)' },
+              { label: t('Contracts'), value: pagination.total, color: 'var(--blue)', accent: 'var(--blue)' },
+              { label: t('Total Revenue'), value: `${fmt(totalRevenue)} ${currency}`, color: 'var(--green)', accent: 'var(--green)' },
             ].map((s) => (
-              <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderLeft: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
+              <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderInlineStart: `3px solid ${s.accent}`, borderRadius: 8, padding: '12px 14px' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{s.label}</div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
               </div>
@@ -113,10 +136,10 @@ export default function ContractHistory() {
 
         <Card noPad>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Contracts ({pagination.total})</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t('Contracts ({count})', { count: pagination.total })}</span>
           </div>
           {!contracts.length && !loading
-            ? <EmptyState message="No contracts in this period" sub="Try adjusting the date range or approve a package request" />
+            ? <EmptyState message={t('No contracts in this period')} sub={t('Try adjusting the date range or approve a package request')} />
             : <>
               <Table loading={loading} skeletonRows={5} headers={headers}>
                 {contracts.map((c) => (
@@ -133,19 +156,24 @@ export default function ContractHistory() {
                     <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
                       {c.package?.name ?? '—'}
                       {c.hasException && (
-                        <div style={{ fontSize: 10, color: 'var(--amber)', fontWeight: 600, marginTop: 2 }}>Exception</div>
+                        <div style={{ fontSize: 10, color: 'var(--amber)', fontWeight: 600, marginTop: 2 }}>{t('Exception')}</div>
                       )}
                     </td>
                     <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: 'var(--green)' }}>
-                      EGP {c.netPaid ?? c.pricePaid}
+                      <bdi>EGP {c.netPaid ?? c.pricePaid}</bdi>
                       {c.refunded && (
-                        <div style={{ fontSize: 10, color: 'var(--red)', fontWeight: 600, marginTop: 2 }}>Refunded</div>
+                        <div style={{ fontSize: 10, color: 'var(--red)', fontWeight: 600, marginTop: 2 }}>{t('Refunded')}</div>
                       )}
                       {c.cancelled && !c.refunded && (
-                        <div style={{ fontSize: 10, color: 'var(--red)', fontWeight: 600, marginTop: 2 }} title={c.cancelReason || undefined}>Cancelled · no refund</div>
+                        <div style={{ fontSize: 10, color: 'var(--red)', fontWeight: 600, marginTop: 2 }} title={c.cancelReason || undefined}>{t('Cancelled · no refund')}</div>
                       )}
                     </td>
                     <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{fmtDate(c.startDate)}</td>
+                    <td style={{ padding: '10px 14px', fontSize: 12 }} title={c.signed ? t('Signed by {name}', { name: c.signerName }) : undefined}>
+                      {c.signed
+                        ? <span style={{ color: 'var(--green)', fontWeight: 600 }}>{fmtDate(c.signedAt)}</span>
+                        : <span style={{ color: 'var(--t4)' }}>{t('Not signed')}</span>}
+                    </td>
                     <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{c.salesManager?.name ?? '—'}</td>
                     <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{c.approvedBy?.name ?? '—'}</td>
                     <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)' }}>{fmtDateTime(c.createdAt)}</td>

@@ -11,6 +11,19 @@ import { getUserById, getSalesProfile, getCoachProfile, resetUserPassword } from
 import UserAreaAccess from '../../components/UserAreaAccess';
 import ChangeRoleField from '../../components/ChangeRoleField';
 import { KeyRound, Mail, Phone } from 'lucide-react';
+import { tr } from '../../i18n/translate';
+import { useI18n } from '../../i18n/useI18n';
+
+const FILTER_LABELS = {
+  all: tr('All'),
+  active: tr('Active'),
+  frozen: tr('Frozen'),
+  expired: tr('Expired'),
+  guest: tr('Guest'),
+  transferred: tr('Transferred'),
+  interested: tr('Interested'),
+  'not interested': tr('Not interested'),
+};
 
 // ── Role badge colour map ─────────────────────────────────────────────────────
 const ROLE_COLOUR = {
@@ -24,6 +37,7 @@ const ROLE_COLOUR = {
 };
 
 export default function OwnerUserProfile() {
+  const { t } = useI18n();
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -38,7 +52,7 @@ export default function OwnerUserProfile() {
   const [confirmPwd,   setConfirmPwd]   = useState('');
   const [resettingPwd, setResettingPwd] = useState(false);
 
-  usePageTitle(profile?.user?.name ?? 'User Profile');
+  usePageTitle(profile?.user?.name ?? t('User Profile'));
 
   // ── Fetch profile ─────────────────────────────────────────────────────────
   const load = useCallback(async () => {
@@ -64,12 +78,12 @@ export default function OwnerUserProfile() {
 
       setProfile(enriched);
     } catch {
-      toast.error('Failed to load user profile.');
+      toast.error(t('Failed to load user profile.'));
       navigate('/owner/teams');
     } finally {
       setLoading(false);
     }
-  }, [id, navigate]);
+  }, [id, navigate, t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -105,15 +119,15 @@ export default function OwnerUserProfile() {
             onClick={() => navigate('/owner/teams')}
             style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', fontSize: 12 }}
           >
-            ← Teams
+            <span className="rtl-flip" style={{ display: 'inline-block' }}>←</span> {t('Teams')}
           </button>
           <span style={{ color: 'var(--border-md)' }}>/</span>
-          <span>{loading ? 'Loading…' : (user?.name ?? 'Profile')}</span>
+          <span>{loading ? t('Loading…') : (user?.name ?? t('Profile'))}</span>
         </div>
       }>
         {!loading && profile?.user && (
           <Btn variant="outline" size="sm" onClick={() => { setNewPwd(''); setConfirmPwd(''); setShowResetPwd(true); }}>
-            <KeyRound size={14} aria-hidden /> Reset Password
+            <KeyRound size={14} aria-hidden /> {t('Reset Password')}
           </Btn>
         )}
       </PageHeader>
@@ -141,20 +155,20 @@ export default function OwnerUserProfile() {
                       border: `1px solid ${roleColor.border}`,
                       padding: '2px 10px', borderRadius: 4,
                     }}>
-                      {user?.role}
+                      {t(user?.role ?? '')}
                     </span>
                   </div>
 
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: 'var(--t3)', marginBottom: 8 }}>
-                    {user?.email && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Mail size={12} aria-hidden /> {user.email}</span>}
-                    {user?.mobile_number && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Phone size={12} aria-hidden /> {user.mobile_number}</span>}
-                    <span>Joined {fmtDate(user?.createdAt)}</span>
+                    {user?.email && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Mail size={12} aria-hidden /> <span dir="ltr">{user.email}</span></span>}
+                    {user?.mobile_number && <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><Phone size={12} aria-hidden /> <span dir="ltr">{user.mobile_number}</span></span>}
+                    <span>{t('Joined {date}', { date: fmtDate(user?.createdAt) })}</span>
                   </div>
                   <div style={{ maxWidth: 420, marginTop: 4 }}>
                     <ChangeRoleField
                       userId={id}
                       currentRole={user?.role}
-                      label="Change role"
+                      label={t('Change role')}
                       onChanged={() => load()}
                     />
                   </div>
@@ -165,15 +179,15 @@ export default function OwnerUserProfile() {
               {stats && isSales && (
                 <div className="grid-stats-5" style={{ background: 'var(--border)', borderRadius: 6, overflow: 'hidden' }}>
                   {[
-                    { l: 'Total',   v: stats.total,   c: 'var(--navy)' },
-                    { l: 'Active',  v: stats.active,  c: 'var(--green)' },
-                    { l: 'Frozen',  v: stats.frozen,  c: 'var(--sky)' },
-                    { l: 'Expired', v: stats.expired, c: 'var(--red)' },
-                    { l: 'Guests',  v: stats.guests,  c: 'var(--t3)' },
+                    { l: tr('Total'),   v: stats.total,   c: 'var(--navy)' },
+                    { l: tr('Active'),  v: stats.active,  c: 'var(--green)' },
+                    { l: tr('Frozen'),  v: stats.frozen,  c: 'var(--sky)' },
+                    { l: tr('Expired'), v: stats.expired, c: 'var(--red)' },
+                    { l: tr('Guests'),  v: stats.guests,  c: 'var(--t3)' },
                   ].map(s => (
                     <div key={s.l} style={{ background: 'var(--card)', padding: '10px 0', textAlign: 'center' }}>
                       <div style={{ fontSize: 20, fontWeight: 800, color: s.c }}>{s.v ?? 0}</div>
-                      <div style={{ fontSize: 9, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 2 }}>{s.l}</div>
+                      <div style={{ fontSize: 9, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 2 }}>{t(s.l)}</div>
                     </div>
                   ))}
                 </div>
@@ -182,15 +196,15 @@ export default function OwnerUserProfile() {
               {stats && isCoach && (
                 <div className="grid-stats-5" style={{ background: 'var(--border)', borderRadius: 6, overflow: 'hidden' }}>
                   {[
-                    { l: 'Total',       v: stats.total,            c: 'var(--navy)' },
-                    { l: 'Active',      v: stats.active,           c: 'var(--green)' },
-                    { l: 'Transferred', v: stats.transferred,      c: 'var(--sky)' },
-                    { l: 'PT Total',    v: stats.totalPTSessions,  c: 'var(--blue)' },
-                    { l: 'PT Used',     v: stats.usedPTSessions,   c: 'var(--amber)' },
+                    { l: tr('Total'),       v: stats.total,            c: 'var(--navy)' },
+                    { l: tr('Active'),      v: stats.active,           c: 'var(--green)' },
+                    { l: tr('Transferred'), v: stats.transferred,      c: 'var(--sky)' },
+                    { l: tr('PT Total'),    v: stats.totalPTSessions,  c: 'var(--blue)' },
+                    { l: tr('PT Used'),     v: stats.usedPTSessions,   c: 'var(--amber)' },
                   ].map(s => (
                     <div key={s.l} style={{ background: 'var(--card)', padding: '10px 0', textAlign: 'center' }}>
                       <div style={{ fontSize: 20, fontWeight: 800, color: s.c }}>{s.v ?? 0}</div>
-                      <div style={{ fontSize: 9, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 2 }}>{s.l}</div>
+                      <div style={{ fontSize: 9, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 2 }}>{t(s.l)}</div>
                     </div>
                   ))}
                 </div>
@@ -214,7 +228,7 @@ export default function OwnerUserProfile() {
                     fontSize: 13, fontWeight: tab === 'members' ? 700 : 400,
                     cursor: 'pointer', fontFamily: 'inherit',
                   }}>
-                    Members ({members.length})
+                    {t('Members ({count})', { count: members.length })}
                   </button>
                 </div>
 
@@ -226,7 +240,9 @@ export default function OwnerUserProfile() {
                   {/* Filter + header */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: 8 }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
-                      Assigned Members ({filtered.length}{filter !== 'all' ? ` of ${members.length}` : ''})
+                      {filter !== 'all'
+                        ? t('Assigned Members ({count} of {total})', { count: filtered.length, total: members.length })
+                        : t('Assigned Members ({count})', { count: filtered.length })}
                     </span>
                     <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                       {statusFilters.map(s => (
@@ -236,15 +252,15 @@ export default function OwnerUserProfile() {
                           border: `1px solid ${filter === s ? 'var(--navy)' : 'var(--border-md)'}`,
                           color: filter === s ? '#fff' : 'var(--t3)',
                           cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize',
-                        }}>{s}</button>
+                        }}>{FILTER_LABELS[s] ? t(FILTER_LABELS[s]) : s}</button>
                       ))}
                     </div>
                   </div>
 
                   {filtered.length === 0 ? (
-                    <EmptyState message="No members match this filter" />
+                    <EmptyState message={t('No members match this filter')} />
                   ) : isSales ? (
-                    <Table headers={['ID', 'Name', 'Phone', 'Status', 'Package', 'Expires']}>
+                    <Table headers={[t('ID'), t('Name'), t('Phone'), t('Status'), t('Package'), t('Expires')]}>
                       {filtered.map(m => {
                         const sub = m.subscriptions?.at(-1);
                         return (
@@ -261,7 +277,7 @@ export default function OwnerUserProfile() {
                                 <span style={{ fontSize: 13, fontWeight: 600 }}>{m.name}</span>
                               </div>
                             </td>
-                            <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}>{m.phones}</td>
+                            <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t3)' }}><span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{m.phones}</span></td>
                             <td style={{ padding: '10px 14px' }}><Badge status={m.status} /></td>
                             <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
                               {sub?.package ? `${sub.package.name} · ${sub.package.duration}` : '—'}
@@ -272,7 +288,7 @@ export default function OwnerUserProfile() {
                       })}
                     </Table>
                   ) : (
-                    <Table headers={['ID', 'Name', 'Coach Status', 'PT Sessions', 'PT Used']}>
+                    <Table headers={[t('ID'), t('Name'), t('Coach Status'), t('PT Sessions'), t('PT Used')]}>
                       {filtered.map(m => (
                         <tr key={m._id}
                           onClick={() => navigate(`/members/${m.systemId}`)}
@@ -305,18 +321,18 @@ export default function OwnerUserProfile() {
               <Card>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {[
-                    { label: 'Name',          value: user?.name },
-                    { label: 'Email',         value: user?.email },
-                    { label: 'Mobile',        value: user?.mobile_number },
-                    { label: 'Role',          value: user?.role },
-                    { label: 'Joined',        value: fmtDate(user?.createdAt) },
+                    { label: tr('Name'),          value: user?.name },
+                    { label: tr('Email'),         value: user?.email, ltr: true },
+                    { label: tr('Mobile'),        value: user?.mobile_number, ltr: true },
+                    { label: tr('Role'),          value: user?.role ? t(user.role) : null },
+                    { label: tr('Joined'),        value: fmtDate(user?.createdAt) },
                   ].map(row => (
                     <div key={row.label} style={{
                       display: 'grid', gridTemplateColumns: '140px 1fr',
                       padding: '10px 0', borderBottom: '1px solid var(--bg)', gap: 16, alignItems: 'start',
                     }}>
-                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t4)' }}>{row.label}</span>
-                      <span style={{ fontSize: 13, color: 'var(--t1)' }}>{row.value ?? '—'}</span>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t4)' }}>{t(row.label)}</span>
+                      <span style={{ fontSize: 13, color: 'var(--t1)' }}>{row.value != null ? <span dir={row.ltr ? 'ltr' : undefined}>{row.value}</span> : '—'}</span>
                     </div>
                   ))}
                 </div>
@@ -329,39 +345,39 @@ export default function OwnerUserProfile() {
       <Modal
         open={showResetPwd}
         onClose={() => !resettingPwd && setShowResetPwd(false)}
-        title={`Reset Password — ${profile?.user?.name ?? ''}`}
+        title={t('Reset Password — {name}', { name: profile?.user?.name ?? '' })}
         size="sm"
         footer={<>
-          <Btn variant="ghost" size="sm" onClick={() => setShowResetPwd(false)} disabled={resettingPwd}>Cancel</Btn>
+          <Btn variant="ghost" size="sm" onClick={() => setShowResetPwd(false)} disabled={resettingPwd}>{t('Cancel')}</Btn>
           <Btn size="sm" disabled={resettingPwd} onClick={async () => {
-            if (!newPwd || newPwd.length < 8) { toast.error('Password must be at least 8 characters'); return; }
-            if (newPwd !== confirmPwd) { toast.error('Passwords do not match'); return; }
+            if (!newPwd || newPwd.length < 8) { toast.error(t('Password must be at least 8 characters')); return; }
+            if (newPwd !== confirmPwd) { toast.error(t('Passwords do not match')); return; }
             setResettingPwd(true);
             try {
               const res = await resetUserPassword(id, newPwd);
               toast.success(res.data.message);
               setShowResetPwd(false);
-            } catch (e) { toast.error(e.response?.data?.message ?? 'Failed to reset password'); }
+            } catch (e) { toast.error(e.response?.data?.message ?? t('Failed to reset password')); }
             finally { setResettingPwd(false); }
           }}>
-            {resettingPwd ? <Spinner size="sm" /> : <><KeyRound size={14} aria-hidden /> Reset Password</>}
+            {resettingPwd ? <Spinner size="sm" /> : <><KeyRound size={14} aria-hidden /> {t('Reset Password')}</>}
           </Btn>
         </>}
       >
         <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16, lineHeight: 1.6 }}>
-          Set a new password for <strong>{profile?.user?.name}</strong>. Current sessions are signed out, and they will need this password to sign in again.
+          {t('Set a new password for {name}. Current sessions are signed out, and they will need this password to sign in again.', { name: profile?.user?.name ?? '' })}
         </p>
         <div style={{ marginBottom: 14 }}>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>New Password</label>
-          <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder="Min 8 characters"
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{t('New Password')}</label>
+          <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder={t('Min 8 characters')}
             style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
             onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
             onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
           />
         </div>
         <div>
-          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>Confirm Password</label>
-          <input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder="Repeat new password"
+          <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{t('Confirm Password')}</label>
+          <input type="password" value={confirmPwd} onChange={e => setConfirmPwd(e.target.value)} placeholder={t('Repeat new password')}
             style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
             onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
             onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}

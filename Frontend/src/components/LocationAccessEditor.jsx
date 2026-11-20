@@ -1,10 +1,11 @@
 import { Card } from './ui';
+import { useI18n } from '../i18n/useI18n';
 
 /**
  * Branch viewing access editor used by Access Control and Manage Staff create forms.
  */
 export default function LocationAccessEditor({
-  title = 'Branch viewing access',
+  title,
   description,
   locations = [],
   canAccessAll,
@@ -16,10 +17,11 @@ export default function LocationAccessEditor({
   error = '',
   embedded = false,
 }) {
+  const { t } = useI18n();
   const body = (
     <>
       <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 8 }}>
-        {title}
+        {title ?? t('Branch viewing access')}
       </h3>
       {description && (
         <p style={{ fontSize: 12, color: 'var(--t3)', margin: '0 0 12px', lineHeight: 1.45 }}>
@@ -38,14 +40,14 @@ export default function LocationAccessEditor({
           onChange={(e) => onCanAccessAllChange?.(e.target.checked)}
         />
         <span style={{ fontSize: 13, fontWeight: 600 }}>
-          {allMeansNoRestriction ? 'All locations (no restriction)' : 'All locations'}
+          {allMeansNoRestriction ? t('All locations (no restriction)') : t('All locations')}
         </span>
       </label>
       {!canAccessAll && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {locations.length === 0 && (
             <p style={{ fontSize: 12, color: 'var(--t3)', margin: 0 }}>
-              No locations configured yet. Add branches in Settings → Locations.
+              {t('No locations configured yet. Add branches in Settings → Locations.')}
             </p>
           )}
           {locations.map((loc) => {
@@ -70,7 +72,7 @@ export default function LocationAccessEditor({
                   onChange={(e) => onToggleId?.(String(loc._id), e.target.checked)}
                 />
                 <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{loc.name}</span>
-                <span style={{ fontSize: 11, color: 'var(--t3)' }}>{loc.locationId}</span>
+                <span dir="ltr" style={{ fontSize: 11, color: 'var(--t3)', unicodeBidi: 'isolate' }}>{loc.locationId}</span>
               </label>
             );
           })}

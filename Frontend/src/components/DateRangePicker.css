@@ -1,0 +1,227 @@
+.drp-root {
+  position: relative;
+  display: inline-block;
+}
+
+.drp-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--t1);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: start;
+  transition: border-color 0.15s, opacity 0.15s;
+}
+
+.drp-trigger:hover:not(:disabled) {
+  border-color: var(--border-md);
+}
+
+.drp-trigger:disabled {
+  opacity: 0.8;
+  cursor: wait;
+}
+
+.drp-trigger[data-empty] {
+  color: var(--t3);
+}
+
+.drp-trigger svg {
+  flex-shrink: 0;
+  color: var(--t3);
+}
+
+.drp-trigger-text {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drp-spin {
+  animation: drp-spin 0.8s linear infinite;
+}
+
+@keyframes drp-spin {
+  to { transform: rotate(360deg); }
+}
+
+.drp-popover {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 4px);
+  inset-inline-start: 0;
+  max-width: calc(100vw - 24px);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 10px 30px rgba(20, 40, 67, 0.16);
+  overflow: hidden;
+}
+
+.drp-body {
+  display: flex;
+}
+
+.drp-presets {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 148px;
+  padding: 8px;
+  background: var(--bg);
+  border-inline-end: 1px solid var(--border);
+}
+
+.drp-presets-title {
+  padding: 4px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--t3);
+}
+
+.drp-preset {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--t2);
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: start;
+}
+
+.drp-preset:hover {
+  background: var(--card-hover);
+}
+
+.drp-preset[data-active] {
+  font-weight: 700;
+  color: var(--navy);
+  background: var(--card);
+}
+
+.drp-calendar {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.drp-calendar .rdp-root {
+  --rdp-accent-color: var(--navy);
+  --rdp-accent-background-color: rgba(20, 40, 67, 0.1);
+  --rdp-day-height: 38px;
+  --rdp-day-width: 38px;
+  --rdp-day_button-height: 36px;
+  --rdp-day_button-width: 36px;
+  --rdp-months-gap: 1.5rem;
+  padding: 8px 12px;
+  font-size: 13px;
+  color: var(--t1);
+}
+
+.drp-calendar .rdp-today:not(.rdp-outside) {
+  font-weight: 700;
+}
+
+.drp-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
+.drp-summary {
+  min-width: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--t1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drp-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.drp-btn {
+  height: 32px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--t2);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.drp-btn:hover:not(:disabled) {
+  background: var(--card-hover);
+}
+
+.drp-btn-primary {
+  color: #fff;
+  background: var(--navy);
+}
+
+.drp-btn-primary:hover:not(:disabled) {
+  background: var(--navy-2);
+}
+
+.drp-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 720px) {
+  .drp-popover {
+    position: fixed;
+    top: auto;
+    inset-inline-start: 12px;
+    inset-inline-end: 12px;
+    bottom: 12px;
+    max-height: calc(100vh - 24px);
+    overflow-y: auto;
+  }
+
+  .drp-body {
+    flex-direction: column;
+  }
+
+  .drp-presets {
+    width: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+    border-inline-end: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .drp-presets-title {
+    width: 100%;
+  }
+
+  .drp-calendar .rdp-root {
+    align-self: center;
+  }
+}

@@ -1,11 +1,15 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, EmptyState, Pagination, fmtDate, Avatar, toLocalDateString, parseDateBoundary, Table, MenuSelect } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, EmptyState, Pagination, Avatar, toLocalDateString, parseDateBoundary, Table, MenuSelect } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAllMembers, getSalesUsers, getCoachTeam } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
 import { Users } from 'lucide-react';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
+import { tr } from '../../i18n/translate';
+import { SHORT_DATE, sourceLabel } from './analyticsFormat';
 
 const TODAY      = toLocalDateString();
 const MONTH_START = `${TODAY.slice(0, 7)}-01`;
@@ -13,6 +17,7 @@ const MONTH_START = `${TODAY.slice(0, 7)}-01`;
 const SOURCES = ['All', 'Social media', 'Walk in', 'Word of mouth', 'referral', 'sales call', 'data entry', 'others'];
 const DEFAULT_PAGE_SIZE = 10;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
+const HEADERS = ['#', tr('Name'), tr('Phone'), tr('Source'), tr('Sales Rep'), tr('Coach'), tr('Date Added')];
 
 // ── small label + control row ─────────────────────────────────────────────────
 function FilterRow({ label, required, children }) {
@@ -22,7 +27,7 @@ function FilterRow({ label, required, children }) {
         width: 110, flexShrink: 0,
         fontSize: 13, fontWeight: 600, color: 'var(--t2)',
       }}>
-        {label}{required && <span style={{ color: 'var(--red)', marginLeft: 2 }}>*</span>}
+        {label}{required && <span style={{ color: 'var(--red)', marginInlineStart: 2 }}>*</span>}
       </label>
       <div style={{ flex: '1 1 220px', maxWidth: 380 }}>{children}</div>
     </div>
@@ -37,7 +42,9 @@ const inputStyle = {
 };
 
 export default function GuestMembers() {
-  usePageTitle('Guest Members Report');
+  const { t } = useI18n();
+  const { fmtDate } = useFormat();
+  usePageTitle(t('Guest Members Report'));
   const navigate = useNavigate();
   const { user } = useAuth();
 
@@ -141,15 +148,17 @@ export default function GuestMembers() {
     }
   }, [salesMan, fromDate, toDate, trainerName, source]);
 
+  const headers = HEADERS.map(h => t(h));
+
   return (
     <Layout>
       <PageHeader walkthrough="guests-header" title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => navigate('/reports')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, fontFamily: 'inherit' }}>
-            ← Reports
+            <span className="rtl-flip" aria-hidden>←</span> {t('Reports')}
           </button>
           <span style={{ color: 'var(--border-md)' }}>/</span>
-          <span>Guest Members</span>
+          <span>{t('Guest Members')}</span>
         </div>
       } />
 
@@ -160,15 +169,15 @@ export default function GuestMembers() {
           {/* Section heading */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 24, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--navy)" strokeWidth="2.2" strokeLinecap="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Guest Members</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{t('Guest Members')}</span>
           </div>
 
           {/* Filters */}
           <div style={{ maxWidth: 520 }}>
             {/* Sales Man */}
-            <FilterRow label="Sales Man">
-              <MenuSelect value={salesMan} onChange={e => setSalesMan(e.target.value)} style={{ width: '100%' }} aria-label="Sales Man">
-                <option value="All">All</option>
+            <FilterRow label={t('Sales Man')}>
+              <MenuSelect value={salesMan} onChange={e => setSalesMan(e.target.value)} style={{ width: '100%' }} aria-label={t('Sales Man')}>
+                <option value="All">{t('All')}</option>
                 {salesUsers.map(u => (
                   <option key={u._id} value={u._id}>{u.name}</option>
                 ))}
@@ -176,21 +185,21 @@ export default function GuestMembers() {
             </FilterRow>
 
             {/* From Date */}
-            <FilterRow label="From Date" required>
+            <FilterRow label={t('From Date')} required>
               <input type="date" value={fromDate} max={toDate || TODAY}
                 onChange={e => setFromDate(e.target.value)} style={inputStyle} />
             </FilterRow>
 
             {/* To Date */}
-            <FilterRow label="To Date" required>
+            <FilterRow label={t('To Date')} required>
               <input type="date" value={toDate} min={fromDate} max={TODAY}
                 onChange={e => setToDate(e.target.value)} style={inputStyle} />
             </FilterRow>
 
             {/* Trainer Name */}
-            <FilterRow label="Trainer Name">
-              <MenuSelect value={trainerName} onChange={e => setTrainerName(e.target.value)} style={{ width: '100%' }} aria-label="Trainer Name">
-                <option value="All">All</option>
+            <FilterRow label={t('Trainer Name')}>
+              <MenuSelect value={trainerName} onChange={e => setTrainerName(e.target.value)} style={{ width: '100%' }} aria-label={t('Trainer Name')}>
+                <option value="All">{t('All')}</option>
                 {coaches.map(c => (
                   <option key={c._id} value={c._id}>{c.name}</option>
                 ))}
@@ -198,9 +207,9 @@ export default function GuestMembers() {
             </FilterRow>
 
             {/* Source */}
-            <FilterRow label="Source">
-              <MenuSelect value={source} onChange={e => setSource(e.target.value)} style={{ width: '100%' }} aria-label="Source">
-                {SOURCES.map(s => <option key={s} value={s}>{s}</option>)}
+            <FilterRow label={t('Source')}>
+              <MenuSelect value={source} onChange={e => setSource(e.target.value)} style={{ width: '100%' }} aria-label={t('Source')}>
+                {SOURCES.map(s => <option key={s} value={s}>{s === 'All' ? t('All') : sourceLabel(s, t)}</option>)}
               </MenuSelect>
             </FilterRow>
           </div>
@@ -208,7 +217,7 @@ export default function GuestMembers() {
           {/* Search button */}
           <div style={{ marginTop: 8 }}>
             <Btn onClick={handleSearch} disabled={loading} size="md">
-              {loading ? <><Spinner size="sm" /> Searching…</> : 'Search'}
+              {loading ? <><Spinner size="sm" /> {t('Searching…')}</> : t('Search')}
             </Btn>
           </div>
         </Card>
@@ -218,24 +227,24 @@ export default function GuestMembers() {
           <Card noPad>
             <div style={{ padding: '14px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>
-                Results
+                {t('Results')}
               </span>
               <span style={{ fontSize: 13, color: 'var(--t3)' }}>
-                {loading ? '…' : `${results.length} guest${results.length !== 1 ? 's' : ''} found`}
+                {loading ? '…' : results.length === 1 ? t('1 guest found') : t('{count} guests found', { count: results.length })}
               </span>
             </div>
 
             {loading ? (
-              <Table loading skeletonRows={8} headers={['#', 'Name', 'Phone', 'Source', 'Sales Rep', 'Coach', 'Date Added']} />
+              <Table loading skeletonRows={8} headers={headers} />
             ) : results.length === 0 ? (
-              <EmptyState icon={Users} message="No guests found" sub="Try adjusting your filters." />
+              <EmptyState icon={Users} message={t('No guests found')} sub={t('Try adjusting your filters.')} />
             ) : (
               <div className="table-responsive-container">
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                   <thead>
                     <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-                      {['#', 'Name', 'Phone', 'Source', 'Sales Rep', 'Coach', 'Date Added'].map(h => (
-                        <th key={h} style={{ padding: '10px 14px', textAlign: 'left', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)', whiteSpace: 'nowrap' }}>{h}</th>
+                      {HEADERS.map(h => (
+                        <th key={h} style={{ padding: '10px 14px', textAlign: 'start', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.6px', color: 'var(--t4)', whiteSpace: 'nowrap' }}>{t(h)}</th>
                       ))}
                     </tr>
                   </thead>
@@ -248,7 +257,7 @@ export default function GuestMembers() {
                         onClick={() => navigate(`/members/${m.systemId}`)}
                       >
                         <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)', fontFamily: 'monospace' }}>
-                          #{m.systemId}
+                          <span dir="ltr">#{m.systemId}</span>
                         </td>
                         <td style={{ padding: '10px 14px' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -257,10 +266,10 @@ export default function GuestMembers() {
                           </div>
                         </td>
                         <td style={{ padding: '10px 14px', color: 'var(--t2)', fontFamily: 'monospace', fontSize: 12 }}>
-                          {m.phones || '—'}
+                          <span dir="ltr">{m.phones || '—'}</span>
                         </td>
                         <td style={{ padding: '10px 14px', color: 'var(--t3)' }}>
-                          {m.source || '—'}
+                          {m.source ? sourceLabel(m.source, t) : '—'}
                         </td>
                         <td style={{ padding: '10px 14px', color: 'var(--t2)' }}>
                           {m.assignedSales?.name ?? <span style={{ color: 'var(--t4)' }}>—</span>}
@@ -269,7 +278,7 @@ export default function GuestMembers() {
                           {m.current_couch?.name ?? '—'}
                         </td>
                         <td style={{ padding: '10px 14px', color: 'var(--t3)', whiteSpace: 'nowrap' }}>
-                          {fmtDate(m.createdAt)}
+                          {m.createdAt ? fmtDate(m.createdAt, SHORT_DATE) : '—'}
                         </td>
                       </tr>
                     ))}

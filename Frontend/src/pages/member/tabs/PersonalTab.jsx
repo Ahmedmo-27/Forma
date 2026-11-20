@@ -1,14 +1,19 @@
 import { useState } from 'react';
 import toast from 'react-hot-toast';
-import { Card, CardHeader, Btn, Modal, Input, Select, Spinner, InfoRow, Badge, fmtDate } from '../../../components/ui';
+import { Card, CardHeader, Btn, Modal, Input, Select, Spinner, InfoRow, Badge } from '../../../components/ui';
 import { assignSales, assignCoach, switchCoach, getSalesUsers, getCoachTeam, updateMember } from '../../../api/endpoints';
 import { toWhatsAppUrl, WhatsAppBtn } from '../../../utils/whatsapp';
 import WhatsAppTemplateSendModal from '../../../components/WhatsAppTemplateSendModal';
 import { mapFieldErrors, focusFirstInvalidField } from '../../../lib/formErrors';
 import { isValidPhone, isDateInFuture } from '../../../lib/validation';
 import { useLocationScope } from '../../../context/LocationContext';
+import { useI18n } from '../../../i18n/useI18n';
+import { tr } from '../../../i18n/translate';
+import { useMemberDates } from '../useMemberDates';
 
-const SOURCES = ['Social media', 'Walk in', 'Word of mouth', 'referral', 'sales call', 'data entry', 'others'];
+// Raw values are sent to the API as-is; only the displayed label is translated.
+const SOURCES = [tr('Social media'), tr('Walk in'), tr('Word of mouth'), tr('referral'), tr('sales call'), tr('data entry'), tr('others')];
+const GENDER_LABEL = { male: tr('Male'), female: tr('Female') };
 const EDIT_ROLES = ['Owner', 'Sales Manager', 'Receptionist', 'Sales', 'Accountant', 'General Manager'];
 const ASSIGN_COACH_ROLES = ['Owner', 'Head Coach', 'Sales Manager', 'General Manager'];
 
@@ -21,13 +26,15 @@ function toDateInput(value) {
   return `${date.getFullYear()}-${month}-${day}`;
 }
 
-function coachLabel(coach) {
+function coachLabel(coach, t) {
   if (!coach) return '—';
   if (typeof coach === 'string') return '—';
-  return coach.role ? `${coach.name} (${coach.role})` : (coach.name || '—');
+  return coach.role ? `${coach.name} (${t(coach.role)})` : (coach.name || '—');
 }
 
 export default function PersonalTab({ member, user, onRefresh }) {
+  const { t } = useI18n();
+  const { fmtDate } = useMemberDates();
   const { multiEnabled, locations } = useLocationScope();
   const [showAssign, setShowAssign] = useState(false);
   const [showAssignCoach, setShowAssignCoach] = useState(false);
@@ -68,7 +75,7 @@ export default function PersonalTab({ member, user, onRefresh }) {
 
   const openAssign = async () => {
     try { const res = await getSalesUsers(); setSalesUsers(res.data.salesUsers ?? []); setSelected(member.assignedSales?._id ?? ''); }
-    catch { toast.error('Failed to load sales users.'); }
+    catch { toast.error(t('Failed to load sales users.')); }
     setShowAssign(true);
   };
 
@@ -79,13 +86,13 @@ export default function PersonalTab({ member, user, onRefresh }) {
       setCoaches(team.filter((c) => ['Coach', 'Head Coach'].includes(c.role)));
       setSelectedCoach(member.current_couch?._id ?? member.current_couch ?? '');
     } catch {
-      toast.error('Failed to load coaches.');
+      toast.error(t('Failed to load coaches.'));
     }
     setShowAssignCoach(true);
   };
 
   const handleAssignCoach = async () => {
-    if (!selectedCoach) { toast.error('Select a coach'); return; }
+    if (!selectedCoach) { toast.error(t('Select a coach')); return; }
     setCoachLoading(true);
     try {
       const memberKey = member.systemId || member._id;
@@ -97,11 +104,11 @@ export default function PersonalTab({ member, user, onRefresh }) {
       } else {
         await assignCoach(memberKey, selectedCoach);
       }
-      toast.success('Coach assigned');
+      toast.success(t('Coach assigned'));
       setShowAssignCoach(false);
       onRefresh?.();
     } catch (e) {
-      toast.error(e.response?.data?.message || 'Failed to assign coach.');
+      toast.error(e.response?.data?.message || t('Failed to assign coach.'));
     } finally {
       setCoachLoading(false);
     }
@@ -127,15 +134,15 @@ export default function PersonalTab({ member, user, onRefresh }) {
     if (!editForm) return;
     const errors = {};
     const name = editForm.name.trim();
-    if (!name) errors.name = 'Name is required';
-    else if (name.length > 120) errors.name = 'Name must not exceed 120 characters';
+    if (!name) errors.name = t('Name is required');
+    else if (name.length > 120) errors.name = t('Name must not exceed 120 characters');
     if (canEditPhone) {
       const phone = editForm.phones.trim();
-      if (!phone) errors.phones = 'Phone is required';
-      else if (!isValidPhone(phone)) errors.phones = 'Phone must be 5–40 characters and contain valid phone digits';
+      if (!phone) errors.phones = t('Phone is required');
+      else if (!isValidPhone(phone)) errors.phones = t('Phone must be 5–40 characters and contain valid phone digits');
     }
     if (editForm.birthdate && isDateInFuture(editForm.birthdate)) {
-      errors.birthdate = 'Birthdate cannot be in the future';
+      errors.birthdate = t('Birthdate cannot be in the future');
     }
     setEditErrors(errors);
     if (Object.keys(errors).length) return;
@@ -152,7 +159,7 @@ export default function PersonalTab({ member, user, onRefresh }) {
     setSaving(true);
     try {
       await updateMember(member.systemId, payload);
-      toast.success('Member details saved.');
+      toast.success(t('Member details saved.'));
       setShowEdit(false);
       onRefresh();
     } catch (e) {
@@ -160,7 +167,7 @@ export default function PersonalTab({ member, user, onRefresh }) {
         setEditErrors(mapFieldErrors(e.normalized.fieldErrors));
         focusFirstInvalidField(e.normalized.fieldErrors);
       } else if (e.normalized?.status !== 403 && e.normalized?.status !== 429) {
-        toast.error(e.normalized?.message || e.response?.data?.message || 'Could not save member details.');
+        toast.error(e.normalized?.message || e.response?.data?.message || t('Could not save member details.'));
       }
     } finally {
       setSaving(false);
@@ -168,10 +175,10 @@ export default function PersonalTab({ member, user, onRefresh }) {
   };
 
   const handleAssign = async () => {
-    if (!selected) { toast.error('Select a salesperson.'); return; }
+    if (!selected) { toast.error(t('Select a salesperson.')); return; }
     setLoading(true);
-    try { await assignSales(member.systemId, selected); toast.success('Sales rep assigned.'); setShowAssign(false); onRefresh(); }
-    catch (e) { toast.error(e.response?.data?.message ?? 'Failed.'); }
+    try { await assignSales(member.systemId, selected); toast.success(t('Sales rep assigned.')); setShowAssign(false); onRefresh(); }
+    catch (e) { toast.error(e.response?.data?.message ?? t('Failed.')); }
     finally { setLoading(false); }
   };
 
@@ -180,7 +187,7 @@ export default function PersonalTab({ member, user, onRefresh }) {
       <WhatsAppBtn phone={member.phones} />
       {canSendTemplate && (
         <Btn variant="outline" size="xs" onClick={() => setShowTemplate(true)}>
-          Send ready message
+          {t('Send ready message')}
         </Btn>
       )}
     </>
@@ -190,7 +197,7 @@ export default function PersonalTab({ member, user, onRefresh }) {
     if (showPhoneDirectly) {
       return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <span style={{ fontFamily: 'monospace' }}>{member.phones}</span>
+          <span dir="ltr" style={{ fontFamily: 'monospace', unicodeBidi: 'isolate' }}>{member.phones}</span>
           {whatsAppActions}
         </div>
       );
@@ -198,36 +205,36 @@ export default function PersonalTab({ member, user, onRefresh }) {
     if (canSeePhone) {
       return (
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          <Btn variant="outline" size="xs" onClick={() => setShowPhone(true)}>Show Number</Btn>
+          <Btn variant="outline" size="xs" onClick={() => setShowPhone(true)}>{t('Show Number')}</Btn>
           {whatsAppActions}
         </div>
       );
     }
-    return <span style={{ color: 'var(--t4)' }}>Hidden</span>;
+    return <span style={{ color: 'var(--t4)' }}>{t('Hidden')}</span>;
   })();
 
   return (
     <>
       <Card>
-        <CardHeader title="Personal Information">
+        <CardHeader title={t('Personal Information')}>
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {canEdit && <Btn variant="outline" size="sm" onClick={openEdit}>Edit</Btn>}
-            {canAssign && <Btn variant="outline" size="sm" onClick={openAssign}>Assign Sales Rep</Btn>}
+            {canEdit && <Btn variant="outline" size="sm" onClick={openEdit}>{t('Edit')}</Btn>}
+            {canAssign && <Btn variant="outline" size="sm" onClick={openAssign}>{t('Assign Sales Rep')}</Btn>}
             {canAssignCoach && (
               <Btn variant="outline" size="sm" onClick={openAssignCoach}>
-                {member.current_couch ? 'Switch Coach' : 'Assign Coach'}
+                {member.current_couch ? t('Switch Coach') : t('Assign Coach')}
               </Btn>
             )}
           </div>
         </CardHeader>
-        <InfoRow label="Full Name"         value={member.name} />
-        <InfoRow label="Phone"             value={phoneValue} />
-        <InfoRow label="Gender"            value={member.gender} />
-        <InfoRow label="Birthdate"         value={fmtDate(member.birthdate)} />
-        <InfoRow label="Source"            value={member.source} />
+        <InfoRow label={t('Full Name')}         value={member.name} />
+        <InfoRow label={t('Phone')}             value={phoneValue} />
+        <InfoRow label={t('Gender')}            value={GENDER_LABEL[member.gender] ? t(GENDER_LABEL[member.gender]) : member.gender} />
+        <InfoRow label={t('Birthdate')}         value={fmtDate(member.birthdate)} />
+        <InfoRow label={t('Source')}            value={member.source ? t(member.source) : member.source} />
         {multiEnabled && (
           <InfoRow
-            label="Location"
+            label={t('Location')}
             value={
               member.locationId?.name
               || locations.find((l) => String(l._id) === String(member.locationId?._id || member.locationId))?.name
@@ -235,46 +242,46 @@ export default function PersonalTab({ member, user, onRefresh }) {
             }
           />
         )}
-        <InfoRow label="System ID"         value={`#${member.systemId}`} />
-        <InfoRow label="Member ID"         value={member.memberId ? `M${member.memberId}` : '—'} />
-        <InfoRow label="Status"            value={<Badge status={member.status} />} />
-        <InfoRow label="Added By"          value={member.createdBy?.name} />
-        <InfoRow label="Added On"          value={fmtDate(member.createdAt)} />
-        <InfoRow label="Assigned Sales Rep" value={member.assignedSales ? `${member.assignedSales.name} (${member.assignedSales.role})` : '—'} />
-        <InfoRow label="Assigned Coach" value={coachLabel(member.current_couch)} />
+        <InfoRow label={t('System ID')}         value={<bdi dir="ltr">{`#${member.systemId}`}</bdi>} />
+        <InfoRow label={t('Member ID')}         value={member.memberId ? <bdi dir="ltr">{'M' + member.memberId}</bdi> : '—'} />
+        <InfoRow label={t('Status')}            value={<Badge status={member.status} />} />
+        <InfoRow label={t('Added By')}          value={member.createdBy?.name} />
+        <InfoRow label={t('Added On')}          value={fmtDate(member.createdAt)} />
+        <InfoRow label={t('Assigned Sales Rep')} value={member.assignedSales ? `${member.assignedSales.name} (${t(member.assignedSales.role)})` : '—'} />
+        <InfoRow label={t('Assigned Coach')} value={coachLabel(member.current_couch, t)} />
       </Card>
 
       <Modal
         open={showEdit}
         onClose={() => setShowEdit(false)}
-        title="Edit personal information"
+        title={t('Edit personal information')}
         footer={(
           <>
-            <Btn variant="ghost" size="sm" onClick={() => setShowEdit(false)}>Cancel</Btn>
-            <Btn size="sm" onClick={handleSave} disabled={saving}>{saving ? <Spinner size="sm" /> : 'Save'}</Btn>
+            <Btn variant="ghost" size="sm" onClick={() => setShowEdit(false)}>{t('Cancel')}</Btn>
+            <Btn size="sm" onClick={handleSave} disabled={saving}>{saving ? <Spinner size="sm" /> : t('Save')}</Btn>
           </>
         )}
       >
         {editForm && (
           <div className="grid-2-form">
-            <Input label="Full Name *" value={editForm.name} onChange={(e) => setEdit('name', e.target.value)} error={editErrors.name} />
+            <Input label={t('Full Name *')} value={editForm.name} onChange={(e) => setEdit('name', e.target.value)} error={editErrors.name} />
             {canEditPhone ? (
-              <Input label="Phone *" value={editForm.phones} onChange={(e) => setEdit('phones', e.target.value)} error={editErrors.phones} />
+              <Input label={t('Phone *')} value={editForm.phones} onChange={(e) => setEdit('phones', e.target.value)} error={editErrors.phones} />
             ) : (
-              <Input label="Phone" value="Hidden" disabled />
+              <Input label={t('Phone')} value={t('Hidden')} disabled />
             )}
-            <Select label="Gender" value={editForm.gender} onChange={(e) => setEdit('gender', e.target.value)}>
-              <option value="">— Select —</option>
-              <option value="male">Male</option>
-              <option value="female">Female</option>
+            <Select label={t('Gender')} value={editForm.gender} onChange={(e) => setEdit('gender', e.target.value)}>
+              <option value="">{t('— Select —')}</option>
+              <option value="male">{t('Male')}</option>
+              <option value="female">{t('Female')}</option>
             </Select>
-            <Input label="Birthdate" type="date" value={editForm.birthdate} onChange={(e) => setEdit('birthdate', e.target.value)} error={editErrors.birthdate} />
-            <Select label="Source" value={editForm.source} onChange={(e) => setEdit('source', e.target.value)}>
-              <option value="">— Select —</option>
-              {SOURCES.map((source) => <option key={source} value={source}>{source}</option>)}
+            <Input label={t('Birthdate')} type="date" value={editForm.birthdate} onChange={(e) => setEdit('birthdate', e.target.value)} error={editErrors.birthdate} />
+            <Select label={t('Source')} value={editForm.source} onChange={(e) => setEdit('source', e.target.value)}>
+              <option value="">{t('— Select —')}</option>
+              {SOURCES.map((source) => <option key={source} value={source}>{t(source)}</option>)}
             </Select>
             {multiEnabled && locations.length > 0 && (
-              <Select label="Location" value={editForm.locationId || ''} onChange={(e) => setEdit('locationId', e.target.value)}>
+              <Select label={t('Location')} value={editForm.locationId || ''} onChange={(e) => setEdit('locationId', e.target.value)}>
                 {locations.map((loc) => (
                   <option key={loc._id} value={loc._id}>{loc.name}</option>
                 ))}
@@ -284,43 +291,43 @@ export default function PersonalTab({ member, user, onRefresh }) {
         )}
       </Modal>
 
-      <Modal open={showAssign} onClose={() => setShowAssign(false)} title="Assign Sales Rep" size="sm"
-        footer={<><Btn variant="ghost" size="sm" onClick={() => setShowAssign(false)}>Cancel</Btn><Btn size="sm" onClick={handleAssign} disabled={loading}>{loading ? <Spinner size="sm" /> : 'Assign'}</Btn></>}>
-        <Select label="Salesperson" value={selected} onChange={e => setSelected(e.target.value)}>
-          <option value="">— Select —</option>
-          {salesUsers.map(s => <option key={s._id} value={s._id}>{s.name} ({s.role})</option>)}
+      <Modal open={showAssign} onClose={() => setShowAssign(false)} title={t('Assign Sales Rep')} size="sm"
+        footer={<><Btn variant="ghost" size="sm" onClick={() => setShowAssign(false)}>{t('Cancel')}</Btn><Btn size="sm" onClick={handleAssign} disabled={loading}>{loading ? <Spinner size="sm" /> : t('Assign')}</Btn></>}>
+        <Select label={t('Salesperson')} value={selected} onChange={e => setSelected(e.target.value)}>
+          <option value="">{t('— Select —')}</option>
+          {salesUsers.map(s => <option key={s._id} value={s._id}>{s.name} ({t(s.role)})</option>)}
         </Select>
       </Modal>
 
       <Modal
         open={showAssignCoach}
         onClose={() => setShowAssignCoach(false)}
-        title={member.current_couch ? 'Switch Coach' : 'Assign Coach'}
+        title={member.current_couch ? t('Switch Coach') : t('Assign Coach')}
         size="sm"
         footer={(
           <>
-            <Btn variant="ghost" size="sm" onClick={() => setShowAssignCoach(false)}>Cancel</Btn>
+            <Btn variant="ghost" size="sm" onClick={() => setShowAssignCoach(false)}>{t('Cancel')}</Btn>
             <Btn size="sm" onClick={handleAssignCoach} disabled={coachLoading}>
-              {coachLoading ? <Spinner size="sm" /> : (member.current_couch ? 'Switch' : 'Assign')}
+              {coachLoading ? <Spinner size="sm" /> : (member.current_couch ? t('Switch') : t('Assign'))}
             </Btn>
           </>
         )}
       >
-        <Select label="Coach" value={selectedCoach} onChange={(e) => setSelectedCoach(e.target.value)}>
-          <option value="">— Select —</option>
+        <Select label={t('Coach')} value={selectedCoach} onChange={(e) => setSelectedCoach(e.target.value)}>
+          <option value="">{t('— Select —')}</option>
           {coaches.map((c) => (
-            <option key={c._id} value={c._id}>{c.name} ({c.role})</option>
+            <option key={c._id} value={c._id}>{c.name} ({t(c.role)})</option>
           ))}
         </Select>
       </Modal>
 
       {/* Phone number popup */}
-      <Modal open={showPhone} onClose={() => setShowPhone(false)} title="Phone Number" size="sm">
+      <Modal open={showPhone} onClose={() => setShowPhone(false)} title={t('Phone Number')} size="sm">
         <div style={{ textAlign: 'center', padding: '16px 0' }}>
           <p style={{ fontSize: 11, color: 'var(--t4)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
             {member.name}
           </p>
-          <p style={{ fontSize: 28, fontWeight: 800, color: 'var(--t1)', letterSpacing: '1px', fontFamily: 'monospace', marginBottom: hasUsablePhone ? 16 : 0 }}>
+          <p dir="ltr" style={{ fontSize: 28, fontWeight: 800, color: 'var(--t1)', letterSpacing: '1px', fontFamily: 'monospace', marginBottom: hasUsablePhone ? 16 : 0 }}>
             {member.phones}
           </p>
           {hasUsablePhone && (
@@ -328,7 +335,7 @@ export default function PersonalTab({ member, user, onRefresh }) {
               <WhatsAppBtn phone={member.phones} size="sm" />
               {canSendTemplate && (
                 <Btn variant="outline" size="sm" onClick={() => { setShowPhone(false); setShowTemplate(true); }}>
-                  Send ready message
+                  {t('Send ready message')}
                 </Btn>
               )}
             </div>

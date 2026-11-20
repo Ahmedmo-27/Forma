@@ -15,22 +15,26 @@ import { useTenant } from '../context/TenantContext';
 import { useAuth } from '../context/AuthContext';
 import { hasAccess } from '../lib/access';
 import { memberPhone } from '../pages/tasks/taskMembers';
+import { useI18n } from '../i18n/useI18n';
+import { useFormat } from '../i18n/useFormat';
+import { tr } from '../i18n/translate';
 
 const TEMPLATE_CREATE_ROLES = [
   'Owner', 'Sales Manager', 'Accountant', 'Head Coach', 'General Manager',
 ];
 
+// Return source strings; callers translate with t() at render time.
 function typeLabel(type) {
-  if (type === 'packages') return 'Packages list';
-  if (type === 'discounts') return 'Discount offer';
-  if (type === 'custom') return 'Custom';
-  return type ? type.charAt(0).toUpperCase() + type.slice(1) : 'Other';
+  if (type === 'packages') return tr('Packages list');
+  if (type === 'discounts') return tr('Discount offer');
+  if (type === 'custom') return tr('Custom');
+  return type ? type.charAt(0).toUpperCase() + type.slice(1) : tr('Other');
 }
 
 function typeHelp(type) {
-  if (type === 'packages') return 'Shows membership packages and prices in the message.';
-  if (type === 'discounts') return 'Pick a package and a %, and the new price is written for you.';
-  return 'A free-text message you can edit before sending.';
+  if (type === 'packages') return tr('Shows membership packages and prices in the message.');
+  if (type === 'discounts') return tr('Pick a package and a %, and the new price is written for you.');
+  return tr('A free-text message you can edit before sending.');
 }
 
 function defaultPackageIdsFrom(template) {
@@ -104,6 +108,8 @@ const linkBtnStyle = {
  * Bulk WhatsApp send for Filter Results: template campaign or custom message.
  */
 export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
+  const { t } = useI18n();
+  const { fmtNumber } = useFormat();
   const { currency = 'EGP', countryCode = '20' } = useTenant() || {};
   const { user } = useAuth();
   const canSaveTemplate = TEMPLATE_CREATE_ROLES.includes(user?.role)
@@ -180,7 +186,7 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
         setTemplates(list);
         setPackages(pkgs);
 
-        const pick = list.find((t) => t.isDefault) || (list.length === 1 ? list[0] : null);
+        const pick = list.find((tpl) => tpl.isDefault) || (list.length === 1 ? list[0] : null);
         if (pick) {
           const pkgIds = defaultPackageIdsFrom(pick);
           const percent = Number(pick.defaultDiscountPercent) || (pick.type === 'discounts' ? 50 : 0);
@@ -201,7 +207,7 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
       })
       .catch((err) => {
         if (!cancelled && err?.normalized?.status !== 403) {
-          toast.error(err?.normalized?.message || 'Could not load message templates');
+          toast.error(err?.normalized?.message || t('Could not load message templates'));
         }
       })
       .finally(() => {
@@ -211,10 +217,10 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
     return () => { cancelled = true; };
     // Only re-fetch when the modal opens or the first selected member changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- previewMember object identity is unstable
-  }, [open, buildCampaignMessage, previewMemberId]);
+  }, [open, buildCampaignMessage, previewMemberId, t]);
 
   const types = useMemo(() => {
-    const set = new Set(templates.map((t) => t.type));
+    const set = new Set(templates.map((tpl) => tpl.type));
     return Array.from(set).sort((a, b) => {
       const order = { packages: 0, discounts: 1, custom: 2 };
       return (order[a] ?? 99) - (order[b] ?? 99) || a.localeCompare(b);
@@ -223,11 +229,11 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
 
   const filteredTemplates = useMemo(() => {
     if (!typeFilter) return templates;
-    return templates.filter((t) => t.type === typeFilter);
+    return templates.filter((tpl) => tpl.type === typeFilter);
   }, [templates, typeFilter]);
 
   const selectedTemplate = useMemo(
-    () => templates.find((t) => t._id === templateId) ?? null,
+    () => templates.find((tpl) => tpl._id === templateId) ?? null,
     [templates, templateId]
   );
 
@@ -262,26 +268,26 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
   }, [recomposed, selectedTemplate, campaignDirty]);
 
   const applyTemplateSelection = (id) => {
-    const t = templates.find((x) => x._id === id);
+    const tpl = templates.find((x) => x._id === id);
     setTemplateId(id);
     setCampaignDirty(false);
-    if (!t) {
+    if (!tpl) {
       setCampaignDraft('');
       return;
     }
-    const pkgIds = defaultPackageIdsFrom(t);
+    const pkgIds = defaultPackageIdsFrom(tpl);
     let nextIds;
-    if (t.type === 'discounts') {
+    if (tpl.type === 'discounts') {
       nextIds = pkgIds.length ? [pkgIds[0]] : (packages[0] ? [String(packages[0]._id)] : []);
-    } else if (t.type === 'packages') {
+    } else if (tpl.type === 'packages') {
       nextIds = pkgIds.length ? pkgIds : packages.map((p) => String(p._id));
     } else {
       nextIds = [];
     }
-    const percent = Number(t.defaultDiscountPercent) || (t.type === 'discounts' ? 50 : 0);
+    const percent = Number(tpl.defaultDiscountPercent) || (tpl.type === 'discounts' ? 50 : 0);
     setSelectedPackageIds(nextIds);
     setDiscountPercent(percent);
-    setCampaignDraft(buildCampaignMessage(t, packages, nextIds, percent, language, previewMember));
+    setCampaignDraft(buildCampaignMessage(tpl, packages, nextIds, percent, language, previewMember));
   };
 
   const handleTypeChange = (value) => {
@@ -291,7 +297,7 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
     setCampaignDirty(false);
     setSelectedPackageIds([]);
     setDiscountPercent(0);
-    const first = templates.find((t) => !value || t.type === value);
+    const first = templates.find((tpl) => !value || tpl.type === value);
     if (first) applyTemplateSelection(first._id);
   };
 
@@ -363,11 +369,11 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
     const title = saveName.trim();
     const body = customMessage.trim();
     if (!title) {
-      toast.error('Give the template a title');
+      toast.error(t('Give the template a title'));
       return;
     }
     if (!body) {
-      toast.error('Write a message before saving');
+      toast.error(t('Write a message before saving'));
       return;
     }
     setSavingTemplate(true);
@@ -377,13 +383,13 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
         type: 'custom',
         bodyText: body,
       });
-      toast.success('Template saved');
+      toast.success(t('Template saved'));
       setShowSaveForm(false);
       setSaveName('');
       const tRes = await getWhatsAppTemplates({ limit: 100 });
       setTemplates(tRes.data.templates ?? []);
     } catch (err) {
-      toast.error(err?.normalized?.message || err?.response?.data?.message || 'Could not save template');
+      toast.error(err?.normalized?.message || err?.response?.data?.message || t('Could not save template'));
     } finally {
       setSavingTemplate(false);
     }
@@ -391,27 +397,27 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
 
   const handleSend = async () => {
     if (!members.length) {
-      toast.error('Select at least one member');
+      toast.error(t('Select at least one member'));
       return;
     }
     if (mode === 'campaign') {
       if (!selectedTemplate && !campaignDraft.trim()) {
-        toast.error('Choose a template campaign first');
+        toast.error(t('Choose a template campaign first'));
         return;
       }
       if (selectedTemplate?.type === 'discounts') {
         if (!selectedPackageIds.length) {
-          toast.error('Choose which package the discount is for');
+          toast.error(t('Choose which package the discount is for'));
           return;
         }
         const dp = Number(discountPercent);
         if (isNaN(dp) || dp <= 0 || dp > 100) {
-          toast.error('Enter a valid discount percentage between 1 and 100');
+          toast.error(t('Enter a valid discount percentage between 1 and 100'));
           return;
         }
       }
     } else if (!customMessage.trim()) {
-      toast.error('Write a custom message first');
+      toast.error(t('Write a custom message first'));
       return;
     }
 
@@ -466,16 +472,16 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
 
     setSending(false);
     if (sent > 0 && failed === 0 && skipped === 0) {
-      toast.success(`Sent WhatsApp to ${sent} member(s)`);
+      toast.success(t('Sent WhatsApp to {count} member(s)', { count: sent }));
       onClose();
     } else if (sent > 0) {
-      toast.success(`Sent ${sent}. Failed ${failed}. Skipped ${skipped}.`);
+      toast.success(t('Sent {sent}. Failed {failed}. Skipped {skipped}.', { sent, failed, skipped }));
     } else if (disconnected || failed > 0) {
       toast.error(disconnected
-        ? 'WhatsApp is not connected'
-        : `Could not send. Failed ${failed}, skipped ${skipped}.`);
+        ? t('WhatsApp is not connected')
+        : t('Could not send. Failed {failed}, skipped {skipped}.', { failed, skipped }));
     } else {
-      toast.error('No members had a usable phone number');
+      toast.error(t('No members had a usable phone number'));
     }
   };
 
@@ -490,11 +496,11 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
     <Modal
       open={open}
       onClose={sending ? () => {} : onClose}
-      title={`Send WhatsApp to ${members.length} Member(s)`}
+      title={t('Send WhatsApp to {count} Member(s)', { count: members.length })}
       size="lg"
       footer={(
         <>
-          <Btn variant="ghost" size="sm" onClick={onClose} disabled={sending}>Cancel</Btn>
+          <Btn variant="ghost" size="sm" onClick={onClose} disabled={sending}>{t('Cancel')}</Btn>
           <Btn
             variant="success"
             size="sm"
@@ -502,8 +508,8 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
             disabled={loading || sending || !canSend || !members.length}
           >
             {sending
-              ? `Sending… ${progress.sent + progress.failed + progress.skipped}/${progress.total}`
-              : `Send to ${sendableCount || members.length} Members`}
+              ? t('Sending… {done}/{total}', { done: progress.sent + progress.failed + progress.skipped, total: progress.total })
+              : t('Send to {count} Members', { count: sendableCount || members.length })}
           </Btn>
         </>
       )}
@@ -515,19 +521,20 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={tipBox}>
-            Sending to <strong>{members.length}</strong> selected member
-            {members.length === 1 ? '' : 's'}
+            {members.length === 1
+              ? t('Sending to {count} selected member.', { count: members.length })
+              : t('Sending to {count} selected members.', { count: members.length })}
             {sendableCount < members.length
-              ? ` (${sendableCount} with a usable WhatsApp number).`
-              : '.'}
+              ? ` ${t('{count} with a usable WhatsApp number.', { count: sendableCount })}`
+              : ''}
             {' '}
-            Large batches are paced by WhatsApp (~20s between messages).
+            {t('Large batches are paced by WhatsApp (~20s between messages).')}
           </div>
 
           {needsConnect && (
             <div style={tipBox}>
-              Connect WhatsApp before sending.{' '}
-              <Link to="/account/whatsapp" style={{ fontWeight: 700 }}>Open Connect WhatsApp</Link>
+              {t('Connect WhatsApp before sending.')}{' '}
+              <Link to="/account/whatsapp" style={{ fontWeight: 700 }}>{t('Open Connect WhatsApp')}</Link>
             </div>
           )}
 
@@ -543,7 +550,7 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
               onClick={() => setMode('campaign')}
               disabled={sending}
             >
-              Template campaign
+              {t('Template campaign')}
             </button>
             <button
               type="button"
@@ -556,76 +563,74 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
               onClick={() => setMode('custom')}
               disabled={sending}
             >
-              Custom message
+              {t('Custom message')}
             </button>
           </div>
 
           {mode === 'campaign' ? (
             templates.length === 0 ? (
               <div style={tipBox}>
-                No ready campaigns yet. Ask an Owner, Sales Manager, Accountant, or Head Coach
-                to create templates from the <strong>WA Messages</strong> page — or switch to
-                Custom message.
+                {t('No ready campaigns yet. Ask an Owner, Sales Manager, Accountant, or Head Coach to create templates from the WA Messages page — or switch to Custom message.')}
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div>
-                  <div style={stepLabel}>Step 1 — Choose a campaign</div>
+                  <div style={stepLabel}>{t('Step 1 — Choose a campaign')}</div>
                   <Select
-                    label="Message type"
+                    label={t('Message type')}
                     value={typeFilter}
                     onChange={(e) => handleTypeChange(e.target.value)}
                   >
-                    <option value="">Show all</option>
-                    {types.map((t) => (
-                      <option key={t} value={t}>{typeLabel(t)}</option>
+                    <option value="">{t('Show all')}</option>
+                    {types.map((type) => (
+                      <option key={type} value={type}>{t(typeLabel(type))}</option>
                     ))}
                   </Select>
                   <Select
-                    label="Ready message"
+                    label={t('Ready message')}
                     value={templateId}
                     onChange={(e) => applyTemplateSelection(e.target.value)}
-                    hint={selectedTemplate ? typeHelp(selectedTemplate.type) : 'Pick a saved campaign'}
+                    hint={selectedTemplate ? t(typeHelp(selectedTemplate.type)) : t('Pick a saved campaign')}
                   >
-                    <option value="">— Choose a message —</option>
-                    {filteredTemplates.map((t) => (
-                      <option key={t._id} value={t._id}>
-                        {t.name}{t.isDefault ? ' (suggested)' : ''}
+                    <option value="">{t('— Choose a message —')}</option>
+                    {filteredTemplates.map((tpl) => (
+                      <option key={tpl._id} value={tpl._id}>
+                        {tpl.isDefault ? `${tpl.name} ${t('(suggested)')}` : tpl.name}
                       </option>
                     ))}
                   </Select>
                   {hasArabic && (
                     <Select
-                      label="Language"
+                      label={t('Language')}
                       value={language}
                       onChange={(e) => { setLanguage(e.target.value); setCampaignDirty(false); }}
                     >
-                      <option value="en">English</option>
-                      <option value="ar">Arabic</option>
+                      <option value="en">{t('English')}</option>
+                      <option value="ar">{t('Arabic')}</option>
                     </Select>
                   )}
                 </div>
 
                 {showDiscountPercent && (
                   <div>
-                    <div style={stepLabel}>Step 2 — Choose the discount</div>
+                    <div style={stepLabel}>{t('Step 2 — Choose the discount')}</div>
                     <Select
-                      label="Which package is discounted?"
+                      label={t('Which package is discounted?')}
                       value={selectedPackageIds[0] || ''}
                       onChange={(e) => {
                         setCampaignDirty(false);
                         setSelectedPackageIds(e.target.value ? [e.target.value] : []);
                       }}
                     >
-                      <option value="">— Choose a package —</option>
+                      <option value="">{t('— Choose a package —')}</option>
                       {packages.map((p) => (
                         <option key={p._id} value={p._id}>
-                          {p.name} ({p.duration}) — {Number(p.price).toLocaleString()} {currency}
+                          {`${p.name} (${t(p.duration)}) — ${fmtNumber(p.price)} ${currency}`}
                         </option>
                       ))}
                     </Select>
                     <Input
-                      label="Discount %"
+                      label={t('Discount %')}
                       type="number"
                       min={1}
                       max={100}
@@ -646,9 +651,13 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
                         color: '#166534',
                         fontWeight: 600,
                       }}>
-                        {selectedDiscountPkg.name}: price was {Number(selectedDiscountPkg.price).toLocaleString()} {currency},
-                        now it’s {calcNewPrice(selectedDiscountPkg.price, discountPercent).toLocaleString()} {currency}
-                        {' '}({discountPercent}% off)
+                        {t('{name}: price was {oldPrice} {currency}, now it’s {newPrice} {currency} ({percent}% off)', {
+                          name: selectedDiscountPkg.name,
+                          oldPrice: fmtNumber(selectedDiscountPkg.price),
+                          newPrice: fmtNumber(calcNewPrice(selectedDiscountPkg.price, discountPercent)),
+                          currency,
+                          percent: discountPercent,
+                        })}
                       </div>
                     )}
                   </div>
@@ -656,7 +665,7 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
 
                 {showPackagePicker && (
                   <div>
-                    <div style={stepLabel}>Step 2 — Which packages to include?</div>
+                    <div style={stepLabel}>{t('Step 2 — Which packages to include?')}</div>
                     <div style={{ display: 'flex', gap: 10, marginBottom: 6 }}>
                       <button
                         type="button"
@@ -666,7 +675,7 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
                         }}
                         style={linkBtnStyle}
                       >
-                        Select all
+                        {t('Select all')}
                       </button>
                       <button
                         type="button"
@@ -676,7 +685,7 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
                         }}
                         style={linkBtnStyle}
                       >
-                        Clear
+                        {t('Clear')}
                       </button>
                     </div>
                     <div style={{
@@ -695,7 +704,7 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
                               checked={selectedPackageIds.includes(id)}
                               onChange={() => togglePackage(id)}
                             />
-                            <span>{p.name} — {p.duration} — {Number(p.price).toLocaleString()} {currency}</span>
+                            <span>{`${p.name} — ${t(p.duration)} — ${fmtNumber(p.price)} ${currency}`}</span>
                           </label>
                         );
                       })}
@@ -707,7 +716,9 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
                   <div>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={stepLabel}>
-                        {showDiscountPercent || showPackagePicker ? 'Step 3' : 'Step 2'} — Check & edit
+                        {showDiscountPercent || showPackagePicker
+                          ? t('Step 3 — Check & edit')
+                          : t('Step 2 — Check & edit')}
                       </div>
                       <Btn
                         variant="ghost"
@@ -717,14 +728,15 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
                           setCampaignDraft(recomposed);
                         }}
                       >
-                        Rebuild from choices
+                        {t('Rebuild from choices')}
                       </Btn>
                     </div>
                     <Textarea
                       value={campaignDraft}
                       onChange={(e) => { setCampaignDirty(true); setCampaignDraft(e.target.value); }}
                       rows={7}
-                      hint="Edits apply to every recipient; name placeholders still resolve per member when possible."
+                      dir="auto"
+                      hint={t('Edits apply to every recipient; name placeholders still resolve per member when possible.')}
                     />
                   </div>
                 )}
@@ -732,9 +744,9 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
             )
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={stepLabel}>Write your message</div>
+              <div style={stepLabel}>{t('Write your message')}</div>
               <p style={{ margin: 0, fontSize: 12, color: 'var(--t3)' }}>
-                Click a placeholder to insert it. Each member gets their own values when you send.
+                {t('Click a placeholder to insert it. Each member gets their own values when you send.')}
               </p>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {WHATSAPP_PLACEHOLDER_TOKENS.map(({ token, label }) => (
@@ -746,7 +758,7 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
                     disabled={sending}
                     title={token}
                   >
-                    {label}
+                    {t(label)}
                   </button>
                 ))}
               </div>
@@ -755,6 +767,7 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
                 value={customMessage}
                 onChange={(e) => setCustomMessage(e.target.value)}
                 rows={7}
+                dir="auto"
                 disabled={sending}
                 style={{
                   width: '100%', padding: '10px 12px', borderRadius: 8,
@@ -772,17 +785,17 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
                     background: 'var(--bg)',
                   }}>
                     <Input
-                      label="Template title"
+                      label={t('Template title')}
                       value={saveName}
                       onChange={(e) => setSaveName(e.target.value)}
-                      placeholder="e.g. Renewal reminder"
+                      placeholder={t('e.g. Renewal reminder')}
                     />
                     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                       <Btn variant="ghost" size="sm" onClick={() => setShowSaveForm(false)} disabled={savingTemplate}>
-                        Cancel
+                        {t('Cancel')}
                       </Btn>
                       <Btn variant="outline" size="sm" onClick={handleSaveTemplate} disabled={savingTemplate}>
-                        {savingTemplate ? <Spinner size="sm" /> : 'Save template'}
+                        {savingTemplate ? <Spinner size="sm" /> : t('Save template')}
                       </Btn>
                     </div>
                   </div>
@@ -794,13 +807,13 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
                       onClick={() => setShowSaveForm(true)}
                       disabled={!customMessage.trim() || sending}
                     >
-                      Save as new template
+                      {t('Save as new template')}
                     </Btn>
                   </div>
                 )
               ) : (
                 <p style={{ margin: 0, fontSize: 12, color: 'var(--t4)' }}>
-                  To save templates for your team, ask an Owner or Sales Manager (WA Messages page).
+                  {t('To save templates for your team, ask an Owner or Sales Manager (WA Messages page).')}
                 </p>
               )}
             </div>
@@ -812,10 +825,11 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
               background: '#f0fdf4',
             }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#15803d', marginBottom: 6 }}>
-                PREVIEW
-                {previewMember?.name ? ` — ${previewMember.name}` : ''}
+                {t('PREVIEW')}
+                {previewMember?.name ? ' — ' : ''}
+                {previewMember?.name ? <bdi>{previewMember.name}</bdi> : null}
               </div>
-              <pre style={{
+              <pre dir="auto" style={{
                 margin: 0, whiteSpace: 'pre-wrap', fontFamily: 'inherit',
                 fontSize: 13, color: 'var(--t1)', lineHeight: 1.45,
               }}>
@@ -826,8 +840,12 @@ export default function BulkWhatsAppSendModal({ open, onClose, members = [] }) {
 
           {sending && (
             <div style={{ fontSize: 13, color: 'var(--t2)' }}>
-              Sent {progress.sent} · Failed {progress.failed} · Skipped {progress.skipped}
-              {' '}of {progress.total}
+              {t('Sent {sent} · Failed {failed} · Skipped {skipped} of {total}', {
+                sent: progress.sent,
+                failed: progress.failed,
+                skipped: progress.skipped,
+                total: progress.total,
+              })}
             </div>
           )}
         </div>

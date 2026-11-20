@@ -7,6 +7,8 @@ import Layout from '../../components/Layout';
 import { PageHeader, Card, Btn, Spinner, Select } from '../../components/ui';
 import { getSalesUsers, getCoachTeam, switchSalesRep, switchCoach } from '../../api/endpoints';
 import { CheckCircle2, Zap } from 'lucide-react';
+import { useI18n } from '../../i18n/useI18n';
+import { tr } from '../../i18n/translate';
 
 const iStyle = {
   width: '100%', height: 38, borderRadius: 8,
@@ -21,6 +23,12 @@ const labelStyle = {
   letterSpacing: '0.5px', marginBottom: 6,
 };
 
+const STAFF_GROUPS = [
+  { key: 'Sales Representatives', label: tr('Sales Representatives') },
+  { key: 'Sales Managers', label: tr('Sales Managers') },
+  { key: 'Coaches', label: tr('Coaches') },
+];
+
 function Field({ label, children }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -31,7 +39,8 @@ function Field({ label, children }) {
 }
 
 export default function QuickTransfer() {
-  usePageTitle('Quick Transfer');
+  const { t } = useI18n();
+  usePageTitle(t('Quick Transfer'));
   const navigate = useNavigate();
   const { user: _user } = useAuth();
 
@@ -68,8 +77,8 @@ export default function QuickTransfer() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     const id = systemId.trim();
-    if (!id) { toast.error('Enter a System ID'); return; }
-    if (!destId) { toast.error('Choose a destination staff member'); return; }
+    if (!id) { toast.error(t('Enter a System ID')); return; }
+    if (!destId) { toast.error(t('Choose a destination staff member')); return; }
     setBusy(true);
     try {
       const isSales = salesUsers.some((u) => u._id === destId);
@@ -81,11 +90,11 @@ export default function QuickTransfer() {
       setResult({
         memberLabel: `#${id}`,
         destName: destPerson?.name || destId,
-        destRole: isSales ? 'Sales' : 'Coach',
+        destRole: isSales ? tr('Sales') : tr('Coach'),
       });
-      toast.success('Transfer successful!');
+      toast.success(t('Transfer successful!'));
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Transfer failed');
+      toast.error(err.response?.data?.message || t('Transfer failed'));
     } finally {
       setBusy(false);
     }
@@ -100,15 +109,15 @@ export default function QuickTransfer() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="quick-transfer-header" title="Quick Transfer">
+      <PageHeader walkthrough="quick-transfer-header" title={t('Quick Transfer')}>
         <Btn variant="ghost" size="sm" onClick={() => navigate('/management')}>
-          ← Back to Management
+          <span className="rtl-flip" style={{ display: 'inline-block' }} aria-hidden>←</span> {t('Back to Management')}
         </Btn>
       </PageHeader>
 
       <div className="page-wrap" data-walkthrough="quick-transfer-board" style={{ paddingTop: 32, paddingBottom: 48, maxWidth: 680 }}>
         <p style={{ fontSize: 14, color: 'var(--t3)', marginBottom: 24 }}>
-          Transfer an individual member to a sales representative or coach by their System ID.
+          {t('Transfer an individual member to a sales representative or coach by their System ID.')}
         </p>
 
         {result ? (
@@ -116,16 +125,15 @@ export default function QuickTransfer() {
           <Card style={{ padding: '36px 32px', textAlign: 'center' }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16, color: 'var(--green)' }}><CheckCircle2 size={48} strokeWidth={1.5} aria-hidden /></div>
             <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--t1)', marginBottom: 8 }}>
-              Transfer Complete
+              {t('Transfer Complete')}
             </h2>
             <p style={{ fontSize: 14, color: 'var(--t2)', marginBottom: 24 }}>
-              Member <strong>{result.memberLabel}</strong> was successfully transferred to{' '}
-              <strong>{result.destName}</strong>{' '}
-              <span style={{ color: 'var(--t3)', fontSize: 12 }}>({result.destRole})</span>
+              {t('Member {member} was successfully transferred to {name}', { member: `\u2066${result.memberLabel}\u2069`, name: `\u2068${result.destName}\u2069` })}{' '}
+              <span style={{ color: 'var(--t3)', fontSize: 12 }}>({t(result.destRole)})</span>
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Btn variant="primary" onClick={handleReset}><Zap size={14} aria-hidden /> Transfer Another</Btn>
-              <Btn variant="outline" onClick={() => navigate(`/members/${systemId}`)}>View Member Profile</Btn>
+              <Btn variant="primary" onClick={handleReset}><Zap size={14} aria-hidden /> {t('Transfer Another')}</Btn>
+              <Btn variant="outline" onClick={() => navigate(`/members/${systemId}`)}>{t('View Member Profile')}</Btn>
             </div>
           </Card>
         ) : (
@@ -133,40 +141,40 @@ export default function QuickTransfer() {
           <Card style={{ padding: '28px 28px' }}>
             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
 
-              <Field label="System ID">
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+              <Field label={t('System ID')}>
+                <div dir="ltr" style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
                   <span style={{
-                    position: 'absolute', left: 12, color: 'var(--t3)',
+                    position: 'absolute', insetInlineStart: 12, color: 'var(--t3)',
                     fontWeight: 700, fontSize: 14, pointerEvents: 'none',
                   }}>#</span>
                   <input
                     value={systemId}
                     onChange={(e) => setSystemId(e.target.value)}
-                    placeholder="e.g. 104"
+                    placeholder={t('e.g. {example}', { example: '104' })}
                     autoFocus
-                    style={{ ...iStyle, paddingLeft: 26 }}
+                    style={{ ...iStyle, paddingInlineStart: 26 }}
                     onFocus={(e) => { e.target.style.borderColor = 'var(--navy, var(--navy))'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy, var(--navy)) 10%, transparent)'; }}
                     onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
                   />
                 </div>
               </Field>
 
-              <Field label="Assign To">
+              <Field label={t('Assign To')}>
                 {loadingStaff ? (
                   <div style={{ height: 38, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--t3)', fontSize: 13 }}>
-                    <Spinner size="sm" /> Loading staff…
+                    <Spinner size="sm" /> {t('Loading staff…')}
                   </div>
                 ) : (
                   <Select
                     value={destId}
                     onChange={(e) => setDestId(e.target.value)}
                   >
-                    <option value="">Select destination…</option>
-                    {['Sales Representatives', 'Sales Managers', 'Coaches'].map((group) => {
+                    <option value="">{t('Select destination…')}</option>
+                    {STAFF_GROUPS.map(({ key: group, label }) => {
                       const members = allStaff.filter((p) => p._group === group);
                       if (!members.length) return null;
                       return (
-                        <optgroup key={group} label={group}>
+                        <optgroup key={group} label={t(label)}>
                           {members.map((p) => (
                             <option key={p._id} value={p._id}>{p.name}</option>
                           ))}
@@ -177,11 +185,11 @@ export default function QuickTransfer() {
                 )}
               </Field>
 
-              <Field label="Reason (optional)">
+              <Field label={t('Reason (optional)')}>
                 <input
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="e.g. Member requested change"
+                  placeholder={t('e.g. Member requested change')}
                   style={iStyle}
                   onFocus={(e) => { e.target.style.borderColor = 'var(--navy, var(--navy))'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy, var(--navy)) 10%, transparent)'; }}
                   onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
@@ -198,7 +206,7 @@ export default function QuickTransfer() {
                   onClick={handleReset}
                   disabled={busy || (!systemId && !destId && !reason)}
                 >
-                  ↺ Clear
+                  ↺ {t('Clear')}
                 </Btn>
                 <button
                   type="submit"
@@ -212,7 +220,7 @@ export default function QuickTransfer() {
                     fontFamily: 'inherit', transition: 'all 0.15s',
                   }}
                 >
-                  {busy ? <Spinner size="sm" /> : <><Zap size={14} aria-hidden /> Transfer Member</>}
+                  {busy ? <Spinner size="sm" /> : <><Zap size={14} aria-hidden /> {t('Transfer Member')}</>}
                 </button>
               </div>
 

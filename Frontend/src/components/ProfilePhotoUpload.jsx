@@ -4,6 +4,8 @@ import { X } from 'lucide-react';
 import { Avatar, Btn, Modal, Spinner } from './ui';
 import { deleteMemberPhoto, uploadMemberPhoto } from '../api/endpoints';
 import { validateFile, PHOTO_EXTENSIONS, PHOTO_ACCEPT, UPLOAD_INTAKE_MB } from '../lib/validation';
+import { useI18n } from '../i18n/useI18n';
+import { tr } from '../i18n/translate';
 
 const CAN_UPLOAD = ['Accountant'];
 
@@ -17,6 +19,7 @@ function CameraIcon({ size = 22 }) {
 }
 
 export default function ProfilePhotoUpload({ member, user, onUploaded }) {
+  const { t } = useI18n();
   const canUpload = CAN_UPLOAD.includes(user?.role);
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -56,7 +59,7 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
     setCameraError(null);
     setStreamReady(false);
     if (!navigator.mediaDevices?.getUserMedia) {
-      setCameraError('Camera is not supported in this browser. Use “Choose file” instead.');
+      setCameraError(tr('Camera is not supported in this browser. Use “Choose file” instead.'));
       return;
     }
     try {
@@ -71,7 +74,7 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
         setStreamReady(true);
       }
     } catch {
-      setCameraError('Could not access the camera. Check permissions or choose a file instead.');
+      setCameraError(tr('Could not access the camera. Check permissions or choose a file instead.'));
     }
   }, []);
 
@@ -91,7 +94,7 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     canvas.toBlob((blob) => {
       if (!blob) {
-        toast.error('Failed to capture photo.');
+        toast.error(t('Failed to capture photo.'));
         return;
       }
       clearCaptured();
@@ -107,11 +110,11 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
     setUploading(true);
     try {
       await uploadMemberPhoto(member.systemId, formData);
-      toast.success('Profile photo updated');
+      toast.success(t('Profile photo updated'));
       closeModal();
       onUploaded?.();
     } catch (err) {
-      toast.error(err.response?.data?.message ?? 'Upload failed');
+      toast.error(err.response?.data?.message ?? t('Upload failed'));
     } finally {
       setUploading(false);
     }
@@ -136,14 +139,14 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm('Delete this profile picture?')) return;
+    if (!window.confirm(t('Delete this profile picture?'))) return;
     setDeleting(true);
     try {
       await deleteMemberPhoto(member.systemId);
-      toast.success('Profile photo deleted');
+      toast.success(t('Profile photo deleted'));
       onUploaded?.();
     } catch (err) {
-      toast.error(err.response?.data?.message ?? 'Could not delete profile photo');
+      toast.error(err.response?.data?.message ?? t('Could not delete profile photo'));
     } finally {
       setDeleting(false);
     }
@@ -162,8 +165,8 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
           type="button"
           onClick={() => setOpen(true)}
           disabled={deleting}
-          title={member.photo ? 'Change profile photo' : 'Click here to add a new profile picture'}
-          aria-label={member.photo ? 'Change profile photo' : 'Click here to add a new profile picture'}
+          title={member.photo ? t('Change profile photo') : t('Click here to add a new profile picture')}
+          aria-label={member.photo ? t('Change profile photo') : t('Click here to add a new profile picture')}
           style={{
             position: 'relative',
             padding: 0,
@@ -217,12 +220,12 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
                 textAlign: 'center',
                 maxWidth: 90,
               }}>
-                Click here to add a new profile picture
+                {t('Click here to add a new profile picture')}
               </span>
             </div>
           )}
           <span style={{
-            position: 'absolute', right: 2, bottom: 2,
+            position: 'absolute', insetInlineEnd: 2, bottom: 2,
             width: 28, height: 28, borderRadius: '50%',
             background: 'var(--navy)', color: '#fff',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -238,12 +241,12 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
             type="button"
             onClick={handleDelete}
             disabled={deleting}
-            title="Delete profile picture"
-            aria-label="Delete profile picture"
+            title={t('Delete profile picture')}
+            aria-label={t('Delete profile picture')}
             style={{
               position: 'absolute',
               top: 0,
-              right: -8,
+              insetInlineEnd: -8,
               width: 24,
               height: 24,
               padding: 0,
@@ -278,33 +281,33 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
       <Modal
         open={open}
         onClose={() => { if (!uploading) closeModal(); }}
-        title={member.photo ? 'Update Profile Photo' : 'Add Profile Photo'}
+        title={member.photo ? t('Update Profile Photo') : t('Add Profile Photo')}
         size="sm"
         footer={
           <>
-            <Btn variant="ghost" size="sm" onClick={closeModal} disabled={uploading}>Cancel</Btn>
+            <Btn variant="ghost" size="sm" onClick={closeModal} disabled={uploading}>{t('Cancel')}</Btn>
             {!captured && (
               <Btn variant="outline" size="sm" onClick={() => fileRef.current?.click()} disabled={uploading}>
-                Choose file
+                {t('Choose file')}
               </Btn>
             )}
             {captured ? (
               <>
-                <Btn variant="outline" size="sm" onClick={handleRetake} disabled={uploading}>Retake</Btn>
+                <Btn variant="outline" size="sm" onClick={handleRetake} disabled={uploading}>{t('Retake')}</Btn>
                 <Btn size="sm" onClick={() => uploadBlob(captured.blob)} disabled={uploading}>
-                  {uploading ? <><Spinner size="sm" /> Uploading…</> : 'Use photo'}
+                  {uploading ? <><Spinner size="sm" /> {t('Uploading…')}</> : t('Use photo')}
                 </Btn>
               </>
             ) : (
               <Btn size="sm" onClick={handleCapture} disabled={uploading || !streamReady}>
-                Capture
+                {t('Capture')}
               </Btn>
             )}
           </>
         }
       >
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
-          <div style={{
+          <div dir="ltr" style={{
             width: '100%',
             maxWidth: 320,
             aspectRatio: '4 / 3',
@@ -316,7 +319,7 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
             {captured ? (
               <img
                 src={captured.url}
-                alt="Captured preview"
+                alt={t('Captured preview')}
                 style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
               />
             ) : (
@@ -337,7 +340,7 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: 'rgba(255,255,255,0.7)', fontSize: 13, gap: 8,
               }}>
-                <Spinner size="sm" /> Starting camera…
+                <Spinner size="sm" /> {t('Starting camera…')}
               </div>
             )}
             {uploading && (
@@ -347,20 +350,19 @@ export default function ProfilePhotoUpload({ member, user, onUploaded }) {
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 color: '#fff', fontSize: 13, gap: 8,
               }}>
-                <Spinner size="sm" /> Uploading…
+                <Spinner size="sm" /> {t('Uploading…')}
               </div>
             )}
           </div>
 
           {cameraError && (
             <p style={{ fontSize: 12, color: 'var(--amber)', textAlign: 'center', margin: 0, lineHeight: 1.5 }}>
-              {cameraError}
+              {t(cameraError)}
             </p>
           )}
 
           <p style={{ fontSize: 12, color: 'var(--t4)', textAlign: 'center', margin: 0, lineHeight: 1.5 }}>
-            Take a photo with the camera, or choose an image from your device.
-            On phones, “Choose file” can open the camera directly.
+            {t('Take a photo with the camera, or choose an image from your device. On phones, “Choose file” can open the camera directly.')}
           </p>
 
           {/* Extra mobile-friendly capture input */}

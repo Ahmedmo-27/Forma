@@ -9,7 +9,7 @@ export const ALL_LOCATIONS = 'all';
 
 export function LocationProvider({ children }) {
   const { user } = useAuth();
-  const { hasFeature, loading: tenantLoading, tenant, plan } = useTenant();
+  const { hasFeature, loading: tenantLoading } = useTenant();
   const [locations, setLocations] = useState([]);
   const [loading, setLoading] = useState(false);
   const [canManageLocations, setCanManageLocations] = useState(false);
@@ -23,10 +23,7 @@ export function LocationProvider({ children }) {
   });
   const [version, setVersion] = useState(0);
 
-  const planKey = String(plan?.key || tenant?.plan?.key || '').toLowerCase();
-  const multiEnabled = Boolean(
-    user && (hasFeature?.('multi_branches') || planKey === 'gold' || planKey === 'platinum')
-  );
+  const multiEnabled = Boolean(user && hasFeature?.('multi_branches'));
 
   const refreshLocations = useCallback(async () => {
     if (!user || !multiEnabled) {

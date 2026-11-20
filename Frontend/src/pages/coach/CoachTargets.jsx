@@ -5,9 +5,12 @@ import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Spinner, EmptyState, Avatar } from '../../components/ui';
 import { getCoachTeam } from '../../api/endpoints';
+import { useI18n } from '../../i18n/useI18n';
+import { tr } from '../../i18n/translate';
 
 export default function CoachTargets() {
-  usePageTitle('Coach Team');
+  const { t } = useI18n();
+  usePageTitle(t('Coach Team'));
   const navigate = useNavigate();
 
   const [team, setTeam]       = useState([]);
@@ -19,9 +22,9 @@ export default function CoachTargets() {
       const res = await getCoachTeam();
       setTeam((res.data.team ?? []).filter(u => u.role === 'Coach'));
     } catch {
-      toast.error('Failed to load coach data');
+      toast.error(t('Failed to load coach data'));
     } finally { setLoading(false); }
-  }, []);
+  }, [t]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -32,19 +35,19 @@ export default function CoachTargets() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="coach-team-header" title="Coach Team" />
+      <PageHeader walkthrough="coach-team-header" title={t('Coach Team')} />
 
       <div className="page-wrap" data-walkthrough="coach-team-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
 
         {/* Summary */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
           {[
-            { label: 'Total Coaches', value: team.length, color: 'var(--navy)', accent: 'var(--navy)' },
-            { label: 'Total Members', value: totalMembers, color: 'var(--blue)', accent: 'var(--blue)' },
-            { label: 'Active Members', value: totalActive, color: 'var(--green)', accent: 'var(--green)' },
+            { label: tr('Total Coaches'), value: team.length, color: 'var(--navy)', accent: 'var(--navy)' },
+            { label: tr('Total Members'), value: totalMembers, color: 'var(--blue)', accent: 'var(--blue)' },
+            { label: tr('Active Members'), value: totalActive, color: 'var(--green)', accent: 'var(--green)' },
           ].map(s => (
-            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderLeft: `3px solid ${s.accent}`, borderRadius: 8, padding: '14px 16px' }}>
-              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 6 }}>{s.label}</div>
+            <div key={s.label} style={{ background: 'var(--card)', border: '1px solid var(--border)', borderInlineStart: `3px solid ${s.accent}`, borderRadius: 8, padding: '14px 16px' }}>
+              <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 6 }}>{t(s.label)}</div>
               <div style={{ fontSize: 22, fontWeight: 800, color: s.color }}>{s.value}</div>
             </div>
           ))}
@@ -54,7 +57,7 @@ export default function CoachTargets() {
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}><Spinner size="lg" /></div>
         ) : team.length === 0 ? (
-          <EmptyState message="No coaches found" />
+          <EmptyState message={t('No coaches found')} />
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))', gap: 14 }}>
             {team.map(coach => (
@@ -68,6 +71,7 @@ export default function CoachTargets() {
 }
 
 function CoachCard({ coach, onClick }) {
+  const { t } = useI18n();
   const { stats } = coach;
   const total = stats?.total ?? 0;
   const active = stats?.active ?? 0;
@@ -91,21 +95,21 @@ function CoachCard({ coach, onClick }) {
         <Avatar name={coach.name} size="md" />
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{coach.name}</div>
-          <div style={{ fontSize: 11, color: 'var(--t4)' }}>{coach.email}</div>
+          <div dir="ltr" style={{ fontSize: 11, color: 'var(--t4)', unicodeBidi: 'isolate', textAlign: 'start' }}>{coach.email}</div>
         </div>
       </div>
 
       {/* Stats grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 1, background: 'var(--border)', borderRadius: 6, overflow: 'hidden', marginBottom: 14 }}>
         {[
-          { l: 'Members', v: total, c: 'var(--navy)' },
-          { l: 'Active', v: active, c: 'var(--green)' },
-          { l: 'Transferred', v: transferred, c: 'var(--sky)' },
-          { l: 'PT Left', v: ptRemaining, c: ptRemaining > 0 ? 'var(--green)' : 'var(--red)' },
+          { l: tr('Members'), v: total, c: 'var(--navy)' },
+          { l: tr('Active'), v: active, c: 'var(--green)' },
+          { l: tr('Transferred'), v: transferred, c: 'var(--sky)' },
+          { l: tr('PT Left'), v: ptRemaining, c: ptRemaining > 0 ? 'var(--green)' : 'var(--red)' },
         ].map(s => (
           <div key={s.l} style={{ background: 'var(--card)', padding: '8px 0', textAlign: 'center' }}>
             <div style={{ fontSize: 15, fontWeight: 800, color: s.c }}>{s.v}</div>
-            <div style={{ fontSize: 9, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 1 }}>{s.l}</div>
+            <div style={{ fontSize: 9, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 1 }}>{t(s.l)}</div>
           </div>
         ))}
       </div>
@@ -113,9 +117,9 @@ function CoachCard({ coach, onClick }) {
       {/* PT Progress */}
       <div>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 5 }}>
-          <span style={{ fontSize: 11, color: 'var(--t4)', fontWeight: 600 }}>PT SESSIONS</span>
+          <span style={{ fontSize: 11, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase' }}>{t('PT Sessions')}</span>
           <span style={{ fontSize: 11, fontWeight: 700, color: ptPct >= 100 ? 'var(--red)' : 'var(--t2)' }}>
-            {ptUsed} / {ptTotal} ({ptPct}% used)
+            {t('{used} / {total} ({pct}% used)', { used: ptUsed, total: ptTotal, pct: ptPct })}
           </span>
         </div>
         <div style={{ height: 5, background: 'var(--bg)', borderRadius: 3, border: '1px solid var(--border)', overflow: 'hidden' }}>

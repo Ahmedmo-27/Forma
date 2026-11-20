@@ -41,14 +41,17 @@ export function canEnterRoute(user, { roles, access } = {}) {
   return true;
 }
 
-/** Landing path for a signed-in user. Null when nobody is signed in. */
-export function homePath(user) {
+/**
+ * Landing path for a signed-in user. Null when nobody is signed in.
+ * `pathAllowed(path)` lets the caller skip pages the gym's plan has switched off.
+ */
+export function homePath(user, pathAllowed = () => true) {
   if (!user) return null;
   const home = ROLE_HOME[user.role] || { key: 'members', to: '/members' };
   const keys = Array.isArray(user.access) ? user.access : null;
-  if (!keys || keys.includes(home.key)) return home.to;
-  const extra = (user.navExtras || []).find((item) => item?.to);
-  if (extra) return extra.to;
-  const next = ACCESS_FALLBACKS.find((item) => keys.includes(item.key));
-  return next?.to || '/contacts';
+  if ((!keys || keys.includes(home.key)) && pathAllowed(home.to)) return home.to;
+  const extra = (user.navExtras || []).find((item) => item?.to && pathAllowed(item.to));
+  if (extra && keys) return extra.to;
+  const next = ACCESS_FALLBACKS.find((item) => (!keys || keys.includes(item.key)) && pathAllowed(item.to));
+  return next?.to || (keys ? '/contacts' : home.to);
 }

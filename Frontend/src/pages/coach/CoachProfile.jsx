@@ -6,17 +6,29 @@ import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import {
   PageHeader, Card, Table, Badge, Spinner,
-  EmptyState, Avatar, fmtDate, Skeleton,
+  EmptyState, Avatar, Skeleton, CAIRO_ZONE,
 } from '../../components/ui';
 import { getCoachProfile, updateCoachRepAbilities } from '../../api/endpoints';
 import { ClipboardList, Dumbbell, MessageCircle, RefreshCw } from 'lucide-react';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
+import { tr } from '../../i18n/translate';
 
 // ── Abilities config ──────────────────────────────────────────────────────────
 const ABILITIES = [
-  { key: 'canCommentOnMembers',  label: 'Comment on Members',  desc: 'Can add notes to member profiles', icon: MessageCircle },
-  { key: 'canRequestAssignment', label: 'Request Assignment',  desc: 'Can request to be assigned to members', icon: ClipboardList },
-  { key: 'canRequestTakeover',   label: 'Request Takeover',    desc: 'Can request to take over members from other coaches', icon: RefreshCw },
+  { key: 'canCommentOnMembers',  label: tr('Comment on Members'),  desc: tr('Can add notes to member profiles'), icon: MessageCircle },
+  { key: 'canRequestAssignment', label: tr('Request Assignment'),  desc: tr('Can request to be assigned to members'), icon: ClipboardList },
+  { key: 'canRequestTakeover',   label: tr('Request Takeover'),    desc: tr('Can request to take over members from other coaches'), icon: RefreshCw },
 ];
+
+const FILTER_LABELS = {
+  all: tr('all'),
+  active: tr('active'),
+  transferred: tr('transferred'),
+  expired: tr('expired'),
+  interested: tr('interested'),
+  'not interested': tr('not interested'),
+};
 
 function Toggle({ checked, onChange, disabled }) {
   return (
@@ -34,16 +46,18 @@ function Toggle({ checked, onChange, disabled }) {
       }}
     >
       <span style={{
-        position: 'absolute', top: 3, left: checked ? 21 : 3,
+        position: 'absolute', top: 3, insetInlineStart: checked ? 21 : 3,
         width: 16, height: 16, borderRadius: '50%',
         background: 'var(--card)', boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-        transition: 'left 0.18s',
+        transition: 'inset-inline-start 0.18s',
       }} />
     </button>
   );
 }
 
 export default function CoachProfile() {
+  const { t } = useI18n();
+  const { fmtDate } = useFormat();
   const { id } = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -57,7 +71,7 @@ export default function CoachProfile() {
   const [filter, setFilter]   = useState('all');
   const [savingAbility, setSavingAbility] = useState(null);
 
-  usePageTitle(data?.user?.name ?? 'Coach Profile');
+  usePageTitle(data?.user?.name ?? t('Coach Profile'));
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -65,10 +79,10 @@ export default function CoachProfile() {
       const res = await getCoachProfile(id);
       setData(res.data);
     } catch {
-      toast.error('Failed to load profile.');
+      toast.error(t('Failed to load profile.'));
       navigate(-1);
     } finally { setLoading(false); }
-  }, [id, navigate]);
+  }, [id, navigate, t]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
@@ -86,13 +100,13 @@ export default function CoachProfile() {
     setSavingAbility(key);
     try {
       await updateCoachRepAbilities(id, { [key]: value });
-      toast.success('Permission updated');
+      toast.success(t('Permission updated'));
     } catch (e) {
       setData(prev => ({
         ...prev,
         user: { ...prev.user, abilities: { ...(prev.user.abilities ?? {}), [key]: !value } },
       }));
-      toast.error(e.response?.data?.message || 'Failed to update permission');
+      toast.error(e.response?.data?.message || t('Failed to update permission'));
     } finally { setSavingAbility(null); }
   };
 
@@ -109,10 +123,10 @@ export default function CoachProfile() {
       <PageHeader walkthrough="coach-profile-header" title={
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button onClick={() => navigate('/coach/team')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--t4)', fontSize: 12 }}>
-            ← Team
+            <span className="rtl-flip" style={{ display: 'inline-block' }}>←</span> {t('Team')}
           </button>
           <span style={{ color: 'var(--border-md)' }}>/</span>
-          <span>{loading ? 'Loading…' : (user?.name ?? 'Profile')}</span>
+          <span>{loading ? t('Loading…') : (user?.name ?? t('Profile'))}</span>
         </div>
       } />
 
@@ -127,12 +141,16 @@ export default function CoachProfile() {
                   <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                     <h2 style={{ fontSize: 17, fontWeight: 800, color: 'var(--t1)', margin: 0 }}>{user?.name}</h2>
                     <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)', background: 'var(--bg)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 4, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                      <Dumbbell size={12} aria-hidden /> Coach
+                      <Dumbbell size={12} aria-hidden /> {t('Coach')}
                     </span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 12, color: 'var(--t3)' }}>
-                    {user?.email && <span>{user.email}</span>}
-                    <span>Joined {fmtDate(user?.createdAt)}</span>
+                    {user?.email && <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{user.email}</span>}
+                    <span>{t('Joined {date}', {
+                      date: user?.createdAt
+                        ? fmtDate(user.createdAt, { timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric' }, 'en-GB')
+                        : '—',
+                    })}</span>
                   </div>
                 </div>
               </div>
@@ -140,15 +158,15 @@ export default function CoachProfile() {
               {/* Stats */}
               <div className="grid-stats-5" style={{ background: 'var(--border)', borderRadius: 6, overflow: 'hidden' }}>
                 {[
-                  { l: 'Total',       v: stats?.total ?? 0,       c: 'var(--navy)' },
-                  { l: 'Active',      v: stats?.active ?? 0,      c: 'var(--green)' },
-                  { l: 'Transferred', v: stats?.transferred ?? 0, c: 'var(--sky)' },
-                  { l: 'PT Used',     v: ptUsed,                  c: 'var(--amber)' },
-                  { l: 'PT Total',    v: ptTotal,                 c: 'var(--blue)' },
+                  { l: tr('Total'),       v: stats?.total ?? 0,       c: 'var(--navy)' },
+                  { l: tr('Active'),      v: stats?.active ?? 0,      c: 'var(--green)' },
+                  { l: tr('Transferred'), v: stats?.transferred ?? 0, c: 'var(--sky)' },
+                  { l: tr('PT Used'),     v: ptUsed,                  c: 'var(--amber)' },
+                  { l: tr('PT Total'),    v: ptTotal,                 c: 'var(--blue)' },
                 ].map(s => (
                   <div key={s.l} style={{ background: 'var(--card)', padding: '10px 0', textAlign: 'center' }}>
                     <div style={{ fontSize: 20, fontWeight: 800, color: s.c }}>{s.v}</div>
-                    <div style={{ fontSize: 9, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 2 }}>{s.l}</div>
+                    <div style={{ fontSize: 9, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px', marginTop: 2 }}>{t(s.l)}</div>
                   </div>
                 ))}
               </div>
@@ -157,20 +175,20 @@ export default function CoachProfile() {
             {/* Tabs */}
             <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 16 }}>
               {[
-                { id: 'members', label: `Members (${members.length})` },
-                ...(isManager ? [{ id: 'access', label: 'Access Control' }] : []),
-              ].map(t => (
-                <button key={t.id} onClick={() => setTab(t.id)} style={{
+                { id: 'members', label: t('Members ({count})', { count: members.length }) },
+                ...(isManager ? [{ id: 'access', label: t('Access Control') }] : []),
+              ].map(tabItem => (
+                <button key={tabItem.id} onClick={() => setTab(tabItem.id)} style={{
                   padding: '8px 18px', background: 'none', border: 'none',
-                  borderBottom: `2px solid ${tab === t.id ? 'var(--navy)' : 'transparent'}`,
+                  borderBottom: `2px solid ${tab === tabItem.id ? 'var(--navy)' : 'transparent'}`,
                   marginBottom: -1,
-                  color: tab === t.id ? 'var(--t1)' : 'var(--t3)',
-                  fontSize: 13, fontWeight: tab === t.id ? 700 : 400,
+                  color: tab === tabItem.id ? 'var(--t1)' : 'var(--t3)',
+                  fontSize: 13, fontWeight: tab === tabItem.id ? 700 : 400,
                   cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap',
                 }}
-                  onMouseEnter={e => { if (tab !== t.id) e.currentTarget.style.color = 'var(--t2)'; }}
-                  onMouseLeave={e => { if (tab !== t.id) e.currentTarget.style.color = 'var(--t3)'; }}
-                >{t.label}</button>
+                  onMouseEnter={e => { if (tab !== tabItem.id) e.currentTarget.style.color = 'var(--t2)'; }}
+                  onMouseLeave={e => { if (tab !== tabItem.id) e.currentTarget.style.color = 'var(--t3)'; }}
+                >{tabItem.label}</button>
               ))}
             </div>
 
@@ -180,7 +198,7 @@ export default function CoachProfile() {
               <Card noPad>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 18px', borderBottom: '1px solid var(--border)', flexWrap: 'wrap', gap: 8 }}>
                   <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
-                    Assigned Members ({filtered.length})
+                    {t('Assigned Members ({count})', { count: filtered.length })}
                   </span>
                   <div style={{ display: 'flex', gap: 5 }}>
                     {['all', 'active', 'transferred', 'expired', 'interested', 'not interested'].map(s => (
@@ -190,14 +208,14 @@ export default function CoachProfile() {
                         border: `1px solid ${filter === s ? 'var(--navy)' : 'var(--border-md)'}`,
                         color: filter === s ? '#fff' : 'var(--t3)',
                         cursor: 'pointer', fontFamily: 'inherit', textTransform: 'capitalize',
-                      }}>{s}</button>
+                      }}>{t(FILTER_LABELS[s])}</button>
                     ))}
                   </div>
                 </div>
                 {!filtered.length ? (
-                  <EmptyState message="No members match this filter" />
+                  <EmptyState message={t('No members match this filter')} />
                 ) : (
-                  <Table headers={['ID', 'Name', 'Status', 'PT Sessions', 'PT Used']}>
+                  <Table headers={[t('ID'), t('Name'), t('Status'), t('PT Sessions'), t('PT Used')]}>
                     {filtered.map(m => (
                       <tr key={m._id} onClick={() => navigate(`/members/${m.systemId}`)}
                         style={{ cursor: 'pointer', borderBottom: '1px solid var(--border)' }}
@@ -228,10 +246,10 @@ export default function CoachProfile() {
               <Card>
                 <div style={{ marginBottom: 20 }}>
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
-                    Access Permissions
+                    {t('Access Permissions')}
                   </h3>
                   <p style={{ fontSize: 12, color: 'var(--t4)' }}>
-                    Control what <strong>{user?.name}</strong> is allowed to do. Changes take effect immediately.
+                    {t('Control what {name} is allowed to do. Changes take effect immediately.', { name: user?.name })}
                   </p>
                 </div>
 
@@ -248,13 +266,13 @@ export default function CoachProfile() {
                         <span style={{ display: 'flex', flexShrink: 0, color: 'var(--t2)' }}><AbilityIcon size={20} aria-hidden /></span>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', marginBottom: 2 }}>
-                            {ability.label}
+                            {t(ability.label)}
                           </div>
-                          <div style={{ fontSize: 12, color: 'var(--t4)' }}>{ability.desc}</div>
+                          <div style={{ fontSize: 12, color: 'var(--t4)' }}>{t(ability.desc)}</div>
                         </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
                           <span style={{ fontSize: 11, fontWeight: 600, color: active ? 'var(--green)' : 'var(--red)' }}>
-                            {active ? 'Enabled' : 'Disabled'}
+                            {active ? t('Enabled') : t('Disabled')}
                           </span>
                           {isSaving
                             ? <Spinner size="sm" />

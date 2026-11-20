@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { ScanBarcode } from 'lucide-react';
+import { useI18n } from '../i18n/useI18n';
 
 /**
  * USB Barcode Scanner support.
@@ -9,6 +10,7 @@ import { ScanBarcode } from 'lucide-react';
  * always has somewhere to type.
  */
 export default function BarcodeScanner({ inputRef }) {
+  const { t } = useI18n();
   const intervalRef = useRef(null);
 
   useEffect(() => {
@@ -33,14 +35,14 @@ export default function BarcodeScanner({ inputRef }) {
       <ScanBarcode size={22} color="var(--navy)" aria-hidden />
       <div>
         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>
-          Barcode Scanner Ready
+          {t('Barcode Scanner Ready')}
         </div>
         <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 1 }}>
-          Point the scanner at a member barcode to check in instantly.
+          {t('Point the scanner at a member barcode to check in instantly.')}
         </div>
       </div>
       <div style={{
-        marginLeft: 'auto', width: 8, height: 8, borderRadius: '50%',
+        marginInlineStart: 'auto', width: 8, height: 8, borderRadius: '50%',
         background: 'var(--green)', flexShrink: 0,
         boxShadow: '0 0 0 3px rgba(34,197,94,0.2)',
       }} />

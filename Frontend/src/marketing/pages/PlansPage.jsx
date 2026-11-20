@@ -225,7 +225,7 @@ export default function PlansPage() {
               aria-labelledby={`cycle-tab-${durationId}`}
             >
               {plansWithPrice.map((plan) => {
-                const featured = plan.key === "gold";
+                const featured = Boolean(plan.featured);
                 const soldOut = plan.price?.isSoldOut;
                 const unavailable = soldOut || !plan.price;
                 const showSave = plan.savePct != null && plan.savePct > 0;

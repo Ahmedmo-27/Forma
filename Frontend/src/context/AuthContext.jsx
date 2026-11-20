@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useCallback, useEffect } from 'rea
 import { login as loginApi } from '../api/endpoints';
 import api from '../api/axios';
 import WorkspaceBoot from '../components/WorkspaceBoot';
+import { setMonitoringUser } from '../lib/monitoring';
 
 const AuthContext = createContext(null);
 
@@ -91,6 +92,10 @@ export function AuthProvider({ children }) {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    setMonitoringUser(user ? { ...user, surface: 'tenant' } : null);
+  }, [user]);
 
   // Don't render children until session is checked — prevents flash of protected content.
   if (!checked) {

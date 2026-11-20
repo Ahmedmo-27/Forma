@@ -1,7 +1,9 @@
 import { Link } from 'react-router-dom';
-import { Modal, Btn, Badge, fmtDateTime } from '../ui';
+import { Modal, Btn, Badge, CAIRO_ZONE } from '../ui';
 import SalesManagerSection from './SalesManagerSection';
 import PackageTermsGrid from './PackageTermsGrid';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 
 function DetailRow({ label, value }) {
   return (
@@ -13,6 +15,8 @@ function DetailRow({ label, value }) {
 }
 
 export default function ContractDetailModal({ contract, open, onClose }) {
+  const { t } = useI18n();
+  const { fmtDateTime } = useFormat();
   if (!open || !contract) return null;
 
   const memberId = contract.member?.systemId ?? contract.member?._id;
@@ -22,9 +26,9 @@ export default function ContractDetailModal({ contract, open, onClose }) {
     <Modal
       open={open}
       onClose={onClose}
-      title={`Contract #${contract.subscriptionId ?? '—'}`}
+      title={t('Contract #{id}', { id: contract.subscriptionId ?? '—' })}
       size="lg"
-      footer={<Btn variant="ghost" size="sm" onClick={onClose}>Close</Btn>}
+      footer={<Btn variant="ghost" size="sm" onClick={onClose}>{t('Close')}</Btn>}
     >
       <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginBottom: 16 }}>
         <Badge status={isDirect ? 'active' : 'accepted'} />
@@ -33,7 +37,7 @@ export default function ContractDetailModal({ contract, open, onClose }) {
           background: 'var(--bg)', border: '1px solid var(--border)',
           padding: '2px 8px', borderRadius: 4,
         }}>
-          {isDirect ? 'Direct Assignment' : 'Approved Request'}
+          {isDirect ? t('Direct Assignment') : t('Approved Request')}
         </span>
         {contract.isRenewal && (
           <span style={{
@@ -41,7 +45,7 @@ export default function ContractDetailModal({ contract, open, onClose }) {
             background: 'var(--amber-bg)', border: '1px solid var(--amber-bd)',
             padding: '2px 8px', borderRadius: 4,
           }}>
-            Renewal
+            {t('Renewal')}
           </span>
         )}
       </div>
@@ -51,22 +55,31 @@ export default function ContractDetailModal({ contract, open, onClose }) {
         gap: 1, background: 'var(--border)', border: '1px solid var(--border)',
         borderRadius: 6, overflow: 'hidden', marginBottom: 16,
       }}>
-        <DetailRow label="Member" value={
+        <DetailRow label={t('Member')} value={
           memberId
-            ? <Link to={`/members/${memberId}`} style={{ color: 'var(--blue)', textDecoration: 'none' }}>{contract.member?.name ?? '—'}</Link>
+            ? <Link to={`/members/${memberId}`} style={{ color: 'var(--blue)', textDecoration: 'none' }}><bdi>{contract.member?.name ?? '—'}</bdi></Link>
             : (contract.member?.name ?? '—')
         } />
-        <DetailRow label="Contract #" value={contract.subscriptionId ?? '—'} />
-        <DetailRow label="Price Paid" value={contract.pricePaid != null ? contract.pricePaid : '—'} />
-        <DetailRow label="Refund" value={Number(contract.refundAmount) > 0 ? contract.refundAmount : '—'} />
-        <DetailRow label="Net" value={contract.netPaid ?? contract.pricePaid ?? '—'} />
-        <DetailRow label="Date Added" value={fmtDateTime(contract.createdAt)} />
-        <DetailRow label="Processed By" value={contract.approvedBy?.name} />
+        <DetailRow label={t('Contract #')} value={contract.subscriptionId ?? '—'} />
+        <DetailRow label={t('Price Paid')} value={contract.pricePaid != null ? contract.pricePaid : '—'} />
+        <DetailRow label={t('Refund')} value={Number(contract.refundAmount) > 0 ? contract.refundAmount : '—'} />
+        <DetailRow label={t('Net')} value={contract.netPaid ?? contract.pricePaid ?? '—'} />
+        <DetailRow label={t('Date Added')} value={contract.createdAt ? fmtDateTime(contract.createdAt, {
+          timeZone: CAIRO_ZONE,
+          day: '2-digit',
+          month: 'short',
+          year: 'numeric',
+          hour: 'numeric',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: true,
+        }, 'en-US') : '—'} />
+        <DetailRow label={t('Processed By')} value={contract.approvedBy?.name} />
       </div>
 
       <SalesManagerSection salesManager={contract.salesManager} directAssignment={isDirect} />
 
-      <PackageTermsGrid data={contract} title="Package Terms" showEndDate />
+      <PackageTermsGrid data={contract} title={t('Package Terms')} showEndDate />
     </Modal>
   );
 }

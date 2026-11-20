@@ -9,16 +9,18 @@ import {
   startWhatsAppSession,
   logoutWhatsAppSession,
 } from '../../api/endpoints';
+import { useI18n } from '../../i18n/useI18n';
 
-function statusLabel(status) {
-  if (status === 'connected') return 'Connected';
-  if (status === 'qr') return 'Waiting for scan';
-  if (status === 'connecting') return 'Connecting';
-  return 'Not connected';
+function statusLabel(status, t) {
+  if (status === 'connected') return t('Connected');
+  if (status === 'qr') return t('Waiting for scan');
+  if (status === 'connecting') return t('Connecting');
+  return t('Not connected');
 }
 
 export default function ConnectWhatsApp() {
-  usePageTitle('Connect WhatsApp');
+  const { t } = useI18n();
+  usePageTitle(t('Connect WhatsApp'));
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -83,7 +85,7 @@ export default function ConnectWhatsApp() {
     try {
       const res = await logoutWhatsAppSession();
       setSession(res.data);
-      toast.success('WhatsApp disconnected');
+      toast.success(t('WhatsApp disconnected'));
     } catch {
       /* Global error handler shows the message. */
     } finally {
@@ -99,8 +101,8 @@ export default function ConnectWhatsApp() {
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
         <PageHeader
           walkthrough="wa-connect-header"
-          title="Connect WhatsApp"
-          sub="Link your own WhatsApp. Messages you send from Forma go out from this number."
+          title={t('Connect WhatsApp')}
+          sub={t('Link your own WhatsApp. Messages you send from Forma go out from this number.')}
         />
         <Card>
           {loading ? (
@@ -111,12 +113,12 @@ export default function ConnectWhatsApp() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div data-walkthrough="wa-connect-status">
                 <div style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: 'var(--t4)' }}>
-                  Status
+                  {t('Status')}
                 </div>
-                <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>{statusLabel(status)}</div>
+                <div style={{ fontSize: 18, fontWeight: 700, marginTop: 4 }}>{statusLabel(status, t)}</div>
                 {phone && (
                   <div style={{ fontSize: 14, color: 'var(--t3)', marginTop: 4 }}>
-                    {status === 'connected' ? phone : `Last linked ${phone}`}
+                    {status === 'connected' ? <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{phone}</span> : t('Last linked {phone}', { phone: `\u2066${phone}\u2069` })}
                   </div>
                 )}
               </div>
@@ -124,10 +126,10 @@ export default function ConnectWhatsApp() {
               {status === 'qr' && (
                 <div data-walkthrough="wa-connect-qr" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 10 }}>
                   <p style={{ margin: 0, fontSize: 14, color: 'var(--t2)', maxWidth: 420 }}>
-                    Open WhatsApp on your phone, go to Linked devices, and scan this code. It can change once just after it appears. Scan the code that is on the screen.
+                    {t('Open WhatsApp on your phone, go to Linked devices, and scan this code. It can change once just after it appears. Scan the code that is on the screen.')}
                   </p>
                   {qrUrl ? (
-                    <img src={qrUrl} alt="WhatsApp QR code" width={280} height={280} style={{ borderRadius: 12, background: '#fff', maxWidth: '100%', height: 'auto' }} />
+                    <img src={qrUrl} alt={t('WhatsApp QR code')} width={280} height={280} style={{ borderRadius: 12, background: '#fff', maxWidth: '100%', height: 'auto' }} />
                   ) : (
                     <Spinner />
                   )}
@@ -137,25 +139,25 @@ export default function ConnectWhatsApp() {
               {status === 'connecting' && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--t3)', fontSize: 14 }}>
                   <Spinner size="sm" />
-                  Waiting for WhatsApp…
+                  {t('Waiting for WhatsApp…')}
                 </div>
               )}
 
               {status === 'disconnected' && (
                 <p style={{ margin: 0, fontSize: 14, color: 'var(--t3)', maxWidth: 460 }}>
-                  Connect once. Forma keeps the link on this account, including after you sign out of the app. Disconnect here if you want sends to stop.
+                  {t('Connect once. Forma keeps the link on this account, including after you sign out of the app. Disconnect here if you want sends to stop.')}
                 </p>
               )}
 
               <div data-walkthrough="wa-connect-action" style={{ display: 'flex', gap: 8 }}>
                 {status !== 'connected' && (
                   <Btn variant="success" onClick={connect} disabled={busy || status === 'qr' || status === 'connecting'}>
-                    {busy || status === 'connecting' ? 'Connecting…' : status === 'qr' ? 'Scan the code' : 'Connect'}
+                    {busy || status === 'connecting' ? t('Connecting…') : status === 'qr' ? t('Scan the code') : t('Connect')}
                   </Btn>
                 )}
                 {status !== 'disconnected' && (
                   <Btn variant="outline" onClick={disconnect} disabled={busy}>
-                    {busy ? 'Disconnecting…' : 'Disconnect'}
+                    {busy ? t('Disconnecting…') : t('Disconnect')}
                   </Btn>
                 )}
               </div>

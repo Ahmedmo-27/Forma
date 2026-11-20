@@ -162,6 +162,14 @@ export const logWhatsAppTemplateSend = (data) => api.post('/whatsapp-templates/l
 export const getWhatsAppSession = () => api.get('/whatsapp/session');
 export const startWhatsAppSession = () => api.post('/whatsapp/session/start');
 export const logoutWhatsAppSession = () => api.post('/whatsapp/session/logout');
+
+// ── Unified inbox ─────────────────────────────────────────────────────────────
+export const getInboxConversations = (params) => api.get('/inbox/conversations', { params });
+export const getInboxMessages = (id, params) => api.get(`/inbox/conversations/${id}/messages`, { params });
+export const sendInboxReply = (id, text) => api.post(`/inbox/conversations/${id}/messages`, { text }, { timeout: 70000 });
+export const updateInboxConversation = (id, data) => api.patch(`/inbox/conversations/${id}`, data);
+export const getInboxChannels = () => api.get('/inbox/channels');
+export const disconnectInboxChannel = (id) => api.delete(`/inbox/channels/${id}`);
 export const sendWhatsAppMessage = (data) => api.post('/whatsapp/messages', data, { timeout: 70000 });
 export const sendWhatsAppImage = (formData) => api.post('/whatsapp/messages/image', formData, {
   headers: { 'Content-Type': 'multipart/form-data' },
@@ -211,6 +219,13 @@ export const getTenantMe = () => api.get('/tenant/me', {
   params: { _: Date.now() },
 });
 export const updateTenantMe = (data) => api.patch('/tenant/me', data);
+export const getTenantOnboarding = () => api.get('/tenant/onboarding');
+
+// ── Contract signatures ───────────────────────────────────────────────────────
+export const getContractSignature = (memberId, subscriptionId) =>
+  api.get(`/members/${memberId}/subscriptions/${subscriptionId}/signature`);
+export const signMemberContract = (memberId, subscriptionId, data) =>
+  api.post(`/members/${memberId}/subscriptions/${subscriptionId}/signature`, data);
 export const uploadTenantLogo = (formData) =>
   api.post('/tenant/me/logo', formData);
 
@@ -246,3 +261,27 @@ export const getAssignedTasks         = (params) => api.get('/tasks/assigned/act
 export const getAssignedTaskHistory   = (params) => api.get('/tasks/assigned/history', { params });
 export const completeMemberTask       = (taskId, memberId, data) =>
   api.patch(`/tasks/assigned/${taskId}/members/${memberId}/complete`, data);
+
+// -- Retail, inventory and bar POS ---------------------------------------------
+export const getRetailCatalog = (params = {}) => api.get('/retail/catalog', { params });
+export const getRetailVendors = (params = {}) => api.get('/retail/vendors', { params });
+export const createRetailVendor = (data) => api.post('/retail/vendors', data);
+export const updateRetailVendor = (id, data) => api.patch(`/retail/vendors/${id}`, data);
+export const deleteRetailVendor = (id) => api.delete(`/retail/vendors/${id}`);
+export const getRetailCategories = (params = {}) => api.get('/retail/categories', { params });
+export const createRetailCategory = (data) => api.post('/retail/categories', data);
+export const updateRetailCategory = (id, data) => api.patch(`/retail/categories/${id}`, data);
+export const getRetailProducts = (params = {}) => api.get('/retail/products', { params });
+export const createRetailProduct = (data) => api.post('/retail/products', data);
+export const updateRetailProduct = (id, data) => api.patch(`/retail/products/${id}`, data);
+export const deleteRetailProduct = (id) => api.delete(`/retail/products/${id}`);
+export const changeRetailStock = (id, data) => api.post(`/retail/products/${id}/stock`, data);
+export const getRetailStockMovements = (id) => api.get(`/retail/products/${id}/movements`);
+export const createRetailSale = (data) => api.post('/retail/sales', data);
+export const getRetailSales = (params = {}) => api.get('/retail/sales', { params });
+export const refundRetailSale = (id, data = {}) => api.post(`/retail/sales/${id}/refund`, data);
+export const getRetailSummary = (params = {}) => api.get('/retail/reports/summary', { params });
+export const getRetailPayouts = (params = {}) => api.get('/retail/payouts', { params });
+export const createRetailPayout = (data) => api.post('/retail/payouts', data);
+export const settleRetailPayout = (id) => api.post(`/retail/payouts/${id}/settle`);
+export const deleteRetailPayout = (id) => api.delete(`/retail/payouts/${id}`);

@@ -3,9 +3,11 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { setupPassword } from '../api/endpoints';
 import usePageTitle from '../hooks/usePageTitle';
 import { Spinner } from '../components/ui';
+import { useI18n } from '../i18n/useI18n';
 
 export default function SetupPassword() {
-  usePageTitle('Set password');
+  const { t } = useI18n();
+  usePageTitle(t('Set password'));
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const token = params.get('token') || '';
@@ -18,15 +20,15 @@ export default function SetupPassword() {
   const handleSubmit = async (ev) => {
     ev.preventDefault();
     if (!token) {
-      setError('This setup link is missing a token. Ask your platform operator for a new invite.');
+      setError(t('This setup link is missing a token. Ask your platform operator for a new invite.'));
       return;
     }
     if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
+      setError(t('Password must be at least 8 characters.'));
       return;
     }
     if (password !== confirm) {
-      setError('Passwords do not match.');
+      setError(t('Passwords do not match.'));
       return;
     }
     setLoading(true);
@@ -35,7 +37,7 @@ export default function SetupPassword() {
       await setupPassword(token, password);
       navigate('/login', { replace: true, state: { passwordSet: true } });
     } catch (err) {
-      setError(err.response?.data?.error?.message || err.response?.data?.message || 'Could not set your password.');
+      setError(err.response?.data?.error?.message || err.response?.data?.message || t('Could not set your password.'));
     } finally {
       setLoading(false);
     }
@@ -43,13 +45,13 @@ export default function SetupPassword() {
 
   return (
     <AuthCard
-      title="Set your password"
-      subtitle={email ? `Account: ${email}` : 'Choose a password for your gym workspace.'}
+      title={t('Set your password')}
+      subtitle={email ? <>{t('Account:')} <bdi dir="ltr">{email}</bdi></> : t('Choose a password for your gym workspace.')}
     >
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {error && <p style={{ margin: 0, fontSize: 13, color: '#DC2626' }}>{error}</p>}
         <label style={labelStyle}>
-          New password
+          {t('New password')}
           <input
             type="password"
             value={password}
@@ -59,7 +61,7 @@ export default function SetupPassword() {
           />
         </label>
         <label style={labelStyle}>
-          Confirm password
+          {t('Confirm password')}
           <input
             type="password"
             value={confirm}
@@ -69,10 +71,10 @@ export default function SetupPassword() {
           />
         </label>
         <button type="submit" disabled={loading} style={buttonStyle(loading)}>
-          {loading ? <Spinner size="sm" /> : 'Save password'}
+          {loading ? <Spinner size="sm" /> : t('Save password')}
         </button>
         <Link to="/login" style={{ fontSize: 13, color: '#142843', fontWeight: 600, textAlign: 'center' }}>
-          Back to sign in
+          {t('Back to sign in')}
         </Link>
       </form>
     </AuthCard>

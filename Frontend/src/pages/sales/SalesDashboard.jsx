@@ -6,7 +6,9 @@ import { hasAccess } from '../../lib/access';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, StatCard, Avatar, EmptyState, fmtDate, fmtTimeWithSeconds, toLocalDateString, DashboardSkeleton } from '../../components/ui';
+import { PageHeader, Card, StatCard, Avatar, EmptyState, toLocalDateString, DashboardSkeleton, CAIRO_ZONE } from '../../components/ui';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 import { getAllMembers, getSalesTeam, getRequests, getTodayCheckIns, getSalesManagerRevenue } from '../../api/endpoints';
 import {
   BarChart3,
@@ -18,11 +20,6 @@ import {
   Users,
   X,
 } from 'lucide-react';
-
-const fmt = (n) => {
-  const num = typeof n === 'number' ? n : Number(String(n ?? 0).replace(/,/g, ''));
-  return Number.isFinite(num) ? num.toLocaleString() : '0';
-};
 
 function getAssignedRepId(member) {
   const rep = member?.assignedSales ?? member?.salesRep;
@@ -85,7 +82,17 @@ function normalizeRepStats(apiStats = {}) {
 }
 
 export default function SalesDashboard() {
-  usePageTitle('Dashboard');
+  const { t } = useI18n();
+  const { fmtNumber, fmtDate: fmtLocaleDate, fmtTime: fmtLocaleTime } = useFormat();
+  const fmt = (n) => {
+    const num = typeof n === 'number' ? n : Number(String(n ?? 0).replace(/,/g, ''));
+    return fmtNumber(Number.isFinite(num) ? num : 0);
+  };
+  const fmtDate = (d) => (d ? fmtLocaleDate(d, { timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric' }, 'en-GB') : '—');
+  const fmtTimeWithSeconds = (d) => (d ? fmtLocaleTime(d, {
+    timeZone: CAIRO_ZONE, hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true,
+  }, 'en-US') : '—');
+  usePageTitle(t('Dashboard'));
   const { user } = useAuth();
   const navigate = useNavigate();
   const isManager = ['Sales Manager', 'Owner', 'General Manager'].includes(user?.role);
@@ -143,13 +150,13 @@ export default function SalesDashboard() {
         else { setRevenue(null); failed = true; }
       }
 
-      if (failed) toast.error('Failed to load some dashboard data');
+      if (failed) toast.error(t('Failed to load some dashboard data'));
     } catch {
-      toast.error('Failed to load dashboard data');
+      toast.error(t('Failed to load dashboard data'));
     } finally {
       setLoading(false);
     }
-  }, [isManager]);
+  }, [isManager, t]);
 
   useLocationEffect(() => { load(); }, [load]);
 
@@ -213,7 +220,7 @@ export default function SalesDashboard() {
             _id: note._id,
             text: note.text,
             createdAt: note.createdAt,
-            createdByName: note.createdBy?.name || user?.name || 'Me',
+            createdByName: note.createdBy?.name || user?.name || t('Me'),
             memberName: m.name,
             memberSystemId: m.systemId,
           });
@@ -224,7 +231,7 @@ export default function SalesDashboard() {
   }
 
   const salesReps = team
-    .filter((t) => t.role === 'Sales')
+    .filter((u) => u.role === 'Sales')
     .map((rep) => {
       const fromMembers = buildRepStatsFromMembers(members, rep._id);
       // Prefer member-derived stats when the members list loaded; otherwise API stats.
@@ -249,15 +256,19 @@ export default function SalesDashboard() {
     ? salesReps.filter(r => r.name?.toLowerCase().includes(repSearch.trim().toLowerCase()))
     : salesReps;
 
+  const contractsTodayLabel = todaySubscriptions.length === 1
+    ? t('1 contract today')
+    : t('{count} contracts today', { count: todaySubscriptions.length });
+
   const currentMonthRevenue = Number(
     revenue?.monthlyBreakdown?.[0]?.revenue ?? revenue?.currentMonthRevenue ?? 0
   ) || 0;
 
   return (
     <Layout>
-      <PageHeader walkthrough="sales-dash-header" title="Dashboard">
+      <PageHeader walkthrough="sales-dash-header" title={t('Dashboard')}>
         <span style={{ fontSize: 12, color: 'var(--t4)' }}>
-          {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+          {fmtLocaleDate(new Date(), { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' }, 'en-GB')}
         </span>
       </PageHeader>
 
@@ -269,22 +280,22 @@ export default function SalesDashboard() {
             {/* KPI Row */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 140px), 1fr))', gap: 12, marginBottom: 20 }}>
               {isManager && revenue && (
-                <StatCard label="Today's Revenue" value={`${fmt(revenue.todayRevenue)} EGP`} color="brand"
-                  sub={`${todaySubscriptions.length} contract${todaySubscriptions.length !== 1 ? 's' : ''} today`}
+                <StatCard label={t("Today's Revenue")} value={`${fmt(revenue.todayRevenue)} EGP`} color="brand"
+                  sub={contractsTodayLabel}
                   onClick={() => setShowTodaySubs(true)} />
               )}
               {!isManager && (
-                <StatCard label="Today's Revenue" value={`${fmt(todayRevenue)} EGP`} color="brand"
-                  sub={`${todaySubscriptions.length} contract${todaySubscriptions.length !== 1 ? 's' : ''} today`}
+                <StatCard label={t("Today's Revenue")} value={`${fmt(todayRevenue)} EGP`} color="brand"
+                  sub={contractsTodayLabel}
                   onClick={() => setShowTodaySubs(true)} />
               )}
-              <StatCard label="Active Members"  value={activeCount}   color="success" onClick={() => navigate('/sales/members')} />
-              <StatCard label="Frozen"          value={frozenCount}   color="info" />
-              <StatCard label="Expired"         value={expiredCount}  color="danger" />
-              <StatCard label="Guests"          value={guestCount}    color="default" />
+              <StatCard label={t('Active Members')}  value={activeCount}   color="success" onClick={() => navigate('/sales/members')} />
+              <StatCard label={t('Frozen')}          value={frozenCount}   color="info" />
+              <StatCard label={t('Expired')}         value={expiredCount}  color="danger" />
+              <StatCard label={t('Guests')}          value={guestCount}    color="default" />
               {isManager && (
-                <StatCard label="Pending Requests" value={pendingReqs} color="warning"
-                  sub={pendingReqs > 0 ? 'Needs review' : 'All clear'} onClick={() => navigate('/sales/requests')} />
+                <StatCard label={t('Pending Requests')} value={pendingReqs} color="warning"
+                  sub={pendingReqs > 0 ? t('Needs review') : t('All clear')} onClick={() => navigate('/sales/requests')} />
               )}
             </div>
 
@@ -297,15 +308,15 @@ export default function SalesDashboard() {
                 {isManager && (
                   <Card noPad>
                     <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Quick Management</span>
-                      <span style={{ fontSize: 11, color: 'var(--t4)' }}>Shortcuts</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t('Quick Management')}</span>
+                      <span style={{ fontSize: 11, color: 'var(--t4)' }}>{t('Shortcuts')}</span>
                     </div>
                     <div style={{ padding: 12, display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
                       {[
-                        { label: 'Targets', sub: 'Revenue tracking', to: '/sales/targets', icon: BarChart3, access: 'targets' },
-                        { label: 'Packages', sub: 'Manage plans', to: '/sales/packages', icon: Package, access: 'packages' },
-                        { label: 'Task Assignment', sub: 'Distribute members', to: '/tasks', icon: RefreshCw, access: 'members' },
-                        { label: 'Staff Accounts', sub: 'Manage team access', to: '/sales/staff', icon: Users, access: 'staff' },
+                        { label: t('Targets'), sub: t('Revenue tracking'), to: '/sales/targets', icon: BarChart3, access: 'targets' },
+                        { label: t('Packages'), sub: t('Manage plans'), to: '/sales/packages', icon: Package, access: 'packages' },
+                        { label: t('Task Assignment'), sub: t('Distribute members'), to: '/tasks', icon: RefreshCw, access: 'members' },
+                        { label: t('Staff Accounts'), sub: t('Manage team access'), to: '/sales/staff', icon: Users, access: 'staff' },
                       ].filter((c) => hasAccess(user, c.access)).map(c => {
                         const ShortcutIcon = c.icon;
                         return (
@@ -315,7 +326,7 @@ export default function SalesDashboard() {
                             border: '1px solid var(--border)',
                             borderRadius: 8,
                             padding: '12px 14px',
-                            textAlign: 'left',
+                            textAlign: 'start',
                             cursor: 'pointer',
                             transition: 'all 0.15s ease',
                             fontFamily: 'inherit',
@@ -359,11 +370,11 @@ export default function SalesDashboard() {
                   <Card noPad>
                     <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
-                        Expiring This Week ({expiringSoon.length})
+                        {t('Expiring This Week ({count})', { count: expiringSoon.length })}
                       </span>
                       {expiringSoon.length > 0 && (
                         <span style={{ fontSize: 11, background: 'var(--red-bg)', color: 'var(--red)', border: '1px solid var(--red-bd)', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
-                          Needs Renewal
+                          {t('Needs Renewal')}
                         </span>
                       )}
                     </div>
@@ -378,10 +389,10 @@ export default function SalesDashboard() {
                           <Check size={18} strokeWidth={2.5} aria-hidden />
                         </div>
                         <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>
-                          All memberships in good standing
+                          {t('All memberships in good standing')}
                         </div>
                         <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>
-                          No memberships expiring within the next 7 days
+                          {t('No memberships expiring within the next 7 days')}
                         </div>
                       </div>
                     ) : (
@@ -397,10 +408,10 @@ export default function SalesDashboard() {
                               <Avatar name={m.name} size="sm" />
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{m.name}</div>
-                                <div style={{ fontSize: 11, color: 'var(--t4)' }}>#{m.systemId}</div>
+                                <div style={{ fontSize: 11, color: 'var(--t4)' }}><span dir="ltr" style={{ unicodeBidi: 'isolate' }}>#{m.systemId}</span></div>
                               </div>
-                              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--red)' }}>Expires {fmtDate(sub?.endDate)}</div>
+                              <div style={{ textAlign: 'end', flexShrink: 0 }}>
+                                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--red)' }}>{t('Expires {date}', { date: fmtDate(sub?.endDate) })}</div>
                                 <div style={{ fontSize: 11, color: 'var(--t4)' }}>{sub?.package?.name}</div>
                               </div>
                             </div>
@@ -413,11 +424,11 @@ export default function SalesDashboard() {
                   <Card noPad>
                     <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
-                        Recent Notes ({recentNotes.length})
+                        {t('Recent Notes ({count})', { count: recentNotes.length })}
                       </span>
                     </div>
                     {recentNotes.length === 0 ? (
-                      <EmptyState icon={FileText} message="No recent notes" sub="Notes added to your members will appear here" />
+                      <EmptyState icon={FileText} message={t('No recent notes')} sub={t('Notes added to your members will appear here')} />
                     ) : (
                       <div style={{ maxHeight: 280, overflowY: 'auto' }}>
                         {recentNotes.slice(0, 8).map((note, i) => (
@@ -433,7 +444,7 @@ export default function SalesDashboard() {
                                 {note.text.length > 80 ? note.text.slice(0, 80) + '…' : note.text}
                               </div>
                               <div style={{ fontSize: 10, color: 'var(--t4)', marginTop: 3 }}>
-                                by {note.createdByName} · {new Date(note.createdAt).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}
+                                {t('by {name} · {date}', { name: note.createdByName, date: fmtLocaleDate(note.createdAt, { day: '2-digit', month: 'short' }, 'en-GB') })}
                               </div>
                             </div>
                           </div>
@@ -447,7 +458,7 @@ export default function SalesDashboard() {
                 <Card noPad>
                   <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Today's Activity</span>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t("Today's Activity")}</span>
                       <span style={{
                         fontSize: 11, fontWeight: 700,
                         background: myCheckIns.length > 0 ? 'var(--sky-bg)' : 'var(--bg)',
@@ -455,7 +466,7 @@ export default function SalesDashboard() {
                         border: `1px solid ${myCheckIns.length > 0 ? 'var(--sky-bd)' : 'var(--border)'}`,
                         padding: '2px 8px', borderRadius: 10
                       }}>
-                        {myCheckIns.length} check-in{myCheckIns.length !== 1 ? 's' : ''}
+                        {myCheckIns.length === 1 ? t('1 check-in') : t('{count} check-ins', { count: myCheckIns.length })}
                       </span>
                     </div>
                     {myCheckIns.length > 0 && (
@@ -467,7 +478,7 @@ export default function SalesDashboard() {
                           padding: 0
                         }}
                       >
-                        View all →
+                        {t('View all →')}
                       </button>
                     )}
                   </div>
@@ -476,8 +487,8 @@ export default function SalesDashboard() {
                       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 4, color: 'var(--t3)' }}>
                         <Timer size={20} aria-hidden />
                       </div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)' }}>No check-ins recorded yet today</div>
-                      <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>Activity will appear in real time as members arrive</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t2)' }}>{t('No check-ins recorded yet today')}</div>
+                      <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>{t('Activity will appear in real time as members arrive')}</div>
                     </div>
                   ) : (
                     <div>
@@ -488,17 +499,17 @@ export default function SalesDashboard() {
                           onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
                           onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
                         >
-                          <Avatar name={entry.member?.name || 'Member'} size="sm" />
+                          <Avatar name={entry.member?.name || t('Member')} size="sm" />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {entry.member?.name}
                             </div>
-                            <div style={{ fontSize: 10, color: 'var(--t4)' }}>#{entry.member?.systemId}</div>
+                            <div style={{ fontSize: 10, color: 'var(--t4)' }}><span dir="ltr" style={{ unicodeBidi: 'isolate' }}>#{entry.member?.systemId}</span></div>
                           </div>
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ textAlign: 'end', flexShrink: 0 }}>
                             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--t2)' }}>{fmtTimeWithSeconds(entry.time)}</div>
                             {entry.checkedInBy?.name && (
-                              <div style={{ fontSize: 10, color: 'var(--t4)' }}>by {entry.checkedInBy.name}</div>
+                              <div style={{ fontSize: 10, color: 'var(--t4)' }}>{t('by {name}', { name: entry.checkedInBy.name })}</div>
                             )}
                           </div>
                         </div>
@@ -513,7 +524,7 @@ export default function SalesDashboard() {
                             borderTop: '1px solid var(--border)'
                           }}
                         >
-                          +{myCheckIns.length - 4} more check-ins · View all
+                          {t('+{count} more check-ins · View all', { count: myCheckIns.length - 4 })}
                         </div>
                       )}
                     </div>
@@ -530,10 +541,10 @@ export default function SalesDashboard() {
                     <Card noPad>
                       <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Revenue Overview</span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t('Revenue Overview')}</span>
                         </div>
                         <span style={{ fontSize: 11, background: 'var(--green-bg)', color: 'var(--green)', border: '1px solid var(--green-bd)', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>
-                          Active Period
+                          {t('Active Period')}
                         </span>
                       </div>
                       <div style={{ padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -544,7 +555,7 @@ export default function SalesDashboard() {
                           padding: '12px 14px'
                         }}>
                           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--green)', marginBottom: 4 }}>
-                            This Month
+                            {t('This Month')}
                           </div>
                           <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--t1)' }}>
                             {fmt(currentMonthRevenue)} <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>EGP</span>
@@ -557,7 +568,7 @@ export default function SalesDashboard() {
                           padding: '12px 14px'
                         }}>
                           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--navy)', marginBottom: 4 }}>
-                            This Year
+                            {t('This Year')}
                           </div>
                           <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--t1)' }}>
                             {fmt(revenue.currentYearRevenue)} <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)' }}>EGP</span>
@@ -571,14 +582,14 @@ export default function SalesDashboard() {
                   <Card noPad>
                     <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Team Performance</span>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t('Team Performance')}</span>
                         <span style={{ fontSize: 11, background: 'var(--bg)', color: 'var(--t3)', border: '1px solid var(--border)', padding: '2px 8px', borderRadius: 10, fontWeight: 600 }}>
-                          {salesReps.length} reps
+                          {t('{count} reps', { count: salesReps.length })}
                         </span>
                       </div>
                       {hasAccess(user, 'sales_team') && (
                         <span onClick={() => navigate('/sales/team')} style={{ fontSize: 11, color: 'var(--navy)', cursor: 'pointer', fontWeight: 600 }}>
-                          View team →
+                          {t('View team →')}
                         </span>
                       )}
                     </div>
@@ -588,7 +599,7 @@ export default function SalesDashboard() {
                       <div style={{ padding: '8px 14px', borderBottom: '1px solid var(--border)', background: 'var(--bg)' }}>
                         <input
                           type="text"
-                          placeholder="Filter sales reps..."
+                          placeholder={t('Filter sales reps...')}
                           value={repSearch}
                           onChange={e => setRepSearch(e.target.value)}
                           style={{
@@ -606,7 +617,7 @@ export default function SalesDashboard() {
                     )}
 
                     {filteredSalesReps.length === 0 ? (
-                      <EmptyState message={salesReps.length === 0 ? "No sales reps found" : "No matching sales reps"} />
+                      <EmptyState message={salesReps.length === 0 ? t('No sales reps found') : t('No matching sales reps')} />
                     ) : (
                       <div style={{ maxHeight: 380, overflowY: 'auto' }}>
                         {filteredSalesReps.map((rep, idx) => (
@@ -634,7 +645,7 @@ export default function SalesDashboard() {
                                   {rep.name}
                                 </div>
                                 <div style={{ fontSize: 11, color: 'var(--t4)' }}>
-                                  {fmt(rep.stats.total)} members · <span style={{ fontWeight: 600, color: rep.stats.monthlyRevenue > 0 ? 'var(--t2)' : 'var(--t4)' }}>{fmt(rep.stats.monthlyRevenue)} EGP this month</span>
+                                  {t('{count} members', { count: fmt(rep.stats.total) })} · <span style={{ fontWeight: 600, color: rep.stats.monthlyRevenue > 0 ? 'var(--t2)' : 'var(--t4)' }}>{t('{amount} EGP this month', { amount: fmt(rep.stats.monthlyRevenue) })}</span>
                                 </div>
                               </div>
                               {rep.pct !== null && (
@@ -644,7 +655,7 @@ export default function SalesDashboard() {
                               )}
                             </div>
                             {rep.pct !== null && (
-                              <div style={{ height: 4, background: 'var(--bg)', borderRadius: 2, border: '1px solid var(--border)', overflow: 'hidden', marginLeft: 32 }}>
+                              <div style={{ height: 4, background: 'var(--bg)', borderRadius: 2, border: '1px solid var(--border)', overflow: 'hidden', marginInlineStart: 32 }}>
                                 <div style={{ height: '100%', width: `${rep.pct}%`, background: rep.pct >= 100 ? 'var(--green)' : rep.pct >= 60 ? 'var(--navy)' : 'var(--amber)', borderRadius: 2 }} />
                               </div>
                             )}
@@ -677,12 +688,12 @@ export default function SalesDashboard() {
             boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
-              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>Today's Check-Ins ({myCheckIns.length})</h2>
-              <button type="button" onClick={() => setShowActivity(false)} aria-label="Close" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} aria-hidden /></button>
+              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>{t("Today's Check-Ins ({count})", { count: myCheckIns.length })}</h2>
+              <button type="button" onClick={() => setShowActivity(false)} aria-label={t('Close')} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} aria-hidden /></button>
             </div>
             {myCheckIns.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                <p style={{ fontSize: 14, color: 'var(--t3)' }}>No check-ins yet today</p>
+                <p style={{ fontSize: 14, color: 'var(--t3)' }}>{t('No check-ins yet today')}</p>
               </div>
             ) : (
               <div>
@@ -696,14 +707,14 @@ export default function SalesDashboard() {
                     <Avatar name={entry.member.name} size="sm" />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{entry.member.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--t4)' }}>#{entry.member.systemId}</div>
+                      <div style={{ fontSize: 11, color: 'var(--t4)' }}><span dir="ltr" style={{ unicodeBidi: 'isolate' }}>#{entry.member.systemId}</span></div>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ textAlign: 'end', flexShrink: 0 }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--t2)' }}>
                         {fmtTimeWithSeconds(entry.time)}
                       </div>
                       {entry.checkedInBy?.name && (
-                        <div style={{ fontSize: 10, color: 'var(--t4)' }}>by {entry.checkedInBy.name}</div>
+                        <div style={{ fontSize: 10, color: 'var(--t4)' }}>{t('by {name}', { name: entry.checkedInBy.name })}</div>
                       )}
                     </div>
                   </div>
@@ -731,17 +742,17 @@ export default function SalesDashboard() {
             boxShadow: '0 12px 40px rgba(0,0,0,0.45)',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', borderBottom: '1px solid var(--border)', position: 'sticky', top: 0, background: 'var(--card)', zIndex: 1 }}>
-              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>Today's Contracts ({todaySubscriptions.length})</h2>
-              <button type="button" onClick={() => setShowTodaySubs(false)} aria-label="Close" style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} aria-hidden /></button>
+              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>{t("Today's Contracts ({count})", { count: todaySubscriptions.length })}</h2>
+              <button type="button" onClick={() => setShowTodaySubs(false)} aria-label={t('Close')} style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 5, width: 26, height: 26, cursor: 'pointer', color: 'var(--t3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><X size={14} aria-hidden /></button>
             </div>
             {todaySubscriptions.length === 0 ? (
               <div style={{ padding: '40px 20px', textAlign: 'center' }}>
-                <p style={{ fontSize: 14, color: 'var(--t3)' }}>No contracts entered today</p>
+                <p style={{ fontSize: 14, color: 'var(--t3)' }}>{t('No contracts entered today')}</p>
               </div>
             ) : (
               <div>
                 <div style={{ padding: '10px 18px', background: 'var(--bg)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t2)' }}>Total Revenue</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--t2)' }}>{t('Total Revenue')}</span>
                   <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--green)' }}>{fmt(todayRevenue)} EGP</span>
                 </div>
                 {todaySubscriptions.map((entry, i) => {
@@ -759,13 +770,13 @@ export default function SalesDashboard() {
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{entry.member.name}</div>
                       <div style={{ fontSize: 11, color: 'var(--t4)' }}>
-                        #{entry.member.systemId} · {entry.subscription.package?.name ?? 'Package'}
+                        <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>#{entry.member.systemId}</span> · {entry.subscription.package?.name ?? t('Package')}
                         {isManager && entry.member.assignedSales?.name && (
-                          <span> · Sales: {entry.member.assignedSales.name}</span>
+                          <span> · {t('Sales: {name}', { name: entry.member.assignedSales.name })}</span>
                         )}
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ textAlign: 'end', flexShrink: 0 }}>
                       <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)' }}>
                         {fmt(net)} EGP
                       </div>
@@ -781,12 +792,12 @@ export default function SalesDashboard() {
                             border: '1px solid var(--red-bd)',
                             padding: '2px 6px', borderRadius: 4,
                           }}>
-                            Refunded {fmt(refunded)} EGP
+                            {t('Refunded {amount} EGP', { amount: fmt(refunded) })}
                           </span>
                         </div>
                       )}
                       <div style={{ fontSize: 10, color: 'var(--t4)', marginTop: refunded > 0 ? 3 : 0 }}>
-                        {entry.subscription.isRenewal ? 'Renewal' : 'New'}
+                        {entry.subscription.isRenewal ? t('Renewal') : t('New')}
                       </div>
                     </div>
                   </div>

@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { Modal, Btn } from './ui';
+import { useI18n } from '../i18n/useI18n';
+import { tr } from '../i18n/translate';
 
 const TYPE_LABEL = {
-  feature: 'New feature',
-  warning: 'Warning',
-  maintenance: 'Maintenance',
-  info: 'Update',
+  feature: tr('New feature'),
+  warning: tr('Warning'),
+  maintenance: tr('Maintenance'),
+  info: tr('Update'),
 };
 
 const TYPE_COLOR = {
@@ -19,6 +21,7 @@ const TYPE_COLOR = {
  * Auto-opens once per browser session when there are unread announcements.
  */
 export default function WhatsNewModal({ unread = [], onDismissAll, dismissing = false }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const shownSessionRef = useRef(false);
 
@@ -43,21 +46,21 @@ export default function WhatsNewModal({ unread = [], onDismissAll, dismissing = 
     <Modal
       open={open}
       onClose={() => setOpen(false)}
-      title="What's new"
+      title={t("What's new")}
       size="md"
       footer={
         <>
           <Btn variant="ghost" onClick={() => setOpen(false)}>
-            Later
+            {t('Later')}
           </Btn>
           <Btn variant="primary" onClick={handleGotIt} disabled={dismissing}>
-            Got it
+            {t('Got it')}
           </Btn>
         </>
       }
     >
       <p style={{ margin: '0 0 14px', fontSize: 13, color: 'var(--t2)', lineHeight: 1.45 }}>
-        Here are recent platform updates for your role and plan.
+        {t('Here are recent platform updates for your role and plan.')}
       </p>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {unread.map((item) => (
@@ -80,7 +83,7 @@ export default function WhatsNewModal({ unread = [], onDismissAll, dismissing = 
                 marginBottom: 4,
               }}
             >
-              {TYPE_LABEL[item.type] || 'Update'}
+              {t(TYPE_LABEL[item.type] || 'Update')}
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', marginBottom: 4 }}>
               {item.title}

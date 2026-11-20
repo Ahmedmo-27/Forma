@@ -1,6 +1,11 @@
 import { useNavigate } from 'react-router-dom';
-import { Badge, fmtDate, fmtDateTime } from '../../../components/ui';
+import { Badge } from '../../../components/ui';
 import { useTenant } from '../../../context/TenantContext';
+import { useI18n } from '../../../i18n/useI18n';
+import { useFormat } from '../../../i18n/useFormat';
+import { tr } from '../../../i18n/translate';
+import { useMemberDates } from '../useMemberDates';
+import Arrow from '../Arrow';
 import {
   AlertTriangle,
   Ban,
@@ -19,6 +24,15 @@ import {
   User,
   Zap,
 } from 'lucide-react';
+
+const STATUS_LABEL = {
+  active: tr('Active'),
+  frozen: tr('Frozen'),
+  expired: tr('Expired'),
+  guest: tr('Guest'),
+  blocked: tr('Blocked'),
+};
+const GENDER_LABEL = { male: tr('Male'), female: tr('Female') };
 
 function daysUntil(d) {
   if (!d) return null;
@@ -97,8 +111,11 @@ function QuickActionBtn({ icon: Icon, label, sub, onClick, accent = 'var(--navy)
   );
 }
 
-export default function DashboardTab({ member, user, data, onTabChange }) {
+export default function DashboardTab({ member, user, data, onTabChange, tabAllowed = () => true }) {
   const _navigate = useNavigate();
+  const { t } = useI18n();
+  const { fmtNumber } = useFormat();
+  const { fmtDate, fmtDateTime } = useMemberDates();
   const { currency = 'EGP' } = useTenant() || {};
 
   const subs = member.subscriptions ?? [];
@@ -141,9 +158,9 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
   const lastNote = [...notes].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0];
 
   const statusColor = { active: '#22c55e', frozen: '#38bdf8', expired: '#ef4444', guest: '#A6A0C2' }[member.status] || '#A6A0C2';
-  const go = (tab) => onTabChange?.(tab);
+  const go = (tab) => { if (tabAllowed(tab)) onTabChange?.(tab); };
 
-  const viewBtn = (tab) => (
+  const viewBtn = (tab) => !tabAllowed(tab) ? null : (
     <button onClick={() => go(tab)} style={{
       marginTop: 4, padding: '9px', borderRadius: 8, background: 'transparent',
       border: '1px solid var(--border-md)', color: 'var(--t2)', fontSize: 12,
@@ -151,7 +168,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
     }}
       onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--navy)'; e.currentTarget.style.color = 'var(--navy)'; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-md)'; e.currentTarget.style.color = 'var(--t2)'; }}
-    >View Package Details →</button>
+    >{t('View Package Details')} <Arrow /></button>
   );
 
   return (
@@ -159,21 +176,21 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
 
       {/* ── Row 1: Stats ──────────────────────────────────────── */}
       <div className="dash-stats">
-        <StatBox icon={Medal} label="Membership Status"
-          value={member.status ? member.status.charAt(0).toUpperCase() + member.status.slice(1) : '—'}
-          sub={activeSub?.startDate ? `Since ${fmtDate(activeSub.startDate)}` : undefined}
+        <StatBox icon={Medal} label={t('Membership Status')}
+          value={member.status ? (STATUS_LABEL[member.status] ? t(STATUS_LABEL[member.status]) : member.status.charAt(0).toUpperCase() + member.status.slice(1)) : '—'}
+          sub={activeSub?.startDate ? t('Since {date}', { date: fmtDate(activeSub.startDate) }) : undefined}
           accent={statusColor} onClick={() => go('packages')} />
-        <StatBox icon={Calendar} label="Package Expiry"
+        <StatBox icon={Calendar} label={t('Package Expiry')}
           value={activeSub?.endDate ? fmtDate(activeSub.endDate) : '—'}
-          sub={expiryDays === null ? undefined : expiryDays < 0 ? `Expired ${Math.abs(expiryDays)}d ago` : expiringSoon ? (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={11} aria-hidden /> {expiryDays}d left</span>
-          ) : `${expiryDays}d remaining`}
+          sub={expiryDays === null ? undefined : expiryDays < 0 ? t('Expired {count}d ago', { count: Math.abs(expiryDays) }) : expiringSoon ? (
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}><AlertTriangle size={11} aria-hidden /> {t('{count}d left', { count: expiryDays })}</span>
+          ) : t('{count}d remaining', { count: expiryDays })}
           accent={expiringSoon || isExpired ? '#ef4444' : 'var(--navy)'} onClick={() => go('packages')} />
-        <StatBox icon={CheckCircle2} label="Total Check-Ins"
-          value={checkInTotal} sub={`${thisMonthCheckIns} this month`}
+        <StatBox icon={CheckCircle2} label={t('Total Check-Ins')}
+          value={checkInTotal} sub={t('{count} this month', { count: thisMonthCheckIns })}
           accent="#22c55e" onClick={() => go('checkins')} />
-        <StatBox icon={Dumbbell} label="PT Sessions"
-          value={hasPT ? remainPT : 0} sub={hasPT ? `${usedPT} used · ${totalPT} total` : 'No active PT'}
+        <StatBox icon={Dumbbell} label={t('PT Sessions')}
+          value={hasPT ? remainPT : 0} sub={hasPT ? t('{used} used · {total} total', { used: usedPT, total: totalPT }) : t('No active PT')}
           accent="#f59e0b" onClick={() => go('packages')} />
       </div>
 
@@ -181,7 +198,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
       <div className="dash-row2">
 
         {/* My Package */}
-        <SectionCard title="My Package" icon={Package}>
+        <SectionCard title={t('My Package')} icon={Package}>
           {pkg ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -189,25 +206,25 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
                 <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>{pkg.name}</span>
               </div>
               <div className="dash-info-grid">
-                <InfoPair label="Activity"    value={pkg.activityType} />
-                <InfoPair label="Duration"    value={pkg.duration} />
-                <InfoPair label="Price Paid"  value={activeSub?.pricePaid ? `${currency} ${activeSub.pricePaid}` : '—'} />
-                <InfoPair label="Discount"    value={activeSub?.discountPercent ? `${activeSub.discountPercent}%` : 'None'} />
-                <InfoPair label="Freeze Limit" value={`${freezeLimit} days`} />
-                <InfoPair label="Freeze Used"  value={`${freezeUsed} days`} />
-                <InfoPair label="Invitations"  value={`${invitationsUsed} / ${invitationLimit}`} />
-                <InfoPair label="Freeze Left"  value={`${freezeRemain} days`} valueColor={freezeRemain > 0 ? 'var(--sky)' : 'var(--t4)'} />
+                <InfoPair label={t('Activity')}    value={pkg.activityType} />
+                <InfoPair label={t('Duration')}    value={pkg.duration} />
+                <InfoPair label={t('Price Paid')}  value={activeSub?.pricePaid ? `${currency} ${fmtNumber(activeSub.pricePaid)}` : '—'} />
+                <InfoPair label={t('Discount')}    value={activeSub?.discountPercent ? `${activeSub.discountPercent}%` : t('None')} />
+                <InfoPair label={t('Freeze Limit')} value={t('{count} days', { count: freezeLimit })} />
+                <InfoPair label={t('Freeze Used')}  value={t('{count} days', { count: freezeUsed })} />
+                <InfoPair label={t('Invitations')}  value={`${invitationsUsed} / ${invitationLimit}`} />
+                <InfoPair label={t('Freeze Left')}  value={t('{count} days', { count: freezeRemain })} valueColor={freezeRemain > 0 ? 'var(--sky)' : 'var(--t4)'} />
               </div>
               {activeFreeze && (
                 <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(56,189,248,0.08)', border: '1px solid rgba(56,189,248,0.2)', fontSize: 12, color: 'var(--sky)', display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Snowflake size={14} aria-hidden /> Frozen until {fmtDate(activeFreeze.endDate)}
+                  <Snowflake size={14} aria-hidden /> {t('Frozen until {date}', { date: fmtDate(activeFreeze.endDate) })}
                 </div>
               )}
               {viewBtn('packages')}
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '16px 0' }}>
-              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--t3)', marginBottom: 12 }}>No active package</p>
+              <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--t3)', marginBottom: 12 }}>{t('No active package')}</p>
               {viewBtn('packages')}
             </div>
           )}
@@ -215,14 +232,14 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
 
         {/* Quick Actions + PT */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <SectionCard title="Quick Actions" icon={Zap}>
+          <SectionCard title={t('Quick Actions')} icon={Zap}>
             <div className="dash-quick-actions">
-              <QuickActionBtn icon={Ticket} label="Invitations"   sub={`${invitationsRemain} left`}    onClick={() => go('invitations')} accent="#22c55e" />
-              <QuickActionBtn icon={CheckCircle2} label="Check-Ins"     sub={`${checkInTotal} total`}      onClick={() => go('checkins')}    accent="#22c55e" />
-              <QuickActionBtn icon={Package} label="Packages"                                             onClick={() => go('packages')}   accent="var(--navy)" />
-              <QuickActionBtn icon={Snowflake} label="Freeze"        sub={`${freezeRemain}d left`}          onClick={() => go('freeze')}     accent="#38bdf8" />
-              <QuickActionBtn icon={MessageCircle} label="Call Center"   sub={`${notes.length} notes`}          onClick={() => go('callcenter')} accent="#f59e0b" />
-              <QuickActionBtn icon={Folder} label="Files"                                                 onClick={() => go('files')}     accent="#A6A0C2" />
+              <QuickActionBtn icon={Ticket} label={t('Invitations')}   sub={t('{count} left', { count: invitationsRemain })}    onClick={() => go('invitations')} accent="#22c55e" />
+              {tabAllowed('checkins') && <QuickActionBtn icon={CheckCircle2} label={t('Check-Ins')}     sub={t('{count} total', { count: checkInTotal })}      onClick={() => go('checkins')}    accent="#22c55e" />}
+              {tabAllowed('packages') && <QuickActionBtn icon={Package} label={t('Packages')}                                             onClick={() => go('packages')}   accent="var(--navy)" />}
+              <QuickActionBtn icon={Snowflake} label={t('Freeze')}        sub={t('{count}d left', { count: freezeRemain })}          onClick={() => go('freeze')}     accent="#38bdf8" />
+              {tabAllowed('callcenter') && <QuickActionBtn icon={MessageCircle} label={t('Call Center')}   sub={t('{count} notes', { count: notes.length })}          onClick={() => go('callcenter')} accent="#f59e0b" />}
+              <QuickActionBtn icon={Folder} label={t('Files')}                                                 onClick={() => go('files')}     accent="#A6A0C2" />
             </div>
           </SectionCard>
 
@@ -230,11 +247,11 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
           <div style={{ background: 'linear-gradient(135deg,var(--navy),var(--navy-2))', border: '1px solid rgba(91,56,186,0.4)', borderRadius: 12, padding: '16px 18px', boxShadow: '0 4px 20px color-mix(in srgb, var(--navy) 25%, transparent)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 14 }}>
               <Dumbbell size={16} color="#fff" aria-hidden />
-              <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>PT Sessions</span>
-              {hasPT && !ptExpired && <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, background: 'rgba(255,255,255,0.15)', color: '#fff', padding: '2px 8px', borderRadius: 20 }}>ACTIVE</span>}
+              <span style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{t('PT Sessions')}</span>
+              {hasPT && !ptExpired && <span style={{ marginInlineStart: 'auto', fontSize: 10, fontWeight: 700, background: 'rgba(255,255,255,0.15)', color: '#fff', padding: '2px 8px', borderRadius: 20 }}>{t('ACTIVE')}</span>}
             </div>
             <div className="dash-pt-grid">
-              {[{ label: 'Total', value: totalPT }, { label: 'Free', value: latestPT?.pricePaid === 0 ? totalPT : 0 }, { label: 'Taken', value: usedPT }, { label: 'Remaining', value: remainPT }].map(item => (
+              {[{ label: t('Total'), value: totalPT }, { label: t('Free'), value: latestPT?.pricePaid === 0 ? totalPT : 0 }, { label: t('Taken'), value: usedPT }, { label: t('Remaining'), value: remainPT }].map(item => (
                 <div key={item.label} style={{ textAlign: 'center' }}>
                   <p style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{item.label}</p>
                   <p style={{ fontSize: 22, fontWeight: 800, color: '#fff' }}>{item.value}</p>
@@ -243,8 +260,8 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
             </div>
             {hasPT && latestPT?.endDate && (
               <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.12)', fontSize: 11, color: 'rgba(255,255,255,0.55)', display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 4 }}>
-                <span>Expires: {fmtDate(latestPT.endDate)}</span>
-                <span>Coach: {member.current_couch?.name ?? '—'}</span>
+                <span>{t('Expires: {date}', { date: fmtDate(latestPT.endDate) })}</span>
+                <span>{t('Coach: {name}', { name: member.current_couch?.name ?? '—' })}</span>
               </div>
             )}
           </div>
@@ -252,28 +269,28 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
 
         {/* Call Center */}
         <SectionCard
-          title={isCoach ? `Coach Notes (${notes.length})` : `Call Center (${notes.length})`}
+          title={isCoach ? t('Coach Notes ({count})', { count: notes.length }) : t('Call Center ({count})', { count: notes.length })}
           icon={Phone}
-          action={<button onClick={() => go('callcenter')} style={{ fontSize: 11, fontWeight: 600, color: 'var(--navy)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>View all →</button>}
+          action={!tabAllowed('callcenter') ? undefined : <button onClick={() => go('callcenter')} style={{ fontSize: 11, fontWeight: 600, color: 'var(--navy)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{t('View all')} <Arrow /></button>}
         >
           {lastNote ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>Last Note</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.4px' }}>{t('Last Note')}</span>
                   <span style={{ fontSize: 10, color: 'var(--t4)' }}>{fmtDateTime(lastNote.createdAt)}</span>
                 </div>
                 <p style={{ fontSize: 13, color: 'var(--t1)', lineHeight: 1.5 }}>{lastNote.text}</p>
-                {lastNote.createdBy?.name && <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 6 }}>— {lastNote.createdBy.name}</p>}
+                {lastNote.createdBy?.name && <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 6 }}>— <bdi>{lastNote.createdBy.name}</bdi></p>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border)' }}>
-                  <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Total Notes</p>
+                  <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{t('Total Notes')}</p>
                   <p style={{ fontSize: 20, fontWeight: 800, color: 'var(--t1)' }}>{notes.length}</p>
                 </div>
                 <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border)' }}>
-                  <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Last Active</p>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--t1)' }}>{daysAgo(lastNote.createdAt)}d ago</p>
+                  <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{t('Last Active')}</p>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--t1)' }}>{t('{count}d ago', { count: daysAgo(lastNote.createdAt) })}</p>
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -290,7 +307,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
             </div>
           ) : (
             <div style={{ textAlign: 'center', padding: '20px 0' }}>
-              <p style={{ fontSize: 14, color: 'var(--t4)' }}>No notes yet</p>
+              <p style={{ fontSize: 14, color: 'var(--t4)' }}>{t('No notes yet')}</p>
             </div>
           )}
         </SectionCard>
@@ -300,32 +317,32 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
       <div className="dash-row3">
 
         {/* Last Check-In */}
-        <SectionCard title="Last Check-In" icon={Clock}>
+        <SectionCard title={t('Last Check-In')} icon={Clock}>
           {lastCheckIn ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.2)' }}>
                 <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--green)', marginBottom: 2 }}>{fmtDateTime(lastCheckIn.createdAt)}</p>
-                {lastCheckIn.createdBy?.name && <p style={{ fontSize: 11, color: 'var(--t4)' }}>By {lastCheckIn.createdBy.name}</p>}
+                {lastCheckIn.createdBy?.name && <p style={{ fontSize: 11, color: 'var(--t4)' }}>{t('By {name}', { name: lastCheckIn.createdBy.name })}</p>}
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                 <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border)' }}>
-                  <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>Total</p>
+                  <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{t('Total')}</p>
                   <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--t1)' }}>{checkInTotal}</p>
                 </div>
                 <div style={{ background: 'var(--bg)', borderRadius: 8, padding: '10px 12px', border: '1px solid var(--border)' }}>
-                  <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>This Month</p>
+                  <p style={{ fontSize: 10, color: 'var(--t4)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.4px', marginBottom: 4 }}>{t('This Month')}</p>
                   <p style={{ fontSize: 22, fontWeight: 800, color: 'var(--t1)' }}>{thisMonthCheckIns}</p>
                 </div>
               </div>
             </div>
           ) : (
-            <div style={{ textAlign: 'center', padding: '20px 0' }}><p style={{ fontSize: 14, color: 'var(--t4)' }}>No check-ins yet</p></div>
+            <div style={{ textAlign: 'center', padding: '20px 0' }}><p style={{ fontSize: 14, color: 'var(--t4)' }}>{t('No check-ins yet')}</p></div>
           )}
         </SectionCard>
 
         {/* Alerts */}
-        <SectionCard title="Alerts" icon={Bell}
-          action={<button onClick={() => go('alerts')} style={{ fontSize: 11, fontWeight: 600, color: 'var(--navy)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>Manage →</button>}
+        <SectionCard title={t('Alerts')} icon={Bell}
+          action={<button onClick={() => go('alerts')} style={{ fontSize: 11, fontWeight: 600, color: 'var(--navy)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>{t('Manage')} <Arrow /></button>}
         >
           {(member.alert ?? []).filter(a => a.active).length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -335,7 +352,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
                 </div>
               ))}
               {(member.alert ?? []).filter(a => a.active).length > 3 && (
-                <p style={{ fontSize: 11, color: 'var(--t4)', textAlign: 'center' }}>+{(member.alert ?? []).filter(a => a.active).length - 3} more</p>
+                <p style={{ fontSize: 11, color: 'var(--t4)', textAlign: 'center' }}>{t('+{count} more', { count: (member.alert ?? []).filter(a => a.active).length - 3 })}</p>
               )}
             </div>
           ) : (
@@ -343,27 +360,27 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
               <div style={{ display: 'flex', justifyContent: 'center', opacity: 0.2, marginBottom: 6, color: 'var(--t4)' }}>
                 <Bell size={28} aria-hidden />
               </div>
-              <p style={{ fontSize: 13, color: 'var(--t4)' }}>No active alerts</p>
+              <p style={{ fontSize: 13, color: 'var(--t4)' }}>{t('No active alerts')}</p>
             </div>
           )}
         </SectionCard>
 
         {/* Member Info */}
-        <SectionCard title="Member Info" icon={User}>
+        <SectionCard title={t('Member Info')} icon={User}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div className="dash-info-grid">
-              <InfoPair label="Member ID"     value={member.memberId ? `M${member.memberId}` : '—'} />
-              <InfoPair label="System ID"     value={member.systemId ? `#${member.systemId}` : '—'} />
-              <InfoPair label="Status"        value={<Badge status={member.status} />} />
-              <InfoPair label="Gender"        value={member.gender ? member.gender.charAt(0).toUpperCase() + member.gender.slice(1) : '—'} />
-              <InfoPair label="Sales Rep"     value={member.assignedSales?.name ?? '—'} />
-              <InfoPair label="Coach"         value={member.current_couch?.name ?? '—'} />
-              <InfoPair label="Total Subs"    value={subs.length} />
-              <InfoPair label="Joined"        value={member.createdAt ? fmtDate(member.createdAt) : '—'} />
+              <InfoPair label={t('Member ID')}     value={member.memberId ? <bdi dir="ltr">{'M' + member.memberId}</bdi> : '—'} />
+              <InfoPair label={t('System ID')}     value={member.systemId ? <bdi dir="ltr">{`#${member.systemId}`}</bdi> : '—'} />
+              <InfoPair label={t('Status')}        value={<Badge status={member.status} />} />
+              <InfoPair label={t('Gender')}        value={member.gender ? (GENDER_LABEL[member.gender] ? t(GENDER_LABEL[member.gender]) : member.gender.charAt(0).toUpperCase() + member.gender.slice(1)) : '—'} />
+              <InfoPair label={t('Sales Rep')}     value={member.assignedSales?.name ?? '—'} />
+              <InfoPair label={t('Coach')}         value={member.current_couch?.name ?? '—'} />
+              <InfoPair label={t('Total Subs')}    value={subs.length} />
+              <InfoPair label={t('Joined')}        value={member.createdAt ? fmtDate(member.createdAt) : '—'} />
             </div>
             {member.isBlocked && (
               <div style={{ padding: '8px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)', fontSize: 12, color: 'var(--red)' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Ban size={14} aria-hidden /> Blocked{member.blockedReason ? `: ${member.blockedReason}` : ''}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Ban size={14} aria-hidden /> {member.blockedReason ? t('Blocked: {reason}', { reason: member.blockedReason }) : t('Blocked')}</span>
               </div>
             )}
           </div>
@@ -371,6 +388,7 @@ export default function DashboardTab({ member, user, data, onTabChange }) {
       </div>
 
       {/* ── Responsive styles ───────────────────────────────────── */}
+      {/* i18n-ignore: CSS, not user-facing text */}
       <style>{`
         .dash-stats         { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
         .dash-row2          { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: 12px; }

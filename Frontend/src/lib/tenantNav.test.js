@@ -6,14 +6,14 @@ const on = () => true;
 const off = () => false;
 
 const NAV_PATHS = {
-    Owner: ["/owner/dashboard", "/members", "/tasks", "/checkin", "/maintenance", "/reports", "/management", "/sales/callcenter", "/owner/access", "/analytics", "/contacts", "/owner/settings"],
-    "General Manager": ["/owner/dashboard", "/members", "/tasks", "/checkin", "/maintenance", "/reports", "/management", "/sales/callcenter", "/owner/access", "/analytics", "/contacts"],
-    "Sales Manager": ["/sales/dashboard", "/members", "/tasks", "/checkin", "/reports", "/management", "/sales/callcenter", "/analytics", "/owner/access", "/contacts"],
-    Sales: ["/sales/dashboard", "/sales/members", "/tasks", "/checkin", "/reports", "/sales/my-callcenter", "/contacts"],
+    Owner: ["/owner/dashboard", "/members", "/tasks", "/checkin", "/inbox", "/maintenance", "/retail/pos", "/reports", "/management", "/sales/callcenter", "/owner/access", "/analytics", "/contacts", "/owner/settings"],
+    "General Manager": ["/owner/dashboard", "/members", "/tasks", "/checkin", "/inbox", "/maintenance", "/retail/pos", "/reports", "/management", "/sales/callcenter", "/owner/access", "/analytics", "/contacts"],
+    "Sales Manager": ["/sales/dashboard", "/members", "/tasks", "/checkin", "/inbox", "/reports", "/management", "/sales/callcenter", "/analytics", "/owner/access", "/contacts"],
+    Sales: ["/sales/dashboard", "/sales/members", "/tasks", "/checkin", "/inbox", "/reports", "/sales/my-callcenter", "/contacts"],
     "Head Coach": ["/coach/dashboard", "/coach/members", "/tasks", "/coach/checkin", "/coach/attendance", "/reports", "/management", "/contacts"],
     Coach: ["/coach/dashboard", "/coach/members", "/tasks", "/coach/checkin", "/coach/my-transfers", "/contacts"],
-    Receptionist: ["/checkin", "/members", "/maintenance", "/contacts"],
-    Accountant: ["/accounting/dashboard", "/members", "/tasks", "/accounting/contract-history", "/sales/targets", "/accounting/package-requests", "/analytics", "/contacts", "/reports"],
+    Receptionist: ["/checkin", "/members", "/maintenance", "/retail/pos", "/contacts"],
+    Accountant: ["/accounting/dashboard", "/members", "/tasks", "/accounting/contract-history", "/sales/targets", "/accounting/package-requests", "/retail/reports", "/analytics", "/contacts", "/reports"],
 };
 
 const BOTTOM = {
@@ -42,22 +42,56 @@ describe("Tenant navigation", () => {
     });
 
     it("hides plan-gated items when the gym does not have the feature", () => {
-        const manager = visibleNavItems(user("Sales Manager"), off).map((item) => item.to);
-        expect(manager).not.toContain("/sales/callcenter");
-        expect(manager).not.toContain("/reports");
-        expect(manager).not.toContain("/analytics");
-        expect(manager).toContain("/sales/dashboard");
+        const without = (...keys) => (feature) => !keys.includes(feature);
 
-        const books = visibleNavItems(user("Accountant"), off).map((item) => item.to);
-        expect(books).toEqual(["/members", "/tasks", "/contacts"]);
+        const manager = visibleNavItems(user("Sales Manager"), without("sales_crm")).map((item) => item.to);
+        expect(manager).not.toContain("/sales/dashboard");
+        expect(manager).not.toContain("/sales/callcenter");
+        expect(manager).toContain("/members");
+
+        const reportless = visibleNavItems(
+            user("Owner"),
+            without("reports_basic", "exec_analytics", "funnels", "business_intelligence"),
+        ).map((item) => item.to);
+        expect(reportless).not.toContain("/reports");
+        expect(reportless).toContain("/owner/settings");
+
+        const noMembers = visibleNavItems(user("Owner"), without("members")).map((item) => item.to);
+        expect(noMembers).not.toContain("/members");
+        expect(noMembers).not.toContain("/analytics");
 
         const owner = visibleNavItems(user("Owner"), off).map((item) => item.to);
-        expect(owner).not.toContain("/reports");
-        expect(owner).not.toContain("/sales/callcenter");
-        expect(owner).not.toContain("/analytics");
-        expect(owner).toContain("/owner/settings");
+        // Dashboard and settings have no plan feature, so they can never be switched off.
+        expect(owner).toEqual(["/owner/dashboard", "/owner/settings"]);
     });
 
+    it("hides the new module pages when their feature is removed", () => {
+        const gated = {
+            retail: "/retail/pos",
+            maintenance: "/maintenance",
+            tasks: "/tasks",
+            contacts: "/contacts",
+            access_control: "/owner/access",
+        };
+        for (const [feature, path] of Object.entries(gated)) {
+            const paths = visibleNavItems(user("Owner"), (key) => key !== feature).map((item) => item.to);
+            expect(paths, feature).not.toContain(path);
+        }
+    });
+
+    it("filters bottom tabs by plan feature and lets later tabs move up", () => {
+        const tabs = bottomNavFor("Owner", user("Owner"), (feature) => feature !== "tasks");
+        expect(tabs.map((item) => item.to)).toEqual(["/owner/dashboard", "/members", "/checkin"]);
+        const none = bottomNavFor("Receptionist", user("Receptionist"), off);
+        expect(none).toEqual([]);
+    });
+
+    it("filters nav extras by the plan feature of their page", () => {
+        const paths = visibleNavItems(user("Receptionist", {
+            navExtras: [{ to: "/retail/sales", label: "Retail Sales", key: "retail_pos" }],
+        }), (feature) => feature !== "retail").map((item) => item.to);
+        expect(paths).not.toContain("/retail/sales");
+    });
     it("appends nav extras that are not already shown", () => {
         const paths = visibleNavItems(user("Receptionist", {
             navExtras: [{ to: "/custom", label: "Custom", key: "members" }],

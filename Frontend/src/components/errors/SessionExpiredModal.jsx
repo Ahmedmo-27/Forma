@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Lock, Eye, EyeOff } from "lucide-react";
 import axios from "axios";
 import { apiOrigin } from "../../api/axios";
+import { useI18n } from "../../i18n/useI18n";
 
 export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess }) {
+  const { t } = useI18n();
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,11 +24,11 @@ export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!email || !email.trim()) {
-      setErrorMsg("Account email not found in session. Please log in again.");
+      setErrorMsg(t("Account email not found in session. Please log in again."));
       return;
     }
     if (!password) {
-      setErrorMsg("Password is required.");
+      setErrorMsg(t("Password is required."));
       return;
     }
 
@@ -67,7 +69,7 @@ export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess }) {
       setErrorMsg(
         err.response?.data?.error?.message ||
         err.response?.data?.message ||
-        "Invalid password. Please check your credentials."
+        t("Invalid password. Please check your credentials.")
       );
     } finally {
       setLoading(false);
@@ -88,17 +90,17 @@ export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess }) {
         role="alertdialog"
         aria-modal="true"
         aria-labelledby="session-expired-title"
-        className="w-full max-w-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 text-left outline-none animate-in fade-in zoom-in-95 duration-150"
+        className="w-full max-w-sm bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-2xl shadow-2xl p-6 text-start outline-none animate-in fade-in zoom-in-95 duration-150"
       >
         <div className="w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 dark:text-amber-400 flex items-center justify-center mb-4">
           <Lock className="w-5 h-5" />
         </div>
 
         <h2 id="session-expired-title" className="text-base font-bold text-zinc-900 dark:text-zinc-100 mb-1">
-          Session Expired
+          {t("Session Expired")}
         </h2>
         <p className="text-xs text-zinc-600 dark:text-zinc-400 leading-relaxed mb-4">
-          Enter your password for <strong className="text-zinc-800 dark:text-zinc-200">{email || "your account"}</strong> to continue without losing your in-progress work.
+          {t("Enter your password for {email} to continue without losing your in-progress work.", { email: "\u0001" }).split("\u0001").flatMap((part, i) => (i === 0 ? [part] : [<strong key="email" className="text-zinc-800 dark:text-zinc-200"><bdi>{email || t("your account")}</bdi></strong>, part]))}
         </p>
 
         {errorMsg && (
@@ -113,14 +115,15 @@ export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess }) {
               type={showPassword ? "text" : "password"}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
+              placeholder={t("Enter your password")}
               autoFocus
               className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 text-zinc-900 dark:text-zinc-100 placeholder-zinc-400 focus:outline-none focus:ring-2 focus:ring-amber-500/40"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-2.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+              aria-label={showPassword ? t("Hide password") : t("Show password")}
+              className="absolute end-3 top-2.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
             >
               {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
@@ -132,7 +135,7 @@ export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess }) {
               onClick={handleFullLogout}
               className="text-xs text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-300 cursor-pointer"
             >
-              Switch Account
+              {t("Switch Account")}
             </button>
 
             <button
@@ -140,7 +143,7 @@ export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess }) {
               disabled={loading}
               className="px-4 py-2 text-xs font-semibold text-white bg-amber-600 hover:bg-amber-700 disabled:opacity-50 rounded-xl transition-colors cursor-pointer"
             >
-              {loading ? "Verifying..." : "Resume Session"}
+              {loading ? t("Verifying...") : t("Resume Session")}
             </button>
           </div>
         </form>

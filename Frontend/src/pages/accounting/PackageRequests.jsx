@@ -5,22 +5,40 @@ import { useAuth } from '../../context/AuthContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import useLocationEffect from '../../hooks/useLocationEffect';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Table, Badge, Btn, ConfirmDialog, EmptyState, Modal, fmtDate, fmtDateTime, Pagination } from '../../components/ui';
+import { PageHeader, Card, Table, Badge, Btn, ConfirmDialog, EmptyState, Modal, Pagination, CAIRO_ZONE } from '../../components/ui';
 import { getPackageExceptions, updatePackageExceptionStatus } from '../../api/endpoints';
 import SalesManagerSection from '../../components/accounting/SalesManagerSection';
 import PackageAcceptModal from '../../components/accounting/PackageAcceptModal';
 import { useWalkthrough } from '../../tutorials/walkthrough-context';
+import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 
 const PAGE_SIZE = 10;
 
+const CAIRO_DATE = { timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric' };
+const CAIRO_DATETIME = {
+  timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric',
+  hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true,
+};
+
+/** Cairo-zone date helpers that follow the active language (English output matches the shared ui helpers). */
+function useCairoDates() {
+  const { fmtDate: formatDate, fmtDateTime: formatDateTime } = useFormat();
+  return {
+    fmtDate: (v) => (v ? formatDate(v, CAIRO_DATE, 'en-GB') : '—'),
+    fmtDateTime: (v) => (v ? formatDateTime(v, CAIRO_DATETIME, 'en-US') : '—'),
+  };
+}
+
 function ExceptionFlag() {
+  const { t } = useI18n();
   return (
     <span style={{
       display: 'inline-block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase',
       letterSpacing: '0.4px', background: 'var(--amber-bg)', color: 'var(--amber)',
       border: '1px solid var(--amber-bd)', padding: '2px 7px', borderRadius: 4,
     }}>
-      Exception
+      {t('Exception')}
     </span>
   );
 }
@@ -35,8 +53,12 @@ function DetailRow({ label, value }) {
 }
 
 function RequestDetailModal({ request, open, onClose, isReviewer, onApprove, onReject }) {
+  const { t } = useI18n();
+  const { fmtNumber } = useFormat();
+  const { fmtDate, fmtDateTime } = useCairoDates();
   if (!open || !request) return null;
 
+  const fmtMoney = (v) => (typeof v === 'number' ? fmtNumber(v) : v);
   const isPending = request.status === 'pending';
   const memberId = request.member?.systemId ?? request.member?._id;
 
@@ -44,17 +66,17 @@ function RequestDetailModal({ request, open, onClose, isReviewer, onApprove, onR
     <Modal
       open={open}
       onClose={onClose}
-      title={request.hasException ? 'Package Exception Request' : 'Package Request'}
+      title={request.hasException ? t('Package Exception Request') : t('Package Request')}
       size="lg"
       footer={
         isPending && isReviewer ? (
           <div data-walkthrough="pkg-request-actions" style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-            <Btn variant="ghost" size="sm" onClick={onClose}>Close</Btn>
-            <Btn variant="danger" size="sm" onClick={() => onReject(request)}>Reject</Btn>
-            <Btn variant="success" size="sm" onClick={() => onApprove(request)}>Approve</Btn>
+            <Btn variant="ghost" size="sm" onClick={onClose}>{t('Close')}</Btn>
+            <Btn variant="danger" size="sm" onClick={() => onReject(request)}>{t('Reject')}</Btn>
+            <Btn variant="success" size="sm" onClick={() => onApprove(request)}>{t('Approve')}</Btn>
           </div>
         ) : (
-          <Btn variant="ghost" size="sm" onClick={onClose}>Close</Btn>
+          <Btn variant="ghost" size="sm" onClick={onClose}>{t('Close')}</Btn>
         )
       }
     >
@@ -62,7 +84,7 @@ function RequestDetailModal({ request, open, onClose, isReviewer, onApprove, onR
         <Badge status={request.status} />
         {request.hasException && <ExceptionFlag />}
         {!request.hasException && (
-          <span style={{ fontSize: 11, color: 'var(--t4)', fontWeight: 600 }}>Standard catalog request</span>
+          <span style={{ fontSize: 11, color: 'var(--t4)', fontWeight: 600 }}>{t('Standard catalog request')}</span>
         )}
       </div>
 
@@ -73,14 +95,14 @@ function RequestDetailModal({ request, open, onClose, isReviewer, onApprove, onR
       )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1, background: 'var(--border)', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden', marginBottom: 16 }}>
-        <DetailRow label="Member" value={
+        <DetailRow label={t('Member')} value={
           memberId
             ? <Link to={`/members/${memberId}`} style={{ color: 'var(--blue)', textDecoration: 'none' }}>{request.member?.name ?? '—'}</Link>
             : (request.member?.name ?? '—')
         } />
-        <DetailRow label="Submitted" value={fmtDateTime(request.createdAt)} />
-        <DetailRow label="Based On" value={request.basePackage?.name} />
-        {request.reviewedBy && <DetailRow label="Reviewed By" value={request.reviewedBy.name} />}
+        <DetailRow label={t('Submitted')} value={fmtDateTime(request.createdAt)} />
+        <DetailRow label={t('Based On')} value={request.basePackage?.name} />
+        {request.reviewedBy && <DetailRow label={t('Reviewed By')} value={request.reviewedBy.name} />}
       </div>
 
       {isPending && request.proposedBy && (
@@ -88,37 +110,37 @@ function RequestDetailModal({ request, open, onClose, isReviewer, onApprove, onR
       )}
 
       <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
-        {request.hasException ? 'Proposed Terms (Exception)' : 'Package Terms'}
+        {request.hasException ? t('Proposed Terms (Exception)') : t('Package Terms')}
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 1, background: 'var(--border)', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden', marginBottom: request.reason || request.reviewNote ? 16 : 0 }}>
-        <DetailRow label="Package Name" value={request.name} />
-        <DetailRow label="Activity" value={request.activityType} />
-        <DetailRow label="Duration" value={request.duration} />
-        <DetailRow label="Price (EGP)" value={request.price?.toLocaleString?.() ?? request.price} />
-        <DetailRow label="Price Paid (EGP)" value={request.pricePaid?.toLocaleString?.() ?? request.pricePaid} />
-        <DetailRow label="Discount %" value={request.discountPercent ? `${request.discountPercent}%` : '0%'} />
-        <DetailRow label="Freeze Limit" value={`${request.freezeLimitDays ?? 0} days`} />
-        <DetailRow label="Invitation Slots" value={request.invitationLimit ?? 0} />
-        <DetailRow label="Renewal Discount" value={request.renewalDiscountPercent ? `${request.renewalDiscountPercent}%` : 'None'} />
-        <DetailRow label="Start Date" value={request.startDate ? fmtDate(request.startDate) : 'Today'} />
+        <DetailRow label={t('Package Name')} value={request.name} />
+        <DetailRow label={t('Activity')} value={request.activityType} />
+        <DetailRow label={t('Duration')} value={request.duration} />
+        <DetailRow label={t('Price (EGP)')} value={fmtMoney(request.price)} />
+        <DetailRow label={t('Price Paid (EGP)')} value={fmtMoney(request.pricePaid)} />
+        <DetailRow label={t('Discount %')} value={request.discountPercent ? `${request.discountPercent}%` : '0%'} />
+        <DetailRow label={t('Freeze Limit')} value={t('{count} days', { count: request.freezeLimitDays ?? 0 })} />
+        <DetailRow label={t('Invitation Slots')} value={request.invitationLimit ?? 0} />
+        <DetailRow label={t('Renewal Discount')} value={request.renewalDiscountPercent ? `${request.renewalDiscountPercent}%` : t('None')} />
+        <DetailRow label={t('Start Date')} value={request.startDate ? fmtDate(request.startDate) : t('Today')} />
       </div>
 
       {request.description && (
         <p style={{ fontSize: 12, color: 'var(--t2)', marginBottom: 12 }}>
-          <strong style={{ color: 'var(--t3)' }}>Description:</strong> {request.description}
+          <strong style={{ color: 'var(--t3)' }}>{t('Description:')}</strong> {request.description}
         </p>
       )}
 
       {request.reason && (
         <div style={{ fontSize: 12, color: 'var(--t2)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px', marginBottom: request.reviewNote ? 12 : 0 }}>
-          <span style={{ fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.4px' }}>Reason: </span>
+          <span style={{ fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.4px' }}>{t('Reason:')} </span>
           {request.reason}
         </div>
       )}
 
       {request.reviewNote && (
         <div style={{ fontSize: 12, color: 'var(--t2)', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: '10px 12px' }}>
-          <span style={{ fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.4px' }}>Review Note: </span>
+          <span style={{ fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.4px' }}>{t('Review Note:')} </span>
           {request.reviewNote}
         </div>
       )}
@@ -127,7 +149,9 @@ function RequestDetailModal({ request, open, onClose, isReviewer, onApprove, onR
 }
 
 export default function PackageRequests() {
-  usePageTitle('Package Requests');
+  const { t } = useI18n();
+  const { fmtDateTime } = useCairoDates();
+  usePageTitle(t('Package Requests'));
   const { user } = useAuth();
   const [pending, setPending] = useState([]);
   const [resolved, setResolved] = useState([]);
@@ -169,11 +193,11 @@ export default function PackageRequests() {
       setPending(res.data.requests ?? []);
       setPendingPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
     } catch {
-      toast.error('Failed to load package requests.');
+      toast.error(t('Failed to load package requests.'));
     } finally {
       setLoadingPending(false);
     }
-  }, [pendingPage]);
+  }, [pendingPage, t]);
 
   const fetchResolved = useCallback(async () => {
     setLoadingResolved(true);
@@ -182,11 +206,11 @@ export default function PackageRequests() {
       setResolved(res.data.requests ?? []);
       setResolvedPagination(res.data.pagination ?? { page: 1, totalPages: 1, total: 0, limit: PAGE_SIZE });
     } catch {
-      toast.error('Failed to load request history.');
+      toast.error(t('Failed to load request history.'));
     } finally {
       setLoadingResolved(false);
     }
-  }, [resolvedPage]);
+  }, [resolvedPage, t]);
 
   const fetchRequests = useCallback(() => {
     fetchPending();
@@ -201,14 +225,14 @@ export default function PackageRequests() {
     setActionLoading(true);
     try {
       await updatePackageExceptionStatus(confirm.id, confirm.status);
-      toast.success(`Request ${confirm.status}.`);
+      toast.success(confirm.status === 'rejected' ? t('Request rejected.') : t('Request {status}.', { status: confirm.status }));
       setConfirm(null);
       setSelected(null);
       setAcceptRequest(null);
       fetchRequests();
     } catch (e) {
       if (e.normalized?.status !== 403 && e.normalized?.status !== 429) {
-        toast.error(e.normalized?.message || e.response?.data?.message || 'Action failed.');
+        toast.error(e.normalized?.message || e.response?.data?.message || t('Action failed.'));
       }
     } finally {
       setActionLoading(false);
@@ -220,13 +244,13 @@ export default function PackageRequests() {
     setActionLoading(true);
     try {
       await updatePackageExceptionStatus(acceptRequest._id, 'accepted');
-      toast.success('Request accepted.');
+      toast.success(t('Request accepted.'));
       setAcceptRequest(null);
       setSelected(null);
       fetchRequests();
     } catch (e) {
       if (e.normalized?.status !== 403 && e.normalized?.status !== 429) {
-        toast.error(e.normalized?.message || e.response?.data?.message || 'Action failed.');
+        toast.error(e.normalized?.message || e.response?.data?.message || t('Action failed.'));
       }
     } finally {
       setActionLoading(false);
@@ -240,7 +264,7 @@ export default function PackageRequests() {
     cursor: 'pointer',
   };
 
-  const headers = ['Member', 'Package', 'Type', 'Proposed By', 'Price Paid', 'Submitted', 'Status'];
+  const headers = [t('Member'), t('Package'), t('Type'), t('Proposed By'), t('Price Paid'), t('Submitted'), t('Status')];
 
   const renderRow = (r) => (
     <tr
@@ -254,13 +278,13 @@ export default function PackageRequests() {
       <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{r.member?.name ?? '—'}</td>
       <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>
         {r.name}
-        <div style={{ fontSize: 10, color: 'var(--t4)' }}>Based on: {r.basePackage?.name ?? '—'}</div>
+        <div style={{ fontSize: 10, color: 'var(--t4)' }}>{t('Based on: {name}', { name: r.basePackage?.name ?? '—' })}</div>
       </td>
       <td style={{ padding: '10px 14px' }}>
-        {r.hasException ? <ExceptionFlag /> : <span style={{ fontSize: 12, color: 'var(--t4)' }}>Standard</span>}
+        {r.hasException ? <ExceptionFlag /> : <span style={{ fontSize: 12, color: 'var(--t4)' }}>{t('Standard')}</span>}
       </td>
       <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{r.proposedBy?.name ?? '—'}</td>
-      <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: 'var(--green)' }}>EGP {r.pricePaid}</td>
+      <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: 'var(--green)' }}><bdi>EGP {r.pricePaid}</bdi></td>
       <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)' }}>{fmtDateTime(r.createdAt)}</td>
       <td style={{ padding: '10px 14px' }}><Badge status={r.status} /></td>
     </tr>
@@ -268,19 +292,19 @@ export default function PackageRequests() {
 
   return (
     <Layout>
-      <PageHeader walkthrough="pkg-requests-header" title="Package Requests" />
+      <PageHeader walkthrough="pkg-requests-header" title={t('Package Requests')} />
 
       <div className="page-wrap" data-walkthrough="pkg-requests-board" style={{ paddingTop: 20, paddingBottom: 32 }}>
         <div data-walkthrough="pkg-requests-pending">
         <Card noPad style={{ marginBottom: 16 }}>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>Pending ({pendingPagination.total})</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t('Pending ({count})', { count: pendingPagination.total })}</span>
             {pendingPagination.total > 0 && isReviewer && (
-              <span style={{ fontSize: 11, background: 'var(--amber-bg)', color: 'var(--amber)', border: '1px solid var(--amber-bd)', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>Needs Review</span>
+              <span style={{ fontSize: 11, background: 'var(--amber-bg)', color: 'var(--amber)', border: '1px solid var(--amber-bd)', padding: '2px 8px', borderRadius: 4, fontWeight: 600 }}>{t('Needs Review')}</span>
             )}
           </div>
           {!pending.length && !loadingPending
-            ? <EmptyState message="No pending package requests" />
+            ? <EmptyState message={t('No pending package requests')} />
             : <>
             <Table loading={loadingPending} skeletonRows={3} headers={headers}>
               {pending.map(renderRow)}
@@ -299,12 +323,12 @@ export default function PackageRequests() {
 
         <Card noPad>
           <div style={{ padding: '12px 18px', borderBottom: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>History ({resolvedPagination.total})</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{t('History ({count})', { count: resolvedPagination.total })}</span>
           </div>
           {!resolved.length && !loadingResolved
-            ? <EmptyState message="No resolved requests" />
+            ? <EmptyState message={t('No resolved requests')} />
             : <>
-            <Table loading={loadingResolved} headers={[...headers.slice(0, 4), 'Reviewed By', ...headers.slice(4)]}>
+            <Table loading={loadingResolved} headers={[...headers.slice(0, 4), t('Reviewed By'), ...headers.slice(4)]}>
               {resolved.map(r => (
                 <tr
                   key={r._id}
@@ -317,11 +341,11 @@ export default function PackageRequests() {
                   <td style={{ padding: '10px 14px', fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{r.member?.name ?? '—'}</td>
                   <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{r.name}</td>
                   <td style={{ padding: '10px 14px' }}>
-                    {r.hasException ? <ExceptionFlag /> : <span style={{ fontSize: 12, color: 'var(--t4)' }}>Standard</span>}
+                    {r.hasException ? <ExceptionFlag /> : <span style={{ fontSize: 12, color: 'var(--t4)' }}>{t('Standard')}</span>}
                   </td>
                   <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{r.proposedBy?.name ?? '—'}</td>
                   <td style={{ padding: '10px 14px', fontSize: 12, color: 'var(--t2)' }}>{r.reviewedBy?.name ?? '—'}</td>
-                  <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: 'var(--green)' }}>EGP {r.pricePaid}</td>
+                  <td style={{ padding: '10px 14px', fontSize: 12, fontWeight: 700, color: 'var(--green)' }}><bdi>EGP {r.pricePaid}</bdi></td>
                   <td style={{ padding: '10px 14px', fontSize: 11, color: 'var(--t4)' }}>{fmtDateTime(r.createdAt)}</td>
                   <td style={{ padding: '10px 14px' }}><Badge status={r.status} /></td>
                 </tr>
@@ -360,9 +384,9 @@ export default function PackageRequests() {
         open={!!confirm}
         onClose={() => setConfirm(null)}
         onConfirm={handleAction}
-        title="Reject Package Request"
-        message="Are you sure you want to reject this package request?"
-        confirmLabel="Reject"
+        title={t('Reject Package Request')}
+        message={t('Are you sure you want to reject this package request?')}
+        confirmLabel={t('Reject')}
         danger
         loading={actionLoading}
       />

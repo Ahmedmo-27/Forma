@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { HelpCircle, Play, Search, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useWalkthrough } from '../../tutorials/walkthrough-context';
 import { sectionsForUser } from '../../tutorials/tutorial-data';
+import { useI18n } from '../../i18n/useI18n';
 
 export default function HelpScenariosDialog() {
   const { isHelpModalOpen, closeHelpModal, startTutorial } = useWalkthrough();
@@ -17,6 +18,8 @@ export default function HelpScenariosDialog() {
 }
 
 function HelpDialog({ onClose, onStart }) {
+  const { t } = useI18n();
+  const tx = useCallback((value) => (value ? t(value) : value), [t]);
   const { user } = useAuth();
   const { hasFeature } = useTenant();
   const [query, setQuery] = useState('');
@@ -39,15 +42,17 @@ function HelpDialog({ onClose, onStart }) {
         scenarios: section.scenarios.filter((scenario) => {
           const haystack = [
             scenario.title,
+            tx(scenario.title),
             scenario.subtitle,
+            tx(scenario.subtitle),
             ...(scenario.keywords || []),
-            ...scenario.steps.flatMap((item) => [item.title, item.description]),
+            ...scenario.steps.flatMap((item) => [item.title, item.description, tx(item.title), tx(item.description)]),
           ].join(' ').toLowerCase();
           return haystack.includes(q);
         }),
       }))
       .filter((section) => section.scenarios.length > 0);
-  }, [user, hasFeature, query]);
+  }, [user, hasFeature, query, tx]);
 
   const total = sections.reduce((sum, section) => sum + section.scenarios.length, 0);
 
@@ -105,17 +110,17 @@ function HelpDialog({ onClose, onStart }) {
               </div>
               <div style={{ minWidth: 0 }}>
                 <h2 id="guide-dialog-title" style={{ fontSize: 18, fontWeight: 800, margin: 0 }}>
-                  Guides
+                  {t('Guides')}
                 </h2>
                 <p style={{ fontSize: 12, color: 'var(--t3)', margin: '4px 0 0' }}>
-                  Walkthroughs for the pages {user?.role || 'your role'} can open.
+                  {t('Walkthroughs for the pages {role} can open.', { role: user?.role ? t(user.role) : t('your role') })}
                 </p>
               </div>
             </div>
             <button
               type="button"
               onClick={onClose}
-              aria-label="Close guides"
+              aria-label={t('Close guides')}
               style={{
                 border: '1px solid var(--border)',
                 background: 'transparent',
@@ -134,15 +139,17 @@ function HelpDialog({ onClose, onStart }) {
           </div>
 
           <div style={{ position: 'relative', marginTop: 14 }}>
-            <Search size={15} style={{ position: 'absolute', left: 12, top: 11, color: 'var(--t4)' }} />
+            <Search size={15} style={{ position: 'absolute', insetInlineStart: 12, top: 11, color: 'var(--t4)' }} />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search guides, such as check-in, packages, or tasks"
+              placeholder={t('Search guides, such as check-in, packages, or tasks')}
               style={{
                 width: '100%',
                 boxSizing: 'border-box',
-                padding: '9px 12px 9px 34px',
+                paddingBlock: 9,
+                paddingInlineEnd: 12,
+                paddingInlineStart: 34,
                 borderRadius: 10,
                 border: '1px solid var(--border)',
                 background: 'var(--bg)',
@@ -158,8 +165,8 @@ function HelpDialog({ onClose, onStart }) {
         <div style={{ flex: 1, overflowY: 'auto', padding: '14px 18px 18px' }}>
           {sections.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '48px 12px', color: 'var(--t3)' }}>
-              <p style={{ fontWeight: 700, marginBottom: 4 }}>No guides match</p>
-              <p style={{ fontSize: 12 }}>Try another word, or clear the search.</p>
+              <p style={{ fontWeight: 700, marginBottom: 4 }}>{t('No guides match')}</p>
+              <p style={{ fontSize: 12 }}>{t('Try another word, or clear the search.')}</p>
             </div>
           ) : (
             sections.map((section) => (
@@ -182,7 +189,7 @@ function HelpDialog({ onClose, onStart }) {
                     color: 'var(--t4)',
                   }}
                   >
-                    {section.title}
+                    {tx(section.title)}
                   </h3>
                   <span style={{ fontSize: 11, color: 'var(--t4)' }}>{section.scenarios.length}</span>
                 </div>
@@ -197,7 +204,7 @@ function HelpDialog({ onClose, onStart }) {
                         alignItems: 'center',
                         justifyContent: 'space-between',
                         gap: 12,
-                        textAlign: 'left',
+                        textAlign: 'start',
                         width: '100%',
                         padding: '12px 12px',
                         borderRadius: 12,
@@ -209,7 +216,7 @@ function HelpDialog({ onClose, onStart }) {
                     >
                       <span style={{ minWidth: 0 }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>{scenario.title}</span>
+                          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)' }}>{tx(scenario.title)}</span>
                           {scenario.badge && (
                             <span style={{
                               fontSize: 10,
@@ -220,15 +227,15 @@ function HelpDialog({ onClose, onStart }) {
                               padding: '2px 7px',
                             }}
                             >
-                              {scenario.badge}
+                              {tx(scenario.badge)}
                             </span>
                           )}
                         </span>
                         <span style={{ display: 'block', fontSize: 12, color: 'var(--t3)', marginTop: 3, lineHeight: 1.4 }}>
-                          {scenario.subtitle}
+                          {tx(scenario.subtitle)}
                         </span>
                         <span style={{ display: 'block', fontSize: 11, color: 'var(--t4)', marginTop: 4 }}>
-                          {scenario.steps.length} steps
+                          {t('Steps: {count}', { count: scenario.steps.length })}
                         </span>
                       </span>
                       <span style={{
@@ -244,7 +251,7 @@ function HelpDialog({ onClose, onStart }) {
                         fontWeight: 700,
                       }}
                       >
-                        <Play size={12} fill="currentColor" /> Start
+                        <Play size={12} fill="currentColor" /> {t('Start')}
                       </span>
                     </button>
                   ))}
@@ -264,8 +271,8 @@ function HelpDialog({ onClose, onStart }) {
           gap: 8,
         }}
         >
-          <span>{total} {total === 1 ? 'guide' : 'guides'}</span>
-          <span>Press Esc during a tour to leave it</span>
+          <span>{total === 1 ? t('1 guide') : t('{count} guides', { count: total })}</span>
+          <span>{t('Press Esc during a tour to leave it')}</span>
         </div>
       </div>
     </div>

@@ -1,9 +1,26 @@
 // ─── Forma UI — sharp, data-dense design system ─────────────────────────────
+/* eslint-disable react-refresh/only-export-components -- shared design-system module: helpers are exported next to components */
 
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo, Children, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Inbox, X } from 'lucide-react';
 import { fetchProtectedUploadBlobUrl } from '../api/axios';
+import { useI18n } from '../i18n/useI18n';
+import { readStoredLanguage, translate, tr } from '../i18n/translate';
+import { formatDate, formatDateTime, formatTime } from '../i18n/format';
+
+/**
+ * Active UI language for code that cannot call a hook (plain helpers, and
+ * components the unit tests invoke as functions). The stored choice is written
+ * before React re-renders, so it is current even mid-switch; otherwise fall
+ * back to the <html lang> set by LanguageProvider.
+ */
+function uiLang() {
+  const stored = readStoredLanguage();
+  if (stored) return stored;
+  if (typeof document !== 'undefined') return document.documentElement.getAttribute('lang') || 'en';
+  return 'en';
+}
 
 // ── Spinner ───────────────────────────────────────────────────────────────────
 export function Spinner({ size = 'md' }) {
@@ -151,6 +168,18 @@ export function DashboardSkeleton({ stats = 4, listRows = 5, showList = true }) 
 }
 
 // ── Badge ─────────────────────────────────────────────────────────────────────
+const BADGE_LABELS = {
+  active: tr('active'),
+  expired: tr('expired'),
+  frozen: tr('frozen'),
+  guest: tr('guest'),
+  blocked: tr('blocked'),
+  pending: tr('pending'),
+  accepted: tr('accepted'),
+  completed: tr('completed'),
+  in_progress: tr('in_progress'),
+  rejected: tr('rejected'),
+};
 const BADGE_MAP = {
   active:   { bg: 'var(--green-bg)',  color: 'var(--green)',  border: 'var(--green-bd)',  dot: '#22c55e' },
   expired:  { bg: 'var(--red-bg)',    color: 'var(--red)',    border: 'var(--red-bd)',    dot: '#ef4444' },
@@ -164,6 +193,7 @@ const BADGE_MAP = {
   rejected: { bg: 'var(--red-bg)',    color: 'var(--red)',    border: 'var(--red-bd)',    dot: '#ef4444' },
 };
 export function Badge({ status }) {
+  const { t } = useI18n();
   const s = BADGE_MAP[status] ?? BADGE_MAP.guest;
   return (
     <span style={{
@@ -174,7 +204,7 @@ export function Badge({ status }) {
       border: `1px solid ${s.border}`,
     }}>
       <span style={{ width: 5, height: 5, borderRadius: '50%', background: s.dot, flexShrink: 0, boxShadow: '0 0 5px currentColor' }} />
-      {status}
+      {BADGE_LABELS[status] ? t(BADGE_LABELS[status]) : status}
     </span>
   );
 }
@@ -402,7 +432,7 @@ function SelectChevron({ color = 'var(--t4)' }) {
     <svg
       width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={color}
       strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
-      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', flexShrink: 0 }}
+      style={{ position: 'absolute', insetInlineEnd: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none', flexShrink: 0 }}
       aria-hidden="true"
     >
       <path d="m6 9 6 6 6-6" />
@@ -418,9 +448,10 @@ function SelectListbox({
   cursor,
   setCursor,
   onPick,
-  emptyLabel = 'No options available',
+  emptyLabel,
   fontSize = 13,
 }) {
+  const { t } = useI18n();
   let lastGroup = null;
   return (
     <div
@@ -443,7 +474,7 @@ function SelectListbox({
       }}
     >
       {!options.length ? (
-        <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--t4)' }}>{emptyLabel}</div>
+        <div style={{ padding: '10px 12px', fontSize: 12, color: 'var(--t4)' }}>{emptyLabel === undefined ? t('No options available') : emptyLabel}</div>
       ) : options.map((opt, i) => {
         const showGroup = opt.group && opt.group !== lastGroup;
         if (opt.group) lastGroup = opt.group;
@@ -463,7 +494,7 @@ function SelectListbox({
                   background: 'var(--card)',
                 }}
               >
-                {opt.group}
+                {t(opt.group)}
               </div>
             )}
             <button
@@ -475,7 +506,7 @@ function SelectListbox({
               onMouseEnter={() => setCursor(i)}
               onClick={() => onPick(opt)}
               style={{
-                width: '100%', textAlign: 'left', border: 'none',
+                width: '100%', textAlign: 'start', border: 'none',
                 padding: '8px 12px', fontSize, fontFamily: 'inherit',
                 cursor: opt.disabled ? 'not-allowed' : 'pointer',
                 background: active
@@ -486,7 +517,7 @@ function SelectListbox({
                 color: opt.disabled ? 'var(--t4)' : isSelected ? 'var(--navy)' : 'var(--t1)',
                 fontWeight: isSelected ? 600 : 400,
                 borderBottom: i < options.length - 1 ? '1px solid var(--border)' : 'none',
-                borderLeft: isSelected ? '2px solid var(--navy)' : 'none',
+                borderInlineStart: isSelected ? '2px solid var(--navy)' : 'none',
                 opacity: opt.disabled ? 0.5 : 1,
                 transition: 'background 0.1s',
               }}
@@ -501,13 +532,14 @@ function SelectListbox({
 }
 
 export function Select({ label, error, hint, children, options: optionsProp, placeholder, initialLimit, ...props }) {
+  const { t } = useI18n();
   const options = useMemo(
     () => parseSelectOptions(children, optionsProp),
     [children, optionsProp],
   );
 
   const emptyOption = options.find((o) => o.value === '');
-  const resolvedPlaceholder = placeholder ?? (emptyOption?.label || 'Type to search…');
+  const resolvedPlaceholder = placeholder ?? (emptyOption?.label || t('Type to search…'));
 
   return (
     <Field label={label} error={error} hint={hint}>
@@ -530,13 +562,14 @@ function SearchableSelect({
   onFocus,
   disabled,
   readOnly,
-  placeholder = 'Type to search…',
+  placeholder,
   initialLimit,
   error,
   style,
   name,
   id,
 }) {
+  const { t } = useI18n();
   const wrapRef = useRef(null);
   const inputRef = useRef(null);
   const listRef = useRef(null);
@@ -695,7 +728,7 @@ function SearchableSelect({
       cursor={cursor}
       setCursor={setCursor}
       onPick={pick}
-      emptyLabel={query.trim() ? 'No matches' : 'No options available'}
+      emptyLabel={query.trim() ? t('No matches') : t('No options available')}
     />
   ) : null;
 
@@ -711,7 +744,7 @@ function SearchableSelect({
         value={inputValue}
         readOnly={locked}
         disabled={disabled}
-        placeholder={showMuted ? placeholder : undefined}
+        placeholder={showMuted ? (placeholder === undefined ? t('Type to search…') : placeholder) : undefined}
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);
@@ -723,7 +756,7 @@ function SearchableSelect({
         onClick={() => { if (!locked) openList(); }}
         style={{
           ...inputBase(error),
-          paddingRight: 30,
+          paddingInlineEnd: 30,
           color: showMuted ? 'var(--t4)' : 'var(--t1)',
           cursor: locked ? 'not-allowed' : 'text',
           opacity: disabled ? 0.6 : 1,
@@ -745,7 +778,7 @@ export function MenuSelect({
   children,
   disabled = false,
   readOnly = false,
-  placeholder = 'Select…',
+  placeholder,
   tone = 'default',
   size = 'md',
   style,
@@ -754,6 +787,7 @@ export function MenuSelect({
   'aria-label': ariaLabel,
   className,
 }) {
+  const { t } = useI18n();
   const wrapRef = useRef(null);
   const triggerRef = useRef(null);
   const listRef = useRef(null);
@@ -772,7 +806,7 @@ export function MenuSelect({
     () => options.find((o) => o.value === stringValue),
     [options, stringValue],
   );
-  const displayLabel = selected?.label ?? (stringValue !== '' ? stringValue : placeholder);
+  const displayLabel = selected?.label ?? (stringValue !== '' ? stringValue : (placeholder === undefined ? t('Select…') : placeholder));
   const isPlaceholder = !selected && stringValue === '';
 
   const updateDropdownRect = useCallback(() => {
@@ -871,7 +905,7 @@ export function MenuSelect({
     ? {
         width: '100%',
         height: 36,
-        padding: '0 28px 0 10px',
+        paddingBlock: 0, paddingInlineStart: 10, paddingInlineEnd: 28,
         borderRadius: 8,
         border: '1px solid rgba(255,255,255,0.18)',
         background: 'rgba(0,0,0,0.28)',
@@ -881,13 +915,15 @@ export function MenuSelect({
         fontFamily: 'inherit',
         cursor: locked ? 'not-allowed' : 'pointer',
         outline: 'none',
-        textAlign: 'left',
+        textAlign: 'start',
         opacity: disabled ? 0.6 : 1,
         ...triggerExtras,
       }
     : {
         width: '100%',
-        padding: isSm ? '2px 28px 2px 8px' : '9px 32px 9px 12px',
+        paddingBlock: isSm ? 2 : 9,
+        paddingInlineStart: isSm ? 8 : 12,
+        paddingInlineEnd: isSm ? 28 : 32,
         fontSize,
         border: '1px solid var(--border)',
         borderRadius: isSm ? 6 : 8,
@@ -896,7 +932,7 @@ export function MenuSelect({
         outline: 'none',
         cursor: locked ? 'not-allowed' : 'pointer',
         fontFamily: 'inherit',
-        textAlign: 'left',
+        textAlign: 'start',
         opacity: disabled ? 0.6 : 1,
         ...triggerExtras,
       };
@@ -984,8 +1020,8 @@ export function Switch({ label, hint, checked, onChange, disabled }) {
         }}
       >
         <span style={{
-          position: 'absolute', top: 3, left: checked ? 23 : 3, width: 18, height: 18,
-          borderRadius: '50%', background: checked ? '#FFFFFF' : '#9CA3AF', transition: 'left 0.2s',
+          position: 'absolute', top: 3, insetInlineStart: checked ? 23 : 3, width: 18, height: 18,
+          borderRadius: '50%', background: checked ? '#FFFFFF' : '#9CA3AF', transition: 'inset-inline-start 0.2s',
           boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
         }} />
       </button>
@@ -1094,7 +1130,7 @@ export function Alert({ type = 'error', children }) {
       padding: '12px 16px', borderRadius: 10, marginBottom: 14,
       background: a.bg, color: a.color,
       border: `1px solid ${a.border}`,
-      borderLeft: `3px solid ${a.accent}`,
+      borderInlineStart: `3px solid ${a.accent}`,
       fontSize: 13,
     }}>{children}</div>
   );
@@ -1142,6 +1178,7 @@ export function CardHeader({ title, children }) {
 // ── Modal ─────────────────────────────────────────────────────────────────────
 const MW = { sm: 400, md: 540, lg: 720, xl: 920 };
 export function Modal({ open = true, onClose, title, children, footer, size = 'md', maxWidth, style }) {
+  const { t } = useI18n();
   if (!open) return null;
   return (
     <div
@@ -1183,7 +1220,7 @@ export function Modal({ open = true, onClose, title, children, footer, size = 'm
             fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center',
             transition: 'all 0.15s',
           }}
-            aria-label="Close dialog"
+            aria-label={t('Close dialog')}
             onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = 'var(--red)'; }}
             onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = 'var(--t3)'; }}
           ><X size={14} strokeWidth={2.5} /></button>
@@ -1212,7 +1249,7 @@ export function Table({ headers, children, loading, skeletonRows = 5 }) {
           <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
             {headers.map(h => (
               <th key={h} style={{
-                padding: '10px 14px', textAlign: 'left', background: 'transparent',
+                padding: '10px 14px', textAlign: 'start', background: 'transparent',
                 fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
                 letterSpacing: '0.8px', color: 'var(--t4)', whiteSpace: 'nowrap',
                 borderBottom: '1px solid var(--border)',
@@ -1340,7 +1377,8 @@ export function PageHeader({ title, children, walkthrough }) {
 }
 
 // ── Empty State ───────────────────────────────────────────────────────────────
-export function EmptyState({ icon: Icon = Inbox, message = 'No data', sub }) {
+export function EmptyState({ icon: Icon = Inbox, message, sub }) {
+  const { t } = useI18n();
   return (
     <div style={{ padding: '56px 24px', textAlign: 'center' }}>
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 10, opacity: 0.45, color: 'var(--icon, var(--navy))' }}>
@@ -1350,20 +1388,21 @@ export function EmptyState({ icon: Icon = Inbox, message = 'No data', sub }) {
           <Icon size={40} strokeWidth={1.5} aria-hidden="true" />
         ) : null}
       </div>
-      <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{message}</p>
+      <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--t2)', marginBottom: 4 }}>{message === undefined ? t('No data') : message}</p>
       {sub && <p style={{ fontSize: 13, color: 'var(--t4)' }}>{sub}</p>}
     </div>
   );
 }
 
 // ── Confirm Dialog ────────────────────────────────────────────────────────────
-export function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmLabel = 'Confirm', danger = false, loading = false }) {
+export function ConfirmDialog({ open, onClose, onConfirm, title, message, confirmLabel, danger = false, loading = false }) {
+  const { t } = useI18n();
   return (
     <Modal open={open} onClose={onClose} title={title} size="sm"
       footer={<>
-        <Btn variant="ghost" size="sm" onClick={onClose} disabled={loading}>Cancel</Btn>
+        <Btn variant="ghost" size="sm" onClick={onClose} disabled={loading}>{t('Cancel')}</Btn>
         <Btn variant={danger ? 'danger' : 'primary'} size="sm" onClick={onConfirm} disabled={loading}>
-          {loading ? <Spinner size="sm" /> : confirmLabel}
+          {loading ? <Spinner size="sm" /> : (confirmLabel === undefined ? t('Confirm') : confirmLabel)}
         </Btn>
       </>}
     >
@@ -1375,6 +1414,7 @@ export function ConfirmDialog({ open, onClose, onConfirm, title, message, confir
 // ── Avatar ────────────────────────────────────────────────────────────────────
 const AV = { sm: [28, 10], md: [36, 12], lg: [48, 16], xl: [64, 22], profile: [150, 40] };
 export function Avatar({ name = '', size = 'md', photo = null, style: ex = {} }) {
+  const { t } = useI18n();
   const [sz, fs] = AV[size] ?? AV.md;
   const ini = name.split(' ').filter(Boolean).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
   const [src, setSrc] = useState(null);
@@ -1414,7 +1454,7 @@ export function Avatar({ name = '', size = 'md', photo = null, style: ex = {} })
       {src ? (
         <img
           src={src}
-          alt={name || 'Profile'}
+          alt={name || t('Profile')}
           style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
           onError={() => setSrc(null)}
         />
@@ -1465,9 +1505,11 @@ export function PageSizeFilter({
   onPageSizeChange,
   options = [10, 20, 30, 50],
   pageSizeOptions,
-  label = 'Show:',
+  label = tr('Show:'),
   showOrderOptions = true,
 }) {
+  // Plain function (unit tests call it directly), so no hooks: translate via uiLang().
+  const t = (key, vars) => translate(uiLang(), key, vars);
   const opts = (pageSizeOptions && pageSizeOptions.length)
     ? pageSizeOptions
     : (options && options.length ? options : [10, 20, 30, 50]);
@@ -1499,7 +1541,7 @@ export function PageSizeFilter({
     if (!showOrderOptions) {
       if (val === 'custom' || val === 'custom_prompt') {
         const input = typeof window !== 'undefined' && window.prompt
-          ? window.prompt('Enter number of items per page (1–500):', String(currentSize))
+          ? window.prompt(t('Enter number of items per page (1–500):'), String(currentSize))
           : null;
         if (input !== null) {
           const parsed = parseInt(input, 10);
@@ -1517,7 +1559,9 @@ export function PageSizeFilter({
 
     const parsed = parsePageSizeOptionValue(val, currentSize, currentOrder);
     if (parsed.isCustomPrompt) {
-      const promptText = `Enter number of ${parsed.order} items to show (1–500):`;
+      const promptText = parsed.order === 'last'
+        ? t('Enter number of last items to show (1–500):')
+        : t('Enter number of first items to show (1–500):');
       const input = typeof window !== 'undefined' && window.prompt
         ? window.prompt(promptText, String(currentSize))
         : null;
@@ -1558,34 +1602,34 @@ export function PageSizeFilter({
             gap: 4,
           }}
         >
-          {resolvedLabel}
+          {typeof resolvedLabel === 'string' ? t(resolvedLabel) : resolvedLabel}
         </span>
       )}
       <MenuSelect
         className="page-size-menu"
         size="sm"
-        aria-label={resolvedLabel || 'Page size'}
+        aria-label={(typeof resolvedLabel === 'string' && resolvedLabel) ? t(resolvedLabel) : (resolvedLabel || t('Page size'))}
         value={String(selectValue)}
         onChange={handleSelectChange}
         style={{ width: 'auto', minWidth: 88 }}
         options={
           showOrderOptions
             ? [
-                ...opts.map((n) => ({ value: `first:${n}`, label: `First ${n}`, group: 'First' })),
+                ...opts.map((n) => ({ value: `first:${n}`, label: t('First {count}', { count: n }), group: 'First' })),
                 ...(isCustom && currentOrder === 'first'
-                  ? [{ value: 'custom:first', label: `First ${currentSize} (Custom)`, group: 'First' }]
+                  ? [{ value: 'custom:first', label: t('First {count} (Custom)', { count: currentSize }), group: 'First' }]
                   : []),
-                { value: 'custom_prompt:first', label: 'Custom First…', group: 'First' },
-                ...opts.map((n) => ({ value: `last:${n}`, label: `Last ${n}`, group: 'Last' })),
+                { value: 'custom_prompt:first', label: t('Custom First…'), group: 'First' },
+                ...opts.map((n) => ({ value: `last:${n}`, label: t('Last {count}', { count: n }), group: 'Last' })),
                 ...(isCustom && currentOrder === 'last'
-                  ? [{ value: 'custom:last', label: `Last ${currentSize} (Custom)`, group: 'Last' }]
+                  ? [{ value: 'custom:last', label: t('Last {count} (Custom)', { count: currentSize }), group: 'Last' }]
                   : []),
-                { value: 'custom_prompt:last', label: 'Custom Last…', group: 'Last' },
+                { value: 'custom_prompt:last', label: t('Custom Last…'), group: 'Last' },
               ]
             : [
                 ...opts.map((n) => ({ value: String(n), label: String(n) })),
-                ...(isCustom ? [{ value: 'custom', label: `Custom (${currentSize})` }] : []),
-                { value: 'custom_prompt', label: 'Custom…' },
+                ...(isCustom ? [{ value: 'custom', label: t('Custom ({size})', { size: currentSize }) }] : []),
+                { value: 'custom_prompt', label: t('Custom…') },
               ]
         }
       />
@@ -1605,6 +1649,8 @@ export function Pagination({
 }) {
   if (!total || total < 1) return null;
 
+  // Plain function (unit tests call it directly), so no hooks: translate via uiLang().
+  const t = (key, vars) => translate(uiLang(), key, vars);
   const pages = Math.max(1, totalPages || 1);
   const size = pageSize || 10;
   const start = ((page - 1) * size) + 1;
@@ -1613,21 +1659,21 @@ export function Pagination({
   return (
     <div className="pagination-bar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderTop: '1px solid var(--border)', flexWrap: 'wrap', gap: 10 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 12, color: 'var(--t4)' }}>{start}–{end} of {total}</span>
+        <span style={{ fontSize: 12, color: 'var(--t4)' }}>{t('{start}–{end} of {total}', { start, end, total })}</span>
         {onPageSizeChange && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--t3)' }}>
             <span style={{ color: 'var(--t4)' }}>·</span>
-            <span>Per page:</span>
+            <span>{t('Per page:')}</span>
             <MenuSelect
               className="pagination-page-size"
               size="sm"
-              aria-label="Items per page"
+              aria-label={t('Items per page')}
               value={pageSizeOptions.includes(Number(size)) ? String(size) : 'custom'}
               onChange={(e) => {
                 const val = e.target.value;
                 if (val === 'custom') {
                   const input = typeof window !== 'undefined' && window.prompt
-                    ? window.prompt('Enter number of items per page (1–500):', String(size))
+                    ? window.prompt(t('Enter number of items per page (1–500):'), String(size))
                     : null;
                   if (input !== null) {
                     const parsed = parseInt(input, 10);
@@ -1644,7 +1690,7 @@ export function Pagination({
                 ...pageSizeOptions.map((opt) => ({ value: String(opt), label: String(opt) })),
                 {
                   value: 'custom',
-                  label: pageSizeOptions.includes(Number(size)) ? 'Custom…' : `Custom (${size})`,
+                  label: pageSizeOptions.includes(Number(size)) ? t('Custom…') : t('Custom ({size})', { size }),
                 },
               ]}
             />
@@ -1652,24 +1698,25 @@ export function Pagination({
         )}
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <Btn variant="outline" size="xs" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>← Prev</Btn>
-        <span style={{ fontSize: 12, color: 'var(--t3)', padding: '0 8px' }}>{page} / {pages}</span>
-        <Btn variant="outline" size="xs" disabled={page >= pages} onClick={() => onPageChange(page + 1)}>Next →</Btn>
+        <Btn variant="outline" size="xs" disabled={page <= 1} onClick={() => onPageChange(page - 1)}>{t('← Prev')}</Btn>
+        <span style={{ fontSize: 12, color: 'var(--t3)', padding: '0 8px' }} dir="ltr">{page} / {pages}</span>
+        <Btn variant="outline" size="xs" disabled={page >= pages} onClick={() => onPageChange(page + 1)}>{t('Next →')}</Btn>
       </div>
     </div>
   );
 }
 
 // ── Search Input ──────────────────────────────────────────────────────────────
-export function SearchInput({ value, onChange, placeholder = 'Search…', width = 220 }) {
+export function SearchInput({ value, onChange, placeholder, width = 220 }) {
+  const { t } = useI18n();
   return (
     <div className="search-input-wrap" style={{ position: 'relative', width, maxWidth: '100%' }}>
-      <svg style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--t4)', pointerEvents: 'none' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <svg style={{ position: 'absolute', insetInlineStart: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--t4)', pointerEvents: 'none' }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
       <input
         type="search" value={value} onChange={e => onChange(e.target.value)}
-        placeholder={placeholder}
+        placeholder={placeholder === undefined ? t('Search…') : placeholder}
         style={{
-          width: '100%', paddingLeft: 30, paddingRight: 10, paddingTop: 9, paddingBottom: 9,
+          width: '100%', paddingInlineStart: 30, paddingInlineEnd: 10, paddingTop: 9, paddingBottom: 9,
           background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8,
           fontSize: 13, color: 'var(--t1)', outline: 'none', fontFamily: 'inherit',
           transition: 'border-color 0.12s, box-shadow 0.12s',
@@ -1702,19 +1749,27 @@ export function Divider() {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 export const CAIRO_ZONE = 'Africa/Cairo';
 
-export function fmtDate(d) {
+/**
+ * Display date/time helpers. The optional `lang` ('en' | 'ar') overrides the
+ * active UI language; anything else (e.g. the index `Array.map` passes) is ignored.
+ */
+function pickLang(lang) {
+  return typeof lang === 'string' ? lang : uiLang();
+}
+
+export function fmtDate(d, lang) {
   if (!d) return '—';
-  return new Date(d).toLocaleDateString('en-GB', {
+  return formatDate(pickLang(lang), d, {
     timeZone: CAIRO_ZONE,
     day: '2-digit',
     month: 'short',
     year: 'numeric',
-  });
+  }, 'en-GB');
 }
 
-export function fmtDateTime(d) {
+export function fmtDateTime(d, lang) {
   if (!d) return '—';
-  return new Date(d).toLocaleString('en-US', {
+  return formatDateTime(pickLang(lang), d, {
     timeZone: CAIRO_ZONE,
     day: '2-digit',
     month: 'short',
@@ -1723,28 +1778,28 @@ export function fmtDateTime(d) {
     minute: '2-digit',
     second: '2-digit',
     hour12: true,
-  });
+  }, 'en-US');
 }
 
-export function fmtTime(d) {
+export function fmtTime(d, lang) {
   if (!d) return '—';
-  return new Date(d).toLocaleTimeString('en-US', {
+  return formatTime(pickLang(lang), d, {
     timeZone: CAIRO_ZONE,
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,
-  });
+  }, 'en-US');
 }
 
-export function fmtTimeWithSeconds(d) {
+export function fmtTimeWithSeconds(d, lang) {
   if (!d) return '—';
-  return new Date(d).toLocaleTimeString('en-US', {
+  return formatTime(pickLang(lang), d, {
     timeZone: CAIRO_ZONE,
     hour: 'numeric',
     minute: '2-digit',
     second: '2-digit',
     hour12: true,
-  });
+  }, 'en-US');
 }
 
 export function initials(name = '') {
@@ -1761,6 +1816,7 @@ export function toLocalDateString(value = new Date()) {
   const d = value instanceof Date ? value : new Date(value);
   if (isNaN(d.getTime())) return '';
   try {
+    // en-CA is used only to produce a machine-readable YYYY-MM-DD key, never displayed.
     return new Intl.DateTimeFormat('en-CA', { timeZone: CAIRO_ZONE }).format(d);
   } catch {
     const y = d.getFullYear();
