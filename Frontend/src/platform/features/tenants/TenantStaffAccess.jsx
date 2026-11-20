@@ -11,6 +11,7 @@ import { Button } from "../../ui/Button";
 import { Input } from "../../ui/Input";
 import { Select } from "../../ui/Select";
 import { platformToast } from "../../ui/Toast";
+import { FeatureIcon } from "../../../lib/featureIcons";
 
 const ROLE_ORDER = [
   "Owner",
@@ -244,7 +245,7 @@ export default function TenantStaffAccess({ tenantId }) {
                         className="flex items-center gap-3 py-3"
                         style={{ opacity: feature.locked ? 0.72 : 1 }}
                       >
-                        <span className="shrink-0 text-lg" aria-hidden>{feature.icon}</span>
+                        <span className="shrink-0 inline-flex" aria-hidden><FeatureIcon name={feature.icon} size={20} /></span>
                         <div className="min-w-0 flex-1">
                           <div className="mb-0.5 flex flex-wrap items-center gap-2">
                             <span className="text-xs font-semibold text-[var(--platform-text-primary)]">{feature.label}</span>

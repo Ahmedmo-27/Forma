@@ -12,8 +12,8 @@ import { tr } from '../../i18n/translate';
 
 function heatColor(count, max) {
   if (!count || !max) return 'var(--bg)';
-  const alpha = 0.18 + 0.82 * (count / max);
-  return `rgba(68, 41, 140, ${alpha})`;
+  const percent = Math.round((0.18 + 0.82 * (count / max)) * 100);
+  return `color-mix(in srgb, var(--navy) ${percent}%, transparent)`;
 }
 
 /** 0–23 → 12am, 1am, … 11am, 12pm, 1pm, … 11pm */
