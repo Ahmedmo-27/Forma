@@ -98,6 +98,7 @@ export function CommandPalette({ isOpen, onClose }) {
   const navItems = [
     { label: "Executive Dashboard", path: "/platform/dashboard", icon: LayoutDashboard, permitted: canReadTenants },
     { label: "Subscribers & Gyms", path: "/platform/tenants", icon: Building2, permitted: canReadTenants },
+    { label: "At-risk Gyms (churn queue)", path: "/platform/at-risk", icon: Activity, permitted: canReadTenants },
     { label: "Plans & Features Catalog", path: "/platform/plans-features", icon: Package, permitted: canManagePlans },
     { label: "Pricing Tiers & Coupons", path: "/platform/pricing-coupons", icon: Tags, permitted: canManagePricing },
     { label: "Manual Payments & Invoices", path: "/platform/payments-invoices", icon: CreditCard, permitted: canManagePayments },

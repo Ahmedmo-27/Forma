@@ -136,6 +136,8 @@ export default function DashboardPage() {
   const mix = metrics.mix || {};
   const health = metrics.health || {};
   const definitions = overview?.definitions || {};
+  const revenueCurrency = revenue.currency || "EGP";
+  const excludedCurrencies = Object.entries(revenue.excludedByCurrency || {}).filter(([, amount]) => Number(amount) !== 0);
 
   const totalSubscribers =
     (mix.byCycle?.monthly || 0) + (mix.byCycle?.yearly || 0) || 1;
@@ -181,6 +183,17 @@ export default function DashboardPage() {
 
       {loadError && (
         <ErrorState title="Metrics unavailable" message={loadError} onRetry={loadData} />
+      )}
+
+      {overview && excludedCurrencies.length > 0 && (
+        <div className="p-4 rounded-[var(--platform-radius-md)] border border-[var(--platform-warning)]/40 bg-[var(--platform-surface-subtle)] text-xs text-[var(--platform-text-secondary)] flex items-start gap-2.5">
+          <AlertTriangle className="w-4 h-4 text-[var(--platform-warning)] shrink-0 mt-0.5" />
+          <div>
+            <strong className="text-[var(--platform-text-primary)]">Some ledger rows are not in {revenueCurrency}.</strong>{" "}
+            They are left out of net revenue instead of being added as {revenueCurrency}:{" "}
+            {excludedCurrencies.map(([code, amount]) => formatNumber(amount) + " " + code).join(", ")}.
+          </div>
+        </div>
       )}
 
       {/* ── 2. KPI Cards Strip with Balanced Breathing Room ── */}
@@ -420,7 +433,10 @@ export default function DashboardPage() {
                 </span>
               </div>
               <p className="text-[11px] text-[var(--platform-text-muted)] leading-relaxed">
-                Gyms with zero check-ins or staff logins over the past 14 days.
+                Gyms with no staff activity over the past 14 days.{" "}
+                <Link to="/platform/at-risk" className="text-[var(--platform-accent)] hover:underline">
+                  See all at-risk gyms
+                </Link>
               </p>
               {churnRisks.length > 0 && (
                 <div className="pt-2 border-t border-[var(--platform-border-subtle)] space-y-1.5">
@@ -446,14 +462,14 @@ export default function DashboardPage() {
             <div className="p-3.5 rounded-[var(--platform-radius-md)] bg-[var(--platform-surface-subtle)] border border-[var(--platform-border-subtle)] space-y-1">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-[var(--platform-text-primary)]">
-                  Trials in progress
+                  Expiring trials (7 days)
                 </span>
                 <span className="platform-mono text-xs font-bold text-[var(--platform-warning)]">
-                  {formatNumber(growth.trialTenants || 0)}
+                  {formatNumber(health.expiringTrialsCount || 0)}
                 </span>
               </div>
               <p className="text-[11px] text-[var(--platform-text-muted)] leading-relaxed">
-                Gyms that are still on a trial and have not converted yet.
+                Trials ending within the next 7 days, out of {formatNumber(growth.trialTenants || 0)} trials in progress.
               </p>
             </div>
           </div>

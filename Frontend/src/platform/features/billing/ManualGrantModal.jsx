@@ -8,6 +8,7 @@ import {
   platformToast,
 } from "../../ui";
 import { apiIssueManualGrant, apiGetTenants, apiGetPlans } from "../../lib/api/endpoints";
+import { sendWithOverLimitConfirm } from "../../lib/overLimit";
 import { useQuery } from "@tanstack/react-query";
 
 export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
@@ -80,14 +81,18 @@ export default function ManualGrantModal({ open, onOpenChange, onGranted }) {
     setError(null);
 
     try {
-      await apiIssueManualGrant({
+      const grant = {
         tenantId,
         planKey,
         cycle,
         intervalCount: Number(durationMonths),
         durationMonths: Number(durationMonths),
         reason: reason.trim(),
-      });
+      };
+      const applied = await sendWithOverLimitConfirm((force) =>
+        apiIssueManualGrant(force ? { ...grant, force: true } : grant)
+      );
+      if (!applied) return;
 
       platformToast.success("Complimentary subscription grant activated");
       onGranted?.();

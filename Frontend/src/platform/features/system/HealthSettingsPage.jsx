@@ -32,7 +32,65 @@ import {
   RefreshCw,
   CheckCircle2,
   Globe,
+  Activity,
 } from "lucide-react";
+
+const JOB_LABELS = {
+  freeze_cycles: "Member freeze cycles",
+  expiry_cycles: "Membership expiry",
+  assign_open_members: "Assign open members to sales",
+  analytics: "Analytics snapshots",
+  owner_reminders: "Owner trial & renewal emails",
+  dunning: "Dunning (past due and suspension)",
+  maintenance_reminders: "Equipment maintenance reminders",
+  owner_weekly_digest: "Owner weekly digest",
+  audit_dead_letter_replay: "Audit retry queue",
+};
+
+const JOB_STATUS = { running: "Running", success: "OK", failed: "Failed" };
+
+function jobVariant(job) {
+  if (job.status === "failed") return "danger";
+  if (job.overdue && job.status !== "running") return "warning";
+  if (job.status === "running") return "info";
+  return "success";
+}
+
+function formatInterval(ms) {
+  if (!ms) return "—";
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.round(minutes / 60);
+  return hours === 1 ? "hour" : `${hours} hours`;
+}
+
+function formatRelative(value) {
+  if (!value) return "Never";
+  const diff = Date.now() - new Date(value).getTime();
+  if (Number.isNaN(diff)) return "—";
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "Just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 48) return `${hours} h ago`;
+  return `${Math.floor(hours / 24)} days ago`;
+}
+
+function MiniStat({ label, value, hint, tone }) {
+  return (
+    <div className="p-3 rounded-lg border border-[var(--platform-border-subtle)] bg-[var(--platform-surface)]">
+      <div className="text-[11px] text-[var(--platform-text-muted)]">{label}</div>
+      <div
+        className={`text-lg font-semibold font-mono ${
+          tone === "warning" ? "text-[var(--platform-warning)]" : "text-[var(--platform-text-primary)]"
+        }`}
+      >
+        {value}
+      </div>
+      {hint ? <div className="text-[10px] text-[var(--platform-text-muted)]">{hint}</div> : null}
+    </div>
+  );
+}
 
 export default function HealthSettingsPage() {
   const { hasRole } = usePlatformRole();
@@ -60,6 +118,8 @@ export default function HealthSettingsPage() {
   // 2. Dunning Schedule
   const [gracePeriodDays, setGracePeriodDays] = useState(3);
   const [reminderDays, setReminderDays] = useState("3, 1");
+  const [trialReminderDays, setTrialReminderDays] = useState("7, 3, 1");
+  const [overdueReminderDays, setOverdueReminderDays] = useState("0, 2");
   const [savingDunning, setSavingDunning] = useState(false);
 
   // Query System Health
@@ -81,6 +141,8 @@ export default function HealthSettingsPage() {
   };
   const memory = healthData?.memory || { rssMb: 0, heapUsedMb: 0, heapTotalMb: 1 };
   const database = healthData?.database || { status: "unknown", name: "forma" };
+  const jobs = Array.isArray(healthData?.jobs) ? healthData.jobs : [];
+  const audit = healthData?.audit || null;
 
   // Sync settings when data arrives
   useEffect(() => {
@@ -99,10 +161,14 @@ export default function HealthSettingsPage() {
         setAddress("Zamalek, Cairo, Egypt");
         setSellerSaved(false);
       }
-      if (healthData.settings.dunningSchedule) {
-        setGracePeriodDays(healthData.settings.dunningSchedule.gracePeriodDays ?? 3);
-        const days = healthData.settings.dunningSchedule.reminderDays;
-        setReminderDays(Array.isArray(days) && days.length ? days.join(", ") : "3, 1");
+      const schedule = healthData.settings.dunningSchedule;
+      if (schedule) {
+        const grace = schedule.gracePeriodDays ?? 3;
+        const joinDays = (days, fallback) => (Array.isArray(days) && days.length ? days.join(", ") : fallback);
+        setGracePeriodDays(grace);
+        setReminderDays(joinDays(schedule.reminderDays, "3, 1"));
+        setTrialReminderDays(joinDays(schedule.trialReminderDays, "7, 3, 1"));
+        setOverdueReminderDays(joinDays(schedule.overdueReminderDays, `0, ${Math.max(0, grace - 1)}`));
       }
     }
   }, [healthData]);
@@ -206,12 +272,26 @@ export default function HealthSettingsPage() {
       platformToast.error("Grace period days must be a whole number of at least 0");
       return;
     }
-    const parsedReminders = String(reminderDays)
-      .split(",")
-      .map((part) => Number(part.trim()))
-      .filter((value) => Number.isInteger(value) && value >= 0);
-    if (!parsedReminders.length) {
-      platformToast.error("Reminder days must be whole numbers, separated by commas");
+    const parseDays = (raw) =>
+      String(raw)
+        .split(",")
+        .map((part) => part.trim())
+        .filter(Boolean)
+        .map(Number);
+    const lists = {
+      reminderDays: parseDays(reminderDays),
+      trialReminderDays: parseDays(trialReminderDays),
+      overdueReminderDays: parseDays(overdueReminderDays),
+    };
+    const invalid = Object.values(lists).some(
+      (days) => !days.length || days.some((value) => !Number.isInteger(value) || value < 0 || value > 60)
+    );
+    if (invalid) {
+      platformToast.error("Each reminder list needs whole numbers from 0 to 60, separated by commas");
+      return;
+    }
+    if (Number(gracePeriodDays) > 0 && lists.overdueReminderDays.some((day) => day >= Number(gracePeriodDays))) {
+      platformToast.error("Overdue reminders must be sent before the grace period ends");
       return;
     }
 
@@ -220,7 +300,7 @@ export default function HealthSettingsPage() {
       await apiUpdateSystemSetting("dunning_schedule", {
         value: {
           gracePeriodDays: Number(gracePeriodDays),
-          reminderDays: parsedReminders,
+          ...lists,
         },
         description: "Automated dunning schedule and grace period policy",
       });
@@ -460,6 +540,99 @@ export default function HealthSettingsPage() {
         </div>
       ) : null}
 
+      <div className="p-5 rounded-xl border border-[var(--platform-border-subtle)] bg-[var(--platform-surface-raised)] space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4 text-[var(--platform-text-muted)]" />
+            <h2 className="text-sm font-semibold text-[var(--platform-text-primary)]">Background jobs & audit trail</h2>
+          </div>
+          <span className="text-[11px] text-[var(--platform-text-muted)]">
+            Each job runs on one server at a time. A job is flagged when it has not succeeded within three of its intervals.
+          </span>
+        </div>
+
+        {audit && (audit.pendingDeadLetters > 0 || audit.lost > 0) ? (
+          <Callout variant="warning">
+            {audit.pendingDeadLetters > 0
+              ? `${audit.pendingDeadLetters} audit entries could not be written and are queued for retry. `
+              : ""}
+            {audit.lost > 0
+              ? `${audit.lost} audit entries were lost on this server since it started; check the error logs for AUDIT_LOST. `
+              : ""}
+            {audit.lastError ? `Last error: ${audit.lastError}` : ""}
+          </Callout>
+        ) : null}
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+          <MiniStat label="Audit entries written" value={audit?.written ?? 0} hint="Since this server started" />
+          <MiniStat label="Writes retried" value={audit?.retried ?? 0} hint="Recovered on retry" />
+          <MiniStat
+            label="Queued for retry"
+            value={audit?.pendingDeadLetters ?? "—"}
+            hint="Retried every hour"
+            tone={audit?.pendingDeadLetters > 0 ? "warning" : undefined}
+          />
+          <MiniStat
+            label="Error monitoring"
+            value={healthData?.monitoring?.sentry ? "On" : "Off"}
+            hint={healthData?.monitoring?.sentry ? "Errors are reported to Sentry" : "Set SENTRY_DSN to enable"}
+          />
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-[var(--platform-text-muted)] border-b border-[var(--platform-border-subtle)]">
+                <th className="py-2 pr-3 font-medium">Job</th>
+                <th className="py-2 pr-3 font-medium">Status</th>
+                <th className="py-2 pr-3 font-medium">Last success</th>
+                <th className="py-2 pr-3 font-medium">Duration</th>
+                <th className="py-2 pr-3 font-medium">Runs / failures</th>
+                <th className="py-2 font-medium">Last error</th>
+              </tr>
+            </thead>
+            <tbody>
+              {jobs.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-4 text-center text-[var(--platform-text-muted)]">
+                    No job runs recorded yet. Jobs record their first run a few minutes after the server starts.
+                  </td>
+                </tr>
+              ) : (
+                jobs.map((job) => (
+                  <tr key={job.name} className="border-b border-[var(--platform-border-subtle)] last:border-0">
+                    <td className="py-2 pr-3">
+                      <div className="font-medium text-[var(--platform-text-primary)]">{JOB_LABELS[job.name] || job.name}</div>
+                      <div className="text-[11px] text-[var(--platform-text-muted)]">
+                        Every {formatInterval(job.intervalMs)}
+                        {job.instance ? ` · ${job.instance}` : ""}
+                      </div>
+                    </td>
+                    <td className="py-2 pr-3">
+                      <Badge variant={jobVariant(job)} size="xs">
+                        {job.overdue && job.status !== "running" ? "Overdue" : JOB_STATUS[job.status] || job.status}
+                      </Badge>
+                    </td>
+                    <td className="py-2 pr-3 font-mono text-[var(--platform-text-secondary)]">
+                      {formatRelative(job.lastSuccessAt)}
+                    </td>
+                    <td className="py-2 pr-3 font-mono text-[var(--platform-text-secondary)]">
+                      {job.lastDurationMs != null ? `${(job.lastDurationMs / 1000).toFixed(1)}s` : "—"}
+                    </td>
+                    <td className="py-2 pr-3 font-mono text-[var(--platform-text-secondary)]">
+                      {job.runCount} / {job.failureCount}
+                    </td>
+                    <td className="py-2 text-[var(--platform-danger)] max-w-xs truncate" title={job.lastError || ""}>
+                      {job.status === "failed" ? job.lastError : ""}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       {/* Platform Operational Configuration Tabs */}
       <div className="space-y-4">
         <div className="flex items-center gap-2">
@@ -569,13 +742,13 @@ export default function HealthSettingsPage() {
                   required
                 />
                 <span className="text-[11px] text-[var(--platform-text-muted)] mt-1 block">
-                  Subscribers remain active for this duration following an initial invoice failure before automated suspension.
+                  How long a gym stays past due (still usable) after its billing period ends. When the grace period ends, the gym is suspended automatically. Use 0 to suspend right away.
                 </span>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
-                  Reminder Days Before Suspension
+                  Renewal reminders (days before the period ends)
                 </label>
                 <Input
                   value={reminderDays}
@@ -583,7 +756,32 @@ export default function HealthSettingsPage() {
                   placeholder="3, 1"
                 />
                 <span className="text-[11px] text-[var(--platform-text-muted)] mt-1 block">
-                  Comma-separated days. Example: 3, 1 sends reminders three days and one day before the grace period ends.
+                  Comma-separated days. Example: 3, 1 emails the owner three days and one day before renewal is due.
+                </span>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
+                  Trial reminders (days before the trial ends)
+                </label>
+                <Input
+                  value={trialReminderDays}
+                  onChange={(e) => setTrialReminderDays(e.target.value)}
+                  placeholder="7, 3, 1"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
+                  Overdue reminders (days after going past due)
+                </label>
+                <Input
+                  value={overdueReminderDays}
+                  onChange={(e) => setOverdueReminderDays(e.target.value)}
+                  placeholder="0, 2"
+                />
+                <span className="text-[11px] text-[var(--platform-text-muted)] mt-1 block">
+                  0 sends a notice the day the gym becomes past due. Each value must be less than the grace period.
                 </span>
               </div>
 

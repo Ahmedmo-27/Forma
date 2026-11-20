@@ -11,7 +11,10 @@ import {
 } from "../../ui";
 import { apiCreatePlan, apiUpdatePlan } from "../../lib/api/endpoints";
 import PlanImpactModal from "./PlanImpactModal";
-import { isValidProgrammaticKey, isNonNegativeNumber, isPositiveInteger } from "../../lib/utils/validation";
+import { isNonNegativeNumber, isPositiveInteger } from "../../lib/utils/validation";
+
+// Matches the backend Plan key rule, so any custom tier (e.g. "enterprise") can be created.
+const PLAN_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]{1,31}$/;
 
 const DEFAULT_ROLES_FALLBACK = [
   { key: "Owner", name: "Gym Owner", description: "Full operational & admin control" },
@@ -43,6 +46,7 @@ export default function CreatePlanModal({
   const [name, setName] = useState(planToEdit?.name || "");
   const [description, setDescription] = useState(planToEdit?.description || "");
   const [visibility, setVisibility] = useState(planToEdit?.visibility || "public");
+  const [featured, setFeatured] = useState(Boolean(planToEdit?.featured));
   const [priceMonthly, setPriceMonthly] = useState(planToEdit?.priceMonthly ?? 49);
   const [priceYearly, setPriceYearly] = useState(planToEdit?.priceYearly ?? 490);
 
@@ -71,6 +75,7 @@ export default function CreatePlanModal({
     setName(planToEdit?.name || "");
     setDescription(planToEdit?.description || "");
     setVisibility(planToEdit?.visibility || "public");
+    setFeatured(Boolean(planToEdit?.featured));
     setPriceMonthly(planToEdit?.priceMonthly ?? 49);
     setPriceYearly(planToEdit?.priceYearly ?? 490);
     setMaxMembers(planToEdit?.limits?.maxMembers ?? 500);
@@ -110,8 +115,8 @@ export default function CreatePlanModal({
       setError("Plan display name must not exceed 100 characters");
       return;
     }
-    if (!isEdit && !isValidProgrammaticKey(key)) {
-      setError("Programmatic plan key must be 2–60 characters (letters, numbers, dashes, underscores)");
+    if (!isEdit && !PLAN_KEY_PATTERN.test(key.trim().toLowerCase())) {
+      setError("Plan key must be 2–32 characters: lowercase letters, numbers, dashes or underscores, starting with a letter or number");
       return;
     }
     if (!isNonNegativeNumber(priceMonthly) || !isNonNegativeNumber(priceYearly)) {
@@ -146,6 +151,7 @@ export default function CreatePlanModal({
       priceYearly: Number(priceYearly),
       currency: "EGP",
       visibility,
+      featured,
       features: selectedFeatures,
       allowedRoles: selectedRoles,
       limits: {
@@ -254,6 +260,12 @@ export default function CreatePlanModal({
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
+
+          <Checkbox
+            checked={featured}
+            onCheckedChange={(next) => setFeatured(Boolean(next))}
+            label="Highlight this plan on the public pricing page"
+          />
 
           {/* Pricing Section */}
           <div className="rounded-lg border border-[var(--platform-border-subtle)] bg-[var(--platform-canvas)] p-4 space-y-3">
@@ -426,6 +438,11 @@ export default function CreatePlanModal({
                       <span className="text-[10px] font-mono text-[var(--platform-text-muted)] block truncate">
                         {feat.key}
                       </span>
+                      {Array.isArray(feat.pages) && feat.pages.length > 0 && (
+                        <span className="text-[10px] text-[var(--platform-text-muted)] block truncate" title={feat.pages.join(", ")}>
+                          {feat.pages.join(", ")}
+                        </span>
+                      )}
                     </div>
                   </label>
                 );

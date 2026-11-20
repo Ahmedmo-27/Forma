@@ -44,6 +44,13 @@ import {
 } from "lucide-react";
 import { formatCurrency } from "../../lib/utils/formatters";
 
+function rolloutLabel(rollout) {
+  const pilots = rollout.pilotTenantIds?.length || 0;
+  if (rollout.mode === "off") return "Rollout: off";
+  if (rollout.mode === "pilot") return `Pilot: ${pilots} gym${pilots === 1 ? "" : "s"}`;
+  return `Rollout: ${rollout.percentage ?? 0}%${pilots ? ` + ${pilots} pilot${pilots === 1 ? "" : "s"}` : ""}`;
+}
+
 export default function PlansFeaturesPage() {
   const [activeTab, setActiveTab] = useState("plans");
 
@@ -89,6 +96,14 @@ export default function PlansFeaturesPage() {
 
   const plans = plansData || [];
   const features = featuresData || [];
+  // Group the matrix by module category so related pages sit together.
+  const matrixFeatures = [...features].sort((a, b) => {
+    const order = (f) => {
+      const index = FEATURE_CATEGORIES.findIndex((c) => c.value === f.category);
+      return index === -1 ? FEATURE_CATEGORIES.length : index;
+    };
+    return order(a) - order(b) || String(a.name).localeCompare(String(b.name));
+  });
   const roles = rolesData || [];
 
   // Matrix Filter state
@@ -461,7 +476,7 @@ export default function PlansFeaturesPage() {
           </div>
 
           <Callout variant="info" className="text-xs">
-            <strong>Entitlements Matrix:</strong> This matrix provides a global view of what each subscription plan includes. To edit any plan's features, roles, or limits, click <em>Edit Plan</em> on the column header. To customize a specific gym (such as adding a Gold feature to a Basic gym), open that gym from the Gyms & Tenants section.
+            <strong>Entitlements Matrix:</strong> This matrix provides a global view of what each subscription plan includes. To edit any plan's features, roles, or limits, click <em>Edit Plan</em> on the column header. To customize a specific gym (such as adding one module to a single gym), open that gym from the Gyms & Tenants section.
           </Callout>
 
           {/* Matrix Table */}
@@ -531,12 +546,13 @@ export default function PlansFeaturesPage() {
                         </div>
                       </td>
                     </tr>
-                    {features
+                    {matrixFeatures
                       .filter(
                         (f) =>
                           !matrixSearch ||
                           f.name.toLowerCase().includes(matrixSearch.toLowerCase()) ||
-                          f.key.toLowerCase().includes(matrixSearch.toLowerCase())
+                          f.key.toLowerCase().includes(matrixSearch.toLowerCase()) ||
+                          (f.pages || []).some((page) => page.toLowerCase().includes(matrixSearch.toLowerCase()))
                       )
                       .map((feat) => (
                         <tr
@@ -560,6 +576,11 @@ export default function PlansFeaturesPage() {
                                 {feat.description && (
                                   <span className="text-[10px] text-[var(--platform-text-muted)] line-clamp-1 mt-0.5">
                                     {feat.description}
+                                  </span>
+                                )}
+                                {feat.pages?.length > 0 && (
+                                  <span className="text-[10px] text-[var(--platform-text-secondary)] line-clamp-2 mt-0.5">
+                                    Controls: {feat.pages.join(", ")}
                                   </span>
                                 )}
                               </div>
@@ -886,6 +907,16 @@ export default function PlansFeaturesPage() {
                             {feat.description}
                           </span>
                         )}
+                        {feat.pages?.length > 0 && (
+                          <span className="text-[11px] text-[var(--platform-text-secondary)] block mt-0.5">
+                            Controls: {feat.pages.join(", ")}
+                          </span>
+                        )}
+                        {feat.rollout?.mode && feat.rollout.mode !== "all" && (
+                          <Badge variant={feat.rollout.mode === "off" ? "danger" : "warning"} size="xs" className="mt-1">
+                            {rolloutLabel(feat.rollout)}
+                          </Badge>
+                        )}
                       </td>
                       <td className="py-3 px-4">
                         <Badge variant="neutral" size="xs" className="uppercase">
@@ -905,6 +936,8 @@ export default function PlansFeaturesPage() {
                         <button
                           type="button"
                           onClick={() => handleToggleFeatureActive(feat)}
+                          disabled={feat.isCore && feat.isActive}
+                          title={feat.isCore ? "Core features cannot be deactivated" : undefined}
                           aria-label={feat.isActive ? "Deactivate feature" : "Activate feature"}
                           className={`inline-flex items-center gap-1 min-h-8 px-3 rounded-full text-[11px] font-medium transition-colors cursor-pointer ${
                             feat.isActive

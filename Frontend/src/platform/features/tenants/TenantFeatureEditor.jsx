@@ -88,6 +88,15 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
   const savedPlan = visiblePlans.find((plan) => planKey(plan) === currentPlanId) || tenant.plan;
   const savedPlanFeatures = new Set(savedPlan?.features || []);
 
+  // A lifetime gym on a frozen snapshot ignores plan edits: its base is the snapshot.
+  const lifetime = tenant.billing?.lifetime;
+  const snapshotFeatures = Array.isArray(lifetime?.featureSnapshot) ? lifetime.featureSnapshot : [];
+  const usesSnapshot =
+    tenant.billing?.cycle === "lifetime" &&
+    lifetime?.entitlementPolicy === "snapshot" &&
+    snapshotFeatures.length > 0;
+  const baseFeatures = usesSnapshot ? new Set(snapshotFeatures) : savedPlanFeatures;
+
   const dirtyPlans = visiblePlans.filter(
     (plan) => !sameMembers(draftFeatures[planKey(plan)] || [], plan.features || [])
   );
@@ -126,7 +135,7 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
   };
 
   const toggleGymFeature = (featureKey) => {
-    const inPlan = savedPlanFeatures.has(featureKey);
+    const inPlan = baseFeatures.has(featureKey);
     const added = addFeatures.includes(featureKey);
     const removed = removeFeatures.includes(featureKey);
 
@@ -236,6 +245,19 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
     );
   }
 
+  // What this gym can open. With nothing unsaved, trust the server (it also applies staged rollouts).
+  const liveEffective = new Set(tenant.effectiveFeatures || []);
+  const canOpen = (feature) => {
+    if (!gymDirty) return liveEffective.has(feature.key);
+    const wanted = (baseFeatures.has(feature.key) && !removeFeatures.includes(feature.key)) || addFeatures.includes(feature.key);
+    return wanted && feature.isActive !== false;
+  };
+  const previewGroups = FEATURE_CATEGORIES
+    .map((category) => ({
+      ...category,
+      items: features.filter((feature) => (feature.category || "core") === category.value),
+    }))
+    .filter((group) => group.items.length > 0);
   return (
     <div className="space-y-4">
       <Callout variant="info" className="text-xs">
@@ -244,6 +266,13 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
       </Callout>
 
       {error && <Callout variant="danger">{error}</Callout>}
+
+      {usesSnapshot && (
+        <Callout variant="warning" className="text-xs">
+          This gym is a lifetime license on a frozen feature snapshot. Plan edits do not reach it. Use the gym column
+          to add or turn off features, or switch its entitlement policy to follow the plan.
+        </Callout>
+      )}
 
       {!canManagePlans && (
         <Callout variant="neutral" className="text-xs">
@@ -333,12 +362,12 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
             ) : (
               filteredFeatures.map((feature) => {
                 const inactive = feature.isActive === false;
-                const inSavedPlan = savedPlanFeatures.has(feature.key);
+                const inSavedPlan = baseFeatures.has(feature.key);
                 const added = addFeatures.includes(feature.key);
                 const removed = removeFeatures.includes(feature.key);
                 const effective = (inSavedPlan && !removed) || added;
                 const currentDraft = (draftFeatures[currentPlanId] || []).includes(feature.key);
-                const planDraftDiffers = Boolean(currentPlanId) && currentDraft !== inSavedPlan;
+                const planDraftDiffers = Boolean(currentPlanId) && currentDraft !== savedPlanFeatures.has(feature.key);
 
                 let gymStatus = "Not on this gym";
                 let gymAction = "Add to this gym";
@@ -349,7 +378,7 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
                   gymStatus = "Turned off for this gym";
                   gymAction = "Restore";
                 } else if (inSavedPlan) {
-                  gymStatus = "Included by plan";
+                  gymStatus = usesSnapshot ? "Included by frozen snapshot" : "Included by plan";
                   gymAction = "Turn off for this gym";
                 }
 
@@ -362,6 +391,11 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
                       <div className="mt-0.5 font-mono text-[10px] text-[var(--platform-text-muted)]">
                         {feature.key}
                       </div>
+                      {feature.pages?.length > 0 && (
+                        <div className="mt-1 text-[10px] leading-snug text-[var(--platform-text-secondary)]">
+                          Controls: {feature.pages.join(", ")}
+                        </div>
+                      )}
                       <div className="mt-1 flex flex-wrap gap-1">
                         <Badge variant="neutral" size="xs" className="capitalize">
                           {feature.category || "core"}
@@ -444,6 +478,54 @@ export default function TenantFeatureEditor({ tenant, onSaved }) {
         </table>
       </div>
 
+      <details className="rounded-xl border border-[var(--platform-border-subtle)] bg-[var(--platform-surface)] p-4">
+        <summary className="cursor-pointer text-sm font-semibold text-[var(--platform-text-primary)]">
+          Effective access for {tenant.name}
+          {gymDirty ? " (includes unsaved gym changes)" : ""}
+        </summary>
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
+          {previewGroups.map((group) => (
+            <div key={group.value} className="space-y-1.5">
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--platform-text-muted)]">
+                {group.label}
+              </div>
+              {group.items.map((feature) => {
+                const open = canOpen(feature);
+                const heldByRollout =
+                  !gymDirty && !open && feature.rollout?.mode && feature.rollout.mode !== "all" &&
+                  baseFeatures.has(feature.key) && !removeFeatures.includes(feature.key);
+                return (
+                  <div key={feature.key} className="flex items-start gap-2 text-xs">
+                    <Badge variant={open ? "success" : "neutral"} size="xs">
+                      {open ? "Open" : "Locked"}
+                    </Badge>
+                    <div className="min-w-0">
+                      <span className={open ? "text-[var(--platform-text-primary)]" : "text-[var(--platform-text-muted)]"}>
+                        {feature.name}
+                      </span>
+                      {feature.pages?.length > 0 && (
+                        <span className="block text-[10px] text-[var(--platform-text-muted)]">
+                          {feature.pages.join(", ")}
+                        </span>
+                      )}
+                      {heldByRollout && (
+                        <span className="block text-[10px] text-[var(--platform-warning)]">
+                          Held back by this feature's staged rollout
+                        </span>
+                      )}
+                      {feature.isActive === false && (
+                        <span className="block text-[10px] text-[var(--platform-warning)]">
+                          Feature is switched off platform-wide
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </details>
       {(dirtyPlans.length > 0 || gymDirty) && (
         <div className="flex flex-col gap-3 rounded-xl border border-[var(--platform-border)] bg-[var(--platform-surface)] p-4">
           {dirtyPlans.length > 0 && canManagePlans && (

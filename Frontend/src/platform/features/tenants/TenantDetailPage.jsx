@@ -13,6 +13,8 @@ import {
   X,
   Sliders,
   Sparkles,
+  Clock,
+  AlertTriangle,
 } from "lucide-react";
 import {
   apiGetTenantDetail,
@@ -37,11 +39,63 @@ import { Skeleton } from "../../ui/Skeleton";
 import { ConfirmDialog } from "../../shell/ConfirmDialog";
 import TenantOverridesModal from "./TenantOverridesModal";
 import TenantFeatureEditor from "./TenantFeatureEditor";
+import TenantSubscriptionPanel from "./TenantSubscriptionPanel";
 import TenantStaffAccess from "./TenantStaffAccess";
 import { usePermission } from "../../lib/auth/PermissionContext";
 import { usePlatformAuth } from "../../lib/auth/AuthContext";
 import { formatCurrency, formatDate, formatBytes } from "../../lib/utils/formatters";
 import { platformToast } from "../../ui/Toast";
+
+const BILLING_PROFILE_ROWS = [
+  ["Legal name", "legalName"],
+  ["Tax registration no.", "taxNumber"],
+  ["Commercial registration", "commercialRegistration"],
+  ["Billing email", "billingEmail"],
+  ["Phone", "phone"],
+];
+
+function BillingProfileCard({ profile }) {
+  const p = profile || {};
+  const address = [
+    p.addressLine1,
+    p.addressLine2,
+    [p.city, p.region, p.postalCode].filter(Boolean).join(", "),
+    p.country,
+  ].filter(Boolean);
+  const isEmpty = !p.legalName && !p.taxNumber && address.length <= 1;
+
+  return (
+    <div className="rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-[var(--platform-text-primary)]">Billing profile</h3>
+        {p.updatedAt ? (
+          <span className="text-[11px] text-[var(--platform-text-muted)]">Updated {formatDate(p.updatedAt)}</span>
+        ) : null}
+      </div>
+      {isEmpty ? (
+        <p className="text-xs text-[var(--platform-text-muted)]">
+          The owner has not added a legal name or tax number yet. Invoices show the gym name only. The owner can fill
+          this in under Settings, then Billing &amp; Reports.
+        </p>
+      ) : (
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2 text-xs">
+          {BILLING_PROFILE_ROWS.map(([label, key]) => (
+            <div key={key}>
+              <dt className="text-[var(--platform-text-muted)]">{label}</dt>
+              <dd className="text-[var(--platform-text-primary)] font-medium">{p[key] || "—"}</dd>
+            </div>
+          ))}
+          <div className="sm:col-span-2">
+            <dt className="text-[var(--platform-text-muted)]">Address</dt>
+            <dd className="text-[var(--platform-text-primary)] font-medium whitespace-pre-line">
+              {address.length ? address.join("\n") : "—"}
+            </dd>
+          </div>
+        </dl>
+      )}
+    </div>
+  );
+}
 
 export default function TenantDetailPage() {
   const { id } = useParams();
@@ -203,7 +257,11 @@ export default function TenantDetailPage() {
         ...(lifecycleModal.action === "extend_trial" ? { days: 7 } : {}),
       });
 
-      platformToast.success(`Action '${lifecycleModal.action}' applied to ${tenant.name}`);
+      platformToast.success(
+        lifecycleModal.action === "mark_past_due"
+          ? `${tenant.name} is past due. The grace period has started.`
+          : `Action '${lifecycleModal.action}' applied to ${tenant.name}`
+      );
       setLifecycleModal({ isOpen: false, action: null });
       refetch();
     } catch (err) {
@@ -367,6 +425,25 @@ export default function TenantDetailPage() {
 
           {canLifecycle && (
             <>
+              {!isLifetime && (tenant.status === "active" || tenant.status === "trial") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  leftIcon={Clock}
+                  onClick={() =>
+                    setLifecycleModal({
+                      isOpen: true,
+                      action: "mark_past_due",
+                      title: `Mark past due: ${tenant.name}`,
+                      impactSummary:
+                        "The gym keeps working during the grace period. The owner gets overdue reminders, and the gym is suspended automatically if it is still unpaid when the grace period ends. Reactivate after payment to clear it.",
+                    })
+                  }
+                  className="text-[var(--platform-warning)] border-[var(--platform-warning)]/30 hover:bg-[var(--platform-warning-subtle)]"
+                >
+                  Mark past due
+                </Button>
+              )}
               {tenant.status === "active" ? (
                 <Button
                   size="sm"
@@ -422,6 +499,48 @@ export default function TenantDetailPage() {
         </div>
       </div>
 
+      {tenant.status === "past_due" && (
+        <div className="flex items-start gap-3 p-4 rounded-[var(--platform-radius-lg)] border border-[var(--platform-warning)]/30 bg-[var(--platform-warning-subtle)]">
+          <AlertTriangle className="w-4 h-4 mt-0.5 text-[var(--platform-warning)] shrink-0" />
+          <div className="text-xs text-[var(--platform-text-secondary)] space-y-0.5">
+            <div className="font-semibold text-[var(--platform-text-primary)]">Payment overdue</div>
+            <div>
+              {tenant.dunning?.pastDueSince
+                ? `Past due since ${formatDate(tenant.dunning.pastDueSince)}. `
+                : "Past due. "}
+              {tenant.dunning?.graceEndsAt
+                ? `Suspends automatically on ${formatDate(tenant.dunning.graceEndsAt)} unless reactivated.`
+                : "The grace period starts on the next dunning run."}
+              {tenant.dunning?.markedBy === "platform" ? " Marked manually from the console." : ""}
+            </div>
+          </div>
+        </div>
+      )}
+      {tenant.status === "suspended" && tenant.dunning?.suspendedByDunning && (
+        <div className="flex items-start gap-3 p-4 rounded-[var(--platform-radius-lg)] border border-[var(--platform-danger)]/30 bg-[var(--platform-danger-subtle)]">
+          <Ban className="w-4 h-4 mt-0.5 text-[var(--platform-danger)] shrink-0" />
+          <div className="text-xs text-[var(--platform-text-secondary)]">
+            Suspended for non-payment
+            {tenant.dunning?.suspendedAt ? ` on ${formatDate(tenant.dunning.suspendedAt)}` : ""}. Reactivate once payment is
+            recorded.
+          </div>
+        </div>
+      )}
+      {tenant.overLimits?.length > 0 && (
+        <div className="flex items-start gap-3 p-4 rounded-[var(--platform-radius-lg)] border border-[var(--platform-warning)]/30 bg-[var(--platform-warning-subtle)]">
+          <AlertTriangle className="w-4 h-4 mt-0.5 text-[var(--platform-warning)] shrink-0" />
+          <div className="text-xs text-[var(--platform-text-secondary)] space-y-0.5">
+            <div className="font-semibold text-[var(--platform-text-primary)]">Over plan limits</div>
+            <div>
+              {tenant.overLimits
+                .map((o) => `${o.current} ${o.noun} on a limit of ${o.max}`)
+                .join(" · ")}
+              . New records are blocked until the gym is back under the cap or moves to a bigger plan.
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ── 2. Top Summary Strip (KPIs & Metrics) ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="p-4 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] space-y-1">
@@ -441,10 +560,12 @@ export default function TenantDetailPage() {
             Member Capacity
           </div>
           <div className="text-base font-bold platform-mono text-[var(--platform-text-primary)]">
-            {memberCount} / {effectiveLimits.maxMembers || 500}
+            {memberCount} / {effectiveLimits.maxMembers > 0 ? effectiveLimits.maxMembers : "∞"}
           </div>
           <div className="text-[11px] text-[var(--platform-text-muted)]">
-            {Math.round((memberCount / (effectiveLimits.maxMembers || 500)) * 100)}% utilized
+            {effectiveLimits.maxMembers > 0
+              ? `${Math.round((memberCount / effectiveLimits.maxMembers) * 100)}% utilized`
+              : "No member cap"}
           </div>
         </div>
 
@@ -457,8 +578,8 @@ export default function TenantDetailPage() {
           </div>
           <div className="text-[11px] text-[var(--platform-text-muted)]">
             {isLifetime
-              ? `Fair-use cap: ${usage.storageLimitGb || 25} GB`
-              : `Plan allowance: ${usage.storageLimitGb || tenant.plan?.fairUseCaps?.storageGb || 25} GB`}
+              ? `Fair-use cap: ${effectiveLimits.storageGb ?? usage.storageLimitGb ?? "—"} GB`
+              : `Plan allowance: ${effectiveLimits.storageGb ?? usage.storageLimitGb ?? "—"} GB`}
           </div>
         </div>
 
@@ -507,19 +628,19 @@ export default function TenantDetailPage() {
                 <UsageMeter
                   label="Member Capacity Limit"
                   current={memberCount}
-                  max={effectiveLimits.maxMembers || 500}
+                  max={effectiveLimits.maxMembers > 0 ? effectiveLimits.maxMembers : null}
                   unit="members"
                 />
                 <UsageMeter
                   label="Staff / Operator Seats"
                   current={staffCount}
-                  max={effectiveLimits.maxStaff || 10}
+                  max={effectiveLimits.maxStaff > 0 ? effectiveLimits.maxStaff : null}
                   unit="staff"
                 />
                 <UsageMeter
                   label="Disk Storage Consumption"
                   current={Math.round(((usage.storageBytes || 0) / (1024 * 1024 * 1024)) * 10) / 10}
-                  max={usage.storageLimitGb || effectiveLimits.storageGb || (isLifetime ? (tenant.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25) : (tenant.plan?.fairUseCaps?.storageGb || 25))}
+                  max={effectiveLimits.storageGb ?? usage.storageLimitGb ?? null}
                   unit="GB"
                 />
               </div>
@@ -652,7 +773,10 @@ export default function TenantDetailPage() {
         </TabContent>
 
         <TabContent value="features">
-          <TenantFeatureEditor tenant={tenant} onSaved={refetch} />
+          <div className="space-y-4">
+            <TenantSubscriptionPanel tenant={tenant} onSaved={refetch} />
+            <TenantFeatureEditor tenant={tenant} onSaved={refetch} />
+          </div>
         </TabContent>
 
         <TabContent value="access">
@@ -797,6 +921,8 @@ export default function TenantDetailPage() {
         {/* TAB 4: BILLING & INVOICES */}
         <TabContent value="billing">
           <div className="space-y-6">
+            <BillingProfileCard profile={tenant.billingProfile} />
+
             {/* Invoices */}
             <div className="rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] overflow-hidden">
               <div className="p-4 border-b border-[var(--platform-border-subtle)]">

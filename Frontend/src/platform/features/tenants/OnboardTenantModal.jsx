@@ -50,7 +50,14 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
       });
 
       apiGetPlans()
-        .then((res) => setPlans(res.data || []))
+        .then((res) => {
+          const list = res.data || [];
+          setPlans(list);
+          // Plans are admin-defined, so don't assume "basic" exists.
+          setForm((prev) => (list.length && !list.some((p) => p.key === prev.planKey)
+            ? { ...prev, planKey: list[0].key }
+            : prev));
+        })
         .catch(() => {});
     }
   }, [isOpen]);
@@ -275,18 +282,10 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select
-            label="Plan Tier"
+            label="Plan"
             value={form.planKey}
             onChange={(e) => setForm({ ...form, planKey: e.target.value })}
-            options={
-              plans.length > 0
-                ? plans.map((p) => ({ value: p.key, label: p.name }))
-                : [
-                    { value: "basic", label: "Basic" },
-                    { value: "gold", label: "Gold" },
-                    { value: "platinum", label: "Platinum" },
-                  ]
-            }
+            options={plans.map((p) => ({ value: p.key, label: p.name }))}
           />
 
           <Input

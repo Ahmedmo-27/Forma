@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, useRef } f
 import { apiGetMe } from "../api/endpoints";
 import platformClient from "../api/client";
 import { clearWwwPreviewCookie } from "../../../marketing/previewCookie";
+import { setMonitoringUser } from "../../../lib/monitoring";
 
 const PlatformAuthContext = createContext(null);
 
@@ -57,6 +58,10 @@ export function PlatformAuthProvider({ children }) {
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (user) setMonitoringUser({ ...user, surface: "platform" });
+  }, [user]);
 
   const loginSuccess = useCallback((authData) => {
     const { user: nextUser } = authData;

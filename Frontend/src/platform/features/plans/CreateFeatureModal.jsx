@@ -20,7 +20,27 @@ export const FEATURE_CATEGORIES = [
   { value: "communication", label: "Communication" },
   { value: "analytics", label: "Analytics" },
   { value: "integrations", label: "Integrations" },
+  { value: "operations", label: "Operations" },
+  { value: "management", label: "Management" },
 ];
+
+const ROLLOUT_MODES = [
+  { value: "all", label: "Everyone on a plan with it" },
+  { value: "pilot", label: "Pilot gyms only" },
+  { value: "percentage", label: "Percentage of gyms (plus pilots)" },
+  { value: "off", label: "Off (kill switch)" },
+];
+
+function pilotRefsOf(feature) {
+  return (feature?.rollout?.pilotTenantIds || [])
+    .map((t) => (typeof t === "object" ? t.slug || t._id : t))
+    .filter(Boolean)
+    .join("\n");
+}
+
+function parsePilotRefs(text) {
+  return [...new Set(text.split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean))];
+}
 
 export default function CreateFeatureModal({ open, onOpenChange, featureToEdit = null, onSaved }) {
   const isEdit = Boolean(featureToEdit);
@@ -33,6 +53,9 @@ export default function CreateFeatureModal({ open, onOpenChange, featureToEdit =
   const [category, setCategory] = useState(featureToEdit?.category || "core");
   const [isCore, setIsCore] = useState(featureToEdit?.isCore || false);
   const [isActive, setIsActive] = useState(featureToEdit ? featureToEdit.isActive : true);
+  const [rolloutMode, setRolloutMode] = useState(featureToEdit?.rollout?.mode || "all");
+  const [rolloutPercentage, setRolloutPercentage] = useState(String(featureToEdit?.rollout?.percentage ?? 0));
+  const [pilotText, setPilotText] = useState(pilotRefsOf(featureToEdit));
 
   useEffect(() => {
     if (!open) return;
@@ -42,8 +65,29 @@ export default function CreateFeatureModal({ open, onOpenChange, featureToEdit =
     setCategory(featureToEdit?.category || "core");
     setIsCore(Boolean(featureToEdit?.isCore));
     setIsActive(featureToEdit ? featureToEdit.isActive !== false : true);
+    setRolloutMode(featureToEdit?.rollout?.mode || "all");
+    setRolloutPercentage(String(featureToEdit?.rollout?.percentage ?? 0));
+    setPilotText(pilotRefsOf(featureToEdit));
     setError(null);
   }, [open, featureToEdit]);
+
+  const buildRollout = () => {
+    const percentage = Number(rolloutPercentage);
+    const pilotTenants = parsePilotRefs(pilotText);
+    const before = featureToEdit?.rollout || {};
+    const changed =
+      rolloutMode !== (before.mode || "all") ||
+      (rolloutMode === "percentage" && percentage !== Number(before.percentage ?? 0)) ||
+      pilotTenants.join("\n") !== parsePilotRefs(pilotRefsOf(featureToEdit)).join("\n");
+    if (!changed) return { rollout: undefined };
+    if (rolloutMode === "percentage" && (!Number.isFinite(percentage) || percentage < 0 || percentage > 100)) {
+      return { error: "Rollout percentage must be between 0 and 100" };
+    }
+    if (rolloutMode === "pilot" && pilotTenants.length === 0) {
+      return { error: "Add at least one pilot gym slug, or choose another rollout mode" };
+    }
+    return { rollout: { mode: rolloutMode, percentage: rolloutMode === "percentage" ? percentage : 0, pilotTenants } };
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -65,6 +109,12 @@ export default function CreateFeatureModal({ open, onOpenChange, featureToEdit =
       return;
     }
 
+    const { rollout, error: rolloutError } = isEdit && !isCore ? buildRollout() : { rollout: undefined };
+    if (rolloutError) {
+      setError(rolloutError);
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -76,6 +126,7 @@ export default function CreateFeatureModal({ open, onOpenChange, featureToEdit =
           category,
           isCore,
           isActive,
+          ...(rollout ? { rollout } : {}),
         });
         platformToast.success("Feature updated successfully");
       } else {
@@ -197,6 +248,56 @@ export default function CreateFeatureModal({ open, onOpenChange, featureToEdit =
             <Switch checked={isActive} onCheckedChange={setIsActive} />
           </div>
         </div>
+
+        {isEdit && !isCore && (
+          <div className="pt-3 border-t border-[var(--platform-border-subtle)] space-y-3">
+            <div>
+              <span className="text-xs font-medium text-[var(--platform-text-primary)]">Rollout</span>
+              <p className="text-[11px] text-[var(--platform-text-muted)]">
+                Stage this feature before every gym on an eligible plan gets it. Gyms granted the feature directly
+                always keep it. Changes reach every server within a minute.
+              </p>
+            </div>
+            <Select value={rolloutMode} onChange={(e) => setRolloutMode(e.target.value)}>
+              {ROLLOUT_MODES.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </Select>
+            {rolloutMode === "percentage" && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
+                  Share of gyms (%)
+                </label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={rolloutPercentage}
+                  onChange={(e) => setRolloutPercentage(e.target.value)}
+                />
+                <span className="text-[11px] text-[var(--platform-text-muted)] mt-1 block">
+                  Each gym gets a fixed slot, so raising the share only adds gyms.
+                </span>
+              </div>
+            )}
+            {(rolloutMode === "pilot" || rolloutMode === "percentage") && (
+              <div>
+                <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] mb-1.5">
+                  Pilot gyms
+                </label>
+                <textarea
+                  rows={3}
+                  value={pilotText}
+                  onChange={(e) => setPilotText(e.target.value)}
+                  placeholder="Gym slugs, one per line or comma separated"
+                  className="w-full rounded-[var(--platform-radius-md)] border border-[var(--platform-border)] bg-[var(--platform-surface)] px-3 py-2 text-xs font-mono text-[var(--platform-text-primary)]"
+                />
+              </div>
+            )}
+          </div>
+        )}
       </form>
     </Dialog>
   );

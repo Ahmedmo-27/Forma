@@ -144,7 +144,7 @@ export default function UsagePage() {
           <div className="text-2xl font-bold font-mono text-[var(--platform-danger)]">
             {fairUseOverages.length}
           </div>
-          <span className="text-[11px] text-[var(--platform-text-muted)]">Exceeding 25 GB cap</span>
+          <span className="text-[11px] text-[var(--platform-text-muted)]">Gyms over their storage cap</span>
         </div>
 
         <div className="p-4 rounded-lg bg-[var(--platform-surface-raised)] border border-[var(--platform-border-subtle)]">
@@ -233,7 +233,7 @@ export default function UsagePage() {
                           {t.storageMb} MB
                         </span>
                         <div className="text-[10px] text-[var(--platform-text-muted)] font-normal">
-                          Cap: {t.storageLimitGb ? `${t.storageLimitGb} GB` : "25 GB"}
+                          Cap: {t.storageLimitGb != null ? `${t.storageLimitGb} GB` : "—"}
                         </div>
                         {t.isStorageOverCap && (
                           <span className="block text-[10px] text-[var(--platform-danger)]">

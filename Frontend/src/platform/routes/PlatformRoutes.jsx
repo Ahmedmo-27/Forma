@@ -14,6 +14,7 @@ import PricingCouponsPage from "../features/pricing/PricingCouponsPage";
 import PaymentsInvoicesPage from "../features/billing/PaymentsInvoicesPage";
 import LedgerPage from "../features/billing/LedgerPage";
 import UsagePage from "../features/usage/UsagePage";
+import AtRiskPage from "../features/retention/AtRiskPage";
 import SupportPage from "../features/support/SupportPage";
 import AnnouncementsPage from "../features/announcements/AnnouncementsPage";
 import CampaignsPage from "../features/campaigns/CampaignsPage";
@@ -53,7 +54,7 @@ export default function PlatformConsoleApp() {
 
               {/* Protected Platform Console Routes */}
               <Route element={<ProtectedShellRoute />}>
-                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route index element={<Navigate to="/platform/dashboard" replace />} />
                 <Route path="dashboard" element={<DashboardPage />} />
                 <Route path="_design" element={<DesignSystemPage />} />
 
@@ -65,6 +66,7 @@ export default function PlatformConsoleApp() {
                 <Route path="payments-invoices" element={<PaymentsInvoicesPage />} />
                 <Route path="ledger" element={<LedgerPage />} />
                 <Route path="usage" element={<UsagePage />} />
+                <Route path="at-risk" element={<AtRiskPage />} />
                 <Route path="support" element={<SupportPage />} />
                 <Route path="announcements" element={<AnnouncementsPage />} />
                 <Route path="campaigns" element={<CampaignsPage />} />
@@ -73,7 +75,9 @@ export default function PlatformConsoleApp() {
                 <Route path="health" element={<HealthSettingsPage />} />
                 <Route path="logs" element={<LogsPage />} />
 
-                <Route path="*" element={<Navigate to="dashboard" replace />} />
+                <Route path="plans" element={<Navigate to="/platform/plans-features" replace />} />
+                <Route path="pricing" element={<Navigate to="/platform/pricing-coupons" replace />} />
+                <Route path="*" element={<Navigate to="/platform/dashboard" replace />} />
               </Route>
             </Routes>
           </PermissionProvider>

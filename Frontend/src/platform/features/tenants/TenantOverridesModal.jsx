@@ -12,6 +12,7 @@ import {
   platformToast,
 } from "../../ui";
 import { apiUpdateTenantLifecycle, apiGetFeatures, apiGetRoles } from "../../lib/api/endpoints";
+import { sendWithOverLimitConfirm } from "../../lib/overLimit";
 import { useQuery } from "@tanstack/react-query";
 import {
   Check,
@@ -100,7 +101,7 @@ export default function TenantOverridesModal({
         setRemoveFeatures((prev) => [...prev, featKey]);
       }
     } else {
-      // Feature is NOT in base plan (e.g., Gold/Platinum feature): toggling grants it (+Add) or removes grant
+      // Feature is NOT in base plan (e.g., a feature only higher plans include): toggling grants it (+Add) or removes grant
       if (isExplicitlyAdded) {
         setAddFeatures((prev) => prev.filter((k) => k !== featKey));
       } else {
@@ -169,7 +170,10 @@ export default function TenantOverridesModal({
     };
 
     try {
-      await apiUpdateTenantLifecycle(tenant._id || tenant.id, payload);
+      const applied = await sendWithOverLimitConfirm((force) =>
+        apiUpdateTenantLifecycle(tenant._id || tenant.id, force ? { ...payload, force: true } : payload)
+      );
+      if (!applied) return;
       platformToast.success(`Entitlements updated for '${tenant.name}'`);
       onSaved?.();
       onOpenChange(false);

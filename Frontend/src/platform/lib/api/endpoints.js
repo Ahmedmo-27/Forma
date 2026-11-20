@@ -178,6 +178,9 @@ export const apiGetAnalyticsSnapshots = (params, signal) =>
 export const apiGetHealthDetails = (signal) =>
   platformClient.get("/analytics/health-details", { signal });
 
+export const apiGetAtRiskQueue = (params, signal) =>
+  platformClient.get("/analytics/at-risk", { params, signal });
+
 export const apiGetCostInsights = (signal) =>
   platformClient.get("/analytics/cost-insights", { signal });
 

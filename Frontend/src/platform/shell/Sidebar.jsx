@@ -19,6 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import { usePlatformAuth } from "../lib/auth/AuthContext";
 import { usePermission } from "../lib/auth/PermissionContext";
@@ -50,6 +51,7 @@ function SidebarFrame({ collapsed, showMobileClose, onToggleCollapse, onCloseMob
   const canAudit = usePermission("audit.view");
   const canManageUsers = usePermission("platform_users.manage");
   const canHealth = usePermission("system.health");
+  const canViewAnalytics = usePermission("analytics.view");
 
   const groups = [
     {
@@ -62,6 +64,7 @@ function SidebarFrame({ collapsed, showMobileClose, onToggleCollapse, onCloseMob
       title: "Customers",
       items: [
         { label: "Gyms & Tenants", path: "/platform/tenants", icon: Building2, permitted: canReadTenants },
+        { label: "At-risk Gyms", path: "/platform/at-risk", icon: AlertTriangle, permitted: canViewAnalytics },
         { label: "Plans & Features", path: "/platform/plans-features", icon: Package, permitted: canManagePlans },
         { label: "Pricing & Coupons", path: "/platform/pricing-coupons", icon: Tags, permitted: canManagePricing },
       ],
