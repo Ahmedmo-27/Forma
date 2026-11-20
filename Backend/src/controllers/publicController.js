@@ -79,7 +79,7 @@ async function listPublicPlans(_req, res) {
                     isActive: true,
                     visibility: { $nin: ["hidden", "archived"] },
                 })
-                    .select("key name description features limits fairUseCaps sortOrder")
+                    .select("key name description features limits fairUseCaps sortOrder featured")
                     .sort({ sortOrder: 1, priceMonthly: 1 })
                     .lean(),
                 PlanPrice.find({ isActive: true })
@@ -124,6 +124,7 @@ async function listPublicPlans(_req, res) {
                     limits: p.limits || {},
                     fairUseCaps: p.fairUseCaps || {},
                     sortOrder: p.sortOrder ?? 0,
+                    featured: Boolean(p.featured),
                 })),
                 prices: activePrices,
             };

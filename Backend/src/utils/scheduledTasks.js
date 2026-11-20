@@ -2,6 +2,9 @@ const Member = require("../models/Member");
 const logger = require("./logger");
 const { isClosedSubscription } = require("./subscriptionUtils");
 const { runAsPlatform, runWithTenant } = require("../context/tenantContext");
+const { runExclusive } = require("./schedulerLock");
+const { recordStart, recordFinish } = require("./jobRuns");
+const monitoring = require("../services/monitoring");
 
 /**
  * Expire members whose last subscription endDate has passed
@@ -169,45 +172,138 @@ async function assignOpenMembers() {
 /**
  * Start all scheduled tasks
  */
+const HALF_HOUR_MS = 30 * 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
+
+/** Timer handles so a graceful shutdown can stop every job. */
+const timers = [];
+
+function every(ms, fn) {
+    const handle = setInterval(fn, ms);
+    timers.push(handle);
+    return handle;
+}
+
+function later(ms, fn) {
+    const handle = setTimeout(fn, ms);
+    timers.push(handle);
+    return handle;
+}
+
+/**
+ * Wrap a job so only one instance runs it per interval (overlapping deploys,
+ * replicas) and record its last run for the platform health page. The wrapped
+ * job never rejects: failures are logged and reported to monitoring.
+ */
+function exclusive(name, intervalMs, job) {
+    return async () => {
+        const startedAt = new Date();
+        let ran = false;
+        let result;
+        try {
+            result = await runExclusive(name, intervalMs, async () => {
+                ran = true;
+                await recordStart(name, intervalMs, startedAt);
+                return job();
+            });
+            if (ran) await recordFinish(name, { startedAt, result });
+        } catch (error) {
+            logger.error("scheduler", "Scheduled job failed", { job: name, error: error.message });
+            monitoring.captureException(error, { tags: { area: "scheduler", job: name } });
+            if (ran) await recordFinish(name, { startedAt, error });
+        }
+        return result;
+    };
+}
+
+function runMaintenanceRemindersJob() {
+    const { runMaintenanceReminders } = require("../services/maintenanceReminders");
+    return runMaintenanceReminders();
+}
+
+function runDunningJob() {
+    const { runDunning } = require("../services/billing/dunningService");
+    return runDunning();
+}
+
+function runAuditReplayJob() {
+    const { replayDeadLetters } = require("./audit");
+    return replayDeadLetters();
+}
+
+function runOwnerDigestJob() {
+    const { runOwnerDigests } = require("../services/ownerDigest");
+    return runOwnerDigests();
+}
+
+/** Job name, interval, and runner for every scheduled task. */
+const JOBS = [
+    { name: "freeze_cycles", intervalMs: HALF_HOUR_MS, run: processFreezeCycles, startDelayMs: 0 },
+    { name: "expiry_cycles", intervalMs: HALF_HOUR_MS, run: processExpiryCycles, startDelayMs: 0 },
+    { name: "assign_open_members", intervalMs: HALF_HOUR_MS, run: assignOpenMembers, startDelayMs: 0 },
+    // BI snapshots are hourly and idempotent. Platform rollup is daily (00:00 UTC).
+    { name: "analytics", intervalMs: HOUR_MS, run: runAnalyticsJobs, startDelayMs: 60 * 1000 },
+    { name: "owner_reminders", intervalMs: HOUR_MS, run: runOwnerReminders, startDelayMs: 90 * 1000 },
+    { name: "dunning", intervalMs: HOUR_MS, run: runDunningJob, startDelayMs: 2 * 60 * 1000 },
+    // Each branch is reminded at most once per MAINTENANCE_REMINDER_REPEAT_HOURS window.
+    { name: "maintenance_reminders", intervalMs: HOUR_MS, run: runMaintenanceRemindersJob, startDelayMs: 2 * 60 * 1000 },
+    { name: "owner_weekly_digest", intervalMs: HOUR_MS, run: runOwnerDigestJob, startDelayMs: 3 * 60 * 1000 },
+    { name: "audit_dead_letter_replay", intervalMs: HOUR_MS, run: runAuditReplayJob, startDelayMs: 5 * 60 * 1000 },
+];
+
+/**
+ * Start all scheduled tasks
+ */
 function startScheduledTasks() {
-    // Run immediately on startup
-    processFreezeCycles();
-    processExpiryCycles();
-    assignOpenMembers();
+    for (const job of JOBS) {
+        const tick = exclusive(job.name, job.intervalMs, job.run);
+        if (job.startDelayMs > 0) later(job.startDelayMs, tick);
+        else tick();
+        every(job.intervalMs, tick);
+    }
 
-    // Then every 30 minutes
-    setInterval(processFreezeCycles, 30 * 60 * 1000);
-    setInterval(processExpiryCycles, 30 * 60 * 1000);
-    setInterval(assignOpenMembers, 30 * 60 * 1000);
-
-    // BI snapshots are hourly and idempotent. Platform rollup is daily.
-    // Delayed so a process that is only running tests does not need a database at import time.
-    setTimeout(runAnalyticsJobs, 60 * 1000);
-    setInterval(runAnalyticsJobs, 60 * 60 * 1000);
-    setInterval(runOwnerReminders, 60 * 60 * 1000);
-
-    logger.info("scheduler", "Scheduled tasks started (freeze + expiry every 30 min, analytics and owner mail hourly)");
+    logger.info("scheduler", "Scheduled tasks started", { jobs: JOBS.map((job) => job.name) });
 }
 
-function runOwnerReminders() {
-    const { runOwnerReminders: sendDueReminders } = require("../services/ownerMail");
-    sendDueReminders().catch((error) => {
-        logger.error("mail", "Owner reminder run failed", { error: error.message });
-    });
-}
-
-function runAnalyticsJobs() {
-    const hour = new Date().getUTCHours();
-    const { runDueBiSnapshots } = require("../services/bi/snapshotJob");
-    runDueBiSnapshots().catch((error) => {
-        logger.error("bi", "Snapshot run failed", { error: error.message });
-    });
-    if (hour === 0) {
-        const { computeDailySnapshot } = require("../services/platformAnalyticsService");
-        computeDailySnapshot().catch((error) => {
-            logger.error("platform", "Platform snapshot failed", { error: error.message });
-        });
+/** Stop every scheduled job (used by graceful shutdown). */
+function stopScheduledTasks() {
+    while (timers.length) {
+        const handle = timers.pop();
+        clearInterval(handle);
+        clearTimeout(handle);
     }
 }
 
-module.exports = { startScheduledTasks, processFreezeCycles, processExpiryCycles, assignOpenMembers, runAnalyticsJobs, runOwnerReminders };
+async function runOwnerReminders() {
+    const { runOwnerReminders: sendDueReminders } = require("../services/ownerMail");
+    try {
+        return await sendDueReminders();
+    } catch (error) {
+        logger.error("mail", "Owner reminder run failed", { error: error.message });
+        throw error;
+    }
+}
+
+async function runAnalyticsJobs() {
+    const hour = new Date().getUTCHours();
+    const { runDueBiSnapshots } = require("../services/bi/snapshotJob");
+    const tasks = [
+        runDueBiSnapshots().catch((error) => {
+            logger.error("bi", "Snapshot run failed", { error: error.message });
+            throw error;
+        }),
+    ];
+    if (hour === 0) {
+        const { computeDailySnapshot } = require("../services/platformAnalyticsService");
+        tasks.push(computeDailySnapshot().catch((error) => {
+            logger.error("platform", "Platform snapshot failed", { error: error.message });
+            throw error;
+        }));
+    }
+    const results = await Promise.allSettled(tasks);
+    const failed = results.find((r) => r.status === "rejected");
+    if (failed) throw failed.reason;
+    return { gymSnapshots: results[0].value ?? null, platformSnapshot: hour === 0 };
+}
+
+module.exports = { JOBS, exclusive, startScheduledTasks, stopScheduledTasks, runMaintenanceRemindersJob, processFreezeCycles, processExpiryCycles, assignOpenMembers, runAnalyticsJobs, runOwnerReminders };

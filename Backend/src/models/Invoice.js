@@ -61,6 +61,13 @@ const invoiceSchema = new mongoose.Schema(
             tenantSlug: { type: String, required: true },
             ownerName: { type: String, default: "" },
             ownerEmail: { type: String, default: "" },
+            // Snapshot of the gym's billing profile when the invoice was issued.
+            legalName: { type: String, default: "" },
+            taxNumber: { type: String, default: "" },
+            commercialRegistration: { type: String, default: "" },
+            address: { type: String, default: "" },
+            billingEmail: { type: String, default: "" },
+            phone: { type: String, default: "" },
         },
         issuedAt: {
             type: Date,

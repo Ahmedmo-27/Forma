@@ -21,6 +21,7 @@ const ROUTE_TO_CONTROLLER = {
     coachRequestRoutes: "coachRequestController",
     packageExceptionRoutes: "packageExceptionController",
     maintenanceRoutes: "maintenanceController",
+    retailRoutes: "retailController",
     // Packages use eligibility fields; location middleware is for future list filtering
     packageRoutes: "packageController",
 };
@@ -36,6 +37,9 @@ const MUST_USE_LOCATION = new Set([
     "coachRequestController",
     "packageExceptionController",
     "maintenanceController",
+    "retailController",
+    "retailSalesController",
+    "retailReportController",
 ]);
 
 function listRouteFilesUsingLocationScope() {

@@ -1,6 +1,8 @@
 const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
+const { enforceSubscriptionStatus } = require("../middleware/tenantStatus");
+const { requireFeature } = require("../middleware/featureGating");
 const { allowRoles, allowAnyFeature } = require("../middleware/accessMiddleware");
 const { locationScopeOptional } = require("../middleware/locationScope");
 const validate = require("../middleware/validate");
@@ -22,6 +24,8 @@ const {
 } = require("../controllers/maintenanceController");
 
 router.use(protect);
+router.use(enforceSubscriptionStatus);
+router.use(requireFeature("maintenance"));
 router.use(locationScopeOptional);
 
 router.get(

@@ -67,6 +67,9 @@ const getAttendance = async (req, res) => {
         const timeZone = req.tenant?.settings?.locale?.timezone || "Africa/Cairo";
         res.json(await analytics.getAttendance({
             weeks,
+            from: parseQueryDate(req.query.from, false) || undefined,
+            to: parseQueryDate(req.query.to, true) || undefined,
+            type: req.query.type,
             timeZone,
             locationFilter: req.locationFilter || {},
         }));

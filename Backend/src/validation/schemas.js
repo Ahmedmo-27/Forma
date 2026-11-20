@@ -268,7 +268,8 @@ const sendWhatsAppImageSchema = z.object({
 });
 
 const egpCurrency = z.preprocess(() => "EGP", z.literal("EGP"));
-const planKeySchema = z.enum(["basic", "gold", "platinum"]);
+// Plan keys are free-form slugs so super admin can create any tier.
+const planKeySchema = z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9_-]{1,31}$/, "Plan key must be 2-32 lowercase letters, numbers, hyphens or underscores");
 
 const createPlanSchema = z.object({
     key: planKeySchema,
@@ -295,7 +296,46 @@ const brandingDisplayName = z.preprocess(
     z.string().nullable().optional()
 );
 
+const profileText = (max) => z.preprocess(
+    (v) => (v == null ? v : sanitizePlainText(String(v)).trim().slice(0, max) || null),
+    z.string().nullable().optional()
+);
+
+const tenantNotificationSettingsSchema = z.object({
+    weeklyDigest: z.boolean().optional(),
+}).optional();
+
+const tenantOnboardingSettingsSchema = z.object({
+    dismissed: z.boolean().optional(),
+}).optional();
+
+const tenantBillingProfileSchema = z.object({
+    legalName: profileText(160),
+    taxNumber: profileText(40),
+    commercialRegistration: profileText(40),
+    addressLine1: profileText(200),
+    addressLine2: profileText(200),
+    city: profileText(80),
+    region: profileText(80),
+    postalCode: profileText(20),
+    country: profileText(80),
+    billingEmail: z.preprocess(
+        (v) => (v == null || v === "" ? null : String(v).trim().toLowerCase()),
+        z.string().email("Enter a valid billing email").max(160).nullable().optional()
+    ),
+    phone: profileText(30),
+}).optional();
+
+const contractTermsText = z.preprocess(
+    (v) => (v == null ? v : sanitizePlainText(String(v))),
+    z.string().max(20000, "Contract terms must be under 20,000 characters").optional()
+);
+
 const tenantSettingsSchema = z.object({
+    notifications: tenantNotificationSettingsSchema,
+    onboarding: tenantOnboardingSettingsSchema,
+    billingProfile: tenantBillingProfileSchema,
+    contractTerms: contractTermsText,
     branding: z.object({
         logoKey: z.string().nullable().optional(),
         displayName: brandingDisplayName,
@@ -324,6 +364,9 @@ const tenantSettingsSchema = z.object({
     featureConfig: z.record(z.string(), z.any()).optional(),
     packageTransferFee: z.coerce.number().min(0).optional(),
     settings: z.object({
+        notifications: tenantNotificationSettingsSchema,
+        onboarding: tenantOnboardingSettingsSchema,
+        contractTerms: contractTermsText,
         branding: z.object({
             logoKey: z.string().nullable().optional(),
             displayName: brandingDisplayName,
@@ -459,7 +502,136 @@ const completeMaintenanceItemSchema = z.object({
     notes: z.string().trim().max(1000).optional().default(""),
 });
 
+// ── Retail, inventory and bar POS ────────────────────────────────────────────
+const retailText = (maxLen) =>
+    z.string().trim().max(maxLen).transform(sanitizePlainText).optional();
+const money = z.coerce.number().finite().min(0).max(10_000_000);
+const dateKey = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD");
+const requireAnyField = (data) => Object.keys(data).length > 0;
+
+const createVendorSchema = z.object({
+    name: plainText(120),
+    type: z.enum(["in_house", "external"]).optional().default("external"),
+    contactName: retailText(120),
+    phone: retailText(40),
+    email: z.string().trim().max(160).optional(),
+    notes: retailText(500),
+    commissionPercent: z.coerce.number().min(0).max(100).optional().default(0),
+    locationId: objectId.optional(),
+});
+
+const updateVendorSchema = z.object({
+    name: plainText(120).optional(),
+    contactName: retailText(120),
+    phone: retailText(40),
+    email: z.string().trim().max(160).optional(),
+    notes: retailText(500),
+    commissionPercent: z.coerce.number().min(0).max(100).optional(),
+    active: z.boolean().optional(),
+}).refine(requireAnyField, { message: "At least one field is required" });
+
+const createProductCategorySchema = z.object({
+    name: plainText(80),
+    section: z.enum(["retail", "bar"]),
+    sortOrder: z.coerce.number().int().min(0).max(9999).optional(),
+});
+
+const updateProductCategorySchema = z.object({
+    name: plainText(80).optional(),
+    section: z.enum(["retail", "bar"]).optional(),
+    sortOrder: z.coerce.number().int().min(0).max(9999).optional(),
+    active: z.boolean().optional(),
+}).refine(requireAnyField, { message: "At least one field is required" });
+
+const createProductSchema = z.object({
+    name: plainText(160),
+    categoryId: objectId,
+    vendorId: objectId.optional(),
+    price: money,
+    sku: retailText(64),
+    trackStock: z.boolean().optional(),
+    stockQty: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
+    lowStockThreshold: z.coerce.number().int().min(0).max(1_000_000).optional().default(0),
+    imageUrl: z.string().trim().max(500).optional(),
+    locationId: objectId.optional(),
+});
+
+const updateProductSchema = z.object({
+    name: plainText(160).optional(),
+    categoryId: objectId.optional(),
+    vendorId: objectId.optional(),
+    price: money.optional(),
+    sku: retailText(64),
+    trackStock: z.boolean().optional(),
+    lowStockThreshold: z.coerce.number().int().min(0).max(1_000_000).optional(),
+    imageUrl: z.string().trim().max(500).optional(),
+    active: z.boolean().optional(),
+}).refine(requireAnyField, { message: "At least one field is required" });
+
+const stockChangeSchema = z.object({
+    mode: z.enum(["restock", "adjust"]),
+    qty: z.coerce.number().int().min(-1_000_000).max(1_000_000),
+    reason: retailText(300),
+}).superRefine((data, ctx) => {
+    if (data.qty === 0) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Quantity cannot be zero", path: ["qty"] });
+    }
+    if (data.mode === "restock" && data.qty < 0) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Restock quantity must be positive", path: ["qty"] });
+    }
+});
+
+const createSaleSchema = z.object({
+    items: z.array(z.object({
+        productId: objectId,
+        qty: z.coerce.number().int().min(1).max(999),
+    })).min(1).max(100),
+    discount: money.optional().default(0),
+    paymentMethod: z.enum(["cash", "card", "wallet"]).optional().default("cash"),
+    memberId: nullableObjectId,
+    note: retailText(300),
+    locationId: objectId.optional(),
+});
+
+const refundSaleSchema = z.object({
+    items: z.array(z.object({
+        itemId: objectId,
+        qty: z.coerce.number().int().min(1).max(999),
+    })).min(1).optional(),
+    reason: retailText(300),
+});
+
+const createVendorPayoutSchema = z.object({
+    vendorId: objectId,
+    periodFrom: dateKey,
+    periodTo: dateKey,
+    note: retailText(300),
+});
+
+const inboxReplySchema = z.object({
+    text: plainText(4000),
+});
+
+// emptyToNull would turn an omitted field into null and silently unassign or
+// unlink, so a patch must keep "missing" distinct from "clear".
+const clearableObjectId = z
+    .union([objectId, z.literal(""), z.null()])
+    .optional()
+    .transform((value) => (value === "" ? null : value));
+
+const inboxConversationPatchSchema = z.object({
+    assignedTo: clearableObjectId,
+    status: z.enum(["open", "done", "snoozed"]).optional(),
+    snoozedUntil: z.coerce.date().optional(),
+    memberId: clearableObjectId,
+    markRead: z.boolean().optional(),
+}).refine((data) => Object.values(data).some((value) => value !== undefined), {
+    message: "At least one field is required",
+});
+
 module.exports = {
+    inboxReplySchema,
+    inboxConversationPatchSchema,
     loginSchema,
     setupPasswordSchema,
     forgotPasswordSchema,
@@ -495,4 +667,14 @@ module.exports = {
     updateMaintenanceItemSchema,
     copyMaintenanceItemSchema,
     completeMaintenanceItemSchema,
+    createVendorSchema,
+    updateVendorSchema,
+    createProductCategorySchema,
+    updateProductCategorySchema,
+    createProductSchema,
+    updateProductSchema,
+    stockChangeSchema,
+    createSaleSchema,
+    refundSaleSchema,
+    createVendorPayoutSchema,
 };

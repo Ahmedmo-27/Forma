@@ -3,6 +3,10 @@ const PlatformSetting = require("../models/PlatformSetting");
 const cacheService = require("../services/cacheService");
 const logger = require("../utils/logger");
 const publicSiteService = require("../services/publicSiteService");
+const { clearMaintenanceCache } = require("../middleware/maintenanceMode");
+const { writePlatformAudit, getAuditHealth } = require("../utils/audit");
+const { listJobRuns } = require("../utils/jobRuns");
+const monitoring = require("../services/monitoring");
 
 /**
  * Get Comprehensive System Health & Status
@@ -27,6 +31,13 @@ async function getSystemHealth(_req, res) {
         const dunningSetting = await PlatformSetting.findOne({ key: "dunning_schedule" });
         const sellerSetting = await PlatformSetting.findOne({ key: "seller_details" });
         const publicSite = await publicSiteService.getPublicSiteSetting();
+        const [jobs, audit] = await Promise.all([
+            listJobRuns().catch((error) => {
+                logger.warn("platform", "Could not load job runs", { error: error.message });
+                return [];
+            }),
+            getAuditHealth(),
+        ]);
 
         res.json({
             status: dbState === 1 ? "healthy" : "degraded",
@@ -44,8 +55,11 @@ async function getSystemHealth(_req, res) {
             cache: cacheService.getStats(),
             maintenance,
             publicSite,
+            jobs,
+            audit,
+            monitoring: { sentry: monitoring.isEnabled() },
             settings: {
-                dunningSchedule: dunningSetting?.value || { gracePeriodDays: 3, reminderDays: [3, 1] },
+                dunningSchedule: dunningSetting?.value || { gracePeriodDays: 3, reminderDays: [3, 1], trialReminderDays: [7, 3, 1], overdueReminderDays: [0, 2] },
                 sellerDetails: sellerSetting?.value || null,
             },
         });
@@ -60,10 +74,12 @@ async function getSystemHealth(_req, res) {
  */
 async function toggleMaintenanceMode(req, res) {
     try {
-        const { enabled, message } = req.body;
+        const { enabled, message, estimatedResumeTime } = req.body;
+        const resumeAt = estimatedResumeTime ? new Date(estimatedResumeTime) : null;
         const value = {
             enabled: Boolean(enabled),
             message: message || "System undergoing scheduled maintenance. Please check back shortly.",
+            estimatedResumeTime: resumeAt && !Number.isNaN(resumeAt.getTime()) ? resumeAt.toISOString() : null,
             updatedAt: new Date(),
             updatedBy: req.platformUser.email,
         };
@@ -73,6 +89,14 @@ async function toggleMaintenanceMode(req, res) {
             { $set: { value, updatedBy: req.platformUser.id } },
             { upsert: true, new: true }
         );
+        clearMaintenanceCache();
+        await writePlatformAudit({
+            action: "maintenance_mode_toggled",
+            actor: req.platformUser.id,
+            targetType: "other",
+            meta: { enabled: value.enabled, message: value.message, estimatedResumeTime: value.estimatedResumeTime },
+            req,
+        });
 
         logger.info("platform", "Platform maintenance mode toggled", { enabled, updatedBy: req.platformUser.email });
         res.json({ message: `Maintenance mode ${enabled ? "ENABLED" : "DISABLED"}`, maintenance: value });

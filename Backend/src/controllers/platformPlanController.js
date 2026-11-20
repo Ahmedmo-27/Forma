@@ -1,30 +1,19 @@
+const mongoose = require("mongoose");
 const Plan = require("../models/Plan");
 const Feature = require("../models/Feature");
+const featureRollout = require("../services/featureRollout");
 const PlanPrice = require("../models/PlanPrice");
 const Coupon = require("../models/Coupon");
 const Tenant = require("../models/Tenant");
 const BillingEvent = require("../models/BillingEvent");
-const AuditLog = require("../models/AuditLog");
+const { writePlatformAudit } = require("../utils/audit");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const logger = require("../utils/logger");
 const { BILLING_CURRENCY } = require("../config/currency");
+const { FEATURES, FEATURE_BY_KEY, CATEGORIES, catalogEntry } = require("../config/featureRegistry");
+const featureSync = require("../services/featureSync");
 
-const DEFAULT_FEATURES = [
-    { key: "members", name: "Members Management", category: "members", description: "Full membership directory, profiles, barcodes, and statuses", isCore: true },
-    { key: "checkin", name: "Access & Check-in", category: "core", description: "Front desk barcode scanning, access gates, and attendance tracking", isCore: true },
-    { key: "packages", name: "Packages & Subscriptions", category: "finance", description: "Gym membership packages, durations, session tracking, and renewals", isCore: true },
-    { key: "pt_tracking", name: "Personal Training (PT)", category: "coaching", description: "PT assignment, coach session balances, and coach commissions", isCore: false },
-    { key: "audit", name: "Audit Trail", category: "core", description: "Action logging, operator activity history, and security changes", isCore: true },
-    { key: "accounting", name: "Ledger & Accounting", category: "finance", description: "Income, expense transactions, cash drawer tracking, and financial statements", isCore: false },
-    { key: "exception_approvals", name: "Exception Approvals", category: "finance", description: "Discount, freeze, refund, and package exception approval workflows", isCore: false },
-    { key: "sales_crm", name: "Sales Pipeline & CRM", category: "sales", description: "Lead tracking, pipeline stages, sales rep assignment, and conversion reports", isCore: false },
-    { key: "whatsapp", name: "WhatsApp Automation", category: "communication", description: "Automated WhatsApp notifications, payment receipts, and expiring reminders", isCore: false },
-    { key: "excel_import", name: "Excel Import & Export", category: "integrations", description: "Bulk member import from spreadsheet and CSV financial export", isCore: false },
-    { key: "exec_analytics", name: "Executive Analytics", category: "analytics", description: "Churn analytics, revenue forecasting, retention cohorts, and attendance heatmaps", isCore: false },
-    { key: "funnels", name: "Sales Conversion Funnels", category: "analytics", description: "Lead-to-member conversion tracking, drop-off analysis, and marketing ROI", isCore: false },
-    { key: "business_intelligence", name: "Business Intelligence", category: "analytics", description: "Custom KPI dashboards, executive summaries, and multi-branch rollups", isCore: false },
-    { key: "multi_branches", name: "Multi-Branch Locations", category: "core", description: "Link multiple gym branches, switch location data in the navbar, and grant staff per-location access", isCore: false },
-];
+const DEFAULT_FEATURES = FEATURES.map(catalogEntry);
 
 const SYSTEM_ROLES = [
     {
@@ -89,39 +78,29 @@ const SYSTEM_ROLES = [
 // 1. Feature Catalog & Roles Management
 // ==========================================
 
+/** Keeps the catalog in step with config/featureRegistry. Non-blocking on failure. */
 async function ensureDefaultFeatures() {
     try {
-        const count = await Feature.countDocuments();
-        if (count === 0) {
-            for (const item of DEFAULT_FEATURES) {
-                await Feature.findOneAndUpdate(
-                    { key: item.key },
-                    { $setOnInsert: item },
-                    { upsert: true }
-                );
-            }
-        } else {
-            // Backfill features added after initial seed (e.g. multi_branches)
-            for (const item of DEFAULT_FEATURES) {
-                await Feature.findOneAndUpdate(
-                    { key: item.key },
-                    { $setOnInsert: item },
-                    { upsert: true }
-                );
-            }
-        }
-        const { ensureMultiBranchesOnPlans } = require("../utils/ensureMultiBranches");
-        await ensureMultiBranchesOnPlans();
+        await featureSync.syncFeatureCatalog();
     } catch (_) {
         // Non-blocking in case of race condition
     }
 }
 
+/** Registry metadata (pages a feature controls) merged onto a catalog document. */
+function withRegistryMeta(feature) {
+    const plain = typeof feature.toObject === "function" ? feature.toObject() : feature;
+    const meta = FEATURE_BY_KEY.get(plain.key);
+    return { ...plain, pages: meta?.pages || [], builtIn: Boolean(meta) };
+}
+
 async function getFeatures(_req, res) {
     try {
         await ensureDefaultFeatures();
-        const features = await Feature.find().sort({ category: 1, name: 1 });
-        res.json(features);
+        const features = await Feature.find()
+            .populate("rollout.pilotTenantIds", "slug name")
+            .sort({ category: 1, name: 1 });
+        res.json(features.map(withRegistryMeta));
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
     }
@@ -163,20 +142,104 @@ async function createFeature(req, res) {
     }
 }
 
+/**
+ * Validates a rollout payload. Pilot gyms may be given as ids or slugs.
+ */
+async function parseRollout(rollout) {
+    if (!rollout || typeof rollout !== "object") return { error: "rollout must be an object" };
+    const mode = rollout.mode || "all";
+    if (!featureRollout.MODES.includes(mode)) {
+        return { error: `rollout.mode must be one of: ${featureRollout.MODES.join(", ")}` };
+    }
+    const percentage = Number(rollout.percentage ?? 0);
+    if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
+        return { error: "rollout.percentage must be between 0 and 100" };
+    }
+
+    const refs = Array.isArray(rollout.pilotTenants) ? rollout.pilotTenants : rollout.pilotTenantIds || [];
+    const cleaned = [...new Set(refs.map((ref) => String(ref).trim().toLowerCase()).filter(Boolean))];
+    if (cleaned.length > 500) return { error: "At most 500 pilot gyms per feature" };
+    const ids = cleaned.filter((ref) => mongoose.Types.ObjectId.isValid(ref) && /^[a-f0-9]{24}$/.test(ref));
+    const slugs = cleaned.filter((ref) => !ids.includes(ref));
+    const tenants = cleaned.length
+        ? await Tenant.find({ $or: [{ _id: { $in: ids } }, { slug: { $in: slugs } }] }).select("_id slug").lean()
+        : [];
+    const found = new Set(tenants.flatMap((t) => [String(t._id), t.slug]));
+    const missing = cleaned.filter((ref) => !found.has(ref));
+    if (missing.length) return { error: `Unknown gyms: ${missing.slice(0, 10).join(", ")}` };
+
+    return {
+        rollout: {
+            mode,
+            percentage: Math.round(percentage),
+            pilotTenantIds: tenants.map((t) => t._id),
+        },
+    };
+}
+
 async function updateFeature(req, res) {
     try {
         const { id } = req.params;
-        const { key, name, description, category, isCore, isActive } = req.body;
+        const { key, name, description, category, isCore, isActive, rollout } = req.body;
         const updates = {};
-        if (key !== undefined) updates.key = String(key).trim().toLowerCase();
+        if (key !== undefined) {
+            const nextKey = String(key).trim().toLowerCase();
+            const current = await Feature.findById(id).select("key").lean();
+            if (current && current.key !== nextKey && FEATURE_BY_KEY.has(current.key)) {
+                return res.status(400).json({ message: "Built-in feature keys can't be renamed because the app checks them by key." });
+            }
+            updates.key = nextKey;
+        }
         if (name !== undefined) updates.name = String(name).trim();
         if (description !== undefined) updates.description = description;
-        if (category !== undefined) updates.category = category;
+        if (category !== undefined) {
+            if (!CATEGORIES.includes(category)) {
+                return res.status(400).json({ message: `category must be one of: ${CATEGORIES.join(", ")}` });
+            }
+            updates.category = category;
+        }
         if (isCore !== undefined) updates.isCore = Boolean(isCore);
         if (isActive !== undefined) updates.isActive = Boolean(isActive);
 
+        if (updates.isActive === false) {
+            const current = await Feature.findById(id).select("key isCore").lean();
+            if (current?.isCore) {
+                return res.status(400).json({ message: "Core features can't be deactivated." });
+            }
+        }
+
+        let before = null;
+        if (rollout !== undefined) {
+            const parsed = await parseRollout(rollout);
+            if (parsed.error) return res.status(400).json({ message: parsed.error });
+            updates.rollout = parsed.rollout;
+            before = await Feature.findById(id).select("key isCore rollout").lean();
+            if (before?.isCore && parsed.rollout.mode !== "all") {
+                return res.status(400).json({ message: "Core features are always on for every gym and can't be staged." });
+            }
+        }
+
         const feature = await Feature.findByIdAndUpdate(id, updates, { new: true });
         if (!feature) return res.status(404).json({ message: "Feature not found" });
+
+        if (rollout !== undefined || updates.isActive !== undefined) {
+            await featureRollout.refreshRules();
+        }
+        if (rollout !== undefined) {
+            await writePlatformAudit({
+                action: "feature_rollout_updated",
+                actor: req.platformUser.id,
+                targetType: "feature",
+                targetId: feature._id.toString(),
+                meta: {
+                    featureKey: feature.key,
+                    before: featureRollout.rolloutSummary(before?.rollout),
+                    after: featureRollout.rolloutSummary(feature.rollout),
+                    reason: typeof req.body.reason === "string" ? req.body.reason.trim() : undefined,
+                },
+                req,
+            });
+        }
         res.json(feature);
     } catch (err) {
         res.status(500).json({ message: "Server error", error: err.message });
@@ -189,6 +252,7 @@ async function updateFeature(req, res) {
 
 async function getPlans(_req, res) {
     try {
+        await featureSync.ensureSynced();
         const plans = await Plan.find().sort({ sortOrder: 1, priceMonthly: 1 });
         res.json(plans);
     } catch (err) {
@@ -196,17 +260,41 @@ async function getPlans(_req, res) {
     }
 }
 
+/**
+ * Plan features must exist in the catalog. Returns an error message, or null when valid.
+ */
+async function unknownFeatureError(features) {
+    if (features === undefined) return null;
+    if (!Array.isArray(features) || features.some((key) => typeof key !== "string")) {
+        return "features must be an array of feature keys";
+    }
+    const wanted = [...new Set(features)].filter((key) => !FEATURE_BY_KEY.has(key));
+    if (!wanted.length) return null;
+    const known = await Feature.find({ key: { $in: wanted } }).select("key").lean();
+    const knownSet = new Set(known.map((item) => item.key));
+    const missing = wanted.filter((key) => !knownSet.has(key));
+    return missing.length ? `Unknown feature: ${missing.slice(0, 5).join(", ")}` : null;
+}
+
 async function createPlan(req, res) {
     try {
-        const { key, name, priceMonthly, priceYearly, features, allowedRoles, limits, fairUseCaps, visibility, description } = req.body;
+        const { key, name, priceMonthly, priceYearly, features, allowedRoles, limits, fairUseCaps, visibility, description, featured } = req.body;
 
-        const existing = await Plan.findOne({ key: key?.trim()?.toLowerCase() });
+        const normalizedKey = key?.trim()?.toLowerCase();
+        if (!normalizedKey || !Plan.PLAN_KEY_PATTERN.test(normalizedKey)) {
+            return res.status(400).json({ message: "Plan key must be 2-32 lowercase letters, numbers, hyphens or underscores" });
+        }
+        const featureError = await unknownFeatureError(features);
+        if (featureError) return res.status(400).json({ message: featureError });
+
+        const existing = await Plan.findOne({ key: normalizedKey });
         if (existing) {
             return res.status(400).json({ message: `Plan key '${key}' already exists` });
         }
 
         const plan = await Plan.create({
-            key: key?.trim()?.toLowerCase(),
+            key: normalizedKey,
+            featured: Boolean(featured),
             name: name?.trim(),
             priceMonthly,
             priceYearly,
@@ -297,8 +385,13 @@ async function updatePlan(req, res) {
             description,
             sortOrder,
             isActive,
+            featured,
         } = req.body;
 
+        const featureError = await unknownFeatureError(features);
+        if (featureError) return res.status(400).json({ message: featureError });
+
+        if (featured !== undefined) plan.featured = Boolean(featured);
         if (name !== undefined) plan.name = String(name).trim();
         if (priceMonthly !== undefined) plan.priceMonthly = priceMonthly;
         if (priceYearly !== undefined) plan.priceYearly = priceYearly;
@@ -334,10 +427,9 @@ async function archivePlan(req, res) {
         plan.isActive = false;
         await plan.save();
 
-        await AuditLog.create({
-            action: "plan_updated",
+        await writePlatformAudit({
+            action: "plan_archived",
             actor: req.platformUser.id,
-            actorRole: "PlatformUser",
             targetType: "plan",
             targetId: plan._id.toString(),
             meta: {
@@ -345,6 +437,7 @@ async function archivePlan(req, res) {
                 planKey: plan.key,
                 reason,
             },
+            req,
         });
 
         res.json({ message: `Plan '${plan.name}' archived. Existing subscribers remain untouched.`, plan });

@@ -24,6 +24,7 @@ const { BILLING_CURRENCY } = require("../config/currency");
 const { setPackageTransferFee } = require("../utils/packageTransferFee");
 const { countMonthlyWhatsAppMessages } = require("../utils/whatsappTracking");
 const { publicBranding, resolveSavedPalette } = require("../utils/showcasePalette");
+const { resolveFairUseLimits, DEFAULT_CAPS } = require("../utils/fairUse");
 
 function sanitizeTenantResponse(tenant, plan, usage = {}) {
     const effectiveFeatures = getEffectiveFeatures(tenant, plan);
@@ -37,27 +38,14 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
         entitlementPolicy: tenant.billing.lifetime.entitlementPolicy || "follow_tier",
         lifetimeTermsVersion: tenant.billing.lifetime.lifetimeTermsVersion,
         fairUseLimits: tenant.billing.lifetime.fairUseLimits || {
-            storageGbLimit: 25,
-            whatsappMessagesMonthlyLimit: 2000,
+            storageGbLimit: DEFAULT_CAPS.storageGb,
+            whatsappMessagesMonthlyLimit: DEFAULT_CAPS.whatsappMonthlyMessages,
         },
     } : null;
 
-    const storageGbLimit = tenant?.limitOverrides?.storageGb != null
-        ? tenant.limitOverrides.storageGb
-        : (isLifetime
-            ? (tenant.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25)
-            : (plan?.fairUseCaps?.storageGb ?? 25));
-
-    const whatsappLimit = tenant?.limitOverrides?.whatsappMonthlyMessages != null
-        ? tenant.limitOverrides.whatsappMonthlyMessages
-        : (isLifetime
-            ? (tenant.billing?.lifetime?.fairUseLimits?.whatsappMessagesMonthlyLimit || 2000)
-            : (plan?.fairUseCaps?.whatsappMessagesMonthly ?? 2000));
-
     const resolvedLimits = {
         ...limits,
-        storageGb: storageGbLimit,
-        whatsappMonthlyMessages: whatsappLimit,
+        ...resolveFairUseLimits(tenant, plan),
     };
 
     return {
@@ -69,6 +57,9 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
         brandingLocked: false,
         trialEndsAt: isLifetime ? null : tenant.trialEndsAt,
         currentPeriodEnd: isLifetime ? null : tenant.currentPeriodEnd,
+        dunning: tenant.status === "past_due"
+            ? { graceEndsAt: tenant.dunning?.graceEndsAt || null }
+            : null,
         billing: {
             cycle: tenant?.billing?.cycle || "monthly",
             isLifetime,
@@ -109,8 +100,26 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
                 hasAccessToken: Boolean(tenant.settings?.whatsapp?.accessToken),
             },
             featureConfig: tenant.settings?.featureConfig || {},
+            notifications: {
+                weeklyDigest: tenant.settings?.notifications?.weeklyDigest !== false,
+            },
+            onboarding: {
+                dismissedAt: tenant.settings?.onboarding?.dismissedAt || null,
+            },
+            contractTerms: tenant.settings?.contractTerms || "",
         },
+        billingProfile: publicBillingProfile(tenant.billingProfile),
     };
+}
+
+const BILLING_PROFILE_FIELDS = [
+    "legalName", "taxNumber", "commercialRegistration", "addressLine1", "addressLine2",
+    "city", "region", "postalCode", "country", "billingEmail", "phone", "updatedAt",
+];
+
+function publicBillingProfile(profile) {
+    const source = profile?.toObject?.() || profile || {};
+    return Object.fromEntries(BILLING_PROFILE_FIELDS.map((key) => [key, source[key] ?? null]));
 }
 
 /**
@@ -133,9 +142,9 @@ const getMyTenant = async (req, res) => {
             return res.status(404).json({ message: "Tenant not found" });
         }
 
-        const { ensureTenantMultiBranches } = require("../utils/ensureMultiBranches");
-        await ensureTenantMultiBranches(tenant, tenant.planId);
-        // Refresh plan after possible gold/platinum feature backfill (skip when DB down / unit tests)
+        // Make sure newly registered feature keys were backfilled onto plans before
+        // we report this gym's effective features.
+        await require("../services/featureSync").ensureSynced();
         if (tenant.planId?._id && mongoose.connection.readyState === 1) {
             const Plan = require("../models/Plan");
             const freshPlan = await runAsPlatform(async () => Plan.findById(tenant.planId._id));
@@ -210,6 +219,21 @@ const updatePackageTransferFee = async (req, res) => {
     }
 };
 
+/**
+ * GET /api/tenant/onboarding
+ * Setup checklist for the owner dashboard.
+ */
+const getOnboarding = async (req, res) => {
+    try {
+        const tenant = await runAsPlatform(() => Tenant.findById(req.user.tenantId).populate("planId"));
+        if (!tenant) return res.status(404).json({ message: "Tenant not found" });
+        const { getOnboardingChecklist } = require("../services/onboardingService");
+        res.json(await getOnboardingChecklist(tenant, tenant.planId));
+    } catch (error) {
+        res.status(500).json({ message: error.message || "Server error" });
+    }
+};
+
 const updateMyTenantSettings = async (req, res) => {
     try {
         const tenantId = req.user?.tenantId;
@@ -222,7 +246,11 @@ const updateMyTenantSettings = async (req, res) => {
         }
 
         const raw = req.body.settings ? { ...req.body.settings, ...req.body } : req.body;
-        const { branding, locale, enabledActivities, whatsapp, featureConfig } = raw;
+        const { branding, locale, enabledActivities, whatsapp, featureConfig, notifications, onboarding, billingProfile } = raw;
+
+        if (billingProfile && req.user.role !== "Owner") {
+            return res.status(403).json({ message: "Only the gym owner can change the billing profile" });
+        }
 
         const brandingInput = branding;
 
@@ -293,6 +321,31 @@ const updateMyTenantSettings = async (req, res) => {
             tenant.settings.packageTransferFee = fee;
         }
 
+        if (notifications && typeof notifications.weeklyDigest === "boolean") {
+            tenant.set("settings.notifications.weeklyDigest", notifications.weeklyDigest);
+        }
+
+        if (onboarding && typeof onboarding.dismissed === "boolean") {
+            tenant.set("settings.onboarding.dismissedAt", onboarding.dismissed ? new Date() : null);
+        }
+
+        if (typeof raw.contractTerms === "string") {
+            tenant.set("settings.contractTerms", raw.contractTerms);
+        }
+
+        let billingProfileChanged = [];
+        if (billingProfile) {
+            const current = tenant.billingProfile?.toObject?.() || tenant.billingProfile || {};
+            billingProfileChanged = Object.keys(billingProfile).filter(
+                (key) => billingProfile[key] !== undefined && (current[key] ?? null) !== billingProfile[key]
+            );
+            const next = { ...current };
+            for (const key of billingProfileChanged) next[key] = billingProfile[key];
+            next.updatedAt = new Date();
+            tenant.billingProfile = next;
+            tenant.markModified("billingProfile");
+        }
+
         tenant.markModified("settings");
 
         await runAsPlatform(async () => {
@@ -308,6 +361,17 @@ const updateMyTenantSettings = async (req, res) => {
             meta: { updatedSettings: Object.keys(req.body) },
             req,
         });
+        if (billingProfileChanged.length) {
+            await writeAudit({
+                action: "tenant_billing_profile_updated",
+                actor: req.user.id,
+                actorRole: req.user.role,
+                targetType: "tenant",
+                targetId: tenant._id.toString(),
+                meta: { fields: billingProfileChanged },
+                req,
+            });
+        }
 
         const [membersCount, staffCount] = await Promise.all([
             Member.countDocuments(),
@@ -480,6 +544,7 @@ const updateRoleAccess = async (req, res) => {
 
 module.exports = {
     getMyTenant,
+    getOnboarding,
     updateMyTenantSettings,
     updatePackageTransferFee,
     uploadTenantLogo,

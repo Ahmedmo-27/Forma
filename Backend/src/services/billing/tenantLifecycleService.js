@@ -2,6 +2,8 @@ const Tenant = require("../../models/Tenant");
 const logger = require("../../utils/logger");
 const { runAsPlatform } = require("../../context/tenantContext");
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Tenant Lifecycle Background Service
  * Handles trial expiration and renewal grace periods.
@@ -9,7 +11,7 @@ const { runAsPlatform } = require("../../context/tenantContext");
  * CRITICAL SAFETY INVARIANT:
  * Lifetime tenants ("billing.cycle === 'lifetime'") MUST NEVER BE EXPIRED OR DOWNGRADED.
  */
-async function processTenantExpiryCycles(now = new Date()) {
+async function processTenantExpiryCycles(now = new Date(), { gracePeriodDays = 3 } = {}) {
     return runAsPlatform(async () => {
         try {
             // 1. Expire trials: ONLY for non-lifetime tenants
@@ -24,7 +26,7 @@ async function processTenantExpiryCycles(now = new Date()) {
                 }
             );
 
-            // 2. Mark overdue active subscriptions as past_due: ONLY for non-lifetime tenants
+            // 2. Mark overdue active subscriptions as past_due and start the grace period: ONLY for non-lifetime tenants
             const overdueSubResult = await Tenant.updateMany(
                 {
                     status: "active",
@@ -32,7 +34,14 @@ async function processTenantExpiryCycles(now = new Date()) {
                     currentPeriodEnd: { $lt: now, $ne: null },
                 },
                 {
-                    $set: { status: "past_due" },
+                    $set: {
+                        status: "past_due",
+                        "dunning.pastDueSince": now,
+                        "dunning.graceEndsAt": new Date(now.getTime() + gracePeriodDays * DAY_MS),
+                        "dunning.suspendedAt": null,
+                        "dunning.suspendedByDunning": false,
+                        "dunning.markedBy": "system",
+                    },
                 }
             );
 

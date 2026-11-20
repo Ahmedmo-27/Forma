@@ -8,6 +8,8 @@ const {
     accountSuspendedEmail,
     trialEndingEmail,
     paymentReminderEmail,
+    paymentOverdueEmail,
+    ownerDigestEmail,
     campaignEmail,
 } = require("./emailTemplates");
 
@@ -136,6 +138,16 @@ async function sendPaymentReminder({ to, name, gymName, daysLeft, appUrl }) {
     return sendMail({ to, ...content, from: defaultFrom() });
 }
 
+async function sendPaymentOverdue({ to, name, gymName, daysUntilSuspension, appUrl }) {
+    const content = paymentOverdueEmail({ name, gymName, daysUntilSuspension, appUrl });
+    return sendMail({ to, ...content, from: defaultFrom() });
+}
+
+async function sendOwnerDigest({ to, name, gymName, periodLabel, metrics, highlights, appUrl }) {
+    const content = ownerDigestEmail({ name, gymName, periodLabel, metrics, highlights, appUrl });
+    return sendMail({ to, ...content, from: defaultFrom() });
+}
+
 async function sendCampaign({ to, name, gymName, subject, message, ctaLabel, ctaUrl }) {
     const content = campaignEmail({ name, gymName, subject, message, ctaLabel, ctaUrl });
     return sendMail({ to, ...content, from: defaultFrom() });
@@ -156,6 +168,8 @@ module.exports = {
     sendAccountSuspended,
     sendTrialEnding,
     sendPaymentReminder,
+    sendPaymentOverdue,
+    sendOwnerDigest,
     sendCampaign,
     sendInvoiceEmail,
 };

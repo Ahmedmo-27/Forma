@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
+const { enforceSubscriptionStatus } = require("../middleware/tenantStatus");
 const { allowRoles } = require("../middleware/accessMiddleware");
 const validate = require("../middleware/validate");
 const { requireFeature } = require("../middleware/featureGating");
@@ -19,6 +20,7 @@ const {
 } = require("../controllers/packageExceptionController");
 
 router.use(protect);
+router.use(enforceSubscriptionStatus);
 router.use(requireFeature("exception_approvals"));
 router.use(locationScopeOptional);
 

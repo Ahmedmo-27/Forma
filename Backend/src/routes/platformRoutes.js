@@ -76,6 +76,7 @@ const {
     getOverview,
     getSnapshots,
     getUpsellAndChurnLists,
+    getAtRiskQueue,
     getCostInsights,
     triggerSnapshot,
     exportAnalyticsCsv,
@@ -206,6 +207,7 @@ router.get("/billing/ledger/export", requirePlatformPermission(PERMISSIONS.BILLI
 router.get("/analytics/overview", requirePlatformPermission(PERMISSIONS.ANALYTICS_VIEW), cacheResponse({ ttlSeconds: 180, scope: "platform", tags: ["platform:analytics"] }), getOverview);
 router.get("/analytics/snapshots", requirePlatformPermission(PERMISSIONS.ANALYTICS_VIEW), cacheResponse({ ttlSeconds: 300, scope: "platform", tags: ["platform:analytics"] }), getSnapshots);
 router.get("/analytics/health-details", requirePlatformPermission(PERMISSIONS.ANALYTICS_VIEW), cacheResponse({ ttlSeconds: 180, scope: "platform", tags: ["platform:analytics"] }), getUpsellAndChurnLists);
+router.get("/analytics/at-risk", requirePlatformPermission(PERMISSIONS.ANALYTICS_VIEW), cacheResponse({ ttlSeconds: 180, scope: "platform", tags: ["platform:analytics", "platform:tenants"] }), getAtRiskQueue);
 router.get("/analytics/cost-insights", requirePlatformPermission(PERMISSIONS.ANALYTICS_VIEW), cacheResponse({ ttlSeconds: 180, scope: "platform", tags: ["platform:analytics"] }), getCostInsights);
 router.post("/analytics/snapshots/compute", requirePlatformPermission(PERMISSIONS.ANALYTICS_VIEW), autoInvalidate(["analytics"], "platform"), triggerSnapshot);
 router.get("/analytics/export", requirePlatformPermission(PERMISSIONS.ANALYTICS_VIEW), exportAnalyticsCsv);

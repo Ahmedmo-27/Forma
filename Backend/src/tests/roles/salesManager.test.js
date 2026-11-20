@@ -29,6 +29,8 @@ describe("Sales Manager", () => {
             "targets",
             "approve_requests",
             "whatsapp_templates",
+            "inbox_view",
+            "inbox_reply",
             "reports",
             "contracts",
             "access_control",

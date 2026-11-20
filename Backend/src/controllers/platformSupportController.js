@@ -10,12 +10,14 @@ const CoachRepRequest = require("../models/CoachRepRequest");
 const SalesRepRequest = require("../models/SalesRepRequest");
 const PackageExceptionRequest = require("../models/PackageExceptionRequest");
 const ProfileView = require("../models/ProfileView");
+const ContractSignature = require("../models/ContractSignature");
 const TenantNote = require("../models/TenantNote");
 const Announcement = require("../models/Announcement");
 const storageService = require("../services/storageService");
 const { runAsPlatform } = require("../context/tenantContext");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const logger = require("../utils/logger");
+const { writePlatformAudit } = require("../utils/audit");
 
 // ==========================================
 // 1. Secure Audited Impersonation
@@ -206,6 +208,7 @@ async function purgeTenant(req, res) {
                 SalesRepRequest.deleteMany({ tenantId }),
                 PackageExceptionRequest.deleteMany({ tenantId }),
                 ProfileView.deleteMany({ tenantId }),
+                ContractSignature.deleteMany({ tenantId }),
             ]);
 
             try {
@@ -218,11 +221,10 @@ async function purgeTenant(req, res) {
             await Tenant.findByIdAndDelete(tenantId);
 
             // Write permanent tombstone audit log with tenantId = null so it survives
-            await AuditLog.create({
-                tenantId: null,
-                action: "tenant_status_updated",
+            await writePlatformAudit({
+                action: "tenant_purged",
                 actor: req.platformUser.id,
-                actorRole: "PlatformUser",
+                req,
                 targetType: "tenant",
                 targetId: tenantId.toString(),
                 meta: {
@@ -364,9 +366,11 @@ async function getPlatformAuditLogs(req, res) {
     try {
         const { page, limit, skip } = parsePagination(req.query, { defaultLimit: 25 });
 
-        const { tenantId, action, actor, fromDate, toDate } = req.query;
+        const { tenantId, action, actor, fromDate, toDate, scope } = req.query;
         const filter = {};
         if (tenantId) filter.tenantId = tenantId;
+        if (scope === "platform") filter.scope = "platform";
+        else if (scope === "tenant") filter.scope = { $ne: "platform" };
         if (action) filter.action = action;
         if (actor) filter.actor = actor;
         if (fromDate || toDate) {

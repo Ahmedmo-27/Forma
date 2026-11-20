@@ -22,6 +22,8 @@ function getHealth(_req, res) {
     };
 
     res.set("Cache-Control", "no-store");
+    // While Mongo is still connecting, tell probes and proxies to retry shortly.
+    if (!dbReady) res.set("Retry-After", "5");
     return res.status(dbReady ? 200 : 503).json(payload);
 }
 

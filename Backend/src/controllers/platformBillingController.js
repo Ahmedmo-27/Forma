@@ -12,6 +12,7 @@ const logger = require("../utils/logger");
 const User = require("../models/User");
 const mailer = require("../services/mailer");
 const { BILLING_CURRENCY } = require("../config/currency");
+const { assessLimitChange, overLimitResponse } = require("../services/planLimitService");
 
 // ==========================================
 // 1. Manual Payments Inbox
@@ -315,6 +316,11 @@ async function issueManualGrant(req, res) {
                 rawIntervalCount != null ? rawIntervalCount : durationMonths
             );
 
+            const { overages } = await assessLimitChange(tenant, { plan });
+            if (overages.length && req.body.force !== true) {
+                return res.status(409).json(overLimitResponse(overages, plan.name));
+            }
+
             // Recurring complementary grant
             const now = new Date();
             tenant.status = "active";
@@ -334,7 +340,12 @@ async function issueManualGrant(req, res) {
                 currency: BILLING_CURRENCY,
                 actorId: req.platformUser.id,
                 actorType: "PlatformAdmin",
-                meta: { reason, durationMonths, grantedBy: req.platformUser.email },
+                meta: {
+                    reason,
+                    durationMonths,
+                    grantedBy: req.platformUser.email,
+                    ...(overages.length ? { overLimits: overages } : {}),
+                },
             });
 
             res.json({ message: "Complimentary grant issued successfully", tenant, billingEvent });

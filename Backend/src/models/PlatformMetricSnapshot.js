@@ -20,6 +20,8 @@ const platformMetricSnapshotSchema = new mongoose.Schema(
             totalCollected: { type: Number, default: 0 },
             refundsTotal: { type: Number, default: 0 },
             netRevenue: { type: Number, default: 0 },
+            currency: { type: String, default: "EGP" },
+            excludedByCurrency: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
             byPlan: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
         },
         growth: {
@@ -32,7 +34,8 @@ const platformMetricSnapshotSchema = new mongoose.Schema(
             newTenantsPeriod: { type: Number, default: 0 },
             churnedTenantsPeriod: { type: Number, default: 0 },
             logoChurnRate: { type: Number, default: 0 },
-            netRevenueRetention: { type: Number, default: 100 },
+            netRevenueRetention: { type: Number, default: null },
+            nrrStatus: { type: String, default: null },
         },
         mix: {
             byPlan: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
@@ -48,6 +51,8 @@ const platformMetricSnapshotSchema = new mongoose.Schema(
         health: {
             upsellCandidates: { type: Number, default: 0 },
             churnRisks: { type: Number, default: 0 },
+            untrackedActivity: { type: Number, default: 0 },
+            averageHealthScore: { type: Number, default: 0 },
             expiringTrialsCount: { type: Number, default: 0 },
             pastDueCount: { type: Number, default: 0 },
         },

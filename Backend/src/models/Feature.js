@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { CATEGORIES } = require("../config/featureRegistry");
 
 const featureSchema = new mongoose.Schema(
     {
@@ -21,7 +22,7 @@ const featureSchema = new mongoose.Schema(
         },
         category: {
             type: String,
-            enum: ["core", "members", "sales", "coaching", "finance", "communication", "analytics", "integrations"],
+            enum: CATEGORIES,
             default: "core",
             index: true,
         },
@@ -33,6 +34,18 @@ const featureSchema = new mongoose.Schema(
             type: Boolean,
             default: true,
             index: true,
+        },
+        // Set once the catalog sync has handled this key for existing plans, so a
+        // plan the operator later edits is never re-seeded.
+        plansBackfilledAt: {
+            type: Date,
+            default: null,
+        },
+        // Which gyms on a plan that includes this feature actually get it.
+        rollout: {
+            mode: { type: String, enum: ["all", "pilot", "percentage", "off"], default: "all" },
+            percentage: { type: Number, min: 0, max: 100, default: 0 },
+            pilotTenantIds: [{ type: mongoose.Schema.Types.ObjectId, ref: "Tenant" }],
         },
     },
     { timestamps: true }

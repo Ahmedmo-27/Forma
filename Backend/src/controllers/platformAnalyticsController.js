@@ -4,10 +4,14 @@ const Member = require("../models/Member");
 const User = require("../models/User");
 const AuditLog = require("../models/AuditLog");
 const platformAnalyticsService = require("../services/platformAnalyticsService");
+const churnRiskService = require("../services/churnRiskService");
+const { getEffectiveLimits } = require("../models/Tenant");
+const { resolveFairUseLimits } = require("../utils/fairUse");
 const { getTenantStorageBytes } = require("./platformTenantController");
 const { runAsPlatform } = require("../context/tenantContext");
 const { WHATSAPP_AUDIT_ACTIONS } = require("../utils/whatsappTracking");
 const logger = require("../utils/logger");
+const { writePlatformAudit } = require("../utils/audit");
 
 /**
  * Get Business Overview Dashboard
@@ -71,8 +75,9 @@ async function getUpsellAndChurnLists(req, res) {
                     User.collection.countDocuments({ tenantId: t._id }),
                 ]);
 
-                const maxMembers = t.limitOverrides?.maxMembers || t.planId?.limits?.maxMembers || 500;
-                const maxStaff = t.limitOverrides?.maxStaff || t.planId?.limits?.maxStaff || 10;
+                const limits = getEffectiveLimits(t, t.planId);
+                const maxMembers = Number(limits.maxMembers) > 0 ? Number(limits.maxMembers) : null;
+                const maxStaff = Number(limits.maxStaff) > 0 ? Number(limits.maxStaff) : null;
 
                 const memberRatio = maxMembers ? memberCount / maxMembers : 0;
                 const staffRatio = maxStaff ? staffCount / maxStaff : 0;
@@ -125,6 +130,20 @@ async function getUpsellAndChurnLists(req, res) {
 }
 
 /**
+ * At-risk gyms with the signals behind each score and suggested next steps.
+ * GET /api/platform/analytics/at-risk?level=medium|high|low
+ */
+async function getAtRiskQueue(req, res) {
+    try {
+        const level = ["low", "medium", "high"].includes(req.query.level) ? req.query.level : "medium";
+        res.json(await churnRiskService.buildAtRiskQueue({ minLevel: level }));
+    } catch (err) {
+        logger.error("platform", "getAtRiskQueue error", { error: err.message });
+        res.status(500).json({ message: "Server error", error: err.message });
+    }
+}
+
+/**
  * Get Cost & Top Consumers (Storage & WhatsApp)
  * GET /api/platform/analytics/cost-insights
  */
@@ -148,11 +167,7 @@ async function getCostInsights(req, res) {
 
                     const isLifetime = t.billing?.cycle === "lifetime";
                     const storageGb = storageBytes / (1024 * 1024 * 1024);
-                    const storageLimitGb = t.limitOverrides?.storageGb != null
-                        ? t.limitOverrides.storageGb
-                        : (isLifetime
-                            ? (t.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25)
-                            : (t.planId?.fairUseCaps?.storageGb ?? 25));
+                    const storageLimitGb = resolveFairUseLimits(t, t.planId).storageGb;
                     const isStorageOverCap = storageLimitGb ? storageGb > storageLimitGb : false;
 
                     return {
@@ -222,18 +237,14 @@ async function exportAnalyticsCsv(req, res) {
             rows: snapshots.length,
         });
         if (req.platformUser?.id) {
-            try {
-                await runAsPlatform(() => AuditLog.create({
-                    tenantId: req.platformUser.id,
-                    action: "platform_analytics_exported",
-                    actor: req.platformUser.id,
-                    actorRole: req.platformUser.role || "PlatformUser",
-                    targetType: "other",
-                    meta: { rows: snapshots.length },
-                }));
-            } catch (auditError) {
-                logger.info("platform", "platform export audit skipped", { error: auditError.message });
-            }
+            await writePlatformAudit({
+                action: "platform_analytics_exported",
+                actor: req.platformUser.id,
+                actorRole: req.platformUser.role || "PlatformUser",
+                targetType: "other",
+                meta: { rows: snapshots.length },
+                req,
+            });
         }
         res.setHeader("Content-Type", "text/csv");
         res.setHeader("Content-Disposition", 'attachment; filename="platform-analytics-snapshots.csv"');
@@ -248,6 +259,7 @@ module.exports = {
     getOverview,
     getSnapshots,
     getUpsellAndChurnLists,
+    getAtRiskQueue,
     getCostInsights,
     triggerSnapshot,
     exportAnalyticsCsv,

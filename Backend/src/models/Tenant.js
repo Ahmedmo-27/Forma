@@ -91,6 +91,36 @@ const tenantBillingSchema = new mongoose.Schema(
     { _id: false }
 );
 
+const dunningSchema = new mongoose.Schema(
+    {
+        pastDueSince: { type: Date, default: null },
+        graceEndsAt: { type: Date, default: null },
+        suspendedAt: { type: Date, default: null },
+        suspendedByDunning: { type: Boolean, default: false },
+        markedBy: { type: String, enum: ["system", "platform", null], default: null },
+    },
+    { _id: false }
+);
+
+/** Legal details printed on invoices. Optional until the gym fills them in. */
+const billingProfileSchema = new mongoose.Schema(
+    {
+        legalName: { type: String, trim: true, maxlength: 200, default: "" },
+        taxNumber: { type: String, trim: true, maxlength: 50, default: "" },
+        commercialRegistration: { type: String, trim: true, maxlength: 50, default: "" },
+        addressLine1: { type: String, trim: true, maxlength: 200, default: "" },
+        addressLine2: { type: String, trim: true, maxlength: 200, default: "" },
+        city: { type: String, trim: true, maxlength: 100, default: "" },
+        region: { type: String, trim: true, maxlength: 100, default: "" },
+        postalCode: { type: String, trim: true, maxlength: 20, default: "" },
+        country: { type: String, trim: true, maxlength: 100, default: "Egypt" },
+        billingEmail: { type: String, trim: true, lowercase: true, maxlength: 200, default: "" },
+        phone: { type: String, trim: true, maxlength: 30, default: "" },
+        updatedAt: { type: Date, default: null },
+    },
+    { _id: false }
+);
+
 const tenantSettingsSchema = new mongoose.Schema(
     {
         branding: { type: brandingSchema, default: () => ({}) },
@@ -100,8 +130,20 @@ const tenantSettingsSchema = new mongoose.Schema(
             default: ["gym", "crossfit", "box", "mma", "kickboxing", "calisthenics"],
         },
         whatsapp: { type: whatsappSettingsSchema, default: () => ({}) },
+        // Reserved for per-feature tuning (options inside a module). It never turns a
+        // module on or off: access to modules comes only from plan features plus
+        // featureOverrides, which super admin controls (see config/featureRegistry).
         featureConfig: { type: mongoose.Schema.Types.Mixed, default: () => ({}) },
         packageTransferFee: { type: Number, default: 0, min: 0 },
+        // Membership terms members sign; frozen onto each ContractSignature.
+        contractTerms: { type: String, default: "", maxlength: 20000 },
+        notifications: {
+            weeklyDigest: { type: Boolean, default: true },
+        },
+        // Owner-dismissed onboarding checklist; the list itself is derived from live data.
+        onboarding: {
+            dismissedAt: { type: Date, default: null },
+        },
     },
     { _id: false }
 );
@@ -178,6 +220,14 @@ const tenantSchema = new mongoose.Schema(
         billing: {
             type: tenantBillingSchema,
             default: () => ({ cycle: "monthly" }),
+        },
+        dunning: {
+            type: dunningSchema,
+            default: () => ({}),
+        },
+        billingProfile: {
+            type: billingProfileSchema,
+            default: () => ({}),
         },
         ownerUserId: {
             type: mongoose.Schema.Types.ObjectId,
@@ -310,7 +360,8 @@ function getEffectiveFeatures(tenant, plan) {
     add.forEach((f) => baseFeatures.add(f));
     remove.forEach((f) => baseFeatures.delete(f));
 
-    return Array.from(baseFeatures);
+    const { applyRollout } = require("../services/featureRollout");
+    return applyRollout(Array.from(baseFeatures), tenant);
 }
 
 /**

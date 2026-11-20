@@ -302,6 +302,14 @@ const ERROR_CODES = {
     message: "This phone number is not registered on WhatsApp.",
     userAction: "Check the member's phone number and try again.",
   },
+  INBOX_CHANNEL_NOT_CONNECTED: {
+    code: "INBOX_CHANNEL_NOT_CONNECTED",
+    status: 409,
+    category: "data",
+    retryable: true,
+    message: "This inbox channel is not connected. Reconnect it from Connect Channels.",
+    userAction: "Open Connect Channels and reconnect the account.",
+  },
   RESOURCE_NOT_FOUND: {
     code: "RESOURCE_NOT_FOUND",
     status: 404,

@@ -59,7 +59,7 @@ router.use(enforceSubscriptionStatus);
 router.use(locationScopeOptional);
 
 // Registration is Owner-only (was publicly open — anyone could create Receptionist accounts)
-router.post("/register", authorizeRoles("Owner"), enforceStaffLimit, autoInvalidate(["users"]), registerUser);
+router.post("/register", authorizeRoles("Owner"), requireFeature("staff_management"), enforceStaffLimit, autoInvalidate(["users"]), registerUser);
 
 router.get("/profile", (req, res) => {
     res.json({ message: "protected route accessed", user: req.user });
@@ -67,7 +67,7 @@ router.get("/profile", (req, res) => {
 
 router.get("/me", getMyProfile);
 router.patch("/me", autoInvalidate(["users"]), updateMyProfile);
-router.get("/access/search", allowRoles("access_control", "Owner", "General Manager", "Sales Manager", "Head Coach"), searchUsersForAccess);
+router.get("/access/search", allowRoles("access_control", "Owner", "General Manager", "Sales Manager", "Head Coach"), requireFeature("access_control"), searchUsersForAccess);
 router.get("/sales-revenue", allowRoles("sales_dashboard", "Sales"), requireFeature("sales_crm"), cacheResponse({ ttlSeconds: 60, scope: "user", tags: ["revenue"] }), getSalesRevenue);
 router.get("/sales-manager/revenue", allowRoles("reports", "Sales Manager", "Owner", "Accountant"), requireFeature("accounting"), cacheResponse({ ttlSeconds: 120, tags: ["revenue"] }), getSalesManagerRevenue);
 router.get("/sales-manager/subscriptions", allowRoles("reports", "Sales Manager", "Owner", "Accountant"), requireFeature("accounting"), cacheResponse({ ttlSeconds: 120, tags: ["revenue", "contracts"] }), getSubscriptionsByDate);
@@ -77,21 +77,21 @@ router.get("/sales", allowRoles("sales_team", "Sales Manager", "Owner", "Account
 router.get("/receptionists", cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getReceptionists);
 router.get("/team", allowRoles("sales_team", "Sales Manager", "Owner", "Accountant"), requireFeature("sales_crm"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getSalesTeam);
 router.get("/team/:id", allowRoles("sales_team", "Sales Manager", "Owner", "Accountant"), requireFeature("sales_crm"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getSalesProfile);
-router.get("/coach-team", allowRoles("coach_team", "Head Coach", "Owner", "Sales Manager", "Receptionist", "Sales", "Accountant", "General Manager"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getCoachTeam);
-router.get("/coach-team/:id", allowRoles("coach_team", "Head Coach", "Owner"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getCoachProfile);
-router.post("/staff", allowRoles("staff", "Sales Manager", "Owner", "Head Coach"), enforceStaffLimit, autoInvalidate(["users"]), createStaffUser);
+router.get("/coach-team", allowRoles("coach_team", "Head Coach", "Owner", "Sales Manager", "Receptionist", "Sales", "Accountant", "General Manager"), requireFeature("coaching"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getCoachTeam);
+router.get("/coach-team/:id", allowRoles("coach_team", "Head Coach", "Owner"), requireFeature("coaching"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getCoachProfile);
+router.post("/staff", allowRoles("staff", "Sales Manager", "Owner", "Head Coach"), requireFeature("staff_management"), enforceStaffLimit, autoInvalidate(["users"]), createStaffUser);
 router.patch("/:id/target", protect, allowRoles("targets", "Sales Manager", "Owner", "Accountant"), requireFeature("accounting"), autoInvalidate(["users", "revenue"]), updateSalesRepTarget);
 router.patch("/:id/abilities", protect, authorizeRoles("Sales Manager", "Owner", "General Manager"), autoInvalidate(["users"]), updateSalesRepAbilities);
-router.patch("/:id/coach-abilities", protect, authorizeRoles("Head Coach", "Owner", "General Manager"), autoInvalidate(["users"]), updateCoachRepAbilities);
+router.patch("/:id/coach-abilities", protect, authorizeRoles("Head Coach", "Owner", "General Manager"), requireFeature("coaching"), autoInvalidate(["users"]), updateCoachRepAbilities);
 router.patch("/:id/phone-privacy", protect, authorizeRoles("Sales Manager", "Owner", "General Manager"), autoInvalidate(["users"]), updatePhonePrivacy);
 router.patch("/:id/mobile", protect, authorizeRoles("Sales Manager", "Owner"), autoInvalidate(["users"]), updateStaffMobile);
-router.patch("/:id/reset-password", protect, allowRoles("staff", "Owner", "General Manager", "Sales Manager", "Head Coach"), autoInvalidate(["users"]), resetUserPassword);
+router.patch("/:id/reset-password", protect, allowRoles("staff", "Owner", "General Manager", "Sales Manager", "Head Coach"), requireFeature("staff_management"), autoInvalidate(["users"]), resetUserPassword);
 router.get("/receptionist-team", protect, allowRoles("sales_team", "Sales Manager", "Owner", "Accountant"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getReceptionistTeam);
-router.get("/changerole/:id/:new_role", protect, allowRoles("change_role", "Owner", "General Manager", "Sales Manager"), autoInvalidate(["users"]), change_Role);
-router.get("/allTeams", protect, allowRoles("teams_overview", "Owner"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getTeamsPage);
-router.get("/:id/access", allowRoles("access_control", "Owner", "General Manager", "Sales Manager", "Head Coach"), getUserAccess);
-router.put("/:id/access", allowRoles("access_control", "Owner", "General Manager", "Sales Manager", "Head Coach"), autoInvalidate(["users"]), updateUserAccess);
-router.patch("/:id/access", allowRoles("access_control", "Owner", "General Manager"), autoInvalidate(["users"]), updateUserAreaAccess);
+router.get("/changerole/:id/:new_role", protect, allowRoles("change_role", "Owner", "General Manager", "Sales Manager"), requireFeature("staff_management"), autoInvalidate(["users"]), change_Role);
+router.get("/allTeams", protect, allowRoles("teams_overview", "Owner"), requireFeature("staff_management"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getTeamsPage);
+router.get("/:id/access", allowRoles("access_control", "Owner", "General Manager", "Sales Manager", "Head Coach"), requireFeature("access_control"), getUserAccess);
+router.put("/:id/access", allowRoles("access_control", "Owner", "General Manager", "Sales Manager", "Head Coach"), requireFeature("access_control"), autoInvalidate(["users"]), updateUserAccess);
+router.patch("/:id/access", allowRoles("access_control", "Owner", "General Manager"), requireFeature("access_control"), autoInvalidate(["users"]), updateUserAreaAccess);
 router.get("/:id", protect, authorizeRoles("Sales Manager", "Owner", "Accountant", "General Manager"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getUserById);
 
 

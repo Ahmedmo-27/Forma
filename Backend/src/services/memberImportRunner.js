@@ -7,6 +7,7 @@ const { resolveSalesAssignee } = require("../utils/salesAssignment");
 const { resolveCoachAssignee } = require("../utils/coachAssignment");
 const { invalidateTenantCache } = require("../utils/cacheInvalidator");
 const logger = require("../utils/logger");
+const { remainingCapacity } = require("./planLimitService");
 const {
     CHUNK_SIZE,
     MAX_STORED_ERRORS,
@@ -49,7 +50,7 @@ function rememberError(bucket, entry) {
     if (bucket.samples.length < MAX_STORED_ERRORS) bucket.samples.push(entry);
 }
 
-async function importChunk(slice, { userId, salesAssignee, coachAssignee, seenPhones, floor }) {
+async function importChunk(slice, { userId, salesAssignee, coachAssignee, seenPhones, floor, capacity }) {
     const outcome = { created: 0, skipped: 0, errors: { count: 0, samples: [] }, processed: slice.length };
     const candidates = [];
 
@@ -80,6 +81,15 @@ async function importChunk(slice, { userId, salesAssignee, coachAssignee, seenPh
             outcome.skipped += 1;
             continue;
         }
+        if (capacity && capacity.remaining <= fresh.length) {
+            rememberError(outcome.errors, {
+                line: row.line,
+                name: row.name,
+                phone: row.phone,
+                reason: `Plan limit of ${capacity.max} members reached. Upgrade the plan to import more.`,
+            });
+            continue;
+        }
         fresh.push(row);
     }
 
@@ -106,9 +116,11 @@ async function importChunk(slice, { userId, salesAssignee, coachAssignee, seenPh
     try {
         const inserted = await Member.insertMany(docs, { ordered: false });
         outcome.created += inserted.length;
+        if (capacity) capacity.remaining -= inserted.length;
     } catch (error) {
         const inserted = Number(error?.result?.insertedCount ?? error?.insertedDocs?.length ?? 0);
         outcome.created += inserted;
+        if (capacity) capacity.remaining -= inserted;
         const failed = Math.max(0, docs.length - inserted);
         for (let index = 0; index < failed; index += 1) {
             const row = fresh[Math.min(inserted + index, fresh.length - 1)];
@@ -137,6 +149,7 @@ async function runJob(jobId, rows, userId) {
         .lean();
     const floor = systemIdFloor(top?.systemId || 0);
     const seenPhones = new Set();
+    const capacity = await remainingCapacity(getTenantId(), "maxMembers");
     const parts = chunkCountFor(rows.length);
     let createdCount = 0;
     let skippedCount = 0;
@@ -152,7 +165,7 @@ async function runJob(jobId, rows, userId) {
             chunkCount: parts,
         });
 
-        const outcome = await importChunk(slice, { userId, salesAssignee, coachAssignee, seenPhones, floor });
+        const outcome = await importChunk(slice, { userId, salesAssignee, coachAssignee, seenPhones, floor, capacity });
         createdCount += outcome.created;
         skippedCount += outcome.skipped;
         errorCount += outcome.errors.count;

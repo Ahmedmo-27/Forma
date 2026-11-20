@@ -2,6 +2,7 @@ const Tenant = require("../models/Tenant");
 const Plan = require("../models/Plan");
 const { getEffectiveFeatures, getEffectiveLimits } = require("../models/Tenant");
 const { runAsPlatform } = require("../context/tenantContext");
+const featureSync = require("../services/featureSync");
 
 function isPopulatedPlan(plan) {
     return Boolean(plan && Array.isArray(plan.features));
@@ -33,6 +34,10 @@ function requireFeature(featureKey) {
                 // If route is platform or unauthenticated, feature gating doesn't apply directly
                 return next();
             }
+
+            // Newly registered module keys are backfilled onto plans once per process;
+            // wait for that so a gym never sees a module lock on a fresh deploy.
+            await featureSync.ensureSynced();
 
             if (!req.tenant || !isPopulatedPlan(req.plan)) {
                 const tenant = await loadTenantWithPlan(tenantId);

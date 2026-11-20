@@ -10,6 +10,9 @@ const { runAsPlatform } = require("../context/tenantContext");
 const { getTenantStorageBytes } = require("../controllers/platformTenantController");
 const { WHATSAPP_AUDIT_ACTIONS } = require("../utils/whatsappTracking");
 const logger = require("../utils/logger");
+const { BILLING_CURRENCY } = require("../config/currency");
+const { getEffectiveLimits } = Tenant;
+const { resolveFairUseLimits } = require("../utils/fairUse");
 
 /**
  * Explanations and calculation logic for each metric.
@@ -96,7 +99,7 @@ async function computeDailySnapshot(date = new Date()) {
                 }
             } else if (t.status === "trial") {
                 trialTenants++;
-                if (t.trialEndsAt && t.trialEndsAt <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)) {
+                if (t.trialEndsAt && t.trialEndsAt >= now && t.trialEndsAt <= new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)) {
                     expiringTrialsCount++;
                 }
             } else if (t.status === "past_due") {
@@ -123,8 +126,8 @@ async function computeDailySnapshot(date = new Date()) {
                 User.collection.countDocuments({ tenantId: t._id }),
             ]);
 
-            const maxMembers = t.limitOverrides?.maxMembers || t.planId?.limits?.maxMembers || 500;
-            if (maxMembers && memberCount >= maxMembers * 0.8) {
+            const maxMembers = Number(getEffectiveLimits(t, t.planId).maxMembers);
+            if (maxMembers > 0 && memberCount >= maxMembers * 0.8) {
                 upsellCandidates++;
             }
             healthScoreTotal += tenantHealthScore({
@@ -141,11 +144,7 @@ async function computeDailySnapshot(date = new Date()) {
 
             const isLifetime = cycle === "lifetime";
             const storageGb = bytes / (1024 * 1024 * 1024);
-            const limitGb = t.limitOverrides?.storageGb != null
-                ? t.limitOverrides.storageGb
-                : (isLifetime
-                    ? (t.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25)
-                    : (t.planId?.fairUseCaps?.storageGb ?? 25));
+            const limitGb = resolveFairUseLimits(t, t.planId).storageGb;
 
             if (isLifetime && storageGb > limitGb) {
                 lifetimeFairUseViolations++;
@@ -155,14 +154,23 @@ async function computeDailySnapshot(date = new Date()) {
         mrr = Math.round(mrr * 100) / 100;
         const arr = Math.round(mrr * 12 * 100) / 100;
 
-        // Ledger totals
+        // Ledger totals. Read the stored currency, not toJSON output, which rewrites every row to EGP.
         const ledgerEvents = await BillingEvent.find();
         let totalCollected = 0;
         let refundsTotal = 0;
         let lifetimeRevenueTotal = 0;
         let lifetimeRevenuePeriod = 0;
+        const excludedByCurrency = {};
 
         for (const e of ledgerEvents) {
+            const currency = String(e.currency || BILLING_CURRENCY).toUpperCase();
+            if (currency !== BILLING_CURRENCY) {
+                const signed = e.type === "refund" ? -(e.amount || 0) : (e.amount || 0);
+                if (e.type === "purchase" || e.type === "upgrade" || e.type === "refund") {
+                    excludedByCurrency[currency] = Math.round(((excludedByCurrency[currency] || 0) + signed) * 100) / 100;
+                }
+                continue;
+            }
             if (e.type === "purchase" || e.type === "upgrade") {
                 totalCollected += e.amount || 0;
                 if (e.cycle === "lifetime") {
@@ -201,6 +209,8 @@ async function computeDailySnapshot(date = new Date()) {
                 totalCollected,
                 refundsTotal,
                 netRevenue,
+                currency: BILLING_CURRENCY,
+                excludedByCurrency,
                 byPlan: revenueByPlan,
             },
             growth: {

@@ -6,6 +6,10 @@ import {
     buildFunnel,
     bucketAttendance,
     buildNarrative,
+    resolveAttendanceWindow,
+    normalizeAttendanceType,
+    buildAttendanceSegments,
+    MAX_ATTENDANCE_DAYS,
 } from "./gymAnalyticsService";
 
 const NOW = new Date(2026, 10, 7, 12, 0, 0);
@@ -165,6 +169,91 @@ describe("gymAnalyticsService", () => {
         expect(report.days.find((day) => day.date === "2026-11-04").count).toBe(1);
         expect(report.days.find((day) => day.date === "2026-11-01").count).toBe(0);
         expect(report.totalCheckIns).toBe(1);
+    });
+
+    describe("resolveAttendanceWindow", () => {
+        const key = (d) => `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+
+        it("falls back to the weeks window when no range is given", () => {
+            const win = resolveAttendanceWindow({ weeks: 2, now: NOW });
+            expect(key(win.from)).toBe("2026-10-24");
+            expect(key(win.to)).toBe("2026-11-7");
+            expect(win.weeks).toBe(2);
+        });
+
+        it("uses an explicit from/to range", () => {
+            const win = resolveAttendanceWindow({
+                from: new Date(2026, 10, 2),
+                to: new Date(2026, 10, 4, 23, 59),
+                now: NOW,
+            });
+            expect(key(win.from)).toBe("2026-11-2");
+            expect(key(win.to)).toBe("2026-11-4");
+            expect(win.weeks).toBe(1);
+        });
+
+        it("treats a single date as a one-day range", () => {
+            const win = resolveAttendanceWindow({ from: new Date(2026, 10, 3), now: NOW });
+            expect(key(win.from)).toBe("2026-11-3");
+            expect(key(win.to)).toBe("2026-11-3");
+        });
+
+        it("swaps a reversed range", () => {
+            const win = resolveAttendanceWindow({
+                from: new Date(2026, 10, 6),
+                to: new Date(2026, 10, 1),
+                now: NOW,
+            });
+            expect(key(win.from)).toBe("2026-11-1");
+            expect(key(win.to)).toBe("2026-11-6");
+        });
+
+        it("caps the end at today", () => {
+            const win = resolveAttendanceWindow({
+                from: new Date(2026, 10, 5),
+                to: new Date(2026, 11, 25),
+                now: NOW,
+            });
+            expect(key(win.to)).toBe("2026-11-7");
+        });
+
+        it("limits the span to the maximum", () => {
+            const win = resolveAttendanceWindow({
+                from: new Date(2020, 0, 1),
+                to: new Date(2026, 10, 7),
+                now: NOW,
+            });
+            const days = Math.round((win.to - win.from) / 86400000);
+            expect(days).toBeLessThanOrEqual(MAX_ATTENDANCE_DAYS);
+            expect(key(win.to)).toBe("2026-11-7");
+        });
+    });
+
+    describe("attendance by package type", () => {
+        it("accepts all, gym and pt and falls back to gym", () => {
+            expect(normalizeAttendanceType("all")).toBe("all");
+            expect(normalizeAttendanceType("PT")).toBe("pt");
+            expect(normalizeAttendanceType("gym")).toBe("gym");
+            expect(normalizeAttendanceType(undefined)).toBe("gym");
+            expect(normalizeAttendanceType("other")).toBe("gym");
+        });
+
+        it("computes visits per member and share for gym and PT", () => {
+            const segments = buildAttendanceSegments({
+                byType: [{ _id: "check-in", count: 90 }, { _id: "pt-session", count: 30 }],
+                gymMembers: 30,
+                ptMembers: 8,
+            });
+            expect(segments.gym).toEqual({ visits: 90, members: 30, visitsPerMember: 3, share: 0.75 });
+            expect(segments.pt).toEqual({ visits: 30, members: 8, visitsPerMember: 3.75, share: 0.25 });
+        });
+
+        it("returns no rate when a segment has no members and zero share when empty", () => {
+            const segments = buildAttendanceSegments({ byType: [], gymMembers: 0, ptMembers: 0 });
+            expect(segments.gym.visitsPerMember).toBeNull();
+            expect(segments.pt.visitsPerMember).toBeNull();
+            expect(segments.gym.share).toBe(0);
+        });
     });
 
     it("writes the executive narrative from churn direction and the forecast", () => {

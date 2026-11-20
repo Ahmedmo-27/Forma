@@ -6,6 +6,7 @@ const {
     getRequests
 } = require("../controllers/coachRequestController");
 const { protect } = require("../middleware/authMiddleware");
+const { enforceSubscriptionStatus } = require("../middleware/tenantStatus");
 const { allowRoles, allowAnyFeature, requireAccess } = require("../middleware/accessMiddleware");
 const { requireFeature } = require("../middleware/featureGating");
 const { cacheResponse } = require("../middleware/apiCache");
@@ -14,6 +15,7 @@ const { locationScopeOptional } = require("../middleware/locationScope");
 
 // All routes require authentication
 router.use(protect);
+router.use(enforceSubscriptionStatus);
 router.use(requireFeature("pt_tracking"));
 router.use(requireAccess("coaching"));
 router.use(locationScopeOptional);

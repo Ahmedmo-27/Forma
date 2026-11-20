@@ -7,6 +7,7 @@ const { runWithTenant, runAsPlatform } = require("../context/tenantContext");
 const { getAuthContext, setAuthContext } = require("./authContextCache");
 const { getEffectiveFeatures } = require("../models/Tenant");
 const { readTenantToken } = require("../utils/authCookies");
+const featureSync = require("../services/featureSync");
 
 function attachPlanFeatures(req) {
     const plan = req.plan && Array.isArray(req.plan.features)
@@ -69,6 +70,9 @@ const protect = async (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+        // Plans must carry newly registered module keys before we read this gym's plan.
+        await featureSync.ensureSynced();
 
         let tenantId = decoded.tenantId || null;
         let tenantSlug = decoded.tenantSlug || null;

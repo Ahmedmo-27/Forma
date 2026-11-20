@@ -8,11 +8,15 @@ const {
     completeMemberTask,
 } = require("../controllers/taskController");
 const { protect } = require("../middleware/authMiddleware");
+const { enforceSubscriptionStatus } = require("../middleware/tenantStatus");
+const { requireFeature } = require("../middleware/featureGating");
 const { allowRoles, allowAnyFeature } = require("../middleware/accessMiddleware");
 const { autoInvalidate } = require("../utils/cacheInvalidator");
 const { locationScopeOptional } = require("../middleware/locationScope");
 
 router.use(protect);
+router.use(enforceSubscriptionStatus);
+router.use(requireFeature("tasks"));
 router.use(locationScopeOptional);
 
 // ============================================================================

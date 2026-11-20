@@ -23,6 +23,8 @@ describe("Sales", () => {
             "request_assignment",
             "request_takeover",
             "whatsapp_send",
+            "inbox_view",
+            "inbox_reply",
             "view_phones",
             "reports",
         ]);

@@ -1,22 +1,13 @@
 const mongoose = require("mongoose");
 const { enforceEgpCurrency } = require("./forceEgp");
 
-const ALL_FEATURES = [
-    "members",
-    "checkin",
-    "packages",
-    "pt_tracking",
-    "audit",
-    "accounting",
-    "exception_approvals",
-    "sales_crm",
-    "whatsapp",
-    "excel_import",
-    "exec_analytics",
-    "funnels",
-    "business_intelligence",
-    "multi_branches",
-];
+const { FEATURE_KEYS } = require("../config/featureRegistry");
+
+/** Every feature key a plan can include. Defined in config/featureRegistry. */
+const ALL_FEATURES = [...FEATURE_KEYS];
+
+/** Plan keys are free-form slugs so super admin can create any tier. */
+const PLAN_KEY_PATTERN = /^[a-z0-9][a-z0-9_-]{1,31}$/;
 
 const ALL_ROLES = [
     "Owner",
@@ -37,7 +28,7 @@ const planSchema = new mongoose.Schema(
             unique: true,
             trim: true,
             lowercase: true,
-            enum: ["basic", "gold", "platinum"],
+            match: [PLAN_KEY_PATTERN, "Plan key must be 2-32 lowercase letters, numbers, hyphens or underscores"],
         },
         name: {
             type: String,
@@ -81,6 +72,11 @@ const planSchema = new mongoose.Schema(
             default: "public",
             index: true,
         },
+        // Highlighted on the public pricing page.
+        featured: {
+            type: Boolean,
+            default: false,
+        },
         sortOrder: {
             type: Number,
             default: 0,
@@ -106,3 +102,4 @@ try {
 }
 module.exports.ALL_FEATURES = ALL_FEATURES;
 module.exports.ALL_ROLES = ALL_ROLES;
+module.exports.PLAN_KEY_PATTERN = PLAN_KEY_PATTERN;

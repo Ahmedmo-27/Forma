@@ -11,6 +11,7 @@ import CoachRepRequest from "../models/CoachRepRequest";
 import SalesRepRequest from "../models/SalesRepRequest";
 import PackageExceptionRequest from "../models/PackageExceptionRequest";
 import ProfileView from "../models/ProfileView";
+import ContractSignature from "../models/ContractSignature";
 import BillingEvent from "../models/BillingEvent";
 import AuditLog from "../models/AuditLog";
 import storageService from "../services/storageService";
@@ -236,6 +237,7 @@ describe("Phase 6: Support, Impersonation & Operations Tools", () => {
             vi.spyOn(SalesRepRequest, "deleteMany").mockResolvedValue({ deletedCount: 0 });
             vi.spyOn(PackageExceptionRequest, "deleteMany").mockResolvedValue({ deletedCount: 0 });
             vi.spyOn(ProfileView, "deleteMany").mockResolvedValue({ deletedCount: 0 });
+            vi.spyOn(ContractSignature, "deleteMany").mockResolvedValue({ deletedCount: 0 });
             vi.spyOn(Tenant, "findByIdAndDelete").mockResolvedValue(mockTenant);
             vi.spyOn(storageService, "deleteTenantStorage").mockResolvedValue();
 
@@ -256,6 +258,7 @@ describe("Phase 6: Support, Impersonation & Operations Tools", () => {
 
             expect(Member.deleteMany).toHaveBeenCalledWith({ tenantId });
             expect(User.deleteMany).toHaveBeenCalledWith({ tenantId });
+            expect(ContractSignature.deleteMany).toHaveBeenCalledWith({ tenantId });
             expect(Tenant.findByIdAndDelete).toHaveBeenCalledWith(tenantId);
 
             // Tombstone audit must have tenantId = null so it survives

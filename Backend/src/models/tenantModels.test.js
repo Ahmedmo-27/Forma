@@ -124,15 +124,19 @@ describe("Phase 1: Core Models & Tenant Helpers", () => {
             expect(parsed.data.currency).toBe("EGP");
         });
 
-        it("rejects invalid plan key", () => {
+        it("accepts a custom plan key but rejects one that is not a slug", () => {
             const invalid = {
-                key: "diamond",
+                key: "Diamond Plan!",
                 name: "Diamond",
                 priceMonthly: 199,
                 priceYearly: 1990,
             };
             const parsed = createPlanSchema.safeParse(invalid);
             expect(parsed.success).toBe(false);
+
+            const custom = createPlanSchema.safeParse({ ...invalid, key: "Enterprise-Plus" });
+            expect(custom.success).toBe(true);
+            expect(custom.data.key).toBe("enterprise-plus");
         });
 
         it("validates valid tenant payload", () => {
@@ -182,10 +186,15 @@ describe("Phase 1: Core Models & Tenant Helpers", () => {
 
         it("drops an area the gym plan does not include", () => {
             const user = { role: "General Manager", featureAccess: { grants: [], revokes: [] }, accessOverrides: { add: [], remove: [] } };
-            const areas = effectiveAreas(user, { roleAccess: {}, planFeatures: ["members", "checkin"] });
+            const areas = effectiveAreas(user, { roleAccess: {}, planFeatures: ["members", "checkin", "staff_management"] });
             expect(areas).toContain("members");
             expect(areas).toContain("staff");
             expect(areas).not.toContain("accounting");
+
+            // New module keys gate their areas too.
+            const without = effectiveAreas(user, { roleAccess: {}, planFeatures: ["members", "checkin"] });
+            expect(without).not.toContain("staff");
+            expect(without).not.toContain("retail");
         });
 
         it("gives a general manager every area except settings, and only the owner can edit that checklist", () => {

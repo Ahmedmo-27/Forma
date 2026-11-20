@@ -6,6 +6,7 @@ const { getEffectiveLimits, getEffectiveFeatures } = require("../models/Tenant")
 const { nextSequence } = require("../utils/sequence");
 const { writeAudit } = require("../utils/audit");
 const { runAsPlatform } = require("../context/tenantContext");
+const { planLimitPayload } = require("../services/planLimitService");
 const {
     resolveAllowedLocationIds,
     userHasAllLocations,
@@ -31,18 +32,8 @@ async function syncBranchCount(tenantId) {
     return count;
 }
 
+/** Multi-branch is purely feature-driven (plan features and per-gym overrides). */
 async function ensurePlanAllowsMulti(req) {
-    const { ensureTenantMultiBranches } = require("../utils/ensureMultiBranches");
-    if (req.tenant && req.plan) {
-        await ensureTenantMultiBranches(req.tenant, req.plan);
-        // Reload plan features after backfill
-        if (req.plan._id) {
-            const Plan = require("../models/Plan");
-            const { runAsPlatform } = require("../context/tenantContext");
-            const fresh = await runAsPlatform(async () => Plan.findById(req.plan._id));
-            if (fresh) req.plan = fresh;
-        }
-    }
     const features = getEffectiveFeatures(req.tenant, req.plan);
     return features.includes("multi_branches");
 }
@@ -84,16 +75,20 @@ const createLocation = async (req, res) => {
         if (!multi && existingCount >= 1) {
             return res.status(403).json({
                 code: "FEATURE_NOT_IN_PLAN",
-                message: "Multi-branch locations are not enabled on your plan. Upgrade to Gold or Platinum.",
+                message: "Multi-branch locations are not enabled for your gym. Upgrade your plan or contact support.",
             });
         }
 
         const limits = getEffectiveLimits(req.tenant, req.plan);
-        if (existingCount >= (limits.maxBranches || 1)) {
-            return res.status(403).json({
-                code: "BRANCH_LIMIT_REACHED",
-                message: `Your plan allows up to ${limits.maxBranches} location(s).`,
-            });
+        const maxBranches = limits.maxBranches || 1;
+        if (existingCount >= maxBranches) {
+            return res.status(403).json(planLimitPayload({
+                limit: "maxBranches",
+                current: existingCount,
+                max: maxBranches,
+                message: `Your plan allows up to ${maxBranches} location${maxBranches === 1 ? "" : "s"}. Upgrade your plan to add more branches.`,
+                requestId: req.requestId,
+            }));
         }
 
         const name = String(req.body?.name || "").trim();

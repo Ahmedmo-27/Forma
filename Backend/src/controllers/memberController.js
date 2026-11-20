@@ -41,10 +41,12 @@ const { writeAudit } = require("../utils/audit");
 const sequence = require("../utils/sequence");
 const { normalizePhone, assertPhoneAvailable, replyIfConflict } = require("../utils/identityUniqueness");
 const { startMemberImport, getMemberImport } = require("../services/memberImportRunner");
+const { remainingCapacity, planLimitPayload } = require("../services/planLimitService");
 const { resolveSalesAssignee, ensureSalesManagerAssignments } = require("../utils/salesAssignment");
 const { resolveCoachAssignee, ensureHeadCoachAssignments } = require("../utils/coachAssignment");
 const { sanitizePlainText } = require("../utils/sanitizeText");
 const { validateNoOverlappingSubscription, resolveNextPackageStart, closeRefundedSubscription, findActiveSubscription, currentPackageSubscription, latestOpenSubscription, isForfeitedCancellation, isTransferredAway } = require("../utils/subscriptionUtils");
+const { normalizeCheckInType, checkInOptions, ptSessionsLeft, COACH_ROLES } = require("../utils/checkInOptions");
 const { setPackageTransferFee } = require("../utils/packageTransferFee");
 const { buildPackageSnapshot, resolveSubscriptionPackage } = require("../utils/packageSnapshot");
 const { generateBarcode } = require("../utils/barcodeHelper");
@@ -678,14 +680,110 @@ async function resolveCheckInLocationId(req) {
     return { locationId: exists._id };
 }
 
+const PT_ELIGIBLE_FILTER = {
+    couch_subscription_status: "active",
+    $expr: {
+        $gt: [{ $ifNull: ["$PT_sessions", 0] }, { $ifNull: ["$used_PT_sessions", 0] }],
+    },
+};
+
+const PT_DESK_FIELDS = "name systemId memberId status isMember isBlocked subscriptions couch_subscription_status current_couch PT_sessions used_PT_sessions PT_sessions_expDate";
+
+/**
+ * Front-desk PT check-in. Deducts one session and logs a pt-session entry stamped with the desk branch.
+ * One update guards balance, expiry and the one-per-day rule together, so two scans cannot double deduct.
+ */
+async function recordFrontDeskPtSession(req, res, { query, deskLoc, now }) {
+    const { start: dayStart } = cairoDayBounds();
+    const entry = {
+        _id: new mongoose.Types.ObjectId(),
+        type: "pt-session",
+        text: "Private session check-in (1 session) at the front desk",
+        createdBy: req.user.id,
+        createdAt: now,
+        locationId: deskLoc.locationId || null,
+    };
+
+    const updated = await Member.findOneAndUpdate(
+        {
+            $and: [
+                query,
+                { isBlocked: { $ne: true } },
+                PT_ELIGIBLE_FILTER,
+                { $or: [{ PT_sessions_expDate: null }, { PT_sessions_expDate: { $gte: dayStart } }] },
+                { userlog: { $not: { $elemMatch: { type: "pt-session", createdAt: { $gte: dayStart } } } } },
+            ],
+        },
+        { $inc: { used_PT_sessions: 1 }, $push: { userlog: entry } },
+        { new: true, projection: { name: 1, systemId: 1, status: 1, PT_sessions: 1, used_PT_sessions: 1 } },
+    ).lean();
+
+    if (updated) {
+        publishLive(req.user.tenantId, {
+            type: "check-in",
+            message: `${updated.name} checked in · PT session`,
+            checkInId: entry._id,
+            systemId: updated.systemId,
+            memberName: updated.name,
+            status: updated.status,
+            packageName: "PT session",
+        });
+        return res.status(201).json({
+            message: "PT session checked in",
+            checkInType: "pt",
+            checkIn: entry,
+            status: updated.status,
+            ptSessionsLeft: ptSessionsLeft(updated),
+        });
+    }
+
+    // Nothing matched. Say exactly why.
+    const member = await Member.findOne(query).select(`${PT_DESK_FIELDS} userlog`).lean();
+    if (!member) return res.status(404).json({ message: "Member not found" });
+    if (member.isBlocked) return res.status(403).json({ message: "Cannot check in — member is blocked" });
+    if (member.couch_subscription_status !== "active") {
+        return res.status(400).json({ message: "Cannot check in — this member has no active PT package" });
+    }
+    const options = checkInOptions(member, { now, dayStart });
+    if (options.ptSessionsLeft <= 0) {
+        return res.status(400).json({ message: "Cannot check in — this member has no PT sessions left" });
+    }
+    if (options.ptExpired) {
+        return res.status(400).json({ message: "Cannot check in — this member's PT package has expired" });
+    }
+    const alreadyToday = (member.userlog || []).some(
+        (log) => log.type === "pt-session" && new Date(log.createdAt) >= dayStart,
+    );
+    if (alreadyToday) {
+        return res.status(400).json({ message: "This member already has a PT session check-in today" });
+    }
+    return res.status(409).json({ message: "Could not record the PT check-in. Please try again." });
+}
+
 // ─── 4. Check In Member ───────────────────────────────────────────────────────
+// Front desk check-in. Body `type` is "gym" or "pt". Without it, a member who has both an
+// active gym package and an active PT pack gets a 409 CHECKIN_TYPE_REQUIRED so the desk can ask.
+// Coaches never check in the regular gym; they use the PT session check-in.
 const checkInMember = async (req, res) => {
     try {
         const { memberId } = req.params;
 
+        if (COACH_ROLES.includes(req.user.role)) {
+            return res.status(403).json({
+                code: "COACH_GYM_CHECKIN_FORBIDDEN",
+                message: "Coaches can only check in PT sessions",
+            });
+        }
+
         const query = buildMemberFilter(memberId);
         if (!query) {
             return res.status(404).json({ message: "Member not found" });
+        }
+
+        const rawType = req.body?.type;
+        const requestedType = normalizeCheckInType(rawType);
+        if (rawType !== undefined && rawType !== null && rawType !== "" && !requestedType) {
+            return res.status(400).json({ message: "Check-in type must be gym or pt" });
         }
 
         const deskLoc = await resolveCheckInLocationId(req);
@@ -697,6 +795,19 @@ const checkInMember = async (req, res) => {
         }
 
         const now = new Date();
+        const ptEnabled = Array.isArray(req.planFeatures) ? req.planFeatures.includes("pt_tracking") : true;
+
+        if (requestedType === "pt") {
+            if (!ptEnabled) {
+                return res.status(403).json({ message: "PT tracking is not enabled for your gym's plan" });
+            }
+            return await recordFrontDeskPtSession(req, res, { query, deskLoc, now });
+        }
+
+        // With no explicit type, members who also hold PT sessions skip the gym fast path below.
+        // They land in the slow path, which already loads the member and decides gym, PT, or ask.
+        const decideType = !requestedType && ptEnabled;
+
         const entry = {
             _id: new mongoose.Types.ObjectId(),
             type: "check-in",
@@ -715,6 +826,7 @@ const checkInMember = async (req, res) => {
                 isMember: true,
                 status: "active",
                 "subscriptions.0": { $exists: true },
+                ...(decideType ? { $nor: [PT_ELIGIBLE_FILTER] } : {}),
                 $expr: {
                     $gt: [
                         {
@@ -755,7 +867,7 @@ const checkInMember = async (req, res) => {
                 status: updated.status,
                 packageName: pkgName,
             });
-            return res.status(201).json({ message: "Check-in recorded", checkIn: entry, status: updated.status });
+            return res.status(201).json({ message: "Check-in recorded", checkInType: "gym", checkIn: entry, status: updated.status });
         }
 
         // Fast-path did not match. Inspect the member to return the exact reason or handle frozen members.
@@ -767,6 +879,34 @@ const checkInMember = async (req, res) => {
 
         if (member.isBlocked) {
             return res.status(403).json({ message: "Cannot check in — member is blocked" });
+        }
+
+        if (decideType) {
+            const options = checkInOptions(member, { now, dayStart: cairoDayBounds().start });
+            if (options.pt && options.gym) {
+                const coach = member.current_couch
+                    ? await User.findById(member.current_couch).select("name").lean()
+                    : null;
+                const gymSub = findActiveSubscription(member.subscriptions, now);
+                return res.status(409).json({
+                    code: "CHECKIN_TYPE_REQUIRED",
+                    message: "This member has both a gym package and PT sessions. Ask what they are attending.",
+                    options: ["gym", "pt"],
+                    member: {
+                        name: member.name,
+                        systemId: member.systemId,
+                        memberId: member.memberId,
+                        gymPackage: gymSub?.packageSnapshot?.name || null,
+                        gymEndsAt: gymSub?.endDate || null,
+                        ptSessionsLeft: options.ptSessionsLeft,
+                        ptExpiresAt: member.PT_sessions_expDate || null,
+                        coachName: coach?.name || null,
+                    },
+                });
+            }
+            if (options.pt && !options.gym) {
+                return await recordFrontDeskPtSession(req, res, { query, deskLoc, now });
+            }
         }
 
         const hasSubscriptions = Array.isArray(member.subscriptions) && member.subscriptions.length > 0;
@@ -853,7 +993,7 @@ const checkInMember = async (req, res) => {
             status: member.status,
             packageName: pkgName,
         });
-        return res.status(201).json({ message: "Check-in recorded", checkIn: savedEntry, status: member.status });
+        return res.status(201).json({ message: "Check-in recorded", checkInType: "gym", checkIn: savedEntry, status: member.status });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -2908,6 +3048,14 @@ const transferPackage = async (req, res) => {
         }
 
         if (creating) {
+            const capacity = await remainingCapacity(req.user.tenantId, "maxMembers");
+            if (capacity && capacity.remaining <= 0) {
+                return res.status(403).json(planLimitPayload({
+                    ...capacity,
+                    message: `You have reached your plan limit of ${capacity.max} members. Transfer to an existing member or upgrade your plan.`,
+                    requestId: req.requestId,
+                }));
+            }
             const phoneKey = await assertPhoneAvailable(newPhones);
             const salesAssignee = await resolveSalesAssignee(null);
             const personData = {

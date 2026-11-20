@@ -24,8 +24,9 @@ describe("Accountant", () => {
             "package_approvals",
             "refunds",
             "package_transfers",
+            "retail_reports",
         ]);
-        expectAreas("Accountant", ["members", "sales", "whatsapp", "accounting", "exception_approvals"]);
+        expectAreas("Accountant", ["members", "sales", "whatsapp", "accounting", "exception_approvals", "retail"]);
         expectList("Accountant", "all");
     });
 

@@ -2,6 +2,7 @@ const { runAsPlatform, runWithTenant } = require("../../context/tenantContext");
 const WhatsAppSession = require("../../models/WhatsAppSession");
 const logger = require("../../utils/logger");
 const { toWhatsAppJid, phoneFromJid } = require("./phone");
+const { extractInboundMessage } = require("./inboundMessage");
 const {
     useMongoAuthState,
     hasStoredCreds,
@@ -72,6 +73,54 @@ function createSessionManager(deps = {}) {
     const minGapMs = deps.minGapMs ?? (process.env.WHATSAPP_MIN_GAP_MS ? Number(process.env.WHATSAPP_MIN_GAP_MS) : 20000);
     const connectTimeoutMs = deps.connectTimeoutMs ?? 35000;
     const sendTimeoutMs = deps.sendTimeoutMs ?? 60000;
+    // Inbox replies answer a person who just wrote to us, so they use a short
+    // floor instead of the bulk-send gap. Still non-zero to avoid burst sending.
+    const replyGapMs = deps.replyGapMs ?? (process.env.WHATSAPP_REPLY_GAP_MS ? Number(process.env.WHATSAPP_REPLY_GAP_MS) : 3000);
+    // Inbound messages and connect/disconnect events feed the shared inbox.
+    // Both default to no-ops so the manager stays usable (and testable) alone.
+    const onInbound = deps.onInbound || (async () => {});
+    const onSessionChange = deps.onSessionChange || (async () => {});
+
+    function notifySessionChange(entry, status) {
+        Promise.resolve()
+            .then(() => onSessionChange({
+                tenantId: entry.tenantId,
+                userId: entry.userId,
+                status,
+                phone: entry.phone || null,
+            }))
+            .catch((error) => {
+                logger.error("whatsapp", "Session change hook failed", {
+                    error: error.message,
+                    userId: String(entry.userId),
+                });
+            });
+    }
+
+    async function onMessagesUpsert(entry, generation, event) {
+        if (entry.generation !== generation || entry.userStopped) return;
+        // "append" carries history and our own sends. Only live arrivals are inbox traffic.
+        if (event?.type !== "notify") return;
+        const phone = entry.phone || phoneFromJid(entry.sock?.user?.id);
+        if (!phone) return;
+        for (const raw of event.messages || []) {
+            const message = extractInboundMessage(raw);
+            if (!message) continue;
+            try {
+                await onInbound({
+                    tenantId: entry.tenantId,
+                    userId: entry.userId,
+                    phone,
+                    message,
+                });
+            } catch (error) {
+                logger.error("whatsapp", "Could not store inbound WhatsApp message", {
+                    error: error.message,
+                    userId: String(entry.userId),
+                });
+            }
+        }
+    }
 
     function settleWaiters(entry) {
         const waiters = entry.waiters.splice(0);
@@ -164,6 +213,12 @@ function createSessionManager(deps = {}) {
                 userId: String(entry.userId),
             });
         }));
+        sock.ev.on("messages.upsert", (event) => onMessagesUpsert(entry, generation, event).catch((error) => {
+            logger.error("whatsapp", "WhatsApp inbound handler failed", {
+                error: error.message,
+                userId: String(entry.userId),
+            });
+        }));
 
         return publicState(entry);
     }
@@ -204,6 +259,7 @@ function createSessionManager(deps = {}) {
                 phone: entry.phone,
                 lastConnectedAt: new Date(),
             });
+            notifySessionChange(entry, "connected");
             settleWaiters(entry);
             return;
         }
@@ -240,6 +296,7 @@ function createSessionManager(deps = {}) {
                 status: "disconnected",
                 phone: wipe ? null : entry.phone,
             });
+            notifySessionChange(entry, "disconnected");
             settleWaiters(entry);
             return;
         }
@@ -331,6 +388,7 @@ function createSessionManager(deps = {}) {
         }
         await clearAuth({ tenantId, userId });
         await persistStatus({ tenantId, userId, status: "disconnected", phone: null });
+        notifySessionChange({ tenantId, userId, phone: null }, "disconnected");
         return { status: "disconnected", phone: null, qr: null };
     }
 
@@ -371,20 +429,20 @@ function createSessionManager(deps = {}) {
         return entry;
     }
 
-    async function pace(entry) {
-        const wait = (entry.lastSendAt || 0) + minGapMs - now();
+    async function pace(entry, gapMs = minGapMs) {
+        const wait = (entry.lastSendAt || 0) + gapMs - now();
         if (wait > 0) await sleep(wait);
         entry.lastSendAt = now();
     }
 
-    async function enqueueSend(entry, sendFn) {
+    async function enqueueSend(entry, sendFn, gapMs = minGapMs) {
         const prevQueue = entry.sendQueue || Promise.resolve();
         let release;
         entry.sendQueue = new Promise((resolve) => { release = resolve; });
 
         await prevQueue.catch(() => {});
         try {
-            await pace(entry);
+            await pace(entry, gapMs);
             return await sendFn();
         } finally {
             release();
@@ -444,6 +502,37 @@ function createSessionManager(deps = {}) {
         });
     }
 
+    /**
+     * Reply to a contact that already wrote to us (inbox). `to` is the stored
+     * contact id: phone digits or a full JID such as "...@lid". It is used as-is,
+     * with no country-code guessing and no onWhatsApp lookup.
+     */
+    async function sendReply({ tenantId, userId, to, text }) {
+        const entry = await ensureConnected({ tenantId, userId });
+        const raw = String(to || "").trim();
+        if (!raw) {
+            throw new WhatsAppSessionError("VALIDATION_FAILED", "This conversation has no WhatsApp contact id");
+        }
+        const jid = raw.includes("@") ? raw : `${raw}@s.whatsapp.net`;
+        return enqueueSend(entry, async () => {
+            let sendTimer;
+            try {
+                const result = await Promise.race([
+                    entry.sock.sendMessage(jid, { text }),
+                    new Promise((_, reject) => {
+                        sendTimer = setTimeout(
+                            () => reject(new WhatsAppSessionError("WHATSAPP_TIMEOUT", "WhatsApp message send timed out.")),
+                            sendTimeoutMs
+                        );
+                    }),
+                ]);
+                return { status: "sent", messageId: result?.key?.id || null };
+            } finally {
+                if (sendTimer) clearTimeout(sendTimer);
+            }
+        }, replyGapMs);
+    }
+
     async function sendImage({ tenantId, userId, phone, image, caption }) {
         const entry = await ensureConnected({ tenantId, userId });
         return enqueueSend(entry, async () => {
@@ -492,6 +581,7 @@ function createSessionManager(deps = {}) {
         getStatus,
         logout,
         sendText,
+        sendReply,
         sendImage,
         restoreConnected,
     };
@@ -522,7 +612,12 @@ async function defaultListConnected() {
     );
 }
 
-const sessions = createSessionManager();
+// The shared inbox listens to the live sessions. Required lazily so the inbox
+// models and services load only when a message or status change arrives.
+const sessions = createSessionManager({
+    onInbound: (args) => require("../inbox/whatsappInbound").handleWhatsAppInbound(args),
+    onSessionChange: (args) => require("../inbox/channelService").syncWhatsAppSession(args),
+});
 
 module.exports = {
     createSessionManager,
@@ -531,6 +626,7 @@ module.exports = {
     getSessionStatus: (args) => sessions.getStatus(args),
     logoutSession: (args) => sessions.logout(args),
     sendText: (args) => sessions.sendText(args),
+    sendReply: (args) => sessions.sendReply(args),
     sendImage: (args) => sessions.sendImage(args),
     restoreConnectedSessions: () => sessions.restoreConnected(),
 };

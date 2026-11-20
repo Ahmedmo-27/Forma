@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
+const { enforceSubscriptionStatus } = require("../middleware/tenantStatus");
 const { allowRoles, requireAccess } = require("../middleware/accessMiddleware");
 const validate = require("../middleware/validate");
 const { requireFeature } = require("../middleware/featureGating");
@@ -11,6 +12,7 @@ const { createPackage, getAllPackages, updatePackage, deletePackage } = require(
 const { locationScopeOptional } = require("../middleware/locationScope");
 
 router.use(protect);
+router.use(enforceSubscriptionStatus);
 router.use(requireFeature("packages"));
 router.use(requireAccess("packages"));
 router.use(locationScopeOptional);

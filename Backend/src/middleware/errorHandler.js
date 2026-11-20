@@ -1,6 +1,7 @@
 const logger = require("../utils/logger");
 const { ERROR_CODES } = require("../utils/errorCodes");
 const { sanitizeForLog } = require("../utils/sanitizeLog");
+const monitoring = require("../services/monitoring");
 
 /**
  * Normalizes field errors from Zod issues into { [field]: string[] }
@@ -140,6 +141,16 @@ function errorHandler(err, req, res, _next) {
 
   if (status >= 500) {
     logger.error("http", "Unhandled request error", logMeta);
+    // Planned 503s (maintenance) are not incidents.
+    if (code !== "MAINTENANCE_MODE") {
+      const context = monitoring.contextFromRequest(req);
+      monitoring.captureException(err, {
+        ...context,
+        requestId,
+        tenantId: context.tenantId || (logMeta.tenantId ? String(logMeta.tenantId) : null),
+        tags: { ...context.tags, code, status: String(status) },
+      });
+    }
   } else {
     logger.warn("http", "Request operational rejection", logMeta);
   }

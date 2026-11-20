@@ -249,6 +249,72 @@ function paymentReminderEmail({ name, gymName, daysLeft, appUrl }) {
     return { subject, text, html };
 }
 
+function paymentOverdueEmail({ name, gymName, daysUntilSuspension, appUrl }) {
+    const who = displayName(name);
+    const gym = oneLine(gymName) || "your gym";
+    const days = Math.max(0, Number(daysUntilSuspension) || 0);
+    const when = days === 0 ? "today" : days === 1 ? "in 1 day" : `in ${days} days`;
+    const subject = `${gym} payment is overdue`;
+    const text = [
+        `Hello ${who},`,
+        "",
+        `The billing period for "${gym}" has ended and no payment has been confirmed.`,
+        `The workspace will be paused ${when} unless a payment is received.`,
+        "Send the transfer from your workspace:",
+        appUrl,
+    ].join("\n");
+    const html = renderTransactionalEmail({
+        preheader: `The workspace will be paused ${when}.`,
+        title: "Payment overdue",
+        bodyHtml: `<p style="margin:0 0 12px;">Hello ${escapeHtml(who)},</p>
+<p style="margin:0 0 12px;">The billing period for <strong style="color:${NAVY};">${escapeHtml(gym)}</strong> has ended and no payment has been confirmed.</p>
+<p style="margin:0;">The workspace will be paused <strong style="color:${NAVY};">${escapeHtml(when)}</strong> unless a payment is received.</p>`,
+        ctaLabel: "Pay now",
+        ctaUrl: appUrl,
+        footnote: "If you already sent a transfer, it will be confirmed shortly and you can ignore this note.",
+    });
+    return { subject, text, html };
+}
+
+/**
+ * Weekly owner digest. `metrics` is a list of { label, value } rows; `highlights`
+ * is a list of short sentences.
+ */
+function ownerDigestEmail({ name, gymName, periodLabel, metrics = [], highlights = [], appUrl }) {
+    const who = displayName(name);
+    const gym = oneLine(gymName) || "your gym";
+    const period = oneLine(periodLabel) || "the last 7 days";
+    const subject = `${gym} weekly summary`;
+    const rows = metrics.filter((row) => row && row.label);
+    const text = [
+        `Hello ${who},`,
+        "",
+        `Here is how "${gym}" did over ${period}:`,
+        ...rows.map((row) => `- ${oneLine(row.label)}: ${oneLine(String(row.value ?? "0"))}`),
+        ...(highlights.length ? ["", ...highlights.map((line) => `* ${oneLine(line)}`)] : []),
+        "",
+        appUrl,
+    ].join("\n");
+    const tableRows = rows
+        .map((row) => `<tr><td style="padding:6px 0;color:${MUTED};">${escapeHtml(oneLine(row.label))}</td><td style="padding:6px 0;text-align:right;color:${NAVY};font-weight:600;">${escapeHtml(oneLine(String(row.value ?? "0")))}</td></tr>`)
+        .join("");
+    const highlightHtml = highlights.length
+        ? `<ul style="margin:12px 0 0;padding-left:18px;">${highlights.map((line) => `<li style="margin:4px 0;">${escapeHtml(oneLine(line))}</li>`).join("")}</ul>`
+        : "";
+    const html = renderTransactionalEmail({
+        preheader: `Your gym summary for ${period}.`,
+        title: "Weekly summary",
+        bodyHtml: `<p style="margin:0 0 12px;">Hello ${escapeHtml(who)},</p>
+<p style="margin:0 0 12px;">Here is how <strong style="color:${NAVY};">${escapeHtml(gym)}</strong> did over ${escapeHtml(period)}.</p>
+<table role="presentation" width="100%" style="border-collapse:collapse;border-top:1px solid ${BORDER};">${tableRows}</table>
+${highlightHtml}`,
+        ctaLabel: "Open reports",
+        ctaUrl: appUrl,
+        footnote: "You receive this because you own a gym workspace on Forma. Turn it off in Settings.",
+    });
+    return { subject, text, html };
+}
+
 function campaignEmail({ name, gymName, subject, message, ctaLabel, ctaUrl }) {
     const who = displayName(name);
     const gym = oneLine(gymName) || "your gym";
@@ -313,6 +379,8 @@ module.exports = {
     accountSuspendedEmail,
     trialEndingEmail,
     paymentReminderEmail,
+    paymentOverdueEmail,
+    ownerDigestEmail,
     campaignEmail,
     CAMPAIGN_TEMPLATE_KEYS,
     campaignStarter,

@@ -19,6 +19,7 @@ const packageRoutes = require("./routes/packageRoutes");
 const packageExceptionRoutes = require("./routes/packageExceptionRoutes");
 const whatsappTemplateRoutes = require("./routes/whatsappTemplateRoutes");
 const whatsappSessionRoutes = require("./routes/whatsappSessionRoutes");
+const inboxRoutes = require("./routes/inboxRoutes");
 const contractRoutes = require("./routes/contractRoutes");
 const notificationRoutes = require("./routes/notificationRoutes");
 const announcementRoutes = require("./routes/announcementRoutes");
@@ -40,10 +41,12 @@ const biRoutes = require("./routes/biRoutes");
 const taskRoutes = require("./routes/taskRoutes");
 const locationRoutes = require("./routes/locationRoutes");
 const maintenanceRoutes = require("./routes/maintenanceRoutes");
+const retailRoutes = require("./routes/retailRoutes");
 const storageService = require("./services/storageService");
 const Tenant = require("./models/Tenant");
 const { runAsPlatform } = require("./context/tenantContext");
 const { getHealth } = require("./controllers/healthController");
+const { maintenanceGuard } = require("./middleware/maintenanceMode");
 
 
 const app = express();
@@ -138,6 +141,7 @@ const globalLimiter = rateLimit({
     },
 });
 app.use("/api", globalLimiter);
+app.use(maintenanceGuard);
 
 app.get("/", (req, res) => {
     res.send("Forma API is running");
@@ -153,6 +157,7 @@ app.use("/api/packages", packageRoutes);
 app.use("/api/package-exceptions", packageExceptionRoutes);
 app.use("/api/whatsapp-templates", whatsappTemplateRoutes);
 app.use("/api/whatsapp", whatsappSessionRoutes);
+app.use("/api/inbox", inboxRoutes);
 app.use("/api/accounting", contractRoutes);
 app.use("/api/requests", salesRequestRoutes);
 app.use("/api/notifications", notificationRoutes);
@@ -166,6 +171,7 @@ app.use("/api/bi", biRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/locations", locationRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
+app.use("/api/retail", retailRoutes);
 
 const uploadReadLimiter = rateLimit({
     windowMs: UPLOAD_READ_WINDOW_MS,

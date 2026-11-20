@@ -114,7 +114,7 @@ describe("Phase 3: Plans, Features & Pricing Management", () => {
             expect(mockPlan.save).toHaveBeenCalled();
             expect(AuditLog.create).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    action: "plan_updated",
+                    action: "plan_archived",
                     targetId: planId.toString(),
                     meta: expect.objectContaining({
                         action: "plan_archived",

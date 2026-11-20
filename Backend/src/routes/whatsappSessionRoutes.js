@@ -1,6 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
+const { enforceSubscriptionStatus } = require("../middleware/tenantStatus");
 const { requireFeature } = require("../middleware/featureGating");
 const validate = require("../middleware/validate");
 const { uploadWhatsAppImage } = require("../config/whatsappUpload");
@@ -17,6 +18,7 @@ const {
 } = require("../controllers/whatsappSessionController");
 
 router.use(protect);
+router.use(enforceSubscriptionStatus);
 router.use(requireFeature("whatsapp"));
 
 router.get("/session", getSession);

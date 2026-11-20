@@ -555,13 +555,31 @@ async function countCheckIns(from, to, locationFilter = {}) {
     return rows[0]?.total || 0;
 }
 
-async function loadAttendanceBuckets(from, to, timeZone, locationFilter = {}) {
+/**
+ * Attendance filter. "gym" = front-desk check-ins (regular gym), "pt" = sessions a coach
+ * logged against a PT pack, "all" = both added together.
+ */
+const ATTENDANCE_LOG_TYPES = {
+    all: ["check-in", "pt-session"],
+    gym: ["check-in"],
+    pt: ["pt-session"],
+};
+
+function normalizeAttendanceType(value) {
+    const key = String(value || "").toLowerCase();
+    return Object.prototype.hasOwnProperty.call(ATTENDANCE_LOG_TYPES, key) ? key : "gym";
+}
+
+async function loadAttendanceBuckets(from, to, timeZone, locationFilter = {}, type = "gym") {
     const timezone = serverTimezone(timeZone);
+    const typeMatch = { $match: { "checkIns.type": { $in: ATTENDANCE_LOG_TYPES[normalizeAttendanceType(type)] } } };
+    // One pass over both log types. The segment totals always cover both,
+    // while the heatmap and daily totals follow the selected filter.
     const pipeline = [
         { $unwind: "$userlog" },
         {
             $match: {
-                "userlog.type": "check-in",
+                "userlog.type": { $in: ATTENDANCE_LOG_TYPES.all },
                 "userlog.createdAt": { $gte: from, $lte: to },
             },
         },
@@ -572,11 +590,14 @@ async function loadAttendanceBuckets(from, to, timeZone, locationFilter = {}) {
             },
         },
     ];
-    // Continue with existing facet grouping on checkIns.createdAt
     pipeline.push(
         {
             $facet: {
+                byType: [
+                    { $group: { _id: "$checkIns.type", count: { $sum: 1 } } },
+                ],
                 cells: [
+                    typeMatch,
                     {
                         $group: {
                             _id: {
@@ -593,6 +614,7 @@ async function loadAttendanceBuckets(from, to, timeZone, locationFilter = {}) {
                     },
                 ],
                 days: [
+                    typeMatch,
                     {
                         $group: {
                             _id: {
@@ -610,10 +632,65 @@ async function loadAttendanceBuckets(from, to, timeZone, locationFilter = {}) {
         },
     );
     const rows = await memberModel().aggregate(pipeline);
-    return rows[0] || { cells: [], days: [] };
+    return rows[0] || { cells: [], days: [], byType: [] };
 }
 
-function attendanceFromBuckets(buckets, from, to, weeks, timeZone) {
+function roundTo(value, digits) {
+    const factor = 10 ** digits;
+    return Math.round(value * factor) / factor;
+}
+
+/**
+ * Visits per member for the regular gym (check-ins) and PT (coach-logged sessions).
+ * `members` is how many people held that kind of package during the period.
+ */
+function buildAttendanceSegments({ byType = [], gymMembers = 0, ptMembers = 0 } = {}) {
+    const visits = new Map((byType || []).map((row) => [row._id, row.count]));
+    const gymVisits = visits.get("check-in") || 0;
+    const ptVisits = visits.get("pt-session") || 0;
+    const total = gymVisits + ptVisits;
+    const segment = (count, members) => ({
+        visits: count,
+        members,
+        visitsPerMember: members > 0 ? roundTo(count / members, 2) : null,
+        share: total > 0 ? roundTo(count / total, 4) : 0,
+    });
+    return {
+        gym: segment(gymVisits, gymMembers),
+        pt: segment(ptVisits, ptMembers),
+    };
+}
+
+/** Members holding a regular membership and members holding a PT pack during [from, to]. */
+async function loadAttendanceMemberCounts(from, to, locationFilter = {}) {
+    const Member = memberModel();
+    const [gymMembers, ptMembers] = await Promise.all([
+        Member.countDocuments({
+            ...(locationFilter || {}),
+            subscriptions: {
+                $elemMatch: {
+                    startDate: { $lte: to },
+                    endDate: { $gte: from },
+                    cancelled: { $ne: true },
+                    refunded: { $ne: true },
+                },
+            },
+        }),
+        Member.countDocuments({
+            ...(locationFilter || {}),
+            pt_subscriptions: {
+                $elemMatch: {
+                    startDate: { $lte: to },
+                    endDate: { $gte: from },
+                    refunded: { $ne: true },
+                },
+            },
+        }),
+    ]);
+    return { gymMembers, ptMembers };
+}
+
+function attendanceFromBuckets(buckets, from, to, weeks, timeZone, extra = {}) {
     const cellCounts = new Map();
     for (const row of buckets.cells || []) {
         cellCounts.set(`${row._id.dow}-${row._id.hour}`, row.count);
@@ -637,7 +714,9 @@ function attendanceFromBuckets(buckets, from, to, weeks, timeZone) {
         from: base.from,
         to: base.to,
         timezone: serverTimezone(timeZone),
+        type: extra.type || "gym",
         totalCheckIns,
+        segments: extra.segments || null,
         grid,
         days,
     };
@@ -658,13 +737,52 @@ async function getCohorts({ months = 12, locationFilter = {} } = {}) {
     return buildCohorts(members, new Date(), months);
 }
 
-async function getAttendance({ weeks = 8, timeZone, locationFilter = {} } = {}) {
-    const now = new Date();
-    const from = startOfDay(now);
-    from.setDate(from.getDate() - weeks * 7);
-    const to = endOfDay(now);
-    const buckets = await loadAttendanceBuckets(from, to, timeZone, locationFilter);
-    return attendanceFromBuckets(buckets, from, to, weeks, timeZone);
+const MAX_ATTENDANCE_DAYS = 366;
+
+/**
+ * Resolves the attendance window. An explicit from/to range wins over `weeks`.
+ * The range is swapped when reversed, capped at today, and limited to MAX_ATTENDANCE_DAYS.
+ */
+function resolveAttendanceWindow({ weeks = 8, from, to, now = new Date() } = {}) {
+    const fromDate = parseDate(from);
+    const toDate = parseDate(to);
+    if (!fromDate && !toDate) {
+        const start = startOfDay(now);
+        start.setDate(start.getDate() - weeks * 7);
+        return { from: start, to: endOfDay(now), weeks };
+    }
+
+    let start = startOfDay(fromDate || toDate);
+    let end = endOfDay(toDate || fromDate);
+    if (start > end) {
+        const swap = start;
+        start = startOfDay(end);
+        end = endOfDay(swap);
+    }
+    const today = endOfDay(now);
+    if (end > today) end = today;
+    if (start > end) start = startOfDay(end);
+
+    const earliest = startOfDay(end);
+    earliest.setDate(earliest.getDate() - (MAX_ATTENDANCE_DAYS - 1));
+    if (start < earliest) start = earliest;
+
+    const spanDays = Math.round((startOfDay(end) - start) / DAY_MS) + 1;
+    return { from: start, to: end, weeks: Math.max(1, Math.ceil(spanDays / 7)) };
+}
+
+async function getAttendance({ weeks = 8, from: rangeFrom, to: rangeTo, type, timeZone, locationFilter = {} } = {}) {
+    const window = resolveAttendanceWindow({ weeks, from: rangeFrom, to: rangeTo });
+    const attendanceType = normalizeAttendanceType(type);
+    const [buckets, memberCounts] = await Promise.all([
+        loadAttendanceBuckets(window.from, window.to, timeZone, locationFilter, attendanceType),
+        loadAttendanceMemberCounts(window.from, window.to, locationFilter),
+    ]);
+    const segments = buildAttendanceSegments({ byType: buckets.byType, ...memberCounts });
+    return attendanceFromBuckets(buckets, window.from, window.to, window.weeks, timeZone, {
+        type: attendanceType,
+        segments,
+    });
 }
 
 async function getFunnel({ from, to, includeImported = false, currency = "EGP", locationFilter = {} } = {}) {
@@ -700,6 +818,10 @@ module.exports = {
     getForecast,
     getCohorts,
     getAttendance,
+    resolveAttendanceWindow,
+    normalizeAttendanceType,
+    buildAttendanceSegments,
+    MAX_ATTENDANCE_DAYS,
     getFunnel,
     getExecutive,
 };

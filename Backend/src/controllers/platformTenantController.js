@@ -3,6 +3,7 @@ const Tenant = require("../models/Tenant");
 const Plan = require("../models/Plan");
 const User = require("../models/User");
 const Member = require("../models/Member");
+const Location = require("../models/Location");
 const AuditLog = require("../models/AuditLog");
 const BillingEvent = require("../models/BillingEvent");
 const TenantNote = require("../models/TenantNote");
@@ -20,6 +21,11 @@ const { WHATSAPP_AUDIT_ACTIONS, startOfMonth } = require("../utils/whatsappTrack
 const { SHOWCASE_PALETTE, applyShowcasePurpose } = require("../utils/showcasePalette");
 const { invalidateTenantCache } = require("../utils/cacheInvalidator");
 const logger = require("../utils/logger");
+const { writePlatformAudit } = require("../utils/audit");
+const { applyPastDue, clearDunning, refreshTenantCaches } = require("../services/billing/dunningService");
+const { resolveFairUseLimits } = require("../utils/fairUse");
+const { loadDunningSchedule } = require("../services/ownerMail");
+const { assessLimitChange, findOverages, overLimitResponse } = require("../services/planLimitService");
 
 const RESERVED_SLUGS = new Set([
     "www",
@@ -134,12 +140,7 @@ async function getTenants(req, res) {
 
                 const storageBytes = await getTenantStorageBytes(t._id);
                 const effectiveLimits = getEffectiveLimits(t, t.planId);
-                const isLifetime = t.billing?.cycle === "lifetime";
-                const storageLimitGb = t.limitOverrides?.storageGb != null
-                    ? t.limitOverrides.storageGb
-                    : (isLifetime
-                        ? (t.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25)
-                        : (t.planId?.fairUseCaps?.storageGb ?? 25));
+                const storageLimitGb = resolveFairUseLimits(t, t.planId).storageGb;
 
                 // Calculate MRR contribution
                 let mrrContribution = 0;
@@ -216,6 +217,7 @@ async function getTenantDetail(req, res) {
             recentAudit,
             recentLedger,
             monthlyWhatsAppCount,
+            branchCount,
         ] = await Promise.all([
             Member.collection.countDocuments({ tenantId: tenant._id }),
             User.collection.countDocuments({ tenantId: tenant._id }),
@@ -229,6 +231,7 @@ async function getTenantDetail(req, res) {
                     $gte: startOfMonth(tenant?.settings?.locale?.timezone),
                 },
             }),
+            Location.collection.countDocuments({ tenantId: tenant._id }),
         ]);
 
         const storageBytes = await getTenantStorageBytes(tenant._id);
@@ -236,24 +239,16 @@ async function getTenantDetail(req, res) {
         const effectiveRoles = getEffectiveRoles(tenant, tenant.planId);
         const baseLimits = getEffectiveLimits(tenant, tenant.planId);
 
-        const isLifetime = tenant.billing?.cycle === "lifetime";
-        const storageLimitGb = tenant.limitOverrides?.storageGb != null
-            ? tenant.limitOverrides.storageGb
-            : (isLifetime
-                ? (tenant.billing?.lifetime?.fairUseLimits?.storageGbLimit || 25)
-                : (tenant.planId?.fairUseCaps?.storageGb ?? 25));
-
-        const whatsappLimit = tenant.limitOverrides?.whatsappMonthlyMessages != null
-            ? tenant.limitOverrides.whatsappMonthlyMessages
-            : (isLifetime
-                ? (tenant.billing?.lifetime?.fairUseLimits?.whatsappMessagesMonthlyLimit || 2000)
-                : (tenant.planId?.fairUseCaps?.whatsappMessagesMonthly ?? 2000));
-
         const effectiveLimits = {
             ...baseLimits,
-            storageGb: storageLimitGb,
-            whatsappMonthlyMessages: whatsappLimit,
+            ...resolveFairUseLimits(tenant, tenant.planId),
         };
+        const storageLimitGb = effectiveLimits.storageGb;
+        const overLimits = findOverages(baseLimits, {
+            members: memberCount,
+            staff: staffCount,
+            branches: branchCount,
+        });
 
         res.json({
             tenant: {
@@ -273,6 +268,9 @@ async function getTenantDetail(req, res) {
                 effectiveLimits,
                 trialEndsAt: tenant.trialEndsAt,
                 currentPeriodEnd: tenant.currentPeriodEnd,
+                dunning: tenant.dunning || null,
+                billingProfile: tenant.billingProfile || null,
+                overLimits,
                 billingProviderCustomerId: tenant.billingProviderCustomerId,
                 tags: tenant.tags || [],
                 slugHistory: tenant.slugHistory || [],
@@ -286,6 +284,7 @@ async function getTenantDetail(req, res) {
             usage: {
                 members: memberCount,
                 staff: staffCount,
+                branches: branchCount,
                 storageBytes,
                 storageGb: Math.round((storageBytes / (1024 * 1024 * 1024)) * 100) / 100,
                 storageLimitGb,
@@ -573,8 +572,25 @@ async function updateTenantLifecycle(req, res) {
 
             case "reactivate":
                 tenant.status = "active";
+                clearDunning(tenant);
                 afterState.status = "active";
                 break;
+
+            case "mark_past_due": {
+                if (tenant.billing?.cycle === "lifetime") {
+                    return res.status(400).json({ message: "Lifetime tenants cannot be marked past due" });
+                }
+                if (!["active", "trial"].includes(tenant.status)) {
+                    return res.status(400).json({ message: `Cannot mark a ${tenant.status} tenant as past due` });
+                }
+                const { gracePeriodDays: defaultGrace } = await loadDunningSchedule();
+                const requested = parseInt(payload.gracePeriodDays, 10);
+                const gracePeriodDays = Number.isInteger(requested) && requested >= 0 && requested <= 60 ? requested : defaultGrace;
+                applyPastDue(tenant, { gracePeriodDays, markedBy: "platform" });
+                afterState.status = "past_due";
+                afterState.graceEndsAt = tenant.dunning.graceEndsAt;
+                break;
+            }
 
             case "cancel": {
                 tenant.status = "cancelled";
@@ -606,8 +622,13 @@ async function updateTenantLifecycle(req, res) {
                     ? await Plan.findOne({ key: newPlanKey })
                     : await Plan.findById(newPlanId);
                 if (!newPlan) return res.status(400).json({ message: "Plan not found" });
+                const { overages } = await assessLimitChange(tenant, { plan: newPlan });
+                if (overages.length && payload.force !== true) {
+                    return res.status(409).json(overLimitResponse(overages, newPlan.name));
+                }
                 tenant.planId = newPlan._id;
                 afterState.planKey = newPlan.key;
+                if (overages.length) afterState.overLimits = overages;
                 break;
             }
 
@@ -635,6 +656,14 @@ async function updateTenantLifecycle(req, res) {
                     afterState.roleOverrides = payload.roleOverrides;
                 }
                 if (payload.limitOverrides) {
+                    const { overages } = await assessLimitChange(tenant, {
+                        plan: tenant.planId,
+                        limitOverrides: payload.limitOverrides,
+                    });
+                    if (overages.length && payload.force !== true) {
+                        return res.status(409).json(overLimitResponse(overages));
+                    }
+                    if (overages.length) afterState.overLimits = overages;
                     tenant.limitOverrides = payload.limitOverrides;
                     afterState.limitOverrides = payload.limitOverrides;
                 }
@@ -697,6 +726,7 @@ async function updateTenantLifecycle(req, res) {
         }
 
         await tenant.save();
+        refreshTenantCaches(tenant._id);
 
         if (action === "suspend") {
             const ownerMail = require("../services/ownerMail");
@@ -704,11 +734,10 @@ async function updateTenantLifecycle(req, res) {
         }
 
         // Write append-only audit trail
-        await AuditLog.create({
+        await writePlatformAudit({
             tenantId: tenant._id,
-            action: "tenant_status_updated",
+            action: action === "mark_past_due" ? "tenant_marked_past_due" : "tenant_status_updated",
             actor: req.platformUser.id,
-            actorRole: "PlatformUser",
             targetType: "tenant",
             targetId: tenant._id.toString(),
             meta: {
@@ -718,6 +747,7 @@ async function updateTenantLifecycle(req, res) {
                 reason,
                 actorEmail: req.platformUser.email,
             },
+            req,
         });
 
         res.json({

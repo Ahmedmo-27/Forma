@@ -27,7 +27,15 @@ function formatLine(level, category, message, meta = {}) {
     });
 }
 
+// Hosted platforms (Railway, Render) have an ephemeral filesystem and collect
+// stdout instead. Log files stay on by default everywhere else; set
+// LOG_TO_FILE=true|false to override.
+const FILE_LOGGING = process.env.LOG_TO_FILE
+    ? process.env.LOG_TO_FILE.toLowerCase() !== "false"
+    : process.env.NODE_ENV !== "production";
+
 function writeToFile(filePath, line) {
+    if (!FILE_LOGGING) return;
     try {
         ensureLogDir();
         fs.appendFileSync(filePath, `${line}\n`, "utf8");

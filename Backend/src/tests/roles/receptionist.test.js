@@ -13,8 +13,8 @@ const desk = () => staff("Receptionist");
 
 describe("Receptionist", () => {
     it("defaults to check-in, the member directory, profiles, and phone numbers", () => {
-        expectKeys("Receptionist", ["check_in", "members", "member_profile", "maintenance_checklist", "view_phones"]);
-        expectAreas("Receptionist", ["checkin", "members", "sales", "maintenance"]);
+        expectKeys("Receptionist", ["check_in", "members", "member_profile", "maintenance_checklist", "retail_pos", "view_phones"]);
+        expectAreas("Receptionist", ["checkin", "members", "sales", "maintenance", "retail"]);
         expectList("Receptionist", "all");
     });
 

@@ -8,15 +8,16 @@ const AREAS = [
     { key: "members", label: "Members", description: "Member directory and profiles", planFeature: "members" },
     { key: "checkin", label: "Check-in", description: "Front desk check-in", planFeature: "checkin" },
     { key: "sales", label: "Sales", description: "Sales pipeline, call center, and rep tools", planFeature: "sales_crm" },
-    { key: "coaching", label: "Coaching", description: "Coach schedules, sessions, and transfers", planFeature: null },
+    { key: "coaching", label: "Coaching", description: "Coach schedules, sessions, and transfers", planFeature: "coaching" },
     { key: "accounting", label: "Accounting", description: "Ledger, contracts, targets, and refunds", planFeature: "accounting" },
-    { key: "reports", label: "Reports", description: "Guest, expired, and performance reports", planFeature: null },
+    { key: "reports", label: "Reports", description: "Guest, expired, and performance reports", planFeature: "reports_basic" },
     { key: "packages", label: "Packages", description: "Membership packages", planFeature: "packages" },
     { key: "whatsapp", label: "WhatsApp", description: "WhatsApp templates and sending", planFeature: "whatsapp" },
     { key: "excel_import", label: "Excel import", description: "Import members from a spreadsheet", planFeature: "excel_import" },
     { key: "exception_approvals", label: "Exception approvals", description: "Discounts, freezes, and package exceptions", planFeature: "exception_approvals" },
-    { key: "staff", label: "Staff management", description: "Staff accounts, teams, roles, and access", planFeature: null },
-    { key: "maintenance", label: "Maintenance", description: "Facility maintenance checklists", planFeature: null },
+    { key: "staff", label: "Staff management", description: "Staff accounts, teams, roles, and access", planFeature: "staff_management" },
+    { key: "maintenance", label: "Maintenance", description: "Facility maintenance checklists", planFeature: "maintenance" },
+    { key: "retail", label: "Bar & Shop", description: "Bar, food, supplements and towels: POS, vendors, stock, and revenue", planFeature: "retail" },
 ];
 
 const AREA_KEYS = AREAS.map((area) => area.key);
@@ -69,6 +70,9 @@ const FEATURE_AREA = {
     access_control: "staff",
     maintenance_checklist: "maintenance",
     manage_maintenance: "maintenance",
+    retail_pos: "retail",
+    retail_manage: "retail",
+    retail_reports: "retail",
 };
 
 const CHECKLIST_ROLES = [

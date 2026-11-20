@@ -1,5 +1,6 @@
 const express = require("express");
 const router = express.Router();
+const { requireFeature } = require("../middleware/featureGating");
 const { protect, authorizeRoles } = require("../middleware/authMiddleware");
 const {
     getNotifications,
@@ -9,6 +10,7 @@ const {
 } = require("../controllers/notificationController");
 
 router.use(protect, authorizeRoles("Sales", "Sales Manager", "Accountant","Coach","Head Coach"));
+router.use(requireFeature("notifications"));
 
 router.get("/", getNotifications);
 router.get("/unread-count", getUnreadCount);

@@ -1,5 +1,5 @@
 const PlatformUser = require("../models/PlatformUser");
-const AuditLog = require("../models/AuditLog");
+const { writePlatformAudit } = require("../utils/audit");
 const { hashPassword, normalizeEmail } = require("../utils/passwordUtils");
 const { assertEmailAvailable, replyIfConflict } = require("../utils/identityUniqueness");
 const { parsePagination, buildPagination } = require("../utils/pagination");
@@ -66,10 +66,9 @@ async function createPlatformUser(req, res) {
             status: "active",
         });
 
-        await AuditLog.create({
-            action: "staff_created",
+        await writePlatformAudit({
+            action: "platform_user_created",
             actor: req.platformUser.id,
-            actorRole: "PlatformUser",
             targetType: "user",
             targetId: user._id.toString(),
             meta: {
@@ -78,6 +77,7 @@ async function createPlatformUser(req, res) {
                 createdBy: req.platformUser.email,
                 reason: req.body.reason || "Platform user created",
             },
+            req,
         });
 
         res.status(201).json({
@@ -132,10 +132,9 @@ async function updatePlatformUser(req, res) {
         if (status) user.status = status;
         await user.save();
 
-        await AuditLog.create({
-            action: "sales_abilities_updated",
+        await writePlatformAudit({
+            action: "platform_user_updated",
             actor: req.platformUser.id,
-            actorRole: "PlatformUser",
             targetType: "user",
             targetId: user._id.toString(),
             meta: {
@@ -144,6 +143,7 @@ async function updatePlatformUser(req, res) {
                 afterState: { role: user.role, status: user.status },
                 reason,
             },
+            req,
         });
 
         res.json({
@@ -191,10 +191,9 @@ async function deletePlatformUser(req, res) {
 
         await PlatformUser.findByIdAndDelete(id);
 
-        await AuditLog.create({
-            action: "staff_created",
+        await writePlatformAudit({
+            action: "platform_user_deleted",
             actor: req.platformUser.id,
-            actorRole: "PlatformUser",
             targetType: "user",
             targetId: id,
             meta: {
@@ -202,6 +201,7 @@ async function deletePlatformUser(req, res) {
                 deletedUserRole: user.role,
                 reason,
             },
+            req,
         });
 
         res.json({ message: "Platform user deleted successfully" });

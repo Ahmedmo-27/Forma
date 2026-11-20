@@ -6,6 +6,7 @@ const Tenant = require("../models/Tenant");
 const AuditLog = require("../models/AuditLog");
 const Member = require("../models/Member");
 const User = require("../models/User");
+const Location = require("../models/Location");
 const TenantNote = require("../models/TenantNote");
 const BillingEvent = require("../models/BillingEvent");
 const { getCostInsights } = require("../controllers/platformAnalyticsController");
@@ -141,6 +142,7 @@ describe("Platform Storage Capacity Allowance & Telemetry", () => {
 
         vi.spyOn(Member.collection, "countDocuments").mockResolvedValue(200);
         vi.spyOn(User.collection, "countDocuments").mockResolvedValue(8);
+        vi.spyOn(Location.collection, "countDocuments").mockResolvedValue(1);
         vi.spyOn(TenantNote, "find").mockReturnValue({ sort: vi.fn().mockResolvedValue([]) });
         vi.spyOn(AuditLog, "find").mockReturnValue({ sort: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([]) }) });
         vi.spyOn(BillingEvent, "find").mockReturnValue({ sort: vi.fn().mockReturnValue({ limit: vi.fn().mockResolvedValue([]) }) });

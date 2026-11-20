@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const Tenant = require("../models/Tenant");
+const { getEffectiveFeatures } = require("../models/Tenant");
 const User = require("../models/User");
 const AuditLog = require("../models/AuditLog");
 const logger = require("../utils/logger");
@@ -16,12 +17,26 @@ function platformActor(req) {
 
 async function findTenant(id) {
     if (!isObjectId(id)) return null;
-    return Tenant.findById(id).select("ownerUserId");
+    return Tenant.findById(id)
+        .select("ownerUserId roleAccess planId featureOverrides billing")
+        .populate("planId");
+}
+
+/**
+ * The same plan and role-access context a gym owner sees, so a platform editor
+ * greys out areas the gym's plan has switched off and diffs against real defaults.
+ */
+function accessContextFor(tenant) {
+    const plan = tenant?.planId?.features ? tenant.planId : null;
+    return {
+        roleAccess: tenant?.roleAccess || null,
+        planFeatures: plan ? getEffectiveFeatures(tenant, plan) : null,
+    };
 }
 
 async function findStaff(tenantId, userId) {
     if (!isObjectId(userId)) return null;
-    return User.findOne({ _id: userId, tenantId }).select("name email role abilities canViewPhones featureAccess");
+    return User.findOne({ _id: userId, tenantId }).select("name email role abilities canViewPhones featureAccess accessOverrides");
 }
 
 /**
@@ -66,7 +81,7 @@ const getTenantStaffAccess = async (req, res) => {
 
         res.json({
             user: { _id: user._id, name: user.name, role: user.role },
-            groups: groupFeaturesFor(platformActor(req), user),
+            groups: groupFeaturesFor(platformActor(req), user, accessContextFor(tenant)),
         });
     } catch (error) {
         logger.error("platform", "getTenantStaffAccess failed", { error: error.message });
@@ -92,7 +107,8 @@ const updateTenantStaffAccess = async (req, res) => {
         if (!user) return res.status(404).json({ message: "User not found" });
 
         const actor = platformActor(req);
-        const diff = diffConfirmedFeatures(actor, user, features);
+        const context = accessContextFor(tenant);
+        const diff = diffConfirmedFeatures(actor, user, features, context);
         if (diff.error) return res.status(400).json({ message: diff.error });
 
         user.featureAccess = { grants: diff.grants, revokes: diff.revokes };
@@ -118,7 +134,7 @@ const updateTenantStaffAccess = async (req, res) => {
         res.json({
             message: "Access updated",
             user: { _id: user._id, name: user.name, role: user.role },
-            groups: groupFeaturesFor(actor, user),
+            groups: groupFeaturesFor(actor, user, context),
         });
     } catch (error) {
         logger.error("platform", "updateTenantStaffAccess failed", { error: error.message });

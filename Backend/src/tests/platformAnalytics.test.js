@@ -94,6 +94,43 @@ describe("Phase 5: Business Analytics & Snapshots", () => {
             expect(snapshot.revenue.netRevenue).toBe(3100);
         });
 
+        it("does not add non-EGP ledger rows to EGP revenue and reports them separately", async () => {
+            vi.spyOn(Tenant, "find").mockReturnValue({ populate: vi.fn().mockResolvedValue([]) });
+            vi.spyOn(BillingEvent, "find").mockResolvedValue([
+                { type: "purchase", cycle: "lifetime", amount: 2499, currency: "USD" },
+                { type: "purchase", cycle: "lifetime", amount: 1299, currency: "USD" },
+                { type: "purchase", cycle: "monthly", amount: 1500, currency: "EGP" },
+                { type: "purchase", cycle: "monthly", amount: 10 },
+                { type: "refund", cycle: "lifetime", amount: 299, currency: "USD" },
+            ]);
+
+            const snapshot = await computeDailySnapshot(new Date("2026-11-05T00:00:00Z"));
+
+            expect(snapshot.revenue.totalCollected).toBe(1510);
+            expect(snapshot.revenue.netRevenue).toBe(1510);
+            expect(snapshot.revenue.currency).toBe("EGP");
+            expect(snapshot.revenue.excludedByCurrency).toEqual({ USD: 3499 });
+        });
+
+        it("counts only trials ending in the next 7 days as expiring", async () => {
+            const DAY = 24 * 60 * 60 * 1000;
+            vi.spyOn(Tenant, "find").mockReturnValue({
+                populate: vi.fn().mockResolvedValue([
+                    { _id: new mongoose.Types.ObjectId(), status: "trial", trialEndsAt: new Date(Date.now() + 3 * DAY), planId: {} },
+                    { _id: new mongoose.Types.ObjectId(), status: "trial", trialEndsAt: new Date(Date.now() + 20 * DAY), planId: {} },
+                    { _id: new mongoose.Types.ObjectId(), status: "trial", trialEndsAt: new Date(Date.now() - DAY), planId: {} },
+                ]),
+            });
+            vi.spyOn(BillingEvent, "find").mockResolvedValue([]);
+            vi.spyOn(Member.collection, "countDocuments").mockResolvedValue(0);
+            vi.spyOn(User.collection, "countDocuments").mockResolvedValue(0);
+
+            const snapshot = await computeDailySnapshot(new Date());
+
+            expect(snapshot.growth.trialTenants).toBe(3);
+            expect(snapshot.health.expiringTrialsCount).toBe(1);
+        });
+
         it("detects inactive churn risks and capacity upsell candidates", async () => {
             const oldDate = new Date(Date.now() - 20 * 24 * 60 * 60 * 1000); // 20 days ago
 

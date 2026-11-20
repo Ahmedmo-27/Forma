@@ -389,6 +389,7 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
             const promise = Promise.resolve(value);
             const query = {
                 select() { return query; },
+                populate() { return query; },
                 sort() { return promise; },
                 then: promise.then.bind(promise),
                 catch: promise.catch.bind(promise),
@@ -500,6 +501,28 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
                 }),
             }));
             expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ message: "Access updated" }));
+        });
+
+        it("greys out areas the gym's plan has switched off", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
+            const receptionist = staffDoc({ role: "Receptionist", tenantId });
+
+            const accessFor = async (planFeatures) => {
+                vi.spyOn(Tenant, "findById").mockImplementation(() => (
+                    queryResult({ _id: tenantId, ownerUserId: null, planId: { features: planFeatures }, billing: {}, featureOverrides: {}, roleAccess: { Receptionist: ["retail"] } })
+                ));
+                vi.spyOn(User, "findOne").mockImplementation(() => queryResult(receptionist));
+                const res = mockRes();
+                await getTenantStaffAccess({
+                    params: { id: tenantId.toString(), userId: receptionist._id.toString() },
+                    platformUser: adminUser,
+                }, res);
+                const features = res.json.mock.calls[0][0].groups.flatMap((group) => group.features);
+                return features.find((feature) => feature.key === "retail_pos");
+            };
+
+            expect((await accessFor(["members", "retail"])).enabled).toBe(true);
+            expect((await accessFor(["members"])).enabled).toBe(false);
         });
 
         it("returns 404 when the user is not in this gym", async () => {
