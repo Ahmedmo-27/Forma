@@ -116,6 +116,8 @@ const AR = {
   'Apply Columns': 'تطبيق الأعمدة',
   'Member detail columns': 'أعمدة تفاصيل الأعضاء',
   'Show extra member fields (phone, member ID, sales, etc.) on Check In and Attendance tables': 'إظهار حقول أعضاء إضافية (الهاتف، معرّف العضو، المبيعات، وغيرها) في جداول تسجيل الحضور والحضور',
+  'Bypass package approval': 'تجاوز موافقة الباقة',
+  'Assign packages to members without accountant review. Locked off for sales by default.': 'تعيين الباقات للأعضاء دون مراجعة المحاسب. معطّل للمبيعات بشكل افتراضي.',
   'Created Tasks History': 'سجل المهام المُنشأة',
   'All task batches created and assigned to staff members.': 'كل دفعات المهام التي أُنشئت وأُسندت إلى الموظفين.',
   'Task': 'المهمة',

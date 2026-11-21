@@ -50,7 +50,8 @@ describe("Sales", () => {
         const user = rep();
         expectDenied("refunds", ["Owner", "Accountant"], user);
         expectDenied("packages", ["Owner", "Sales Manager"], user);
-        expectDenied("package_approvals", ["Accountant", "Owner"], user);
+        expectDenied("package_approvals", ["Accountant", "Owner", "General Manager"], user);
+        expectDenied("bypass_package_approval", ["Accountant", "Owner"], user);
         expectDenied("settings", ["Owner"], user);
         expectDenied("change_role", ["Owner", "General Manager", "Sales Manager"], user);
         expectDenied("transfer", ["Sales Manager", "Owner"], user);

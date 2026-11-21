@@ -24,7 +24,7 @@ router.use(enforceSubscriptionStatus);
 router.use(requireFeature("exception_approvals"));
 router.use(locationScopeOptional);
 
-router.get("/", allowRoles("package_approvals", "Accountant", "Owner"), cacheResponse({ ttlSeconds: 60, tags: ["package-exceptions"] }), getExceptions);
+router.get("/", allowRoles("package_approvals", "Accountant", "Owner", "General Manager"), cacheResponse({ ttlSeconds: 60, tags: ["package-exceptions"] }), getExceptions);
 // Read-only: anyone who can open a member profile Packages tab may see pending state.
 router.get(
     "/member/:memberId",
@@ -43,6 +43,6 @@ router.get(
     getMemberPendingException
 );
 router.post("/", allowRoles("packages", "Sales Manager", "Owner"), validate(createExceptionSchema), autoInvalidate(["package-exceptions"]), createException);
-router.put("/:id/status", allowRoles("package_approvals", "Accountant", "Owner"), validate(exceptionStatusSchema), autoInvalidate(["package-exceptions", "contracts", "revenue"]), updateExceptionStatus);
+router.put("/:id/status", allowRoles("package_approvals", "Accountant", "Owner", "General Manager"), validate(exceptionStatusSchema), autoInvalidate(["package-exceptions", "contracts", "revenue"]), updateExceptionStatus);
 
 module.exports = router;

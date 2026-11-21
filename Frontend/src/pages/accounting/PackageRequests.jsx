@@ -12,6 +12,7 @@ import PackageAcceptModal from '../../components/accounting/PackageAcceptModal';
 import { useWalkthrough } from '../../tutorials/walkthrough-context';
 import { useI18n } from '../../i18n/useI18n';
 import { useFormat } from '../../i18n/useFormat';
+import { hasAccess } from '../../lib/access';
 
 const PAGE_SIZE = 10;
 
@@ -166,7 +167,8 @@ export default function PackageRequests() {
   const [confirm, setConfirm] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
 
-  const isReviewer = user?.role === 'Accountant';
+  const isReviewer = hasAccess(user, 'package_approvals')
+    || ['Accountant', 'Owner', 'General Manager'].includes(user?.role);
   const { isActive, currentStep } = useWalkthrough();
   const tourOpenedRequest = useRef(false);
 

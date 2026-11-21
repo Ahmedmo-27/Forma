@@ -33,7 +33,7 @@ describe("Accountant", () => {
     it("can refund, approve package exceptions, and read contracts", () => {
         const user = books();
         expectAllowed("refunds", ["Owner", "Accountant"], user);
-        expectAllowed("package_approvals", ["Accountant", "Owner"], user);
+        expectAllowed("package_approvals", ["Accountant", "Owner", "General Manager"], user);
         expectAllowed("contracts", ["Accountant", "Owner", "Sales Manager"], user);
         expectAllowed("accounting_dashboard", ["Accountant", "Owner"], user);
         expectAllowed("targets", ["Sales Manager", "Owner", "Accountant"], user);

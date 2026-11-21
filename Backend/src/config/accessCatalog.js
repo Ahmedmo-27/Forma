@@ -243,6 +243,17 @@ const ACCESS_CATALOG = [
         nav: { to: "/sales/packages", label: "Packages" },
     },
     {
+        key: "bypass_package_approval",
+        label: "Bypass package approval",
+        description: "Assign packages to members without accountant review. Locked off for sales by default.",
+        icon: "BadgeCheck",
+        group: "Sales Manager",
+        domain: "owner",
+        defaultRoles: [],
+        planFeature: "packages",
+        // Ability-only — Owner / General Manager can grant this on the access page.
+    },
+    {
         key: "manager_call_center",
         label: "Call Center",
         description: "Manager call center across the sales team",

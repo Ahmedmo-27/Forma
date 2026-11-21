@@ -118,7 +118,7 @@ router.patch("/:memberId/assign-sales", allowRoles("members", "Receptionist", "O
 router.patch("/:memberId/freeze", allowRoles("members", "Receptionist", "Owner", "Sales", "Sales Manager"), validate(freezeMemberSchema), autoInvalidate(["members"]), freezeMember);
 router.patch("/:memberId/block", protect, allowRoles("management", "Owner", "Sales Manager", "Head Coach", "General Manager"), autoInvalidate(["members"]), blockMember);
 router.patch("/:memberId/unblock", protect, allowRoles("management", "Owner", "Sales Manager", "Head Coach", "General Manager"), autoInvalidate(["members"]), unblockMember);
-router.post("/:memberId/package", protect, allowRoles("package_approvals", "Accountant", "Owner"), requireFeature("packages"), validate(assignPackageSchema), autoInvalidate(["members", "revenue", "contracts"]), assignPackage);
+router.post("/:memberId/package", protect, allowAnyFeature(["package_approvals", "bypass_package_approval"], "Accountant", "Owner"), requireFeature("packages"), validate(assignPackageSchema), autoInvalidate(["members", "revenue", "contracts"]), assignPackage);
 router.patch("/:memberId/national-id", protect, allowRoles("accounting_dashboard", "Accountant", "Owner"), uploadLimiter, uploadSingle("nationalIdFile"), autoInvalidate(["members"]), uploadNationalId);
 router.patch("/:memberId/photo", protect, allowRoles("members", "Accountant", "Owner", "Receptionist"), uploadLimiter, uploadSinglePhoto("photoFile"), autoInvalidate(["members"]), uploadProfilePhoto);
 router.patch("/:memberId", allowRoles("members", "Receptionist", "Owner", "Sales Manager", "Sales", "Accountant", "General Manager"), validate(updateMemberSchema), autoInvalidate(["members"]), updateMember);

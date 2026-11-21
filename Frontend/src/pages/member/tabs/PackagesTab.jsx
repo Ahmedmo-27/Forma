@@ -12,6 +12,7 @@ import ContractSignModal from '../../../components/contracts/ContractSignModal';
 import { useI18n } from '../../../i18n/useI18n';
 import { useFormat } from '../../../i18n/useFormat';
 import { tr } from '../../../i18n/translate';
+import { hasAccess } from '../../../lib/access';
 import { useMemberDates } from '../useMemberDates';
 import { rich } from '../richText';
 
@@ -426,7 +427,11 @@ function PackagesContent({ member, user, onRefresh }) {
   const isAccountant = user?.role === 'Accountant';
   const isOwner = user?.role === 'Owner';
   const isGM = user?.role === 'General Manager';
-  const canAddPackage = isSalesManager || isAccountant || isOwner || isGM;
+  const canBypassPackageApproval = hasAccess(user, 'bypass_package_approval');
+  const canReviewException = hasAccess(user, 'package_approvals')
+    || isAccountant || isOwner || isGM;
+  const canAssignPackageDirectly = isAccountant || isOwner || canBypassPackageApproval;
+  const canAddPackage = isSalesManager || isAccountant || isOwner || isGM || canBypassPackageApproval;
   const canRefund = isOwner || isAccountant || isGM;
   const canTransfer = isOwner || isAccountant || isGM;
   const memberKey = member.systemId ?? member._id;
@@ -617,7 +622,7 @@ function PackagesContent({ member, user, onRefresh }) {
               {pending.reason}
             </div>
           )}
-          {isAccountant && (
+          {canReviewException && (
             <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
               <Btn variant="success" size="sm" onClick={() => setShowAcceptModal(true)}>{t('Confirm')}</Btn>
               <Btn variant="danger" size="sm" onClick={() => setConfirm({ id: pending._id, status: 'rejected' })}>{t('Decline')}</Btn>
@@ -650,7 +655,7 @@ function PackagesContent({ member, user, onRefresh }) {
             )}
             {canAddPackage && !loadingPending && !member.isBlocked && (
               <span data-walkthrough="add-package-btn">
-                <Btn size="xs" onClick={() => { setPackageMode('add'); setShowAddPackage(true); }}>{isSalesManager ? t('+ Request Package') : t('+ Add Package')}</Btn>
+                <Btn size="xs" onClick={() => { setPackageMode('add'); setShowAddPackage(true); }}>{isSalesManager && !canAssignPackageDirectly ? t('+ Request Package') : t('+ Add Package')}</Btn>
               </span>
             )}
           </div>
@@ -671,7 +676,7 @@ function PackagesContent({ member, user, onRefresh }) {
         )}
 
         {!pkg || member.status === 'guest'
-          ? <EmptyState message={t('No active package')} sub={isSalesManager && !pending ? t('Submit a package request — the accountant must approve before it is assigned.') : isAccountant && !pending ? t('Click Add Package to assign a package to this member.') : t('No package assigned yet.')} />
+          ? <EmptyState message={t('No active package')} sub={isSalesManager && !canAssignPackageDirectly && !pending ? t('Submit a package request — the accountant must approve before it is assigned.') : canAssignPackageDirectly && !pending ? t('Click Add Package to assign a package to this member.') : t('No package assigned yet.')} />
           : <div style={{
               display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 1,
               background: 'var(--border)', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden',
@@ -943,8 +948,8 @@ function PackagesContent({ member, user, onRefresh }) {
           member={member}
           pending={pending}
           isSalesManager={isSalesManager}
-          isAccountant={isAccountant}
-          isOwner={isOwner}
+          canReview={canReviewException}
+          canAssignDirectly={canAssignPackageDirectly}
           upgrade={packageMode === 'upgrade'}
           onSuccess={() => { setShowAddPackage(false); fetchPending(); onRefresh?.(); }}
           onReview={(id, status) => setConfirm({ id, status: status === 'declined' ? 'rejected' : status })}
@@ -1034,7 +1039,7 @@ function PackageFormFields({ form, set, readOnly, makeException, allEditable, lo
   );
 }
 
-function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSalesManager, isAccountant, isOwner, onSuccess, onReview, upgrade = false }) {
+function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSalesManager, canReview = false, canAssignDirectly = false, onSuccess, onReview, upgrade = false }) {
   const { t } = useI18n();
   const { fmtNumber } = useFormat();
   const { currency = 'EGP' } = useTenant() || {};
@@ -1221,47 +1226,51 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
     }
   };
 
-  // Accountant or Owner: review pending request or assign directly
-  if (isAccountant || isOwner) {
-    if (pending) {
-      return (
-        <Modal open={open} onClose={onClose} title={t('Add Package — Review Request')} size="lg"
-          footer={<Btn variant="ghost" size="sm" onClick={onClose}>{t('Close')}</Btn>}>
-          <Alert type="warning">
-            {pending.notificationMessage ||
-              (pending.hasException
-                ? t('{user} added package {package} with exception to member {member}', { user: pending.proposedBy?.name, package: pending.name, member: member.name })
-                : t('{user} requested package {package} for member {member}', { user: pending.proposedBy?.name, package: pending.name, member: member.name }))}
-          </Alert>
-          <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 16 }}>
-            {rich(t('Proposed by {user} · Based on {package}'), { user: <strong><bdi>{pending.proposedBy?.name}</bdi></strong>, package: <strong><bdi>{pending.basePackage?.name}</bdi></strong> })}
-            {pending.hasException ? ` · ${t('Exception terms')}` : ` · ${t('Standard catalog request')}`}
+  // Reviewers (Accountant / Owner / GM): review a pending request before adding another
+  if (pending && canReview) {
+    return (
+      <Modal open={open} onClose={onClose} title={t('Add Package — Review Request')} size="lg"
+        footer={<Btn variant="ghost" size="sm" onClick={onClose}>{t('Close')}</Btn>}>
+        <Alert type="warning">
+          {pending.notificationMessage ||
+            (pending.hasException
+              ? t('{user} added package {package} with exception to member {member}', { user: pending.proposedBy?.name, package: pending.name, member: member.name })
+              : t('{user} requested package {package} for member {member}', { user: pending.proposedBy?.name, package: pending.name, member: member.name }))}
+        </Alert>
+        <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 16 }}>
+          {rich(t('Proposed by {user} · Based on {package}'), { user: <strong><bdi>{pending.proposedBy?.name}</bdi></strong>, package: <strong><bdi>{pending.basePackage?.name}</bdi></strong> })}
+          {pending.hasException ? ` · ${t('Exception terms')}` : ` · ${t('Standard catalog request')}`}
+        </div>
+        <PackageFormFields form={requestToForm(pending)} readOnly makeException={!!pending.hasException} />
+        {pending.reason && (
+          <div style={{ marginTop: 12, fontSize: 12, color: 'var(--t2)' }}>
+            <strong>{t('Reason:')}</strong> {pending.reason}
           </div>
-          <PackageFormFields form={requestToForm(pending)} readOnly makeException={!!pending.hasException} />
-          {pending.reason && (
-            <div style={{ marginTop: 12, fontSize: 12, color: 'var(--t2)' }}>
-              <strong>{t('Reason:')}</strong> {pending.reason}
-            </div>
-          )}
-          <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
-            <Btn variant="success" size="sm" onClick={() => { onClose(); onReview(pending._id, 'accepted'); }}>{t('Confirm')}</Btn>
-            <Btn variant="danger" size="sm" onClick={() => { onClose(); onReview(pending._id, 'declined'); }}>{t('Decline')}</Btn>
-          </div>
-        </Modal>
-      );
-    }
+        )}
+        <div style={{ display: 'flex', gap: 8, marginTop: 20 }}>
+          <Btn variant="success" size="sm" onClick={() => { onClose(); onReview(pending._id, 'accepted'); }}>{t('Confirm')}</Btn>
+          <Btn variant="danger" size="sm" onClick={() => { onClose(); onReview(pending._id, 'declined'); }}>{t('Decline')}</Btn>
+        </div>
+      </Modal>
+    );
+  }
 
+  // Accountant, Owner, or staff granted bypass: assign directly
+  if (canAssignDirectly) {
     return (
       <Modal open={open} onClose={onClose} title={upgrade ? t('Upgrade Package') : t('Add Package')} size="lg"
         footer={
           <>
             <Btn variant="ghost" size="sm" onClick={onClose}>{t('Cancel')}</Btn>
-            <Btn size="sm" onClick={handleAccountantSubmit} disabled={loading || !form.basePackageId || !form.name?.trim() || !form.duration || form.pricePaid === ''}>
+            <Btn size="sm" onClick={handleAccountantSubmit} disabled={loading || !!pending || !form.basePackageId || !form.name?.trim() || !form.duration || form.pricePaid === ''}>
               {loading ? <Spinner size="sm" /> : upgrade ? t('Upgrade Package') : t('Assign Package')}
             </Btn>
           </>
         }>
         <div data-walkthrough="add-package-form">
+        {pending && (
+          <Alert type="warning">{t('This member already has a pending package request awaiting accountant approval.')}</Alert>
+        )}
         <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16, lineHeight: 1.6 }}>
           {upgrade
             ? rich(t('Upgrade {member} to a new package starting today. The current package keeps its end date and price.'), { member: <strong><bdi>{member.name}</bdi></strong> })
@@ -1286,7 +1295,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
     );
   }
 
-  // Sales Manager: request only — never assigns directly
+  // Sales Manager: request only — never assigns directly unless granted bypass above
   return (
     <>
     <Modal open={open} onClose={onClose} title={upgrade ? t('Request Upgrade') : t('Request Package')} size="lg"

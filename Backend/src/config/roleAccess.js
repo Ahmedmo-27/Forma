@@ -44,6 +44,7 @@ const FEATURE_AREA = {
     whatsapp_send: "whatsapp",
     whatsapp_templates: "whatsapp",
     packages: "packages",
+    bypass_package_approval: "packages",
     import_members: "excel_import",
     targets: "accounting",
     accounting_dashboard: "accounting",

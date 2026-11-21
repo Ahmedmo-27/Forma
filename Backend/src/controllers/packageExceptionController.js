@@ -253,10 +253,9 @@ const createException = async (req, res) => {
             notificationMessage,
         });
 
-        let approvers = await User.find({ role: "Accountant" }).select("_id");
-        if (approvers.length === 0) {
-            approvers = await User.find({ role: "Owner" }).select("_id");
-        }
+        const approvers = await User.find({
+            role: { $in: ["Accountant", "Owner", "General Manager"] },
+        }).select("_id");
         try {
             await Promise.all(
                 approvers.map((acct) =>

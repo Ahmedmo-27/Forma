@@ -35,6 +35,7 @@ describe("General Manager", () => {
         expect(teams.roles).toEqual(["Owner", "General Manager"]);
         expect(teams.access).toBe("teams_overview");
         expectAllowed("packages", ["Owner", "Sales Manager"], user);
+        expectAllowed("package_approvals", ["Accountant", "Owner", "General Manager"], user);
         expectAllowed("refunds", ["Owner", "Accountant"], user);
         expectAllowed("teams_overview", ["Owner"], user);
         expectAllowed("check_in", ["Receptionist", "Owner", "Sales Manager", "Sales"], user);

@@ -61,6 +61,15 @@ describe("Sales Manager", () => {
         expectAllowed("import_members", ["Sales Manager", "Owner"], user);
     });
 
+    it("cannot bypass package approval until the owner grants it", () => {
+        const user = manager();
+        expectDenied("bypass_package_approval", ["Accountant", "Owner"], user);
+        const granted = staff("Sales Manager", {
+            featureAccess: { grants: ["bypass_package_approval"], revokes: [] },
+        });
+        expectAllowed("bypass_package_approval", ["Accountant", "Owner"], granted);
+    });
+
     it("can change roles, and cannot refund or open coach transfers", () => {
         const user = manager();
         expectDenied("refunds", ["Owner", "Accountant"], user);
