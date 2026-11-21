@@ -65,6 +65,7 @@ export const CATALOG_KEYS = [
     "settings",
     "change_role",
     "access_control",
+    "request_feature_trials",
 ];
 
 export const EXPECTED_KEYS = {
@@ -104,6 +105,7 @@ export const EXPECTED_KEYS = {
         "settings",
         "change_role",
         "access_control",
+        "request_feature_trials",
     ],
     "General Manager": [
         "check_in",
@@ -155,6 +157,7 @@ export const EXPECTED_KEYS = {
         "retail_manage",
         "change_role",
         "access_control",
+        "request_feature_trials",
     ],
     "Sales Manager": [
         "check_in",

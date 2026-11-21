@@ -9,10 +9,24 @@ import { WHATSAPP_AUDIT_ACTIONS, countMonthlyWhatsAppMessages } from "../utils/w
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
 const { runWithTenant } = require("../context/tenantContext");
+const Plan = require("../models/Plan");
+const Location = require("../models/Location");
+const storageService = require("../services/storageService");
+const featureSync = require("../services/featureSync");
 
 describe("Tenant WhatsApp Usage & Limits in GET /api/tenant/me", () => {
     beforeEach(() => {
         vi.restoreAllMocks();
+        // getMyTenant may hit Plan / storage when Mongo looks connected; keep unit tests offline.
+        vi.spyOn(featureSync, "ensureSynced").mockResolvedValue(undefined);
+        vi.spyOn(Plan, "find").mockReturnValue({
+            select: vi.fn().mockReturnValue({
+                lean: vi.fn().mockResolvedValue([]),
+            }),
+        });
+        vi.spyOn(Plan, "findById").mockResolvedValue(null);
+        vi.spyOn(Location, "countDocuments").mockResolvedValue(0);
+        vi.spyOn(storageService, "sumTenantBytes").mockResolvedValue(0);
     });
 
     it("accurately returns monthly WhatsApp usage and plan caps in /api/tenant/me payload", async () => {
