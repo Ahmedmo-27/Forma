@@ -32,6 +32,7 @@ function canEditFeatureAccess(actor, targetRole) {
   const hasStaff = Boolean(
     typeof actor === 'object' && (
       actor?.accessOverrides?.add?.includes('staff') ||
+      actor?.access?.includes('staff') ||
       actor?.access?.includes('access_control')
     )
   );
@@ -117,6 +118,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
     isOwner ||
     user?.role === 'General Manager' ||
     user?.accessOverrides?.add?.includes('staff') ||
+    user?.access?.includes('staff') ||
     user?.access?.includes('access_control')
   );
 

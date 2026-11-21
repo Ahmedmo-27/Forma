@@ -29,7 +29,7 @@ const {
     clearLoginFailures,
 } = require("../middleware/loginLockout");
 const { writeAudit } = require("../utils/audit");
-const { setFeatureEnabled, featureKeyForAbility, canAssignRole, syncLegacyFields } = require("../utils/accessControl");
+const { setFeatureEnabled, featureKeyForAbility, canAssignRole, syncLegacyFields, assignableRolesFor } = require("../utils/accessControl");
 const { respondIfRoleNotInPlan } = require("../middleware/tenantStatus");
 const {
     monthKey,
@@ -47,7 +47,6 @@ const {
 } = require("../utils/locationScope");
 
 const FINANCE_ROLES = ["Sales Manager", "Owner", "General Manager", "Accountant"];
-const STAFF_CREATOR_ROLES = ["Sales Manager", "Owner", "Head Coach", "General Manager"];
 
 function accessContextFor(tenant) {
     if (!tenant) return null;
@@ -58,7 +57,6 @@ function accessContextFor(tenant) {
     };
 }
 const GENERIC_LOGIN_FAILURE = "Invalid username or password";
-const GYM_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager", "Retail"];
 
 function respondAfterLoginFailure(res, fail, req) {
     if (fail.lockedUntil) {
@@ -794,7 +792,8 @@ const updateSalesRepTarget = async (req, res) => {
 
 const createStaffUser = async (req, res) => {
     try {
-        if (!STAFF_CREATOR_ROLES.includes(req.user.role)) {
+        const creatable = assignableRolesFor(req.user);
+        if (!creatable.length) {
             return res.status(403).json({ message: "Not authorized" });
         }
 
@@ -813,16 +812,6 @@ const createStaffUser = async (req, res) => {
             return res.status(400).json({ message: "name, email, password, mobile_number and role are required" });
         }
 
-        let creatable = [];
-        if (req.user.role === "Owner") {
-            creatable = GYM_ROLES.filter((roleName) => roleName !== "Owner");
-        } else if (req.user.role === "General Manager") {
-            creatable = ["Sales Manager", "Head Coach", "Accountant", "Sales", "Coach", "Receptionist", "Retail"];
-        } else if (req.user.role === "Sales Manager") {
-            creatable = ["Sales", "Receptionist"];
-        } else if (req.user.role === "Head Coach") {
-            creatable = ["Coach"];
-        }
         if (!creatable.includes(role)) {
             return res.status(400).json({ message: "You cannot create that role" });
         }

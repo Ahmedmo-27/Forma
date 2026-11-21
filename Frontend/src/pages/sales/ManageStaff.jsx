@@ -10,31 +10,8 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
 import { useI18n } from '../../i18n/useI18n';
-import { tr } from '../../i18n/translate';
 import UsernameField, { validateUsernameClient } from '../../components/UsernameField';
-
-const ALL_STAFF_ROLES = [
-  ['General Manager', tr('General Manager')],
-  ['Sales Manager', tr('Sales Manager')],
-  ['Sales', tr('Sales Representative')],
-  ['Head Coach', tr('Head Coach')],
-  ['Coach', tr('Coach')],
-  ['Receptionist', tr('Receptionist')],
-  ['Accountant', tr('Accountant')],
-  ['Retail', tr('Retail')],
-];
-
-const CREATABLE_ROLES = {
-  Owner: ALL_STAFF_ROLES,
-  'General Manager': ALL_STAFF_ROLES.filter(([role]) => role !== 'General Manager'),
-  'Sales Manager': [
-    ['Sales', tr('Sales Representative')],
-    ['Receptionist', tr('Receptionist')],
-  ],
-  'Head Coach': [
-    ['Coach', tr('Coach')],
-  ],
-};
+import { creatableRolesFor, ROLE_LABELS } from '../../lib/roles';
 
 const INIT = {
   name: '',
@@ -54,11 +31,10 @@ export default function ManageStaff() {
   const { hasFeature, tenant } = useTenant() || {};
   const { selectedLocationId } = useLocationScope();
   const effectiveRoles = tenant?.effectiveRoles;
-  const roleOptions = useMemo(() => {
-    const creatable = CREATABLE_ROLES[user?.role] || [];
-    if (!Array.isArray(effectiveRoles)) return creatable;
-    return creatable.filter(([role]) => effectiveRoles.includes(role));
-  }, [user?.role, effectiveRoles]);
+  const roleOptions = useMemo(
+    () => creatableRolesFor(user, effectiveRoles),
+    [user, effectiveRoles],
+  );
   const canSetLocations = ['Owner', 'General Manager'].includes(user?.role)
     && Boolean(hasFeature?.('multi_branches'));
   const deskBranch =
@@ -68,8 +44,8 @@ export default function ManageStaff() {
 
   const [form, setForm] = useState(() => ({
     ...INIT,
-    role: roleOptions[0]?.[0] || 'Sales',
-    canAccessAllLocations: roleOptions[0]?.[0] === 'General Manager',
+    role: roleOptions[0] || 'Sales',
+    canAccessAllLocations: roleOptions[0] === 'General Manager',
     allowedLocationIds: deskBranch ? [deskBranch] : [],
   }));
   const [errors, setErrors] = useState({});
@@ -105,11 +81,11 @@ export default function ManageStaff() {
 
   useEffect(() => {
     if (!roleOptions.length) return;
-    if (roleOptions.some(([role]) => role === form.role)) return;
+    if (roleOptions.includes(form.role)) return;
     setForm((current) => ({
       ...current,
-      role: roleOptions[0][0],
-      canAccessAllLocations: roleOptions[0][0] === 'General Manager',
+      role: roleOptions[0],
+      canAccessAllLocations: roleOptions[0] === 'General Manager',
     }));
   }, [roleOptions, form.role]);
 
@@ -152,7 +128,7 @@ export default function ManageStaff() {
         : t('Checking availability…');
     }
 
-    if (!roleOptions.some(([role]) => role === form.role)) {
+    if (!roleOptions.includes(form.role)) {
       e.role = t('Please select a valid staff role');
     }
 
@@ -194,8 +170,8 @@ export default function ManageStaff() {
       );
       setForm({
         ...INIT,
-        role: roleOptions[0]?.[0] || 'Sales',
-        canAccessAllLocations: roleOptions[0]?.[0] === 'General Manager',
+        role: roleOptions[0] || 'Sales',
+        canAccessAllLocations: roleOptions[0] === 'General Manager',
         allowedLocationIds: deskBranch ? [deskBranch] : [],
       });
       setErrors({});
@@ -263,8 +239,8 @@ export default function ManageStaff() {
                 }));
               }}
             >
-              {roleOptions.map(([value, label]) => (
-                <option key={value} value={value}>{t(label)}</option>
+              {roleOptions.map((role) => (
+                <option key={role} value={role}>{t(ROLE_LABELS[role] || role)}</option>
               ))}
             </Select>
 

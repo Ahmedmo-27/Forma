@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
     canChangeUserRole,
     roleChoicesFor,
+    creatableRolesFor,
     assignableRolesFor,
     ASSIGNABLE_ROLES,
 } from "./roles.js";
@@ -100,6 +101,42 @@ describe("Frontend Role Hierarchy Utilities (roles.js)", () => {
             expect(choices).toContain("Sales");
             expect(choices).toContain("Accountant");
             expect(choices).not.toContain("Owner");
+        });
+
+        it("treats access.includes('staff') as staff delegation for create/assign", () => {
+            const delegated = { role: "Sales Manager", access: ["staff"] };
+            expect(creatableRolesFor(delegated)).toEqual([
+                "Sales Manager",
+                "Sales",
+                "Head Coach",
+                "Coach",
+                "Receptionist",
+                "Accountant",
+                "Retail",
+            ]);
+            expect(creatableRolesFor(delegated)).not.toContain("General Manager");
+            expect(creatableRolesFor(delegated)).not.toContain("Owner");
+        });
+    });
+
+    describe("creatableRolesFor", () => {
+        it("lists only roles the actor can create, filtered by plan", () => {
+            expect(creatableRolesFor("Sales Manager")).toEqual(["Sales", "Receptionist"]);
+            expect(creatableRolesFor("Owner")).toEqual([
+                "General Manager",
+                "Sales Manager",
+                "Sales",
+                "Head Coach",
+                "Coach",
+                "Receptionist",
+                "Accountant",
+                "Retail",
+            ]);
+            expect(creatableRolesFor("Owner", ["Owner", "Sales", "Receptionist"])).toEqual([
+                "Sales",
+                "Receptionist",
+            ]);
+            expect(creatableRolesFor("General Manager")).not.toContain("General Manager");
         });
     });
 });

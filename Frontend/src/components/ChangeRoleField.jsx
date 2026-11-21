@@ -19,8 +19,8 @@ export default function ChangeRoleField({ userId, currentRole, onChanged, label 
     setNextRole(currentRole || '');
   }, [userId, currentRole]);
 
-  const allowed = hasAccess(user, 'change_role') && canChangeUserRole(user?.role, currentRole);
-  const choices = roleChoicesFor(user?.role, currentRole, tenant?.effectiveRoles);
+  const allowed = hasAccess(user, 'change_role') && canChangeUserRole(user, currentRole);
+  const choices = roleChoicesFor(user, currentRole, tenant?.effectiveRoles);
 
   if (!allowed || !userId) return null;
 
