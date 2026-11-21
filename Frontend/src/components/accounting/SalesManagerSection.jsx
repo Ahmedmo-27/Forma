@@ -11,10 +11,10 @@ export default function SalesManagerSection({ salesManager, directAssignment = f
         padding: '14px 16px', marginBottom: 16,
       }}>
         <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
-          {t('Sales Manager')}
+          {t('Requested by')}
         </p>
         <p style={{ fontSize: 13, color: 'var(--t3)', margin: 0 }}>
-          {t('Direct assignment — no sales manager request')}
+          {t('Direct assignment — no sales request')}
         </p>
       </div>
     );
@@ -28,7 +28,7 @@ export default function SalesManagerSection({ salesManager, directAssignment = f
       padding: '14px 16px', marginBottom: 16,
     }}>
       <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
-        {t('Sales Manager')}
+        {t('Requested by')}
       </p>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         <Avatar name={salesManager.name} size="md" />

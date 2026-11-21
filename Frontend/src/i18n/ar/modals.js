@@ -260,7 +260,8 @@ const AR = {
   'End Date': 'تاريخ النهاية',
   'New subscription': 'اشتراك جديد',
   'Description:': 'الوصف:',
-  'Direct assignment — no sales manager request': 'تعيين مباشر — بدون طلب من مدير المبيعات',
+  'Direct assignment — no sales request': 'تعيين مباشر — بدون طلب من المبيعات',
+  'Requested by': 'طلب بواسطة',
 };
 
 export default AR;

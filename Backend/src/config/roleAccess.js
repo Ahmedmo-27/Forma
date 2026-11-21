@@ -36,6 +36,7 @@ const FEATURE_AREA = {
     comments: "sales",
     request_assignment: "sales",
     request_takeover: "sales",
+    request_package: "sales",
     view_phones: "sales",
     manager_call_center: "sales",
     approve_requests: "sales",

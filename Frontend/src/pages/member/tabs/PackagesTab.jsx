@@ -424,14 +424,18 @@ function PackagesContent({ member, user, onRefresh }) {
   );
 
   const isSalesManager = user?.role === 'Sales Manager';
+  const isSales = user?.role === 'Sales';
   const isAccountant = user?.role === 'Accountant';
   const isOwner = user?.role === 'Owner';
   const isGM = user?.role === 'General Manager';
   const canBypassPackageApproval = hasAccess(user, 'bypass_package_approval');
+  const canRequestPackage = hasAccess(user, 'request_package') || isSales || isSalesManager;
   const canReviewException = hasAccess(user, 'package_approvals')
     || isAccountant || isOwner || isGM;
   const canAssignPackageDirectly = isAccountant || isOwner || canBypassPackageApproval;
-  const canAddPackage = isSalesManager || isAccountant || isOwner || isGM || canBypassPackageApproval;
+  const canCreateCatalogPackage = hasAccess(user, 'packages') && (isSalesManager || isOwner || isGM);
+  const canAddPackage = canRequestPackage || isAccountant || isOwner || isGM || canBypassPackageApproval;
+  const requestOnly = canRequestPackage && !canAssignPackageDirectly;
   const canRefund = isOwner || isAccountant || isGM;
   const canTransfer = isOwner || isAccountant || isGM;
   const memberKey = member.systemId ?? member._id;
@@ -612,8 +616,8 @@ function PackagesContent({ member, user, onRefresh }) {
           </Alert>
           <div style={{ fontSize: 12, color: 'var(--t3)', marginBottom: 12 }}>
             {pending.hasException
-              ? t("This request includes custom exception terms and is waiting for accountant approval before it is added to this member's profile.")
-              : t("This package request is waiting for accountant approval before it is added to this member's profile.")}
+              ? t("This request includes custom exception terms and is waiting for Owner, GM, or Accountant approval before it is added to this member's profile.")
+              : t("This package request is waiting for Owner, GM, or Accountant approval before it is added to this member's profile.")}
           </div>
           <PackageFormFields form={requestToForm(pending)} readOnly makeException={!!pending.hasException} />
           {pending.reason && (
@@ -655,7 +659,7 @@ function PackagesContent({ member, user, onRefresh }) {
             )}
             {canAddPackage && !loadingPending && !member.isBlocked && (
               <span data-walkthrough="add-package-btn">
-                <Btn size="xs" onClick={() => { setPackageMode('add'); setShowAddPackage(true); }}>{isSalesManager && !canAssignPackageDirectly ? t('+ Request Package') : t('+ Add Package')}</Btn>
+                <Btn size="xs" onClick={() => { setPackageMode('add'); setShowAddPackage(true); }}>{requestOnly ? t('+ Request Package') : t('+ Add Package')}</Btn>
               </span>
             )}
           </div>
@@ -676,7 +680,7 @@ function PackagesContent({ member, user, onRefresh }) {
         )}
 
         {!pkg || member.status === 'guest'
-          ? <EmptyState message={t('No active package')} sub={isSalesManager && !canAssignPackageDirectly && !pending ? t('Submit a package request — the accountant must approve before it is assigned.') : canAssignPackageDirectly && !pending ? t('Click Add Package to assign a package to this member.') : t('No package assigned yet.')} />
+          ? <EmptyState message={t('No active package')} sub={requestOnly && !pending ? t('Submit a package request — Owner, GM, or Accountant must approve before it is assigned.') : canAssignPackageDirectly && !pending ? t('Click Add Package to assign a package to this member.') : t('No package assigned yet.')} />
           : <div style={{
               display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 1,
               background: 'var(--border)', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden',
@@ -947,9 +951,9 @@ function PackagesContent({ member, user, onRefresh }) {
           onClose={() => setShowAddPackage(false)}
           member={member}
           pending={pending}
-          isSalesManager={isSalesManager}
           canReview={canReviewException}
           canAssignDirectly={canAssignPackageDirectly}
+          canCreateCatalogPackage={canCreateCatalogPackage}
           upgrade={packageMode === 'upgrade'}
           onSuccess={() => { setShowAddPackage(false); fetchPending(); onRefresh?.(); }}
           onReview={(id, status) => setConfirm({ id, status: status === 'declined' ? 'rejected' : status })}
@@ -966,7 +970,7 @@ function PackagesContent({ member, user, onRefresh }) {
 
       <ConfirmDialog open={!!confirm} onClose={() => setConfirm(null)} onConfirm={handleReview}
         title={t('Decline Package')}
-        message={t('Decline this package assignment? The sales manager will be notified.')}
+        message={t('Decline this package assignment? The requester will be notified.')}
         confirmLabel={t('Decline')}
         danger loading={actionLoading} />
 
@@ -1039,7 +1043,7 @@ function PackageFormFields({ form, set, readOnly, makeException, allEditable, lo
   );
 }
 
-function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSalesManager, canReview = false, canAssignDirectly = false, onSuccess, onReview, upgrade = false }) {
+function AddPackageModal({ open, onClose, member, pending, canReview = false, canAssignDirectly = false, canCreateCatalogPackage = false, onSuccess, onReview, upgrade = false }) {
   const { t } = useI18n();
   const { fmtNumber } = useFormat();
   const { currency = 'EGP' } = useTenant() || {};
@@ -1175,7 +1179,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
         reason: form.reason?.trim() || null,
         upgrade,
       });
-      toast.success(upgrade ? t('Upgrade request sent to accountant for approval.') : t('Package request sent to accountant for approval.'));
+      toast.success(upgrade ? t('Upgrade request sent for Owner, GM, or Accountant approval.') : t('Package request sent for Owner, GM, or Accountant approval.'));
       onSuccess();
     } catch (e) {
       toast.error(e.response?.data?.message ?? t('Failed.'));
@@ -1269,7 +1273,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
         }>
         <div data-walkthrough="add-package-form">
         {pending && (
-          <Alert type="warning">{t('This member already has a pending package request awaiting accountant approval.')}</Alert>
+          <Alert type="warning">{t('This member already has a pending package request awaiting Owner, GM, or Accountant approval.')}</Alert>
         )}
         <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16, lineHeight: 1.6 }}>
           {upgrade
@@ -1295,7 +1299,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
     );
   }
 
-  // Sales Manager: request only — never assigns directly unless granted bypass above
+  // Sales / Sales Manager: request only — never assigns directly unless granted bypass above
   return (
     <>
     <Modal open={open} onClose={onClose} title={upgrade ? t('Request Upgrade') : t('Request Package')} size="lg"
@@ -1309,12 +1313,12 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
       }>
       <div data-walkthrough="add-package-form">
       {pending && (
-        <Alert type="warning">{t('This member already has a pending package request awaiting accountant approval.')}</Alert>
+        <Alert type="warning">{t('This member already has a pending package request awaiting Owner, GM, or Accountant approval.')}</Alert>
       )}
       <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 16, lineHeight: 1.6 }}>
         {upgrade
-          ? rich(t('Request an upgrade for {member} starting today. The accountant must approve it. The current package keeps its end date and price.'), { member: <strong><bdi>{member.name}</bdi></strong> })
-          : rich(t('Request a package for {member}. The accountant must approve before it is assigned. Turn on {exception} to customize terms.'), { member: <strong><bdi>{member.name}</bdi></strong>, exception: <strong>{t('Make Exception')}</strong> })}
+          ? rich(t('Request an upgrade for {member} starting today. An Owner, GM, or Accountant must approve it. The current package keeps its end date and price.'), { member: <strong><bdi>{member.name}</bdi></strong> })
+          : rich(t('Request a package for {member}. An Owner, GM, or Accountant must approve before it is assigned. Turn on {exception} to customize terms.'), { member: <strong><bdi>{member.name}</bdi></strong>, exception: <strong>{t('Make Exception')}</strong> })}
       </p>
 
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, marginBottom: form.basePackageId ? 0 : 16 }}>
@@ -1330,7 +1334,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
             {packages.map(p => <option key={p._id} value={p._id}>{p.name} — {currency} {fmtNumber(p.price)} ({p.duration ? t(p.duration) : p.duration})</option>)}
           </Select>
         </div>
-        {!pending && (
+        {canCreateCatalogPackage && !pending && (
           <Btn variant="outline" size="sm" onClick={() => setShowCreatePackage(true)} style={{ marginBottom: 1 }}>
             {t('+ New Package')}
           </Btn>
@@ -1342,7 +1346,7 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
           <div style={{ padding: '12px 14px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8 }}>
             <Switch
               label={t('Make Exception')}
-              hint={makeException ? t('Fields are editable. Custom terms will be flagged as an exception.') : t('Standard package terms — still requires accountant approval.')}
+              hint={makeException ? t('Fields are editable. Custom terms will be flagged as an exception.') : t('Standard package terms — still requires Owner, GM, or Accountant approval.')}
               checked={makeException}
               onChange={setMakeException}
               disabled={!!pending}
@@ -1353,15 +1357,17 @@ function AddPackageModal({ open, onClose, member, pending, isSalesManager: _isSa
       )}
       </div>
     </Modal>
-    <CreateCatalogPackageModal
-      open={showCreatePackage}
-      onClose={() => setShowCreatePackage(false)}
-      form={createForm}
-      onChange={setCreateForm}
-      errors={createErrors}
-      onSubmit={handleCreateCatalogPackage}
-      loading={creatingPackage}
-    />
+    {canCreateCatalogPackage && (
+      <CreateCatalogPackageModal
+        open={showCreatePackage}
+        onClose={() => setShowCreatePackage(false)}
+        form={createForm}
+        onChange={setCreateForm}
+        errors={createErrors}
+        onSubmit={handleCreateCatalogPackage}
+        loading={creatingPackage}
+      />
+    )}
     </>
   );
 }

@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
 const { enforceSubscriptionStatus } = require("../middleware/tenantStatus");
-const { allowRoles, requireAccess } = require("../middleware/accessMiddleware");
+const { allowRoles, allowAnyFeature, requireAccess } = require("../middleware/accessMiddleware");
 const validate = require("../middleware/validate");
 const { requireFeature } = require("../middleware/featureGating");
 const { cacheResponse } = require("../middleware/apiCache");
@@ -14,10 +14,24 @@ const { locationScopeOptional } = require("../middleware/locationScope");
 router.use(protect);
 router.use(enforceSubscriptionStatus);
 router.use(requireFeature("packages"));
-router.use(requireAccess("packages"));
 router.use(locationScopeOptional);
 
-router.get("/", cacheResponse({ ttlSeconds: 300, tags: ["packages"] }), getAllPackages);
+// Catalog pickers for assign / request / approve flows — not only package managers.
+router.get(
+    "/",
+    allowAnyFeature(
+        ["packages", "request_package", "package_approvals", "bypass_package_approval"],
+        "Sales",
+        "Sales Manager",
+        "Owner",
+        "Accountant",
+        "General Manager"
+    ),
+    cacheResponse({ ttlSeconds: 300, tags: ["packages"] }),
+    getAllPackages
+);
+
+router.use(requireAccess("packages"));
 router.post("/", allowRoles("packages", "Owner", "Sales Manager"), validate(createPackageSchema), autoInvalidate(["packages"]), createPackage);
 router.patch("/:id", allowRoles("packages", "Owner", "Sales Manager"), validate(updatePackageSchema), autoInvalidate(["packages"]), updatePackage);
 router.delete("/:id", allowRoles("packages", "Owner", "Sales Manager"), autoInvalidate(["packages"]), deletePackage);

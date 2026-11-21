@@ -145,6 +145,16 @@ const ACCESS_CATALOG = [
         defaultRoles: ["Sales", "Coach"],
     },
     {
+        key: "request_package",
+        label: "Request Package",
+        description: "Request a package for a member; Owner, GM, or Accountant must approve before it is assigned",
+        icon: "Package",
+        group: "Sales",
+        domain: "sales",
+        defaultRoles: ["Sales", "Sales Manager"],
+        planFeature: "packages",
+    },
+    {
         key: "whatsapp_send",
         label: "Send WhatsApp Templates",
         description: "Send pre-made WhatsApp messages from member profiles",

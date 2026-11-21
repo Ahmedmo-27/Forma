@@ -2,7 +2,7 @@ const express = require("express");
 const router = express.Router();
 const { protect } = require("../middleware/authMiddleware");
 const { enforceSubscriptionStatus } = require("../middleware/tenantStatus");
-const { allowRoles } = require("../middleware/accessMiddleware");
+const { allowRoles, allowAnyFeature } = require("../middleware/accessMiddleware");
 const validate = require("../middleware/validate");
 const { requireFeature } = require("../middleware/featureGating");
 const { cacheResponse } = require("../middleware/apiCache");
@@ -42,7 +42,7 @@ router.get(
     cacheResponse({ ttlSeconds: 60, tags: ["package-exceptions"] }),
     getMemberPendingException
 );
-router.post("/", allowRoles("packages", "Sales Manager", "Owner"), validate(createExceptionSchema), autoInvalidate(["package-exceptions"]), createException);
+router.post("/", allowAnyFeature(["packages", "request_package"], "Sales", "Sales Manager", "Owner"), validate(createExceptionSchema), autoInvalidate(["package-exceptions"]), createException);
 router.put("/:id/status", allowRoles("package_approvals", "Accountant", "Owner", "General Manager"), validate(exceptionStatusSchema), autoInvalidate(["package-exceptions", "contracts", "revenue"]), updateExceptionStatus);
 
 module.exports = router;

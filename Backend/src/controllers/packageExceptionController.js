@@ -163,7 +163,7 @@ const applyApprovedException = async (request, reviewerId) => {
     return member;
 };
 
-// Sales Manager proposes a package exception for a member
+// Sales or Sales Manager proposes a package (or exception) for a member
 const createException = async (req, res) => {
     try {
         const {
@@ -226,11 +226,12 @@ const createException = async (req, res) => {
             return res.status(400).json({ message: overlapError });
         }
         const isException = Boolean(req.body.hasException);
+        const proposerLabel = proposer?.name || req.user.role || "Sales";
         const notificationMessage = upgrading
-            ? `${proposer?.name || "Sales Manager"} requested an upgrade to ${packageName} for ${member.name}`
+            ? `${proposerLabel} requested an upgrade to ${packageName} for ${member.name}`
             : isException
-                ? `${proposer?.name || "Sales Manager"} added package ${packageName} with exception to member ${member.name}`
-                : `${proposer?.name || "Sales Manager"} requested package ${packageName} for member ${member.name}`;
+                ? `${proposerLabel} added package ${packageName} with exception to member ${member.name}`
+                : `${proposerLabel} requested package ${packageName} for member ${member.name}`;
 
         const request = await PackageExceptionRequest.create({
             member: member._id,

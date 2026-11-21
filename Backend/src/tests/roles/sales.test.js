@@ -22,6 +22,7 @@ describe("Sales", () => {
             "comments",
             "request_assignment",
             "request_takeover",
+            "request_package",
             "whatsapp_send",
             "inbox_view",
             "inbox_reply",
@@ -46,8 +47,9 @@ describe("Sales", () => {
         );
     });
 
-    it("cannot refund, edit packages, or open gym settings", () => {
+    it("can request packages for approval, but cannot edit the catalog or approve", () => {
         const user = rep();
+        expectAllowed("request_package", ["Sales", "Sales Manager"], user);
         expectDenied("refunds", ["Owner", "Accountant"], user);
         expectDenied("packages", ["Owner", "Sales Manager"], user);
         expectDenied("package_approvals", ["Accountant", "Owner", "General Manager"], user);

@@ -24,6 +24,7 @@ describe("Sales Manager", () => {
             "staff",
             "transfer",
             "packages",
+            "request_package",
             "manager_call_center",
             "import_members",
             "targets",
@@ -54,6 +55,7 @@ describe("Sales Manager", () => {
         const user = manager();
         expectAllowed("transfer", ["Sales Manager", "Owner"], user);
         expectAllowed("packages", ["Owner", "Sales Manager"], user);
+        expectAllowed("request_package", ["Sales", "Sales Manager"], user);
         expectAllowed("approve_requests", ["Sales Manager", "Owner"], user);
         expectAllowed("staff", ["Sales Manager", "Owner", "Head Coach"], user);
         expectAllowed("targets", ["Sales Manager", "Owner", "Accountant"], user);
