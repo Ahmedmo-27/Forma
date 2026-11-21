@@ -1,8 +1,10 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { login as loginApi } from '../api/endpoints';
 import api from '../api/axios';
 import WorkspaceBoot from '../components/WorkspaceBoot';
 import { setMonitoringUser } from '../lib/monitoring';
+import { adoptTenantAuthTokens, clearTenantBearer } from '../lib/sessionBearer';
+import { suppressAuthErrorModals } from '../lib/authErrorGate';
 
 const AuthContext = createContext(null);
 
@@ -18,27 +20,40 @@ function _parseUser() {
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [checked, setChecked] = useState(false); // true once session is verified
+  // Bumped on login so an in-flight boot /users/me 401 cannot wipe a fresh session.
+  const sessionEpoch = useRef(0);
 
-  // On mount — verify cookie session via /users/me
+  // On mount — verify cookie/bearer session via /users/me
   useEffect(() => {
+    let active = true;
+    const epoch = sessionEpoch.current;
     const cached = _parseUser();
     api.get('/users/me', { skipGlobalError: true })
       .then(res => {
+        if (!active || epoch !== sessionEpoch.current) return;
         const u = res.data;
         localStorage.setItem('ff_user', JSON.stringify(u));
         if (u.tenantSlug) localStorage.setItem('ff_tenant_slug', u.tenantSlug);
         setUser(u);
       })
       .catch((err) => {
+        if (!active || epoch !== sessionEpoch.current) return;
         if (err.response?.status === 401) {
           localStorage.removeItem('ff_user');
           localStorage.removeItem('ff_token');
+          clearTenantBearer();
           setUser(null);
         } else if (cached) {
           setUser(cached);
         }
       })
-      .finally(() => setChecked(true));
+      .finally(() => {
+        if (active && epoch === sessionEpoch.current) setChecked(true);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const signIn = useCallback(async (username, password) => {
@@ -52,12 +67,16 @@ export function AuthProvider({ children }) {
     try {
       const res = await loginApi(username, password);
       const { user: u } = res.data;
+      sessionEpoch.current += 1;
+      suppressAuthErrorModals(5000);
+      adoptTenantAuthTokens(res.data);
       localStorage.setItem('ff_user', JSON.stringify(u));
       localStorage.removeItem('ff_token');
       if (u.tenantSlug) {
         localStorage.setItem('ff_tenant_slug', u.tenantSlug);
       }
       setUser(u);
+      setChecked(true);
       console.info('[auth] Login success', { role: u.role, email: u.email, tenantSlug: u.tenantSlug });
       return u;
     } catch (err) {
@@ -78,9 +97,11 @@ export function AuthProvider({ children }) {
     try {
       await api.post('/users/logout', {}, { skipGlobalError: true });
     } catch (_) {}
+    sessionEpoch.current += 1;
     localStorage.removeItem('ff_token');
     localStorage.removeItem('ff_user');
     localStorage.removeItem('ff_tenant_slug');
+    clearTenantBearer();
     setUser(null);
   }, []);
 

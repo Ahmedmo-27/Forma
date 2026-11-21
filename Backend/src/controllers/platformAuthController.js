@@ -150,10 +150,12 @@ async function login(req, res) {
         await user.save();
 
         const tokens = generateTokens(user);
+        const { isCrossSiteAuthRequest } = require("../utils/crossSiteAuth");
+        const crossSite = isCrossSiteAuthRequest(req);
         const { setPlatformAuthCookies } = require("../utils/authCookies");
-        setPlatformAuthCookies(res, tokens);
+        setPlatformAuthCookies(res, tokens, { crossSite });
 
-        return res.json({
+        const body = {
             message: "Authentication successful",
             user: {
                 id: user._id,
@@ -162,7 +164,13 @@ async function login(req, res) {
                 role: user.role,
                 permissions: getPermissionsForRole(user.role),
             },
-        });
+        };
+        if (crossSite) {
+            body.token = tokens.token;
+            body.refreshToken = tokens.refreshToken;
+        }
+
+        return res.json(body);
     } catch (err) {
         logger.error("platform", "Login error", { error: err.message });
         return res.status(500).json({ message: "Server error", error: err.message });
@@ -197,16 +205,26 @@ async function refreshToken(req, res) {
         }
 
         const tokens = generateTokens(user);
-        setPlatformAuthCookies(res, tokens);
-        res.json({ message: "Token refreshed" });
+        const { isCrossSiteAuthRequest } = require("../utils/crossSiteAuth");
+        const crossSite = isCrossSiteAuthRequest(req);
+        setPlatformAuthCookies(res, tokens, { crossSite });
+        const body = { message: "Token refreshed" };
+        if (crossSite) {
+            body.token = tokens.token;
+            body.refreshToken = tokens.refreshToken;
+        }
+        res.json(body);
     } catch (err) {
         return res.status(401).json({ message: "Invalid or expired refresh token" });
     }
 }
 
 async function logout(req, res) {
+    const { isCrossSiteAuthRequest } = require("../utils/crossSiteAuth");
     const { clearPlatformAuthCookies } = require("../utils/authCookies");
-    clearPlatformAuthCookies(res);
+    clearPlatformAuthCookies(res, { crossSite: isCrossSiteAuthRequest(req) });
+    // Also clear same-site cookie shape so logout works after a same-site session.
+    clearPlatformAuthCookies(res, { crossSite: false });
     res.json({ message: "Logged out" });
 }
 

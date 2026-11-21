@@ -366,13 +366,22 @@ const loginUser = async (req, res) => {
             formattedUser.tenantId = effectiveTenantId;
         }
 
+        const { isCrossSiteAuthRequest } = require("../utils/crossSiteAuth");
+        const crossSite = isCrossSiteAuthRequest(req);
         const { setTenantAuthCookie } = require("../utils/authCookies");
-        setTenantAuthCookie(res, token);
+        setTenantAuthCookie(res, token, { crossSite });
 
-        res.json({
+        // Cross-site SPAs (Vercel preview + Safari) cannot rely on third-party
+        // cookies — include the JWT so the client can send Authorization: Bearer.
+        const body = {
             message: "Login successful",
             user: formattedUser,
-        });
+        };
+        if (crossSite) {
+            body.token = token;
+        }
+
+        res.json(body);
     } catch (error) {
         logger.auth("error", "Login error", { requestId, error: error.message });
         res.status(500).json({ message: "Server error", error: error.message });
@@ -1665,8 +1674,11 @@ const updateMyProfile = async (req, res) => {
 };
 
 const logoutUser = async (req, res) => {
+    const { isCrossSiteAuthRequest } = require("../utils/crossSiteAuth");
     const { clearTenantAuthCookie } = require("../utils/authCookies");
-    clearTenantAuthCookie(res);
+    // Clear both cookie shapes (same-site Domain + cross-site host-only).
+    clearTenantAuthCookie(res, { crossSite: isCrossSiteAuthRequest(req) });
+    clearTenantAuthCookie(res, { crossSite: false });
     res.json({ message: "Logged out" });
 };
 

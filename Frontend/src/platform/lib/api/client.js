@@ -2,6 +2,13 @@ import axios from "axios";
 import { apiOrigin } from "../../../api/axios";
 import { normalizeError } from "../../../api/errorNormalizer";
 import { emitErrorEvent } from "../../../lib/errorBus";
+import {
+  adoptPlatformAuthTokens,
+  clearPlatformBearers,
+  getPlatformBearer,
+  getPlatformRefreshBearer,
+} from "../../../lib/sessionBearer";
+import { shouldEmitAuthErrorModal } from "../../../lib/authErrorGate";
 
 export const platformClient = axios.create({
   baseURL: apiOrigin ? `${apiOrigin}/api/platform` : "/api/platform",
@@ -27,10 +34,14 @@ export function normalizeApiError(err) {
   };
 }
 
-// Request Interceptor: Request ID only (auth via httpOnly cookie)
+// Request Interceptor: Request ID + optional cross-site Bearer
 platformClient.interceptors.request.use(
   (config) => {
     config.headers["X-Request-Id"] = `req_${crypto.randomUUID().slice(0, 8)}`;
+    const bearer = getPlatformBearer();
+    if (bearer && !config.headers.Authorization) {
+      config.headers.Authorization = `Bearer ${bearer}`;
+    }
     // Callers sometimes pass a body or options object in the signal slot.
     // Axios requires a real AbortSignal and throws if addEventListener is missing.
     if (config.signal != null && typeof config.signal.addEventListener !== "function") {
@@ -84,25 +95,40 @@ platformClient.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        await axios.post(
+        const refreshBody = {};
+        const storedRefresh = getPlatformRefreshBearer();
+        if (storedRefresh) refreshBody.refreshToken = storedRefresh;
+
+        const refreshRes = await axios.post(
           `${platformClient.defaults.baseURL}/auth/refresh`,
-          {},
+          refreshBody,
           { withCredentials: true }
         );
+        adoptPlatformAuthTokens(refreshRes.data || {});
 
         processQueue(null, true);
         return platformClient(originalRequest);
       } catch (refreshErr) {
         processQueue(refreshErr, null);
         handleLogoutRedirect();
-        emitErrorEvent(normalized, { modal: true });
+        if (
+          !originalRequest?.skipGlobalError &&
+          shouldEmitAuthErrorModal(normalized.code)
+        ) {
+          emitErrorEvent(normalized, { modal: true });
+        }
         return Promise.reject(normalizeApiError(refreshErr));
       } finally {
         isRefreshing = false;
       }
     }
 
-    if (!originalRequest?.skipGlobalError && (normalized.status === 403 || normalized.status === 429 || normalized.status >= 500)) {
+    const isAuthCode = String(normalized.code || "").startsWith("AUTH_");
+    if (
+      !originalRequest?.skipGlobalError &&
+      (normalized.status === 403 || normalized.status === 429 || normalized.status >= 500) &&
+      !(isAuthCode && !shouldEmitAuthErrorModal(normalized.code))
+    ) {
       emitErrorEvent(normalized, { modal: true });
     }
 
@@ -114,6 +140,7 @@ function handleLogoutRedirect() {
   localStorage.removeItem("leap_platform_user");
   localStorage.removeItem("leap_platform_token");
   localStorage.removeItem("leap_platform_refresh_token");
+  clearPlatformBearers();
 
   const path = window.location.pathname;
   if (path.startsWith("/platform") && !path.includes("/login")) {

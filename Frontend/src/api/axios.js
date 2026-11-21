@@ -4,33 +4,11 @@ import { logRequest, logResponse, logError } from "./apiLogger";
 import { normalizeError } from "./errorNormalizer";
 import { emitErrorEvent } from "../lib/errorBus";
 import { ERROR_MESSAGES } from "../lib/errorCatalog";
+import { ensureAbsoluteOrigin, normalizeApiBaseURL } from "./axiosOrigin";
+import { getTenantBearer } from "../lib/sessionBearer";
+import { shouldEmitAuthErrorModal } from "../lib/authErrorGate";
 
-/**
- * Turn a host-only BACKEND_ORIGIN into an absolute URL.
- * Misconfig like `api.forma-official.com` (no scheme) becomes a path on the SPA host
- * and yields POST 405 from Vercel: https://app…/api.forma-official.com/api/users/login
- */
-export function ensureAbsoluteOrigin(url) {
-  if (!url) return url;
-  const trimmed = String(url).trim().replace(/\/+$/, "");
-  if (!trimmed) return trimmed;
-  if (/^https?:\/\//i.test(trimmed)) return trimmed;
-  if (/^localhost(?::\d+)?(\/|$)/i.test(trimmed) || /^127\.0\.0\.1(?::\d+)?(\/|$)/.test(trimmed)) {
-    return `http://${trimmed}`;
-  }
-  if (/^[a-z0-9.-]+(?::\d+)?(\/.*)?$/i.test(trimmed)) {
-    return `https://${trimmed}`;
-  }
-  return trimmed;
-}
-
-/** Ensure base URL ends with /api (backend mounts routes under /api/*). */
-export function normalizeApiBaseURL(url) {
-  if (!url) return url;
-  const absolute = ensureAbsoluteOrigin(url);
-  const trimmed = absolute.replace(/\/+$/, "");
-  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
-}
+export { ensureAbsoluteOrigin, normalizeApiBaseURL };
 
 const rawApiURL = import.meta.env.BACKEND_ORIGIN || import.meta.env.VITE_API_URL;
 /** Dev uses Vite proxy (same origin) so httpOnly cookies work without Domain. */
@@ -66,6 +44,12 @@ api.interceptors.request.use((config) => {
   // Branch / location scope (all | ObjectId)
   const locationId = localStorage.getItem("ff_location_id");
   if (locationId) config.headers["X-Location-Id"] = locationId;
+
+  // Cross-site preview fallback when httpOnly cookies are blocked (Safari ITP)
+  const bearer = getTenantBearer();
+  if (bearer && !config.headers.Authorization) {
+    config.headers.Authorization = `Bearer ${bearer}`;
+  }
 
   const reqId = `req_${crypto.randomUUID().slice(0, 8)}`;
   config.headers["X-Request-Id"] = reqId;
@@ -123,9 +107,16 @@ api.interceptors.response.use(
 
     const catalogMeta = ERROR_MESSAGES[normalized.code] || ERROR_MESSAGES.INTERNAL_ERROR;
     const presentation = catalogMeta.presentation;
+    const isAuthCode = String(normalized.code || "").startsWith("AUTH_");
 
     // Plan/feature gates are handled by FeatureGate and nav — never a global modal.
     if (presentation === "silent") {
+      return Promise.reject(err);
+    }
+
+    // Auth failures during login transition / on auth pages must not open System Error
+    // beside a "Welcome back" toast.
+    if (isAuthCode && !shouldEmitAuthErrorModal(normalized.code)) {
       return Promise.reject(err);
     }
 

@@ -25,7 +25,7 @@ function isAllowedOrigin(origin) {
     if (allow.includes("*") || allow.includes(clean)) return true;
     const domainRe = baseDomainOriginRe();
     if (domainRe && domainRe.test(clean)) return true;
-    if (/^https:\/\/(leap|forma)[a-z0-9-]*\.vercel\.app$/i.test(clean)) return true;
+    if (/^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(clean)) return true;
     if (/^http:\/\/localhost(:\d+)?$/i.test(clean)) return true;
     if (/^http:\/\/127\.0\.0\.1(:\d+)?$/i.test(clean)) return true;
     return false;

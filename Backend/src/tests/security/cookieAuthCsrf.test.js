@@ -88,6 +88,16 @@ describe("authCookies", () => {
         expect(res.cookies[TENANT_COOKIE].options.domain).toBeUndefined();
     });
 
+    it("uses SameSite=None host-only when crossSite even if BASE_DOMAIN is set", () => {
+        process.env.NODE_ENV = "production";
+        process.env.BASE_DOMAIN = "forma-official.com";
+        const res = mockRes();
+        setTenantAuthCookie(res, "tenant.jwt", { crossSite: true });
+        expect(res.cookies[TENANT_COOKIE].options.secure).toBe(true);
+        expect(res.cookies[TENANT_COOKIE].options.sameSite).toBe("none");
+        expect(res.cookies[TENANT_COOKIE].options.domain).toBeUndefined();
+    });
+
     it("prefers Bearer over cookie when both present", () => {
         const req = {
             headers: { authorization: "Bearer from-header" },

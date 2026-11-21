@@ -155,10 +155,13 @@ export default function TenantsListPage() {
         reason: "Direct console subscribers list inspection",
       });
 
-      startImpersonation({
-        tenant: res.data.session?.tenant || { id: tenant.id, name: tenant.name, slug: tenant.slug },
-        mode: res.data.session?.mode || "read_only",
-      });
+      startImpersonation(
+        {
+          tenant: res.data.session?.tenant || { id: tenant.id, name: tenant.name, slug: tenant.slug },
+          mode: res.data.session?.mode || "read_only",
+        },
+        res.data
+      );
 
       platformToast.success(`Read-only session initiated for ${tenant.name}.`);
       window.open(res.data.redirectPath || "/members", "_blank");

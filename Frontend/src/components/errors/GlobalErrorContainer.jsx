@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { subscribeErrorEvents } from "../../lib/errorBus";
+import { shouldEmitAuthErrorModal } from "../../lib/authErrorGate";
 import { ErrorModal } from "./ErrorModal";
 import { UpgradeRequiredModal } from "./UpgradeRequiredModal";
 import { SessionExpiredModal } from "./SessionExpiredModal";
@@ -21,6 +22,9 @@ export function GlobalErrorContainer() {
       if (!error || error.isCancelled) return;
 
       const code = error.code;
+      if (String(code || "").startsWith("AUTH_") && !shouldEmitAuthErrorModal(code)) {
+        return;
+      }
 
       // 1. Persistent Banner States
       if (code === "TENANT_SUSPENDED" || code === "SUBSCRIPTION_PAST_DUE" || code === "MAINTENANCE_MODE") {
@@ -34,7 +38,13 @@ export function GlobalErrorContainer() {
       // FEATURE_NOT_IN_PLAN / ROLE_NOT_IN_PLAN are silent — FeatureGate owns that UX.
       if (code === "PLAN_LIMIT_REACHED") {
         setActiveModal({ type: "upgrade", error, options });
-      } else if (code === "AUTH_TOKEN_EXPIRED" || code === "AUTH_SESSION_REVOKED") {
+      } else if (
+        code === "AUTH_TOKEN_EXPIRED" ||
+        code === "AUTH_SESSION_REVOKED" ||
+        code === "AUTH_TOKEN_INVALID" ||
+        code === "AUTH_WRONG_AUDIENCE"
+      ) {
+        // Missing/invalid token is a session problem — never a red "System Error".
         setActiveModal({ type: "session", error, options });
       } else if (code === "RATE_LIMITED" || code === "AUTH_ACCOUNT_LOCKED") {
         setActiveModal({ type: "ratelimit", error, options });
@@ -86,6 +96,7 @@ export function GlobalErrorContainer() {
           isOpen={true}
           onClose={closeModal}
           onLoginSuccess={closeModal}
+          error={activeModal.error}
         />
       )}
 

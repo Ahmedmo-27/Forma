@@ -84,7 +84,7 @@ app.use(cors({
             configuredOrigins.includes("*") ||
             configuredOrigins.includes(cleanOrigin) ||
             (baseDomainOriginRe && baseDomainOriginRe.test(cleanOrigin)) ||
-            /^https:\/\/(leap|forma)[a-z0-9-]*\.vercel\.app$/.test(cleanOrigin) ||
+            /^https:\/\/[a-z0-9-]+\.vercel\.app$/i.test(cleanOrigin) ||
             /^http:\/\/localhost(:\d+)?$/.test(cleanOrigin) ||
             /^http:\/\/127\.0\.0\.1(:\d+)?$/.test(cleanOrigin)
         ) {

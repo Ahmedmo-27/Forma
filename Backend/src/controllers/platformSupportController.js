@@ -91,10 +91,12 @@ async function createImpersonationSession(req, res) {
                 { expiresIn: "30m" }
             );
 
+            const { isCrossSiteAuthRequest } = require("../utils/crossSiteAuth");
+            const crossSite = isCrossSiteAuthRequest(req);
             const { setTenantAuthCookie } = require("../utils/authCookies");
-            setTenantAuthCookie(res, token);
+            setTenantAuthCookie(res, token, { crossSite });
 
-            res.json({
+            const body = {
                 message: `Impersonation session initiated for ${tenant.name} (${mode})`,
                 redirectPath: "/members",
                 session: {
@@ -104,7 +106,11 @@ async function createImpersonationSession(req, res) {
                     user: { id: targetUser._id, name: targetUser.name, role: targetUser.role },
                     admin: { id: req.platformUser.id, name: req.platformUser.name },
                 },
-            });
+            };
+            if (crossSite) {
+                body.token = token;
+            }
+            res.json(body);
         });
     } catch (err) {
         logger.error("platform", "createImpersonationSession error", { error: err.message });

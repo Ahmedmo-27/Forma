@@ -3,6 +3,13 @@ import { apiGetMe } from "../api/endpoints";
 import platformClient from "../api/client";
 import { clearWwwPreviewCookie } from "../../../marketing/previewCookie";
 import { setMonitoringUser } from "../../../lib/monitoring";
+import {
+  adoptPlatformAuthTokens,
+  adoptTenantAuthTokens,
+  clearPlatformBearers,
+  clearTenantBearer,
+} from "../../../lib/sessionBearer";
+import { suppressAuthErrorModals } from "../../../lib/authErrorGate";
 
 const PlatformAuthContext = createContext(null);
 
@@ -49,6 +56,7 @@ export function PlatformAuthProvider({ children }) {
         localStorage.removeItem(STORAGE_USER);
         localStorage.removeItem("leap_platform_token");
         localStorage.removeItem("leap_platform_refresh_token");
+        clearPlatformBearers();
       })
       .finally(() => {
         if (active && epoch === sessionEpoch.current) setLoading(false);
@@ -66,6 +74,8 @@ export function PlatformAuthProvider({ children }) {
   const loginSuccess = useCallback((authData) => {
     const { user: nextUser } = authData;
     sessionEpoch.current += 1;
+    suppressAuthErrorModals(5000);
+    adoptPlatformAuthTokens(authData);
     setLoading(false);
     setUser(nextUser);
     if (nextUser) {
@@ -80,10 +90,12 @@ export function PlatformAuthProvider({ children }) {
     try {
       await platformClient.post("/auth/logout", {}, { skipGlobalError: true });
     } catch (_) {}
+    sessionEpoch.current += 1;
     localStorage.removeItem(STORAGE_USER);
     localStorage.removeItem(STORAGE_IMPERSONATION);
     localStorage.removeItem("leap_platform_token");
     localStorage.removeItem("leap_platform_refresh_token");
+    clearPlatformBearers();
     clearWwwPreviewCookie();
 
     setUser(null);
@@ -92,7 +104,10 @@ export function PlatformAuthProvider({ children }) {
     window.location.href = "/platform/login";
   }, []);
 
-  const startImpersonation = useCallback((impersonationData) => {
+  const startImpersonation = useCallback((impersonationData, authPayload) => {
+    if (authPayload) {
+      adoptTenantAuthTokens(authPayload);
+    }
     setImpersonation(impersonationData);
     localStorage.setItem(STORAGE_IMPERSONATION, JSON.stringify(impersonationData));
   }, []);
@@ -104,6 +119,7 @@ export function PlatformAuthProvider({ children }) {
       const { default: api } = await import("../../../api/axios");
       await api.post("/users/logout", {}, { skipGlobalError: true });
     } catch (_) {}
+    clearTenantBearer();
   }, []);
 
   const value = {

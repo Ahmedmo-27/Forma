@@ -1,4 +1,5 @@
 import { apiBaseURL } from './axios';
+import { getTenantBearer } from '../lib/sessionBearer';
 
 /**
  * Keep a gym screen in sync with check-ins and package changes.
@@ -22,11 +23,13 @@ export function subscribeLiveEvents(onEvent, onStatus) {
     while (!stopped) {
       try {
         const tenantSlug = localStorage.getItem('ff_tenant_slug');
+        const bearer = getTenantBearer();
         const res = await fetch(`${apiBaseURL}/members/live`, {
           credentials: 'include',
           headers: {
             Accept: 'text/event-stream',
             ...(tenantSlug ? { 'X-Tenant-Slug': tenantSlug } : {}),
+            ...(bearer ? { Authorization: `Bearer ${bearer}` } : {}),
           },
           signal: controller.signal,
         });

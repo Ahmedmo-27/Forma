@@ -79,10 +79,13 @@ export default function SupportPage() {
         mode,
         reason: reason.trim() || "Support console investigation",
       });
-      startImpersonation({
-        tenant: res.data.session?.tenant,
-        mode: res.data.session?.mode || mode,
-      });
+      startImpersonation(
+        {
+          tenant: res.data.session?.tenant,
+          mode: res.data.session?.mode || mode,
+        },
+        res.data
+      );
       platformToast.success("Secure impersonation session activated (30m countdown)");
       setReason("");
       window.open(res.data.redirectPath || "/members", "_blank");
