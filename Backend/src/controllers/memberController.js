@@ -6,9 +6,39 @@ const Package = require("../models/Package");
 const User = require("../models/User");
 const ProfileView = require("../models/ProfileView");
 const { hasAccess, hasExplicitGrant } = require("../utils/accessControl");
-const { attachCurrentPackage, cairoDayBounds } = require("../utils/revenueUtils");
+const { attachCurrentPackage, cairoDayBounds, dayKey, addLocalDays } = require("../utils/revenueUtils");
 const { findMemberByIdentifier, buildMemberFilter } = require("../utils/memberLookup");
 const { userCanAccessLocation, forbidIfOutOfLocationScope } = require("../utils/locationScope");
+
+const DATE_KEY_RE = /^\d{4}-\d{2}-\d{2}$/;
+const MAX_CHECKIN_BOARD_DAYS = 31;
+
+/** Parse YYYY-MM-DD query values; invalid/empty → null. */
+function parseDayKey(value) {
+    if (!value) return null;
+    const key = String(value).trim();
+    return DATE_KEY_RE.test(key) ? key : null;
+}
+
+/**
+ * Resolve the check-in board window from optional from/to query params.
+ * Defaults to today (Cairo). Swaps reversed ranges, caps at today, limits span.
+ */
+function resolveCheckInBoardWindow(query = {}) {
+    const today = dayKey(new Date());
+    let from = parseDayKey(query.from) || today;
+    let to = parseDayKey(query.to) || from;
+    if (from > to) {
+        const swap = from;
+        from = to;
+        to = swap;
+    }
+    if (to > today) to = today;
+    if (from > to) from = to;
+    const earliest = addLocalDays(to, -(MAX_CHECKIN_BOARD_DAYS - 1));
+    if (from < earliest) from = earliest;
+    return cairoDayBounds(from, to);
+}
 
 /**
  * Load member by id/systemId/memberId and enforce navbar/grant location scope.
@@ -1599,15 +1629,15 @@ const addInvitation = async (req, res) => {
 // ─── 10. Get today's check-ins ────────────────────────────────────────────────
 const getTodayCheckIns = async (req, res) => {
     try {
-        const { start: today, end: tomorrow } = cairoDayBounds();
+        const { start, end, from, to } = resolveCheckInBoardWindow(req.query);
         const { checkInLocationElemMatch, memberLocationFilter } = require("../utils/locationScope");
-        const elem = checkInLocationElemMatch(req.locationScope, { start: today, end: tomorrow });
+        const elem = checkInLocationElemMatch(req.locationScope, { start, end });
         const homeFilter = memberLocationFilter(req.locationScope);
 
         // Prefer stamped check-in locationId; legacy logs without locationId match via member home branch.
         const dateElem = {
             type: "check-in",
-            createdAt: { $gte: today, $lt: tomorrow },
+            createdAt: { $gte: start, $lte: end },
         };
         let match;
         if (homeFilter.locationId) {
@@ -1626,8 +1656,8 @@ const getTodayCheckIns = async (req, res) => {
             match = { userlog: { $elemMatch: elem } };
         }
 
-        // Project today's log entries only. Populating userlog.createdBy loaded
-        // every historical author for each member who checked in.
+        // Project log entries in the selected window only. Populating userlog.createdBy
+        // loaded every historical author for each member who checked in.
         const members = await Member.aggregate([
             { $match: Object.keys(match).length ? match : { userlog: { $elemMatch: elem } } },
             {
@@ -1652,8 +1682,8 @@ const getTodayCheckIns = async (req, res) => {
                             cond: {
                                 $and: [
                                     { $eq: ["$$log.type", "check-in"] },
-                                    { $gte: ["$$log.createdAt", today] },
-                                    { $lt: ["$$log.createdAt", tomorrow] },
+                                    { $gte: ["$$log.createdAt", start] },
+                                    { $lte: ["$$log.createdAt", end] },
                                 ],
                             },
                         },
@@ -1718,7 +1748,7 @@ const getTodayCheckIns = async (req, res) => {
         // Sort newest first
         checkIns.sort((a, b) => new Date(b.time) - new Date(a.time));
 
-        res.json({ count: checkIns.length, checkIns });
+        res.json({ count: checkIns.length, checkIns, from, to });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

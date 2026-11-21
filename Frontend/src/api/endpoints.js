@@ -130,7 +130,7 @@ export const unblockMember     = (id) =>
   api.patch(`/members/${id}/unblock`);
 export const checkInMember     = (id, data = {}) => api.post(`/members/${id}/checkin`, data);
 export const checkInByBarcode  = (identifier, data = {}) => api.post('/members/check-in', { identifier, ...data });
-export const getTodayCheckIns  = ()         => api.get('/members/today-checkins');
+export const getTodayCheckIns  = (params = {}) => api.get('/members/today-checkins', { params });
 export const uploadMemberPhoto = (id, formData) =>
   api.patch(`/members/${id}/photo`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },

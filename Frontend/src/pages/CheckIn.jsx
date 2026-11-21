@@ -1,9 +1,11 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { format, isSameDay, startOfDay } from 'date-fns';
 import usePageTitle from '../hooks/usePageTitle';
 import Layout from '../components/Layout';
 import { Badge, Avatar, Spinner, EmptyState, Pagination, CardListSkeleton, MenuSelect } from '../components/ui';
+import DateRangePicker from '../components/DateRangePicker';
 import { formatSystemId } from '../lib/systemId';
 import { checkInByBarcode, checkInMember, getMemberProfile, getTodayCheckIns } from '../api/endpoints';
 import { subscribeLiveEvents } from '../api/live';
@@ -19,6 +21,13 @@ import { playCheckInSound } from '../lib/audioFeedback';
 import { useI18n } from '../i18n/useI18n';
 import { useFormat } from '../i18n/useFormat';
 import { tr } from '../i18n/translate';
+
+const DATE_KEY = 'yyyy-MM-dd';
+
+function defaultCheckInRange() {
+  const today = startOfDay(new Date());
+  return { from: today, to: today };
+}
 import {
   AlertTriangle,
   Ban,
@@ -119,7 +128,7 @@ export default function CheckIn() {
     }
   });
 
-  // Pagination for Today's Activity
+  // Pagination for activity board
   const [pageSize, setPageSize] = useState(() => {
     try {
       const saved = parseInt(localStorage.getItem('checkin_activity_page_size'), 10);
@@ -129,6 +138,7 @@ export default function CheckIn() {
     }
   });
   const [page, setPage] = useState(1);
+  const [range, setRange] = useState(defaultCheckInRange);
 
   const historyRef = useRef([]);
   const queryRef   = useRef('');
@@ -137,6 +147,15 @@ export default function CheckIn() {
   const seenRef    = useRef(new Set());
   const readyRef   = useRef(false);
   const liveRef    = useRef('connecting');
+  const rangeRef   = useRef(range);
+
+  const fromKey = format(range.from, DATE_KEY);
+  const toKey = format(range.to || range.from, DATE_KEY);
+  const viewingToday = isSameDay(range.from, startOfDay(new Date()))
+    && isSameDay(range.to || range.from, startOfDay(new Date()));
+
+  useEffect(() => { rangeRef.current = range; }, [range]);
+  useEffect(() => { setPage(1); }, [fromKey, toKey]);
 
   // Resolve / persist which desk branch stamps each check-in
   useEffect(() => {
@@ -263,7 +282,10 @@ export default function CheckIn() {
     let next = null;
     const prev = historyRef.current;
     try {
-      const r = await getTodayCheckIns();
+      const current = rangeRef.current;
+      const from = format(current.from, DATE_KEY);
+      const to = format(current.to || current.from, DATE_KEY);
+      const r = await getTodayCheckIns({ from, to });
       next = r.data.checkIns ?? [];
       applyHistory(next, { notify });
     } catch { /* keep the list already on screen */ }
@@ -293,7 +315,7 @@ export default function CheckIn() {
       readyRef.current = true;
       setHistLoad(false);
     }
-  }, [refreshBoard]);
+  }, [refreshBoard, fromKey, toKey]);
 
   useLocationEffect(() => { loadHistory(); }, [loadHistory]);
   useEffect(() => { memberRef.current = member; }, [member]);
@@ -455,7 +477,12 @@ export default function CheckIn() {
   const ptEligible  = Boolean(member && !member.isBlocked && member.couch_subscription_status === 'active' && ptLeft > 0 && !ptExpired);
   // A member can be checked in for the gym, for a PT session, or both (the desk is then asked which).
   const canCheckIn  = gymEligible || ptEligible;
-  const today       = formatDateIn(new Date(), { timeZone: 'Africa/Cairo', weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const todayLabel  = formatDateIn(new Date(), { timeZone: 'Africa/Cairo', weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const rangeLabel  = viewingToday
+    ? todayLabel
+    : (fromKey === toKey
+      ? formatDateIn(range.from, { timeZone: 'Africa/Cairo', weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })
+      : `${formatDateIn(range.from, { timeZone: 'Africa/Cairo', day: '2-digit', month: 'short', year: 'numeric' })} – ${formatDateIn(range.to || range.from, { timeZone: 'Africa/Cairo', day: '2-digit', month: 'short', year: 'numeric' })}`);
   const todayCount  = history.length;
   const activeToday = history.filter(e => String(e.member?.status).toLowerCase() === 'active' && !e.member?.isBlocked).length;
 
@@ -710,7 +737,7 @@ export default function CheckIn() {
                   display: 'flex', gap: 0, padding: '10px 6px',
                   width: '100%', maxWidth: 240,
                 }}>
-                  <StatPill label={t('Today')} value={histLoad ? '…' : todayCount} />
+                  <StatPill label={viewingToday ? t('Today') : t('Period')} value={histLoad ? '…' : todayCount} />
                   <div style={{ width: 1, background: 'var(--border)', margin: '2px 0' }} />
                   <StatPill label={t('Active')} value={histLoad ? '…' : activeToday} color="var(--green)" />
                   <div style={{ width: 1, background: 'var(--border)', margin: '2px 0' }} />
@@ -906,7 +933,7 @@ export default function CheckIn() {
                 </div>
               )}
 
-            {/* Today's Activity spans the content width */}
+            {/* Activity board spans the content width */}
             <div data-walkthrough="checkin-board" style={{
               background: 'var(--card)', borderRadius: 16, overflow: 'hidden',
               border: '1px solid var(--border)',
@@ -914,18 +941,19 @@ export default function CheckIn() {
               width: '100%',
             }}>
               {/* Header */}
-              <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg)' }}>
+              <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: 'var(--bg)' }}>
                 <div>
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    {t("Today's Activity")}
+                    {viewingToday ? t("Today's Activity") : t('Activity')}
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 10, fontWeight: 700, letterSpacing: '0.4px', textTransform: 'uppercase', color: live === 'live' ? 'var(--green)' : 'var(--amber)' }}>
                       <span style={{ width: 7, height: 7, borderRadius: '50%', background: live === 'live' ? '#22c55e' : '#f59e0b', boxShadow: live === 'live' ? '0 0 0 3px rgba(34,197,94,0.18)' : 'none' }} />
                       {live === 'live' ? t('Live') : t('Reconnecting')}
                     </span>
                   </h3>
-                  <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>{today}</p>
+                  <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>{rangeLabel}</p>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <DateRangePicker value={range} onChange={setRange} loading={histLoad} />
                   <div style={{
                     background: 'linear-gradient(135deg,var(--navy),var(--navy-2))',
                     color: '#fff', fontSize: 14, fontWeight: 800,
@@ -944,7 +972,11 @@ export default function CheckIn() {
                     <CardListSkeleton rows={6} />
                   </div>
                 ) : history.length === 0 ? (
-                  <EmptyState icon={CheckCircle2} message={t('No check-ins yet today')} sub={t('Search for a member above to check them in')} />
+                  <EmptyState
+                    icon={CheckCircle2}
+                    message={viewingToday ? t('No check-ins yet today') : t('No check-ins in this period')}
+                    sub={viewingToday ? t('Search for a member above to check them in') : t('Try another day or range')}
+                  />
                 ) : (
                   paginatedHistory.map((entry, i) => {
                     const globalIndex = (page - 1) * pageSize + i;
