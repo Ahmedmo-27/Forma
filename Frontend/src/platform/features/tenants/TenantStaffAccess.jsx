@@ -353,7 +353,7 @@ export default function TenantStaffAccess({ tenantId }) {
       if (updated?.role && selected?.role && updated.role !== selected.role) {
         queryClient.invalidateQueries({ queryKey: ["tenant-staff-access", tenantId, selectedId] });
       }
-      setProfile((prev) => ({ ...profileFromPerson(updated), password: "" }));
+      setProfile({ ...profileFromPerson(updated), password: "" });
       platformToast.success(`Updated ${updated?.name || "staff member"}`);
     } catch (error) {
       platformToast.error(error.response?.data?.message || "Could not save staff details");
