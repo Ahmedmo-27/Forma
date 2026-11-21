@@ -18,10 +18,10 @@ export const ACCESS_FALLBACKS = [
   { key: 'coach_dashboard', to: '/coach/dashboard' },
   { key: 'accounting_dashboard', to: '/accounting/dashboard' },
   { key: 'check_in', to: '/checkin' },
-  { key: 'retail_pos', to: '/retail/pos' },
   { key: 'members', to: '/members' },
   { key: 'sales_members', to: '/sales/members' },
   { key: 'coach_members', to: '/coach/members' },
+  { key: 'retail_pos', to: '/retail/pos' },
   { key: 'management', to: '/management' },
   { key: 'reports', to: '/reports' },
 ];
