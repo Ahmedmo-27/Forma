@@ -2,9 +2,33 @@
  * Platform Superadmin Application Validation Helpers
  */
 
-import { isValidEmail, isValidPhone, isPositiveNumber, isNonNegativeNumber, isPositiveInteger, isNonNegativeInteger } from '../../../lib/validation.js';
+import {
+  isValidEmail,
+  isValidPhone,
+  isPositiveNumber,
+  isNonNegativeNumber,
+  isPositiveInteger,
+  isNonNegativeInteger,
+  getPasswordStrengthError,
+  isValidPassword,
+  PASSWORD_REQUIREMENTS_HINT,
+  MIN_PASSWORD_LENGTH,
+  MAX_PASSWORD_LENGTH,
+} from '../../../lib/validation.js';
 
-export { isValidEmail, isValidPhone, isPositiveNumber, isNonNegativeNumber, isPositiveInteger, isNonNegativeInteger };
+export {
+  isValidEmail,
+  isValidPhone,
+  isPositiveNumber,
+  isNonNegativeNumber,
+  isPositiveInteger,
+  isNonNegativeInteger,
+  getPasswordStrengthError,
+  isValidPassword,
+  PASSWORD_REQUIREMENTS_HINT,
+  MIN_PASSWORD_LENGTH,
+  MAX_PASSWORD_LENGTH,
+};
 
 // Tenant slug: 2 to 50 lowercase alphanumeric characters and hyphens
 const SLUG_REGEX = /^[a-z0-9-]+$/;

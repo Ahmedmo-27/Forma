@@ -5,7 +5,7 @@ import Layout from '../../components/Layout';
 import { PageHeader, Card, Input, Btn, Spinner } from '../../components/ui';
 import LocationAccessEditor from '../../components/LocationAccessEditor';
 import { createStaffUser, listLocations } from '../../api/endpoints';
-import { isValidEmail, isValidPhone } from '../../lib/validation';
+import { isValidEmail, isValidPhone, getPasswordStrengthError } from '../../lib/validation';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
@@ -96,10 +96,9 @@ export default function CoachStaff() {
 
     if (!form.password) {
       e.password = t('Password is required');
-    } else if (form.password.length < 8) {
-      e.password = t('Password must be at least 8 characters');
-    } else if (form.password.length > 200) {
-      e.password = t('Password must not exceed 200 characters');
+    } else {
+      const passwordError = getPasswordStrengthError(form.password, t);
+      if (passwordError) e.password = passwordError;
     }
 
     const usernameError = validateUsernameClient(form.username, t);

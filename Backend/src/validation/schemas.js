@@ -1,6 +1,22 @@
 const { z } = require("zod");
 const { sanitizePlainText } = require("../utils/sanitizeText");
-const { MIN_PASSWORD_LENGTH } = require("../utils/passwordUtils");
+const {
+    MIN_PASSWORD_LENGTH,
+    MAX_PASSWORD_LENGTH,
+    validatePasswordStrength,
+} = require("../utils/passwordUtils");
+
+/** Shared Zod field for create / setup / staff passwords (not login). */
+const strongPassword = z
+    .string()
+    .min(MIN_PASSWORD_LENGTH)
+    .max(MAX_PASSWORD_LENGTH)
+    .superRefine((value, ctx) => {
+        const result = validatePasswordStrength(value);
+        if (!result.valid) {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: result.message });
+        }
+    });
 
 const objectId = z.string().regex(/^[a-f\d]{24}$/i, "Invalid id");
 const emptyToNull = (v) => (v === "" || v === undefined ? null : v);
@@ -38,7 +54,7 @@ const loginSchema = z.object({
 
 const setupPasswordSchema = z.object({
     token: z.string().trim().min(20).max(200),
-    password: z.string().min(MIN_PASSWORD_LENGTH).max(200),
+    password: strongPassword,
 });
 
 const forgotPasswordSchema = z.object({
@@ -147,7 +163,7 @@ const GYM_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Head Co
 const createStaffSchema = z.object({
     name: z.string().trim().min(1).max(120),
     email: z.string().trim().email().max(200),
-    password: z.string().min(8).max(200),
+    password: strongPassword,
     mobile_number: z.string().trim().min(5).max(40).optional(),
     username: z.preprocess(
         (value) => (value == null || String(value).trim() === "" ? undefined : String(value).trim()),

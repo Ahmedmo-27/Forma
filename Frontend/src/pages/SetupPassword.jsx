@@ -4,6 +4,7 @@ import { setupPassword } from '../api/endpoints';
 import usePageTitle from '../hooks/usePageTitle';
 import { Spinner } from '../components/ui';
 import { useI18n } from '../i18n/useI18n';
+import { getPasswordStrengthError, PASSWORD_REQUIREMENTS_HINT } from '../lib/validation';
 
 export default function SetupPassword() {
   const { t } = useI18n();
@@ -23,8 +24,9 @@ export default function SetupPassword() {
       setError(t('This setup link is missing a token. Ask your platform operator for a new invite.'));
       return;
     }
-    if (password.length < 8) {
-      setError(t('Password must be at least 8 characters.'));
+    const passwordError = getPasswordStrengthError(password, t);
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
     if (password !== confirm) {
@@ -57,6 +59,7 @@ export default function SetupPassword() {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             autoComplete="new-password"
+            placeholder={t(PASSWORD_REQUIREMENTS_HINT)}
             style={inputStyle}
           />
         </label>

@@ -62,7 +62,7 @@ describe("password setup tokens", () => {
         const revoke = vi.spyOn(PasswordSetupToken, "updateMany").mockResolvedValue({});
         vi.spyOn(User, "findById").mockResolvedValue(user);
 
-        const req = { body: { token: "b".repeat(64), password: "NewPassword1" } };
+        const req = { body: { token: "b".repeat(64), password: "NewPassword1!" } };
         const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
         await setupPassword(req, res);
 
@@ -100,7 +100,7 @@ describe("password setup tokens", () => {
 
         const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
         await setupPassword(
-            { body: { token: "d".repeat(64), password: "NewPassword1" } },
+            { body: { token: "d".repeat(64), password: "NewPassword1!" } },
             res
         );
 
@@ -116,7 +116,7 @@ describe("password setup tokens", () => {
 
         const res = { status: vi.fn().mockReturnThis(), json: vi.fn() };
         await setupPassword(
-            { body: { token: "c".repeat(64), password: "NewPassword1" } },
+            { body: { token: "c".repeat(64), password: "NewPassword1!" } },
             res
         );
 

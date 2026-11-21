@@ -14,7 +14,7 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
 
 const connectDB = require("../config/db");
 const PlatformUser = require("../models/PlatformUser");
-const { hashPassword, normalizeEmail } = require("../utils/passwordUtils");
+const { hashPassword, normalizeEmail, validatePasswordStrength } = require("../utils/passwordUtils");
 
 function prompt(query) {
     const rl = readline.createInterface({
@@ -53,10 +53,16 @@ async function run() {
 
     const name = getCliArg("--name") || (await prompt("Enter Super Admin Full Name: "));
     const email = getCliArg("--email") || (await prompt("Enter Super Admin Email: "));
-    const password = getCliArg("--password") || (await prompt("Enter Super Admin Password (min 8 chars): "));
+    const password = getCliArg("--password") || (await prompt("Enter Super Admin Password (8+ chars, upper, lower, number, special): "));
 
-    if (!name || !email || !password || password.length < 8) {
-        console.error("Error: All fields are required and password must be at least 8 characters.");
+    if (!name || !email || !password) {
+        console.error("Error: All fields are required.");
+        process.exit(1);
+    }
+
+    const strength = validatePasswordStrength(password);
+    if (!strength.valid) {
+        console.error(`Error: ${strength.message}`);
         process.exit(1);
     }
 

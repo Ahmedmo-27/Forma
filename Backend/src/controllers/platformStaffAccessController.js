@@ -187,13 +187,9 @@ const createTenantStaff = async (req, res) => {
         let useInvite = password === undefined || password === null || password === "";
         let passwordHash;
         if (!useInvite) {
-            if (typeof password !== "string" || password.length < passwordUtils.MIN_PASSWORD_LENGTH) {
-                return res.status(400).json({
-                    message: `password must be at least ${passwordUtils.MIN_PASSWORD_LENGTH} characters`,
-                });
-            }
-            if (password.length > 200) {
-                return res.status(400).json({ message: "password must not exceed 200 characters" });
+            const strength = passwordUtils.validatePasswordStrength(password);
+            if (!strength.valid) {
+                return res.status(400).json({ message: strength.message });
             }
             passwordHash = await passwordUtils.hashPassword(password);
         } else {
@@ -418,13 +414,9 @@ const updateTenantStaff = async (req, res) => {
 
         let passwordChanged = false;
         if (password !== undefined && password !== "") {
-            if (typeof password !== "string" || password.length < passwordUtils.MIN_PASSWORD_LENGTH) {
-                return res.status(400).json({
-                    message: `password must be at least ${passwordUtils.MIN_PASSWORD_LENGTH} characters`,
-                });
-            }
-            if (password.length > 200) {
-                return res.status(400).json({ message: "password must not exceed 200 characters" });
+            const strength = passwordUtils.validatePasswordStrength(password);
+            if (!strength.valid) {
+                return res.status(400).json({ message: strength.message });
             }
             user.password = await passwordUtils.hashPassword(password);
             passwordUtils.bumpTokenVersion(user);

@@ -20,6 +20,7 @@ import { Select } from "../../ui/Select";
 import { platformToast } from "../../ui/Toast";
 import { ConfirmDialog } from "../../shell/ConfirmDialog";
 import { FeatureIcon } from "../../../lib/featureIcons";
+import { getPasswordStrengthError, PASSWORD_REQUIREMENTS_HINT } from "../../../lib/validation";
 
 const ROLE_ORDER = [
   "Owner",
@@ -331,9 +332,12 @@ export default function TenantStaffAccess({ tenantId }) {
       platformToast.error("Username is required");
       return;
     }
-    if (profile.password && profile.password.length < 8) {
-      platformToast.error("Password must be at least 8 characters");
-      return;
+    if (profile.password) {
+      const passwordError = getPasswordStrengthError(profile.password);
+      if (passwordError) {
+        platformToast.error(passwordError);
+        return;
+      }
     }
 
     const payload = {
@@ -427,9 +431,12 @@ export default function TenantStaffAccess({ tenantId }) {
       platformToast.error("Name, email, and mobile are required");
       return;
     }
-    if (createForm.password && createForm.password.length < 8) {
-      platformToast.error("Password must be at least 8 characters");
-      return;
+    if (createForm.password) {
+      const passwordError = getPasswordStrengthError(createForm.password);
+      if (passwordError) {
+        platformToast.error(passwordError);
+        return;
+      }
     }
     if (!createForm.canAccessAllLocations && createForm.allowedLocationIds.length === 0) {
       platformToast.error("Select at least one branch, or enable all locations");
@@ -637,7 +644,7 @@ export default function TenantStaffAccess({ tenantId }) {
                   value={profile.password}
                   onChange={(event) => setProfileField("password", event.target.value)}
                   disabled={!canWrite || savingProfile}
-                  helperText="Leave blank to keep the current password"
+                  helperText={`Leave blank to keep current. ${PASSWORD_REQUIREMENTS_HINT}.`}
                   autoComplete="new-password"
                 />
               </div>
@@ -828,7 +835,7 @@ export default function TenantStaffAccess({ tenantId }) {
               type="password"
               value={createForm.password}
               onChange={(e) => setCreateField("password", e.target.value)}
-              helperText="Leave blank to email an invite"
+              helperText={`Leave blank to email an invite. ${PASSWORD_REQUIREMENTS_HINT}.`}
               autoComplete="new-password"
               disabled={creating}
             />

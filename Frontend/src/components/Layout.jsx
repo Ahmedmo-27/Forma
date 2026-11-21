@@ -29,6 +29,7 @@ import { MenuSelect } from './ui';
 import LanguageSwitch from './LanguageSwitch';
 import { useI18n } from '../i18n/useI18n';
 import UsernameField, { validateUsernameClient } from './UsernameField';
+import { getPasswordStrengthError, PASSWORD_REQUIREMENTS_HINT } from '../lib/validation';
 
 function LocationSwitcher({ compact = false }) {
   const { t } = useI18n();
@@ -777,7 +778,8 @@ export default function Layout({ children }) {
                 }
                 if (profileForm.newPassword) {
                   if (!profileForm.currentPassword) errs.currentPassword = t('Required to change password');
-                  if (profileForm.newPassword.length < 8) errs.newPassword = t('At least 8 characters');
+                  const passwordError = getPasswordStrengthError(profileForm.newPassword, t);
+                  if (passwordError) errs.newPassword = passwordError;
                   if (profileForm.newPassword !== profileForm.confirmPassword) errs.confirmPassword = t('Passwords do not match');
                 }
                 setProfileErrors(errs);
@@ -853,7 +855,7 @@ export default function Layout({ children }) {
                 {/* New Password */}
                 <div style={{ marginBottom: 12 }}>
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>{t('New Password')}</label>
-                  <input type="password" value={profileForm.newPassword} onChange={e => setProfileForm(f => ({ ...f, newPassword: e.target.value }))} placeholder={t('Min 8 characters')}
+                  <input type="password" value={profileForm.newPassword} onChange={e => setProfileForm(f => ({ ...f, newPassword: e.target.value }))} placeholder={t(PASSWORD_REQUIREMENTS_HINT)}
                     style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: `1px solid ${profileErrors.newPassword ? 'var(--red-bd)' : 'var(--border)'}`, borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
                     onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
                     onBlur={e => { e.target.style.borderColor = profileErrors.newPassword ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />

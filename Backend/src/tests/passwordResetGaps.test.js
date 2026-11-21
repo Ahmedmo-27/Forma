@@ -121,7 +121,7 @@ describe("password reset gaps", () => {
             };
         }
 
-        async function reset(actorRole, person, newPassword = "NewPassword1") {
+        async function reset(actorRole, person, newPassword = "NewPassword1!") {
             vi.spyOn(User, "findById").mockResolvedValue(person);
             const res = jsonRes();
             await resetUserPassword({

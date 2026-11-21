@@ -171,6 +171,12 @@ const AR = {
   'Transfer to': 'النقل إلى',
   'Select all visible ({count})': 'تحديد كل الظاهر ({count})',
   'Password must be at least 8 characters': 'يجب ألا تقل كلمة المرور عن 8 أحرف',
+  'At least 8 characters, with uppercase, lowercase, a number, and a special character': '8 أحرف على الأقل، مع حرف كبير وصغير ورقم ورمز خاص',
+  'Password must include at least one uppercase letter': 'يجب أن تتضمن كلمة المرور حرفًا كبيرًا واحدًا على الأقل',
+  'Password must include at least one lowercase letter': 'يجب أن تتضمن كلمة المرور حرفًا صغيرًا واحدًا على الأقل',
+  'Password must include at least one number': 'يجب أن تتضمن كلمة المرور رقمًا واحدًا على الأقل',
+  'Password must include at least one special character': 'يجب أن تتضمن كلمة المرور رمزًا خاصًا واحدًا على الأقل',
+  'Password must not exceed 200 characters': 'يجب ألا تتجاوز كلمة المرور 200 حرف',
   'Failed to reset password': 'تعذر إعادة تعيين كلمة المرور',
   'Set a new password for {name}. Current sessions are signed out, and they will need this password to sign in again.': 'عيّن كلمة مرور جديدة لـ {name}. سيتم تسجيل خروجه من الجلسات الحالية وسيحتاج إلى كلمة المرور هذه لتسجيل الدخول مجددًا.',
 

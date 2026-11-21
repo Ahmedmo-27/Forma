@@ -13,6 +13,7 @@ import ChangeRoleField from '../../components/ChangeRoleField';
 import { KeyRound, Mail, Phone } from 'lucide-react';
 import { tr } from '../../i18n/translate';
 import { useI18n } from '../../i18n/useI18n';
+import { getPasswordStrengthError, PASSWORD_REQUIREMENTS_HINT } from '../../lib/validation';
 
 const FILTER_LABELS = {
   all: tr('All'),
@@ -350,7 +351,8 @@ export default function OwnerUserProfile() {
         footer={<>
           <Btn variant="ghost" size="sm" onClick={() => setShowResetPwd(false)} disabled={resettingPwd}>{t('Cancel')}</Btn>
           <Btn size="sm" disabled={resettingPwd} onClick={async () => {
-            if (!newPwd || newPwd.length < 8) { toast.error(t('Password must be at least 8 characters')); return; }
+            const passwordError = getPasswordStrengthError(newPwd, t);
+            if (passwordError) { toast.error(passwordError); return; }
             if (newPwd !== confirmPwd) { toast.error(t('Passwords do not match')); return; }
             setResettingPwd(true);
             try {
@@ -369,7 +371,7 @@ export default function OwnerUserProfile() {
         </p>
         <div style={{ marginBottom: 14 }}>
           <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.3px' }}>{t('New Password')}</label>
-          <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder={t('Min 8 characters')}
+          <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)} placeholder={t(PASSWORD_REQUIREMENTS_HINT)}
             style={{ width: '100%', padding: '10px 13px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, outline: 'none', background: 'var(--card)', color: 'var(--t1)', boxSizing: 'border-box', fontFamily: 'inherit' }}
             onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
             onBlur={e  => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}

@@ -8,7 +8,7 @@ import {
   platformToast,
 } from "../../ui";
 import { apiCreatePlatformUser } from "../../lib/api/endpoints";
-import { isValidEmail, isValidAuditReason } from "../../lib/utils/validation";
+import { isValidEmail, isValidAuditReason, getPasswordStrengthError, PASSWORD_REQUIREMENTS_HINT } from "../../lib/utils/validation";
 
 export default function CreatePlatformUserModal({ open, onOpenChange, onSaved }) {
   const [loading, setLoading] = useState(false);
@@ -47,12 +47,9 @@ export default function CreatePlatformUserModal({ open, onOpenChange, onSaved })
       setError("Please enter a valid email address");
       return;
     }
-    if (password.length < 8) {
-      setError("Temporary password must be at least 8 characters long");
-      return;
-    }
-    if (password.length > 200) {
-      setError("Temporary password must not exceed 200 characters");
+    const passwordError = getPasswordStrengthError(password);
+    if (passwordError) {
+      setError(passwordError);
       return;
     }
     if (reason && !isValidAuditReason(reason)) {
@@ -149,7 +146,7 @@ export default function CreatePlatformUserModal({ open, onOpenChange, onSaved })
             </label>
             <Input
               type="password"
-              placeholder="Min. 8 characters"
+              placeholder={PASSWORD_REQUIREMENTS_HINT}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required

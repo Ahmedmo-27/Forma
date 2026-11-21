@@ -5,6 +5,47 @@
 
 import { tActive, tr } from '../i18n/translate.js';
 
+export const MIN_PASSWORD_LENGTH = 8;
+export const MAX_PASSWORD_LENGTH = 200;
+
+export const PASSWORD_REQUIREMENTS_HINT =
+  'At least 8 characters, with uppercase, lowercase, a number, and a special character';
+
+/**
+ * Password strength rules aligned with backend passwordUtils.validatePasswordStrength.
+ * @param {unknown} password
+ * @param {(key: string) => string} [t] optional translator; falls back to English keys
+ * @returns {string|null} error message, or null when valid
+ */
+export function getPasswordStrengthError(password, t = (key) => key) {
+  if (typeof password !== 'string' || password.length === 0) {
+    return t(PASSWORD_REQUIREMENTS_HINT);
+  }
+  if (password.length < MIN_PASSWORD_LENGTH) {
+    return t('Password must be at least 8 characters');
+  }
+  if (password.length > MAX_PASSWORD_LENGTH) {
+    return t('Password must not exceed 200 characters');
+  }
+  if (!/[A-Z]/.test(password)) {
+    return t('Password must include at least one uppercase letter');
+  }
+  if (!/[a-z]/.test(password)) {
+    return t('Password must include at least one lowercase letter');
+  }
+  if (!/[0-9]/.test(password)) {
+    return t('Password must include at least one number');
+  }
+  if (!/[^A-Za-z0-9]/.test(password)) {
+    return t('Password must include at least one special character');
+  }
+  return null;
+}
+
+export function isValidPassword(password) {
+  return getPasswordStrengthError(password) === null;
+}
+
 // Email regex matching standard RFC 5322 simplified pattern
 const EMAIL_REGEX = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
 

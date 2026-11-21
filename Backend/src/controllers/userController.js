@@ -4,7 +4,7 @@ const { getEffectiveFeatures } = require("../models/Tenant");
 const jwt = require("jsonwebtoken");
 const { formatUserResponse } = require("../utils/userAbilities");
 const logger = require("../utils/logger");
-const { hashPassword, verifyPassword, normalizeEmail, MIN_PASSWORD_LENGTH, bumpTokenVersion } = require("../utils/passwordUtils");
+const { hashPassword, verifyPassword, normalizeEmail, validatePasswordStrength, bumpTokenVersion } = require("../utils/passwordUtils");
 const passwordSetup = require("../services/passwordSetupService");
 const { invalidateAuthContext } = require("../middleware/authContextCache");
 const {
@@ -114,6 +114,11 @@ const registerUser = async (req, res) => {
         if (!email || !password) {
             logger.auth("warn", "Register validation failed", { requestId, reason: "missing_fields" });
             return res.status(400).json({ message: "Email and password are required" });
+        }
+
+        const registerStrength = validatePasswordStrength(password);
+        if (!registerStrength.valid) {
+            return res.status(400).json({ message: registerStrength.message });
         }
 
         await assertEmailAvailable(email);
@@ -1547,8 +1552,9 @@ const resetUserPassword = async (req, res) => {
     try {
         const { newPassword } = req.body;
 
-        if (!newPassword || newPassword.length < MIN_PASSWORD_LENGTH) {
-            return res.status(400).json({ message: `New password must be at least ${MIN_PASSWORD_LENGTH} characters` });
+        const strength = validatePasswordStrength(newPassword);
+        if (!strength.valid) {
+            return res.status(400).json({ message: strength.message });
         }
 
         const target = await User.findById(req.params.id);
@@ -1640,8 +1646,9 @@ const updateMyProfile = async (req, res) => {
             if (!currentPassword) {
                 return res.status(400).json({ message: "Current password is required to set a new password" });
             }
-            if (newPassword.length < MIN_PASSWORD_LENGTH) {
-                return res.status(400).json({ message: `New password must be at least ${MIN_PASSWORD_LENGTH} characters` });
+            const strength = validatePasswordStrength(newPassword);
+            if (!strength.valid) {
+                return res.status(400).json({ message: strength.message });
             }
             const { match } = await verifyPassword(currentPassword, user.password, { requestId: req.requestId });
             if (!match) {

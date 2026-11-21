@@ -1,6 +1,6 @@
 const PlatformUser = require("../models/PlatformUser");
 const { writePlatformAudit } = require("../utils/audit");
-const { hashPassword, normalizeEmail } = require("../utils/passwordUtils");
+const { hashPassword, normalizeEmail, validatePasswordStrength } = require("../utils/passwordUtils");
 const { assertEmailAvailable, replyIfConflict } = require("../utils/identityUniqueness");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 
@@ -52,6 +52,11 @@ async function createPlatformUser(req, res) {
 
         if (!["super_admin", "billing", "support", "analyst"].includes(role)) {
             return res.status(400).json({ message: "Invalid platform role specified" });
+        }
+
+        const strength = validatePasswordStrength(password);
+        if (!strength.valid) {
+            return res.status(400).json({ message: strength.message });
         }
 
         const normalized = normalizeEmail(email);

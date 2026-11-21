@@ -5,6 +5,47 @@ const logger = require("./logger");
 const BCRYPT_ROUNDS = 12;
 
 const MIN_PASSWORD_LENGTH = 8;
+const MAX_PASSWORD_LENGTH = 200;
+
+const PASSWORD_REQUIREMENTS_MESSAGE =
+    `Password must be at least ${MIN_PASSWORD_LENGTH} characters and include an uppercase letter, a lowercase letter, a number, and a special character`;
+
+/**
+ * Validate password strength for create / reset / setup flows.
+ * Login must not use this — existing accounts may predate these rules.
+ * @param {unknown} password
+ * @returns {{ valid: boolean, message?: string }}
+ */
+function validatePasswordStrength(password) {
+    if (typeof password !== "string" || password.length === 0) {
+        return { valid: false, message: PASSWORD_REQUIREMENTS_MESSAGE };
+    }
+    if (password.length < MIN_PASSWORD_LENGTH) {
+        return {
+            valid: false,
+            message: `Password must be at least ${MIN_PASSWORD_LENGTH} characters`,
+        };
+    }
+    if (password.length > MAX_PASSWORD_LENGTH) {
+        return {
+            valid: false,
+            message: `Password must not exceed ${MAX_PASSWORD_LENGTH} characters`,
+        };
+    }
+    if (!/[A-Z]/.test(password)) {
+        return { valid: false, message: "Password must include at least one uppercase letter" };
+    }
+    if (!/[a-z]/.test(password)) {
+        return { valid: false, message: "Password must include at least one lowercase letter" };
+    }
+    if (!/[0-9]/.test(password)) {
+        return { valid: false, message: "Password must include at least one number" };
+    }
+    if (!/[^A-Za-z0-9]/.test(password)) {
+        return { valid: false, message: "Password must include at least one special character" };
+    }
+    return { valid: true };
+}
 
 function bumpTokenVersion(user) {
     user.tokenVersion = (Number(user.tokenVersion) || 0) + 1;
@@ -74,6 +115,9 @@ function normalizeEmail(email) {
 module.exports = {
     BCRYPT_ROUNDS,
     MIN_PASSWORD_LENGTH,
+    MAX_PASSWORD_LENGTH,
+    PASSWORD_REQUIREMENTS_MESSAGE,
+    validatePasswordStrength,
     bumpTokenVersion,
     hashPassword,
     verifyPassword,
