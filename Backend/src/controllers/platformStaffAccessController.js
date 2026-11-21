@@ -28,6 +28,7 @@ const GYM_ROLES = [
     "Accountant",
     "Sales",
     "Sales Manager",
+    "Retail",
 ];
 
 const CREATABLE_ROLES = GYM_ROLES.filter((role) => role !== "Owner");

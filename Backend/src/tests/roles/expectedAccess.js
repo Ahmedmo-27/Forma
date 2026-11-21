@@ -12,6 +12,7 @@ export const GYM_ROLES = [
     "Coach",
     "Receptionist",
     "Accountant",
+    "Retail",
 ];
 
 export const CATALOG_KEYS = [
@@ -241,6 +242,7 @@ export const EXPECTED_KEYS = {
         "refunds",
         "package_transfers",
     ],
+    Retail: ["retail_pos"],
 };
 
 /** all = full directory, scoped = only members assigned to that person. */
@@ -253,4 +255,5 @@ export const MEMBER_LIST = {
     Coach: "scoped",
     Receptionist: "all",
     Accountant: "all",
+    Retail: "deny",
 };

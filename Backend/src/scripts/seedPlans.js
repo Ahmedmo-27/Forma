@@ -22,7 +22,7 @@ const DEFAULT_PLANS = [
         priceYearly: 15000,
         currency: "EGP",
         features: ["members", "checkin", "packages", "pt_tracking", ...MODULE_KEYS],
-        allowedRoles: ["Owner", "Receptionist", "Coach", "Head Coach"],
+        allowedRoles: ["Owner", "Receptionist", "Coach", "Head Coach", "Retail"],
         limits: {
             maxMembers: 300,
             maxStaff: 5,
@@ -63,6 +63,7 @@ const DEFAULT_PLANS = [
             "Sales Manager",
             "Sales",
             "General Manager",
+            "Retail",
         ],
         limits: {
             maxMembers: 1000,
@@ -107,6 +108,7 @@ const DEFAULT_PLANS = [
             "Sales Manager",
             "Sales",
             "General Manager",
+            "Retail",
         ],
         limits: {
             maxMembers: 5000,

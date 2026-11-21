@@ -58,7 +58,7 @@ function accessContextFor(tenant) {
     };
 }
 const GENERIC_LOGIN_FAILURE = "Invalid username or password";
-const GYM_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager"];
+const GYM_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager", "Retail"];
 
 function respondAfterLoginFailure(res, fail, req) {
     if (fail.lockedUntil) {
@@ -423,6 +423,7 @@ const getReceptionists = async (req, res) => {
                         "Coach",
                         "Head Coach",
                         "Accountant",
+                        "Retail",
                         "General Manager",
                         "Owner",
                     ],
@@ -816,7 +817,7 @@ const createStaffUser = async (req, res) => {
         if (req.user.role === "Owner") {
             creatable = GYM_ROLES.filter((roleName) => roleName !== "Owner");
         } else if (req.user.role === "General Manager") {
-            creatable = ["Sales Manager", "Head Coach", "Accountant", "Sales", "Coach", "Receptionist"];
+            creatable = ["Sales Manager", "Head Coach", "Accountant", "Sales", "Coach", "Receptionist", "Retail"];
         } else if (req.user.role === "Sales Manager") {
             creatable = ["Sales", "Receptionist"];
         } else if (req.user.role === "Head Coach") {

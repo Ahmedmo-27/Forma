@@ -72,6 +72,13 @@ const SYSTEM_ROLES = [
         defaultTier: "gold",
         category: "Management",
     },
+    {
+        key: "Retail",
+        name: "Retail / Bar & Shop",
+        description: "Rings up bar, food, supplement, and towel sales. Owners can grant vendors, stock, and revenue access.",
+        defaultTier: "basic",
+        category: "Operations",
+    },
 ];
 
 // ==========================================

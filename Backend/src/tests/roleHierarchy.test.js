@@ -52,6 +52,7 @@ describe("Role Hierarchy Enforcement (Backend)", () => {
             expect(gmRoles).toContain("Sales");
             expect(gmRoles).toContain("Coach");
             expect(gmRoles).toContain("Receptionist");
+            expect(gmRoles).toContain("Retail");
             expect(gmRoles).not.toContain("Owner");
             expect(gmRoles).not.toContain("General Manager");
         });
@@ -139,6 +140,7 @@ describe("Role Hierarchy Enforcement (Backend)", () => {
         it("allows General Manager to assign staff below GM, but never Owner or GM", () => {
             expect(canAssignRole(gm, sales, "Coach").ok).toBe(true);
             expect(canAssignRole(gm, sales, "Accountant").ok).toBe(true);
+            expect(canAssignRole(gm, sales, "Retail").ok).toBe(true);
             expect(canAssignRole(gm, sales, "Sales Manager").ok).toBe(true);
             expect(canAssignRole(gm, sales, "Head Coach").ok).toBe(true);
             expect(canAssignRole(gm, gm, "Sales").ok).toBe(false);

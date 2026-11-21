@@ -7,6 +7,7 @@ const GYM_ROLES = [
     "Accountant",
     "Sales",
     "Sales Manager",
+    "Retail",
 ];
 
 const MAX_DISMISSED_IDS = 100;

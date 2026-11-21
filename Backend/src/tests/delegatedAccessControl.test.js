@@ -78,7 +78,7 @@ describe("Delegated Staff Access Control", () => {
 
         it("returns all staff roles for delegated Sales Manager", () => {
             expect(directoryRolesFor(delegatedSm)).toEqual([
-                "Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager"
+                "Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager", "Retail"
             ]);
         });
     });

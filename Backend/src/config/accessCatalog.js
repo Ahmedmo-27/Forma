@@ -78,7 +78,7 @@ const ACCESS_CATALOG = [
         icon: "ShoppingCart",
         group: "Receptionist",
         domain: "sales",
-        defaultRoles: ["Receptionist", "Owner", "General Manager"],
+        defaultRoles: ["Receptionist", "Owner", "General Manager", "Retail"],
         path: "/retail/pos",
         nav: { to: "/retail/pos", label: "Bar & Shop" },
     },

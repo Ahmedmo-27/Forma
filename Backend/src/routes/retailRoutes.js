@@ -29,7 +29,8 @@ const anyRetail = () =>
         "Receptionist",
         "Accountant",
         "Owner",
-        "General Manager"
+        "General Manager",
+        "Retail"
     );
 
 router.use(protect);
@@ -38,7 +39,7 @@ router.use(requireFeature("retail"));
 router.use(locationScopeOptional);
 
 // POS bootstrap
-router.get("/catalog", allowAnyFeature(["retail_pos", "retail_manage"], "Receptionist", "Owner", "General Manager"), catalog.getPosCatalog);
+router.get("/catalog", allowAnyFeature(["retail_pos", "retail_manage"], "Receptionist", "Owner", "General Manager", "Retail"), catalog.getPosCatalog);
 
 // Vendors
 router.get("/vendors", anyRetail(), catalog.listVendors);
@@ -61,7 +62,7 @@ router.get("/products/:id/movements", allowRoles("retail_manage", "Owner", "Gene
 router.get("/products/:id/usage", allowRoles("retail_manage", "Owner", "General Manager"), catalog.getProductUsage);
 
 // Sales
-router.post("/sales", allowRoles("retail_pos", "Receptionist", "Owner", "General Manager"), validate(createSaleSchema), sales.createSale);
+router.post("/sales", allowRoles("retail_pos", "Receptionist", "Owner", "General Manager", "Retail"), validate(createSaleSchema), sales.createSale);
 router.get("/sales", anyRetail(), sales.listSales);
 router.get("/sales/:id", anyRetail(), sales.getSale);
 router.post("/sales/:id/refund", allowRoles("retail_manage", "Owner", "General Manager"), validate(refundSaleSchema), sales.refundSale);

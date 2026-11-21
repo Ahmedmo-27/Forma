@@ -158,7 +158,7 @@ const salesRequestStatusSchema = z.object({
     status: z.enum(["accepted", "rejected"]),
 });
 
-const GYM_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager"];
+const GYM_ROLES = ["Owner", "General Manager", "Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager", "Retail"];
 
 const createStaffSchema = z.object({
     name: z.string().trim().min(1).max(120),
@@ -243,7 +243,7 @@ const createWhatsAppTemplateSchema = z.object({
     defaultDiscountPercent: z.coerce.number().min(0).max(100).optional(),
     allowedRoles: z.array(z.enum([
         "Owner", "General Manager", "Sales Manager", "Sales", "Receptionist", "Accountant",
-        "Coach", "Head Coach",
+        "Coach", "Head Coach", "Retail",
     ])).optional(),
     isDefault: z.preprocess(
         (v) => {

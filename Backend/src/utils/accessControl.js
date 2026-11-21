@@ -324,14 +324,14 @@ function syncLegacyFields(user) {
     if (touchesPhones) user.canViewPhones = effective.has("view_phones");
 }
 
-const STAFF_ROLES = ["Owner", "General Manager", "Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant"];
+const STAFF_ROLES = ["Owner", "General Manager", "Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant", "Retail"];
 
 function editableRolesFor(actor) {
     const actorRole = typeof actor === "string" ? actor : actor?.role;
     if (!actorRole) return [];
     if (actorRole === "Owner") return [...STAFF_ROLES];
     if (actorRole === "General Manager" || hasStaffDelegation(actor)) {
-        return ["Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager"];
+        return ["Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager", "Retail"];
     }
     if (actorRole === "Sales Manager") return ["Sales", "Receptionist"];
     if (actorRole === "Head Coach") return ["Coach"];
@@ -344,8 +344,8 @@ function directoryRolesFor(actor) {
 }
 
 const ASSIGNABLE_ROLES = {
-    Owner: ["General Manager", "Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant"],
-    "General Manager": ["Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant"],
+    Owner: ["General Manager", "Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant", "Retail"],
+    "General Manager": ["Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant", "Retail"],
     "Sales Manager": ["Sales", "Receptionist"],
     "Head Coach": ["Coach"],
 };
@@ -354,10 +354,10 @@ function assignableRolesFor(actor) {
     const actorRole = typeof actor === "string" ? actor : actor?.role;
     if (!actorRole) return [];
     if (actorRole === "Owner") {
-        return ["General Manager", "Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant"];
+        return ["General Manager", "Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant", "Retail"];
     }
     if (actorRole === "General Manager" || hasStaffDelegation(actor)) {
-        return ["Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant"];
+        return ["Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant", "Retail"];
     }
     return ASSIGNABLE_ROLES[actorRole] ? [...ASSIGNABLE_ROLES[actorRole]] : [];
 }

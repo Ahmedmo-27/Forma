@@ -83,6 +83,7 @@ const CHECKLIST_ROLES = [
     "Accountant",
     "Sales",
     "Sales Manager",
+    "Retail",
 ];
 
 function featureArea(featureKey) {

@@ -94,7 +94,7 @@ router.get("/", protect, cacheResponse({ ttlSeconds: 60, tags: ["members"] }), (
 });
 
 // All members (for global search — all authenticated staff)
-router.get("/all", protect, allowRoles("member_profile", "Receptionist", "Owner", "Sales", "Sales Manager", "Accountant", "Coach", "Head Coach"), cacheResponse({ ttlSeconds: 60, tags: ["members"] }), getAllMembers);
+router.get("/all", protect, allowAnyFeature(["member_profile", "retail_pos"], "Receptionist", "Owner", "Sales", "Sales Manager", "Accountant", "Coach", "Head Coach", "Retail"), cacheResponse({ ttlSeconds: 60, tags: ["members"] }), getAllMembers);
 
 router.get("/all-notes", protect, allowRoles("comments", "Sales", "Sales Manager", "Owner", "Head Coach"), cacheResponse({ ttlSeconds: 60, tags: ["members"] }), getAllNotes);
 router.get("/live", allowRoles("check_in", "Receptionist", "Owner", "Sales", "Sales Manager"), liveStream);

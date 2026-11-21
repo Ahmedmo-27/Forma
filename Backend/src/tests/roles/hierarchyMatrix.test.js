@@ -10,6 +10,7 @@ const OWNER_ASSIGNABLE = [
     "Coach",
     "Receptionist",
     "Accountant",
+    "Retail",
 ];
 const GM_ASSIGNABLE = [
     "Sales Manager",
@@ -18,10 +19,11 @@ const GM_ASSIGNABLE = [
     "Coach",
     "Receptionist",
     "Accountant",
+    "Retail",
 ];
-const GM_TARGETS = ["Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant"];
+const GM_TARGETS = ["Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant", "Retail"];
 const SALES_TEAM = ["Sales", "Receptionist"];
-const NO_ASSIGN = ["Sales", "Coach", "Receptionist", "Accountant"];
+const NO_ASSIGN = ["Sales", "Coach", "Receptionist", "Accountant", "Retail"];
 
 /**
  * Literal hierarchy. Not derived from assignableRolesFor.
