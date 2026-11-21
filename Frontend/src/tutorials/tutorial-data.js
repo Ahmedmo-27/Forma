@@ -1,4 +1,7 @@
 import { hasAccess } from '../lib/access';
+import { REPORT_FEATURES } from '../lib/tenantGuards';
+
+export { REPORT_FEATURES };
 
 export const ALL_TENANT_ROLES = [
   'Owner',
@@ -27,7 +30,10 @@ const MANAGEMENT_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Head Coa
 const OWNER_ROLES = ['Owner', 'General Manager'];
 const ACCESS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Head Coach'];
 const WHATSAPP_ROLES = ['Sales Manager', 'Owner', 'General Manager', 'Accountant', 'Head Coach'];
-const REPORT_FEATURES = ['exec_analytics', 'sales_crm', 'funnels', 'business_intelligence'];
+const MAINTENANCE_ROLES = ['Receptionist', 'Owner', 'General Manager'];
+const RETAIL_POS_ROLES = ['Receptionist', 'Owner', 'General Manager'];
+const RETAIL_MANAGE_ROLES = ['Owner', 'General Manager'];
+const RETAIL_REPORT_ROLES = ['Owner', 'General Manager', 'Accountant'];
 
 function step(title, description, target, route, fallback = 'main') {
   return { title, description, target, route, fallback };
@@ -185,6 +191,7 @@ export const tutorialSections = [
         subtitle: 'See new requests and updates without leaving the page',
         badge: 'Core',
         roles: ['Sales', 'Sales Manager', 'Accountant'],
+        feature: 'notifications',
         keywords: ['notifications', 'bell', 'alerts'],
         steps: [
           step(
@@ -208,6 +215,7 @@ export const tutorialSections = [
         badge: 'Front desk',
         roles: CHECKIN_ROLES,
         access: 'check_in',
+        feature: 'checkin',
         keywords: ['check in', 'check-in', 'scanner', 'barcode', 'attendance', 'front desk'],
         steps: [
           step(
@@ -243,6 +251,7 @@ export const tutorialSections = [
         badge: 'Front desk',
         roles: DIRECTORY_ROLES,
         access: 'members',
+        feature: 'members',
         keywords: ['members', 'directory', 'roster', 'profile', 'search'],
         steps: [
           step(
@@ -265,6 +274,7 @@ export const tutorialSections = [
         subtitle: 'Find a teammate and call them from the gym directory',
         badge: 'Front desk',
         roles: ALL_TENANT_ROLES,
+        feature: 'contacts',
         keywords: ['contacts', 'phone', 'staff', 'call'],
         steps: [
           step(
@@ -284,6 +294,145 @@ export const tutorialSections = [
     ],
   },
   {
+    title: 'Maintenance',
+    scenarios: [
+      {
+        id: 'maintenance',
+        title: 'Maintenance checklist',
+        subtitle: 'Mark branch tasks complete, and manage the checklist when you can edit it',
+        badge: 'Operations',
+        roles: MAINTENANCE_ROLES,
+        access: ['maintenance_checklist', 'manage_maintenance'],
+        feature: 'maintenance',
+        keywords: ['maintenance', 'checklist', 'cleaning', 'equipment', 'overdue'],
+        steps: [
+          step(
+            'Checklist and Manage',
+            'Checklist is the board for today. Manage appears when your role can add or edit items for this branch.',
+            'maintenance-tabs',
+            '/maintenance',
+          ),
+          step(
+            'Due board',
+            'Items group into overdue, due now, and up to date. Open Complete on a card when the work is done.',
+            'maintenance-board',
+            '/maintenance',
+            '[data-walkthrough="maintenance-tabs"]',
+          ),
+          {
+            title: 'Add an item',
+            description: 'On Manage, create recurring tasks with a title, interval, and optional description. Copy can send the same item to other branches.',
+            target: 'maintenance-add',
+            route: '/maintenance?tab=manage',
+            fallback: '[data-walkthrough="maintenance-manage"]',
+            access: 'manage_maintenance',
+          },
+        ],
+      },
+    ],
+  },
+  {
+    title: 'Bar & Shop',
+    scenarios: [
+      {
+        id: 'retail-pos',
+        title: 'Bar & Shop POS',
+        subtitle: 'Sell bar and shop items at the desk',
+        badge: 'Retail',
+        roles: RETAIL_POS_ROLES,
+        access: 'retail_pos',
+        feature: 'retail',
+        keywords: ['retail', 'pos', 'bar', 'shop', 'checkout', 'sale'],
+        steps: [
+          step(
+            'Retail pages',
+            'These tabs open POS, sales history, products, vendors, and revenue — only the ones your role can use.',
+            'retail-tabs',
+            '/retail/pos',
+          ),
+          step(
+            'Product catalog',
+            'Filter by bar or shop, search by name, then tap a product to add it to the sale.',
+            'retail-pos-catalog',
+            '/retail/pos',
+            '[data-walkthrough="retail-pos-body"]',
+          ),
+          step(
+            'Current sale',
+            'Adjust quantities, apply a discount, pick cash, card, or wallet, optionally link a member, then complete the sale.',
+            'retail-pos-cart',
+            '/retail/pos',
+            '[data-walkthrough="retail-pos-body"]',
+          ),
+        ],
+      },
+      {
+        id: 'retail-products',
+        title: 'Retail products',
+        subtitle: 'Add bar and shop items and keep stock accurate',
+        badge: 'Retail',
+        roles: RETAIL_MANAGE_ROLES,
+        access: 'retail_manage',
+        feature: 'retail',
+        keywords: ['products', 'stock', 'catalog', 'bar menu', 'sku'],
+        steps: [
+          step(
+            'Retail pages',
+            'Products sits with the other bar and shop tools. Use the tabs to jump to POS or revenue.',
+            'retail-tabs',
+            '/retail/products',
+          ),
+          step(
+            'Quick add',
+            'Add a simple bar item with a name, category, and price. Use Add product for full SKU and stock settings.',
+            'retail-products-quick',
+            '/retail/products',
+            '[data-walkthrough="retail-products-body"]',
+          ),
+          step(
+            'Product list',
+            'Filter by section, category, or vendor. Edit a row to change price, stock, or whether the item is active.',
+            'retail-products-list',
+            '/retail/products',
+            '[data-walkthrough="retail-products-body"]',
+          ),
+        ],
+      },
+      {
+        id: 'retail-reports',
+        title: 'Retail revenue',
+        subtitle: 'See what the bar and shop earned for a date range',
+        badge: 'Retail',
+        roles: RETAIL_REPORT_ROLES,
+        access: 'retail_reports',
+        feature: 'retail',
+        keywords: ['retail reports', 'revenue', 'vendors', 'bar sales'],
+        steps: [
+          step(
+            'Retail pages',
+            'Revenue is one of the bar and shop tabs. Export CSV when you need a spreadsheet.',
+            'retail-tabs',
+            '/retail/reports',
+          ),
+          step(
+            'Date and vendor',
+            'Pick a preset range or set From and To, then narrow to one vendor if you need their share only.',
+            'retail-reports-filters',
+            '/retail/reports',
+            '[data-walkthrough="retail-reports-body"]',
+          ),
+          step(
+            'Totals',
+            'Headline cards show net revenue, gym share, vendor share, refunds, and low-stock alerts for the branch.',
+            'retail-reports-stats',
+            '/retail/reports',
+            '[data-walkthrough="retail-reports-body"]',
+          ),
+        ],
+      },
+    ],
+  },
+  {
     title: 'Sales',
     scenarios: [
       {
@@ -293,6 +442,7 @@ export const tutorialSections = [
         badge: 'Sales',
         roles: SALES_ROLES,
         access: 'sales_dashboard',
+        feature: 'sales_crm',
         keywords: ['sales', 'dashboard', 'revenue', 'pipeline'],
         steps: [
           step(
@@ -316,6 +466,7 @@ export const tutorialSections = [
         badge: 'Sales',
         roles: SALES_ROLES,
         access: 'sales_members',
+        feature: 'sales_crm',
         keywords: ['my members', 'guests', 'pipeline', 'sales members'],
         steps: [
           step(
@@ -401,6 +552,7 @@ export const tutorialSections = [
         badge: 'Sales',
         roles: SALES_ROLES,
         access: ['approve_requests', 'request_assignment', 'request_takeover'],
+        feature: 'sales_crm',
         keywords: ['requests', 'approval', 'assignment', 'takeover'],
         steps: [
           step(
@@ -546,6 +698,7 @@ export const tutorialSections = [
         badge: 'Coaching',
         roles: COACH_ROLES,
         access: 'coach_dashboard',
+        feature: 'coaching',
         keywords: ['coach', 'dashboard', 'sessions', 'pt'],
         steps: [
           step(
@@ -569,6 +722,7 @@ export const tutorialSections = [
         badge: 'Coaching',
         roles: COACH_ROLES,
         access: 'coach_members',
+        feature: 'coaching',
         keywords: ['trainees', 'coach members', 'pt', 'sessions'],
         steps: [
           step(
@@ -592,6 +746,7 @@ export const tutorialSections = [
         badge: 'Coaching',
         roles: COACH_ROLES,
         access: 'coach_checkin',
+        feature: 'pt_tracking',
         keywords: ['session', 'check-in', 'pt', 'deduct'],
         steps: [
           step(
@@ -615,6 +770,7 @@ export const tutorialSections = [
         badge: 'Coaching',
         roles: COACH_ROLES,
         access: 'my_transfers',
+        feature: 'coaching',
         keywords: ['transfers', 'assigned', 'coach'],
         steps: [
           step(
@@ -638,6 +794,7 @@ export const tutorialSections = [
         badge: 'Coaching',
         roles: ['Head Coach'],
         access: 'coach_attendance',
+        feature: 'coaching',
         keywords: ['attendance', 'heatmap', 'busy hours', 'shifts', 'check-ins'],
         steps: [
           step(
@@ -661,6 +818,7 @@ export const tutorialSections = [
         badge: 'Coaching',
         roles: ['Head Coach'],
         access: 'coach_team',
+        feature: 'coaching',
         keywords: ['coach team', 'coaches', 'roster'],
         steps: [
           step(
@@ -684,6 +842,7 @@ export const tutorialSections = [
         badge: 'Coaching',
         roles: ['Head Coach'],
         access: 'coach_staff',
+        feature: 'staff_management',
         keywords: ['create coach', 'staff', 'account'],
         steps: [
           step(
@@ -712,6 +871,7 @@ export const tutorialSections = [
         badge: 'Tasks',
         roles: ASSIGN_ROLES,
         access: ['transfer', 'coach_transfer', 'members'],
+        feature: 'tasks',
         keywords: ['tasks', 'assign', 'transfer', 'bulk'],
         steps: [
           step(
@@ -749,6 +909,7 @@ export const tutorialSections = [
         badge: 'Tasks',
         roles: ASSIGNED_ROLES,
         access: ['sales_members', 'coach_members', 'my_transfers', 'members'],
+        feature: 'tasks',
         keywords: ['my tasks', 'assigned', 'follow up'],
         steps: [
           step(
@@ -948,6 +1109,7 @@ export const tutorialSections = [
         badge: 'Admin',
         roles: MANAGEMENT_ROLES,
         access: 'management',
+        feature: ['staff_management', 'access_control', 'tasks'],
         keywords: ['management', 'shortcuts', 'staff', 'settings'],
         steps: [
           step(
@@ -994,6 +1156,7 @@ export const tutorialSections = [
         badge: 'Admin',
         roles: OWNER_ROLES,
         access: 'teams_overview',
+        feature: 'staff_management',
         keywords: ['teams', 'staff', 'roster'],
         steps: [
           step(
@@ -1017,6 +1180,7 @@ export const tutorialSections = [
         badge: 'Admin',
         roles: ACCESS_ROLES,
         access: 'access_control',
+        feature: 'access_control',
         keywords: ['access', 'roles', 'permissions', 'checklist'],
         steps: [
           step(
@@ -1103,6 +1267,7 @@ export const tutorialSections = [
         badge: 'Members',
         roles: PROFILE_ROLES,
         access: 'member_profile',
+        feature: 'members',
         keywords: ['profile', 'member', 'qr', 'tabs'],
         steps: [
           memberStep(
@@ -1126,6 +1291,7 @@ export const tutorialSections = [
         badge: 'Members',
         roles: PROFILE_ROLES,
         access: 'member_profile',
+        feature: 'members',
         keywords: ['personal', 'phone', 'edit member', 'assign'],
         steps: [
           memberStep(
@@ -1264,6 +1430,7 @@ export const tutorialSections = [
         badge: 'Members',
         roles: PROFILE_ROLES,
         access: 'member_profile',
+        feature: 'packages',
         keywords: ['pt', 'private sessions', 'personal training', 'sessions', 'refund sessions'],
         steps: [
           memberStep(
@@ -1287,6 +1454,7 @@ export const tutorialSections = [
         badge: 'Members',
         roles: FREEZE_ROLES,
         access: 'member_profile',
+        feature: 'members',
         keywords: ['freeze', 'pause', 'hold'],
         steps: [
           memberStep(
@@ -1334,6 +1502,7 @@ export const tutorialSections = [
         badge: 'Members',
         roles: COACH_ROLES,
         access: 'member_profile',
+        feature: 'members',
         keywords: ['coach notes', 'session notes', 'trainee'],
         steps: [
           memberStep(
@@ -1357,6 +1526,7 @@ export const tutorialSections = [
         badge: 'Members',
         roles: INVITE_ROLES,
         access: 'member_profile',
+        feature: 'members',
         keywords: ['invitations', 'guest pass', 'invite'],
         steps: [
           memberStep(
@@ -1380,6 +1550,7 @@ export const tutorialSections = [
         badge: 'Members',
         roles: ALERT_ROLES,
         access: 'member_profile',
+        feature: 'members',
         keywords: ['alerts', 'warning', 'flag'],
         steps: [
           memberStep(
@@ -1403,6 +1574,7 @@ export const tutorialSections = [
         badge: 'Members',
         roles: PROFILE_ROLES,
         access: 'member_profile',
+        feature: 'members',
         keywords: ['files', 'documents', 'upload', 'id'],
         steps: [
           memberStep(
@@ -1426,6 +1598,7 @@ export const tutorialSections = [
         badge: 'Members',
         roles: PROFILE_ROLES,
         access: 'member_profile',
+        feature: 'checkin',
         keywords: ['check-in history', 'attendance', 'visits'],
         steps: [
           memberStep(
@@ -1449,6 +1622,7 @@ export const tutorialSections = [
         badge: 'Members',
         roles: PROFILE_ROLES,
         access: 'member_profile',
+        feature: 'members',
         keywords: ['activity', 'audit', 'profile views', 'others'],
         steps: [
           memberStep(
@@ -1477,6 +1651,7 @@ export const tutorialSections = [
         badge: 'Team',
         roles: TEAM_ROLES,
         access: 'sales_team',
+        feature: 'sales_crm',
         keywords: ['sales team', 'reception', 'reps'],
         steps: [
           step(
@@ -1500,6 +1675,7 @@ export const tutorialSections = [
         badge: 'Team',
         roles: STAFF_ROLES,
         access: 'staff',
+        feature: 'staff_management',
         keywords: ['staff', 'invite', 'create account', 'user'],
         steps: [
           step(
@@ -1523,6 +1699,7 @@ export const tutorialSections = [
         badge: 'Team',
         roles: ALL_TENANT_ROLES,
         access: ['transfer', 'coach_transfer'],
+        feature: 'tasks',
         keywords: ['quick transfer', 'reassign', 'system id'],
         steps: [
           step(
@@ -1546,6 +1723,7 @@ export const tutorialSections = [
         badge: 'Tasks',
         roles: ASSIGN_ROLES,
         access: ['transfer', 'coach_transfer', 'members'],
+        feature: 'tasks',
         keywords: ['filter', 'bulk', 'tasks', 'search members'],
         steps: [
           step(
@@ -1594,6 +1772,7 @@ export const tutorialSections = [
         badge: 'Sales',
         roles: ['Sales'],
         access: 'sales_dashboard',
+        feature: 'sales_crm',
         keywords: ['subscriptions', 'sold', 'renewals', 'my sales'],
         steps: [
           step(
@@ -1622,6 +1801,7 @@ export const tutorialSections = [
         badge: 'Reports',
         roles: GUEST_REPORT_ROLES,
         access: 'reports',
+        feature: 'reports_basic',
         keywords: ['guests', 'leads', 'guest report'],
         steps: [
           step('Guest report', 'This list is everyone still marked as a guest.', 'guests-header', '/reports/guests'),
@@ -1635,6 +1815,7 @@ export const tutorialSections = [
         badge: 'Reports',
         roles: GUEST_REPORT_ROLES,
         access: 'reports',
+        feature: 'reports_basic',
         keywords: ['expired', 'member report', 'records'],
         steps: [
           step('Member report', 'Use this when you need a filtered export of members, including expired ones.', 'records-header', '/reports/expired'),
@@ -1648,6 +1829,7 @@ export const tutorialSections = [
         badge: 'Reports',
         roles: IMPORTED_ROLES,
         access: 'reports',
+        feature: 'reports_basic',
         keywords: ['imported', 'excel', 'spreadsheet'],
         steps: [
           step('Import results', 'After a spreadsheet import, this report shows who was added.', 'imported-header', '/reports/imported'),
@@ -1744,6 +1926,7 @@ export const tutorialSections = [
         badge: 'Team',
         roles: SALES_PROFILE_ROLES,
         access: 'sales_team',
+        feature: 'sales_crm',
         keywords: ['sales rep', 'rep profile', 'abilities', 'target'],
         steps: [
           subjectStep(
@@ -1775,6 +1958,7 @@ export const tutorialSections = [
         badge: 'Team',
         roles: RECEPTION_PROFILE_ROLES,
         access: 'sales_team',
+        feature: 'sales_crm',
         keywords: ['receptionist', 'front desk', 'phone privacy'],
         steps: [
           subjectStep(
@@ -1804,6 +1988,7 @@ export const tutorialSections = [
         badge: 'Coaching',
         roles: ['Head Coach'],
         access: 'coach_team',
+        feature: 'coaching',
         keywords: ['coach profile', 'trainees', 'abilities'],
         steps: [
           subjectStep(
@@ -1835,6 +2020,7 @@ export const tutorialSections = [
         badge: 'Admin',
         roles: OWNER_ROLES,
         access: 'teams_overview',
+        feature: 'staff_management',
         keywords: ['roster', 'staff profile', 'areas', 'access'],
         steps: [
           subjectStep(

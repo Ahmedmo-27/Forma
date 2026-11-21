@@ -309,9 +309,9 @@ export function Btn({ children, variant = 'primary', size = 'md', onClick, disab
 }
 
 // ── Field wrapper (shared for Input/Select/Textarea) ──────────────────────────
-function Field({ label, error, hint, children }) {
+function Field({ label, error, hint, children, style }) {
   return (
-    <div style={{ marginBottom: 14 }}>
+    <div style={{ marginBottom: 14, ...style }}>
       {label && (
         <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, letterSpacing: '0.3px' }}>
           {label}
@@ -334,9 +334,9 @@ const inputBase = (error) => ({
   boxShadow: error ? '0 0 0 3px rgba(239,68,68,0.08)' : 'none',
 });
 
-export function Input({ label, error, hint, ...props }) {
+export function Input({ label, error, hint, fieldStyle, ...props }) {
   return (
-    <Field label={label} error={error} hint={hint}>
+    <Field label={label} error={error} hint={hint} style={fieldStyle}>
       <input
         {...props}
         style={inputBase(error)}

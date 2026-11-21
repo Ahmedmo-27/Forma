@@ -112,7 +112,7 @@ export function RetailLayout({ title, branch, children, actions = null }) {
   return (
     <Layout>
       <PageHeader title={title}>
-        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div data-walkthrough="retail-tabs" style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
           {tabs.map((tab) => (
             <NavLink
               key={tab.to}

@@ -191,8 +191,8 @@ export default function RetailPosPage() {
         <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size="lg" /></div>
       )}
       {branchId && !loading && catalog && (
-        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
-          <div style={{ flex: '2 1 460px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div data-walkthrough="retail-pos-body" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <div data-walkthrough="retail-pos-catalog" style={{ flex: '2 1 460px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               {SECTION_FILTERS.map((s) => (
                 <button
@@ -286,7 +286,7 @@ export default function RetailPosPage() {
             )}
           </div>
 
-          <div style={{ ...cardStyle, flex: '1 1 300px', maxWidth: 420, position: 'sticky', top: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div data-walkthrough="retail-pos-cart" style={{ ...cardStyle, flex: '1 1 300px', maxWidth: 420, position: 'sticky', top: 12, display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <strong style={{ fontSize: 14, color: 'var(--t1)' }}>{t('Current sale')}</strong>
               {lines.length > 0 && <Btn variant="ghost" size="sm" onClick={clearCart}>{t('Clear')}</Btn>}

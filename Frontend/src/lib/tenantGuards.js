@@ -8,7 +8,7 @@ import { ANALYTICS_ROLES } from './routeAccess.js';
  * could never be switched off. A list means any one of those features unlocks
  * the page (used by hub pages that link to several modules).
  */
-const REPORT_FEATURES = ['reports_basic', 'exec_analytics', 'funnels', 'business_intelligence'];
+export const REPORT_FEATURES = ['reports_basic', 'exec_analytics', 'funnels', 'business_intelligence'];
 
 export const TENANT_GUARDS = [
   { path: '/account/whatsapp', feature: 'whatsapp', page: 'ConnectWhatsApp' },

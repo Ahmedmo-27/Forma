@@ -11,6 +11,7 @@ module.exports = defineConfig({
       "../Frontend/src/lib/**/*.test.js",
       "../Frontend/src/pages/**/*.test.js",
       "../Frontend/src/platform/lib/**/*.test.js",
+      "../Frontend/src/tutorials/**/*.test.js",
     ],
     exclude: [
       "**/node_modules/**",

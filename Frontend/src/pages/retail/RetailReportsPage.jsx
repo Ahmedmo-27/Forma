@@ -133,8 +133,8 @@ export default function RetailReportsPage() {
     >
       {!branchId && <EmptyState icon={Receipt} message={t('Select a branch')} sub={t('Revenue is reported per branch.')} />}
       {branchId && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
+        <div data-walkthrough="retail-reports-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div data-walkthrough="retail-reports-filters" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               {PRESETS.map((p) => {
                 const active = p.id === activePreset;
@@ -188,7 +188,7 @@ export default function RetailReportsPage() {
 
           {!loading && report && (
             <>
-              <div style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
+              <div data-walkthrough="retail-reports-stats" style={{ display: 'grid', gap: 12, gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))' }}>
                 <StatCard label={vendorId ? t('Vendor revenue') : t('Total revenue (all vendors)')} value={money(totals.net)} sub={t('{sales} sales · {units} units', { sales: fmtNumber(totals.sales), units: fmtNumber(totals.units) })} />
                 <StatCard label={t('Gym earns')} value={money(totals.gymShare)} color="green" />
                 <StatCard label={t('Vendors earn')} value={money(totals.vendorShare)} />

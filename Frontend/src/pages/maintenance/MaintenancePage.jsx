@@ -92,8 +92,14 @@ export default function MaintenancePage() {
 
   const canChecklist = hasAccess(user, 'maintenance_checklist');
   const canManage = hasAccess(user, 'manage_maintenance');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
 
-  const [tab, setTab] = useState(() => (canChecklist ? 'board' : 'manage'));
+  const [tab, setTab] = useState(() => {
+    if (requestedTab === 'manage' && canManage) return 'manage';
+    if (requestedTab === 'board' && canChecklist) return 'board';
+    return canChecklist ? 'board' : 'manage';
+  });
   const [allLocations, setAllLocations] = useState([]);
   const [branchId, setBranchId] = useState('');
   const [loading, setLoading] = useState(true);
@@ -108,6 +114,19 @@ export default function MaintenancePage() {
   const [copyMode, setCopyMode] = useState('all');
   const [copyLocationIds, setCopyLocationIds] = useState([]);
   const [copying, setCopying] = useState(false);
+
+  useEffect(() => {
+    if (requestedTab === 'manage' && canManage) setTab('manage');
+    else if (requestedTab === 'board' && canChecklist) setTab('board');
+  }, [requestedTab, canManage, canChecklist]);
+
+  function switchTab(next) {
+    setTab(next);
+    const nextParams = new URLSearchParams(searchParams);
+    if (next === 'manage') nextParams.set('tab', 'manage');
+    else nextParams.delete('tab');
+    setSearchParams(nextParams, { replace: true });
+  }
 
   const locationOptions = useMemo(() => {
     if (scopedLocations?.length) return scopedLocations;
@@ -128,7 +147,6 @@ export default function MaintenancePage() {
   }, []);
 
   // Reminder notifications deep-link to a branch: /maintenance?locationId=<id>
-  const [searchParams] = useSearchParams();
   const requestedBranch = searchParams.get('locationId');
   useEffect(() => {
     if (!requestedBranch) return;
@@ -288,12 +306,12 @@ export default function MaintenancePage() {
   return (
     <Layout>
       <PageHeader title={t('Maintenance')}>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <div data-walkthrough="maintenance-tabs" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {canChecklist && (
             <Btn
               variant={tab === 'board' ? 'primary' : 'ghost'}
               size="sm"
-              onClick={() => setTab('board')}
+              onClick={() => switchTab('board')}
             >
               {t('Checklist')}
             </Btn>
@@ -302,7 +320,7 @@ export default function MaintenancePage() {
             <Btn
               variant={tab === 'manage' ? 'primary' : 'ghost'}
               size="sm"
-              onClick={() => setTab('manage')}
+              onClick={() => switchTab('manage')}
             >
               {t('Manage')}
             </Btn>
@@ -477,7 +495,7 @@ function BoardSection({ board, onComplete }) {
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+    <div data-walkthrough="maintenance-board" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
       {groups.map((group) => (
         group.items.length ? (
           <div key={group.key}>
@@ -567,7 +585,7 @@ function ManageSection({
 }) {
   const { t } = useI18n();
   return (
-    <div style={{ display: 'grid', gap: 20, gridTemplateColumns: 'minmax(0, 1fr)' }}>
+    <div data-walkthrough="maintenance-manage" style={{ display: 'grid', gap: 20, gridTemplateColumns: 'minmax(0, 1fr)' }}>
       <form
         onSubmit={onCreate}
         style={{
@@ -580,7 +598,7 @@ function ManageSection({
           gap: 12,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div data-walkthrough="maintenance-add" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <Plus size={16} />
           <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700 }}>{t('Add maintenance item')}</h2>
         </div>

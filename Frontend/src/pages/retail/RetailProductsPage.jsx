@@ -285,24 +285,41 @@ export default function RetailProductsPage() {
       {branchId && loading && <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size="lg" /></div>}
 
       {branchId && !loading && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <form onSubmit={quickAdd} style={{ ...cardStyle, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
-            <div style={{ flex: '2 1 200px' }}>
-              <Input label={t('Quick add to bar menu')} placeholder={t('e.g. Protein shake')} value={quick.name} onChange={(e) => setQuick({ ...quick, name: e.target.value })} />
+        <div data-walkthrough="retail-products-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <form data-walkthrough="retail-products-quick" onSubmit={quickAdd} style={{ ...cardStyle, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t2)' }}>{t('Quick add to bar menu')}</div>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <div style={{ flex: '1 1 220px', minWidth: 180 }}>
+                <Input
+                  label={t('Name')}
+                  fieldStyle={{ marginBottom: 0 }}
+                  placeholder={t('e.g. Protein shake')}
+                  value={quick.name}
+                  onChange={(e) => setQuick({ ...quick, name: e.target.value })}
+                />
+              </div>
+              <div style={{ flex: '0 1 200px', minWidth: 160 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6, letterSpacing: '0.3px' }}>{t('Category')}</label>
+                <MenuSelect
+                  value={quick.categoryId}
+                  onChange={(e) => setQuick({ ...quick, categoryId: pickValue(e) })}
+                  options={barCategories.map((c) => ({ value: c._id, label: c.name }))}
+                  placeholder={t('Choose category')}
+                />
+              </div>
+              <div style={{ flex: '0 0 120px' }}>
+                <Input
+                  label={t('Price (EGP)')}
+                  fieldStyle={{ marginBottom: 0 }}
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={quick.price}
+                  onChange={(e) => setQuick({ ...quick, price: e.target.value })}
+                />
+              </div>
+              <Btn type="submit" disabled={quickSaving}>{quickSaving ? t('Adding…') : t('Add')}</Btn>
             </div>
-            <div style={{ flex: '1 1 180px' }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--t3)', marginBottom: 6 }}>{t('Category')}</div>
-              <MenuSelect
-                value={quick.categoryId}
-                onChange={(e) => setQuick({ ...quick, categoryId: pickValue(e) })}
-                options={barCategories.map((c) => ({ value: c._id, label: c.name }))}
-                placeholder={t('Choose category')}
-              />
-            </div>
-            <div style={{ flex: '0 1 120px' }}>
-              <Input label={t('Price (EGP)')} type="number" min="0" step="0.01" value={quick.price} onChange={(e) => setQuick({ ...quick, price: e.target.value })} />
-            </div>
-            <Btn type="submit" disabled={quickSaving}>{quickSaving ? t('Adding…') : t('Add')}</Btn>
           </form>
 
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -346,7 +363,7 @@ export default function RetailProductsPage() {
           {rows.length === 0 ? (
             <EmptyState icon={Package} message={t('No products found')} sub={t('Add your first product above, or adjust the filters.')} />
           ) : (
-            <div style={{ ...cardStyle, padding: 0, overflowX: 'auto' }}>
+            <div data-walkthrough="retail-products-list" style={{ ...cardStyle, padding: 0, overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 760 }}>
                 <thead>
                   <tr>
