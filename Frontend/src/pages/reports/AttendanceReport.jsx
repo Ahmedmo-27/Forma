@@ -1,13 +1,24 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { format, startOfDay, subDays } from 'date-fns';
-import { Card, EmptyState, FilterTabs } from '../../components/ui';
+import { Card, EmptyState, FilterTabs, Btn, Pagination } from '../../components/ui';
 import DateRangePicker from '../../components/DateRangePicker';
-import { getAttendanceHeatmap } from '../../api/endpoints';
+import MemberDetailColumnsModal from '../../components/MemberDetailColumnsModal';
+import MemberVisitsTable from '../../components/MemberVisitsTable';
+import { getAttendanceHeatmap, getTodayCheckIns } from '../../api/endpoints';
 import ReportFrame from './ReportFrame';
 import useAnalyticsReport from './useAnalyticsReport';
 import { WEEKDAYS } from './analyticsFormat';
-import { MoveHorizontal } from 'lucide-react';
+import { Columns3, MoveHorizontal } from 'lucide-react';
+import { useAuth } from '../../context/AuthContext';
+import { hasAccess } from '../../lib/access';
+import {
+  MEMBER_DETAIL_COLUMNS_ACCESS,
+  loadOptionalVisitColumns,
+  saveOptionalVisitColumns,
+} from '../../lib/memberDetailColumns';
 import { useI18n } from '../../i18n/useI18n';
+import { useFormat } from '../../i18n/useFormat';
 import { tr } from '../../i18n/translate';
 
 function heatColor(count, max) {
@@ -24,6 +35,8 @@ function hourLabel(hour, t) {
 }
 
 const DATE_KEY = 'yyyy-MM-dd';
+const DEFAULT_PAGE_SIZE = 10;
+const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 function defaultRange() {
   const today = startOfDay(new Date());
@@ -75,8 +88,23 @@ function SegmentColumn({ title, visitLabel, segment }) {
 
 export default function AttendanceReport() {
   const { t } = useI18n();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { fmtTime: formatTimeIn } = useFormat();
+  const fmtTime = (d) => (d
+    ? formatTimeIn(d, { timeZone: 'Africa/Cairo', hour: 'numeric', minute: '2-digit', hour12: true }, 'en-US')
+    : '—');
+
+  const canCustomizeColumns = hasAccess(user, MEMBER_DETAIL_COLUMNS_ACCESS);
   const [range, setRange] = useState(defaultRange);
   const [type, setType] = useState('all');
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState(() => loadOptionalVisitColumns());
+  const [visits, setVisits] = useState([]);
+  const [visitsLoading, setVisitsLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+
   const fromKey = format(range.from, DATE_KEY);
   const toKey = format(range.to, DATE_KEY);
   const load = useCallback(() => getAttendanceHeatmap({ from: fromKey, to: toKey, type }), [fromKey, toKey, type]);
@@ -85,9 +113,46 @@ export default function AttendanceReport() {
   const windowLabel = data ? `${data.from} – ${data.to}` : '';
   const copy = TYPE_COPY[type] || TYPE_COPY.all;
   const typeOptions = useMemo(() => TYPE_OPTIONS.map((option) => ({ ...option, label: t(option.label) })), [t]);
+  const showGymVisits = type !== 'pt';
+
+  const handleVisibleColumns = useCallback((keys) => {
+    setVisibleColumnKeys(saveOptionalVisitColumns(keys));
+  }, []);
+
+  useEffect(() => {
+    setPage(1);
+  }, [fromKey, toKey, type, pageSize]);
+
+  useEffect(() => {
+    if (!showGymVisits) {
+      setVisits([]);
+      setVisitsLoading(false);
+      return undefined;
+    }
+    let cancelled = false;
+    setVisitsLoading(true);
+    getTodayCheckIns({ from: fromKey, to: toKey })
+      .then((res) => {
+        if (!cancelled) setVisits(res.data.checkIns ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setVisits([]);
+      })
+      .finally(() => {
+        if (!cancelled) setVisitsLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [fromKey, toKey, showGymVisits]);
+
+  const totalPages = Math.max(1, Math.ceil(visits.length / pageSize));
+  const paginatedVisits = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return visits.slice(start, start + pageSize);
+  }, [visits, page, pageSize]);
+
   const toolbar = (
     <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-      <DateRangePicker value={range} onChange={setRange} loading={loading} />
+      <DateRangePicker value={range} onChange={setRange} loading={loading || visitsLoading} />
       <FilterTabs options={typeOptions} active={type} onChange={setType} />
     </div>
   );
@@ -156,7 +221,7 @@ export default function AttendanceReport() {
             </div>
           </Card>
           </div>
-          <Card>
+          <Card style={{ marginBottom: 16 }}>
             <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 10 }}>{t('Daily totals')}</div>
             <div dir="ltr" style={{ display: 'flex', alignItems: 'flex-end', gap: 3, height: 88, overflowX: 'auto' }}>
               {data.days.map((day) => {
@@ -175,6 +240,90 @@ export default function AttendanceReport() {
             </div>
           </Card>
         </>
+      )}
+
+      <Card noPad style={{ marginTop: data?.totalCheckIns ? 0 : 16 }}>
+        <div style={{
+          padding: '14px 18px',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12,
+          flexWrap: 'wrap',
+        }}>
+          <div>
+            <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', margin: 0 }}>{t('Visits detail')}</h3>
+            <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>
+              {showGymVisits
+                ? t('Front-desk check-ins for the selected period')
+                : t('Member visit rows are available for regular gym check-ins only')}
+            </p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            {canCustomizeColumns && showGymVisits && (
+              <Btn variant="outline" size="sm" onClick={() => setColumnsOpen(true)}>
+                <Columns3 size={14} aria-hidden /> {t('Columns')}
+              </Btn>
+            )}
+            {showGymVisits && (
+              <div style={{
+                padding: '4px 12px',
+                borderRadius: 16,
+                background: 'var(--navy)',
+                color: '#fff',
+                fontSize: 13,
+                fontWeight: 800,
+              }}>
+                {visitsLoading ? '…' : visits.length}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {!showGymVisits ? (
+          <EmptyState
+            message={t('No PT session rows in this table')}
+            sub={t('Switch to Regular gym or All to see front-desk check-in details')}
+          />
+        ) : (
+          <>
+            <MemberVisitsTable
+              entries={paginatedVisits}
+              loading={visitsLoading}
+              emptyMessage={t('No check-ins in this window')}
+              emptySub={t('{start} to {end}', { start: fromKey, end: toKey })}
+              onRowClick={(entry) => navigate(`/members/${entry.member.systemId}`)}
+              fmtTime={fmtTime}
+              canCustomize={canCustomizeColumns}
+              visibleKeys={visibleColumnKeys}
+              serialFromTotal={visits.length - (page - 1) * pageSize}
+            />
+            {!visitsLoading && visits.length > 0 && (
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                total={visits.length}
+                pageSize={pageSize}
+                pageSizeOptions={PAGE_SIZE_OPTIONS}
+                onPageChange={setPage}
+                onPageSizeChange={(size) => {
+                  setPageSize(size);
+                  setPage(1);
+                }}
+              />
+            )}
+          </>
+        )}
+      </Card>
+
+      {canCustomizeColumns && (
+        <MemberDetailColumnsModal
+          open={columnsOpen}
+          visibleKeys={visibleColumnKeys}
+          onChange={handleVisibleColumns}
+          onClose={() => setColumnsOpen(false)}
+        />
       )}
     </ReportFrame>
   );

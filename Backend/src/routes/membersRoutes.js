@@ -98,7 +98,10 @@ router.get("/all", protect, allowAnyFeature(["member_profile", "retail_pos"], "R
 
 router.get("/all-notes", protect, allowRoles("comments", "Sales", "Sales Manager", "Owner", "Head Coach"), cacheResponse({ ttlSeconds: 60, tags: ["members"] }), getAllNotes);
 router.get("/live", allowRoles("check_in", "Receptionist", "Owner", "Sales", "Sales Manager"), liveStream);
-router.get("/today-checkins", protect, allowRoles("check_in", "Receptionist", "Owner", "Sales", "Sales Manager"), cacheResponse({ ttlSeconds: 5, tags: ["checkins"] }), getTodayCheckIns);
+router.get("/today-checkins", protect, allowAnyFeature(
+    ["check_in", "coach_attendance", "reports", "member_detail_columns"],
+    "Receptionist", "Owner", "Sales", "Sales Manager", "Head Coach", "General Manager", "Accountant",
+), cacheResponse({ ttlSeconds: 5, tags: ["checkins"] }), getTodayCheckIns);
 router.get("/today-coach-transfers", protect, allowRoles("my_transfers", "Coach", "Head Coach"), requireFeature("coaching"), cacheResponse({ ttlSeconds: 60, tags: ["coach-transfers"] }), getTodayCoachTransfers);
 
 router.get("/:memberId", protect, allowRoles("member_profile", "Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Head Coach", "Accountant"), cacheResponse({ ttlSeconds: 120, tags: ["members"] }), getMemberProfile);

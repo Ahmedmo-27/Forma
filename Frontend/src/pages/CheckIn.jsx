@@ -4,19 +4,28 @@ import toast from 'react-hot-toast';
 import { format, isSameDay, startOfDay } from 'date-fns';
 import usePageTitle from '../hooks/usePageTitle';
 import Layout from '../components/Layout';
-import { Badge, Avatar, Spinner, EmptyState, Pagination, CardListSkeleton, MenuSelect } from '../components/ui';
+import { Badge, Avatar, Spinner, Pagination, CardListSkeleton, MenuSelect, Btn } from '../components/ui';
 import DateRangePicker from '../components/DateRangePicker';
 import { formatSystemId } from '../lib/systemId';
 import { checkInByBarcode, checkInMember, getMemberProfile, getTodayCheckIns } from '../api/endpoints';
 import { subscribeLiveEvents } from '../api/live';
 import QrCheckInCamera from '../components/QrCheckInCamera';
 import CheckInTypeModal from '../components/CheckInTypeModal';
+import MemberDetailColumnsModal from '../components/MemberDetailColumnsModal';
+import MemberVisitsTable from '../components/MemberVisitsTable';
 import { isCheckInTypeRequired } from '../lib/checkInType';
 import CheckInScanner from '../components/CheckInScanner';
 import { parseScannedIdentifier } from '../lib/scannerParser';
 import useHardwareScanner from '../hooks/useHardwareScanner';
 import useLocationEffect from '../hooks/useLocationEffect';
 import { useLocationScope, ALL_LOCATIONS } from '../context/LocationContext';
+import { useAuth } from '../context/AuthContext';
+import { hasAccess } from '../lib/access';
+import {
+  MEMBER_DETAIL_COLUMNS_ACCESS,
+  loadOptionalVisitColumns,
+  saveOptionalVisitColumns,
+} from '../lib/memberDetailColumns';
 import { playCheckInSound } from '../lib/audioFeedback';
 import { useI18n } from '../i18n/useI18n';
 import { useFormat } from '../i18n/useFormat';
@@ -39,6 +48,7 @@ import {
   MapPin,
   Package,
   Phone,
+  Columns3,
   RefreshCw,
   Search,
   Snowflake,
@@ -86,6 +96,7 @@ const PAGE_SIZE_OPTIONS = [10, 20, 50];
 
 export default function CheckIn() {
   const { t } = useI18n();
+  const { user } = useAuth();
   const { fmtDate: formatDateIn, fmtTime: formatTimeIn } = useFormat();
   const fmtDate = (d) => (d ? formatDateIn(d, { timeZone: 'Africa/Cairo', day: '2-digit', month: 'short', year: 'numeric' }) : '—');
   const fmtTime = (d) => (d ? formatTimeIn(d, { timeZone: 'Africa/Cairo', hour: 'numeric', minute: '2-digit', hour12: true }, 'en-US') : '—');
@@ -94,6 +105,7 @@ export default function CheckIn() {
   const [searchParams] = useSearchParams();
   const inputRef  = useRef(null);
   const checkInMode = searchParams.get('mode');
+  const canCustomizeColumns = hasAccess(user, MEMBER_DETAIL_COLUMNS_ACCESS);
   const {
     multiEnabled,
     locations,
@@ -139,6 +151,12 @@ export default function CheckIn() {
   });
   const [page, setPage] = useState(1);
   const [range, setRange] = useState(defaultCheckInRange);
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  const [visibleColumnKeys, setVisibleColumnKeys] = useState(() => loadOptionalVisitColumns());
+
+  const handleVisibleColumns = useCallback((keys) => {
+    setVisibleColumnKeys(saveOptionalVisitColumns(keys));
+  }, []);
 
   const historyRef = useRef([]);
   const queryRef   = useRef('');
@@ -954,6 +972,11 @@ export default function CheckIn() {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <DateRangePicker value={range} onChange={setRange} loading={histLoad} />
+                  {canCustomizeColumns && (
+                    <Btn variant="outline" size="sm" onClick={() => setColumnsOpen(true)}>
+                      <Columns3 size={14} aria-hidden /> {t('Columns')}
+                    </Btn>
+                  )}
                   <div style={{
                     display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                     height: 36, padding: '0 14px', boxSizing: 'border-box',
@@ -967,78 +990,24 @@ export default function CheckIn() {
                 </div>
               </div>
 
-              {/* List */}
+              {/* Visits table */}
               <div style={{ maxHeight: 560, overflowY: 'auto', borderRadius: '0 0 16px 16px' }}>
                 {histLoad ? (
                   <div style={{ padding: 16 }}>
                     <CardListSkeleton rows={6} />
                   </div>
-                ) : history.length === 0 ? (
-                  <EmptyState
-                    icon={CheckCircle2}
-                    message={viewingToday ? t('No check-ins yet today') : t('No check-ins in this period')}
-                    sub={viewingToday ? t('Search for a member above to check them in') : t('Try another day or range')}
-                  />
                 ) : (
-                  paginatedHistory.map((entry, i) => {
-                    const globalIndex = (page - 1) * pageSize + i;
-                    const isLatest = globalIndex === 0;
-                    const serialNumber = history.length - globalIndex;
-                    return (
-                      <div
-                        key={entry._id ?? globalIndex}
-                        onClick={() => navigate(`/members/${entry.member.systemId}`)}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 12,
-                          padding: '12px 22px', cursor: 'pointer',
-                          borderBottom: i < paginatedHistory.length - 1 ? '1px solid var(--border)' : 'none',
-                          background: freshIds.has(String(entry._id)) ? 'rgba(34,197,94,0.10)' : 'transparent',
-                          transition: 'background 0.3s',
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg)'}
-                        onMouseLeave={e => { e.currentTarget.style.background = freshIds.has(String(entry._id)) ? 'rgba(34,197,94,0.10)' : 'transparent'; }}
-                      >
-                        {/* Serial number */}
-                        <div style={{
-                          width: 28, height: 28, borderRadius: '50%', flexShrink: 0,
-                          background: isLatest ? 'linear-gradient(135deg,var(--navy),var(--navy-2))' : 'var(--bg)',
-                          border: `1px solid ${isLatest ? 'transparent' : 'var(--border)'}`,
-                          color: isLatest ? '#fff' : 'var(--t4)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          fontSize: 11, fontWeight: 700,
-                        }}>
-                          {serialNumber}
-                        </div>
-
-                        <Avatar name={entry.member.name} size="sm" photo={entry.member.photo} />
-
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {entry.member.name}
-                          </div>
-                          <div style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2, display: 'flex', gap: 6 }}>
-                            <span dir="ltr" style={{ fontFamily: 'monospace', unicodeBidi: 'isolate' }}>{formatSystemId(entry.member.systemId)}</span>
-                            {entry.member.package && <span>· {entry.member.package.name}</span>}
-                          </div>
-                        </div>
-
-                        <div style={{ textAlign: 'end', flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 3 }}>
-                          <span style={{
-                            fontSize: 12, fontWeight: 700, color: 'var(--t1)',
-                            background: isLatest ? 'color-mix(in srgb, var(--navy) 8%, transparent)' : 'transparent',
-                            padding: isLatest ? '2px 8px' : '0',
-                            borderRadius: isLatest ? 6 : 0,
-                          }}>
-                            {fmtTime(entry.time)}
-                          </span>
-                          {entry.checkedInBy?.name && (
-                            <span style={{ fontSize: 10, color: 'var(--t4)' }}>{t('by {name}', { name: entry.checkedInBy.name })}</span>
-                          )}
-                          <Badge status={entry.member.status} />
-                        </div>
-                      </div>
-                    );
-                  })
+                  <MemberVisitsTable
+                    entries={paginatedHistory}
+                    emptyMessage={viewingToday ? t('No check-ins yet today') : t('No check-ins in this period')}
+                    emptySub={viewingToday ? t('Search for a member above to check them in') : t('Try another day or range')}
+                    onRowClick={(entry) => navigate(`/members/${entry.member.systemId}`)}
+                    fmtTime={fmtTime}
+                    canCustomize={canCustomizeColumns}
+                    visibleKeys={visibleColumnKeys}
+                    serialFromTotal={history.length - (page - 1) * pageSize}
+                    freshIds={freshIds}
+                  />
                 )}
               </div>
 
@@ -1071,6 +1040,15 @@ export default function CheckIn() {
         onChoose={chooseCheckInType}
         onClose={() => setTypePrompt(null)}
       />
+
+      {canCustomizeColumns && (
+        <MemberDetailColumnsModal
+          open={columnsOpen}
+          visibleKeys={visibleColumnKeys}
+          onChange={handleVisibleColumns}
+          onClose={() => setColumnsOpen(false)}
+        />
+      )}
 
       {/* ── Alert popup ──────────────────────────────────────────── */}
       {alertPopup && (

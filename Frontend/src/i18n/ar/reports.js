@@ -28,6 +28,12 @@ const AR = {
   'Check-ins': 'تسجيلات الحضور',
   'Swipe horizontally to view all 24 hours': 'اسحب أفقيًا لعرض الساعات الـ 24 كاملة',
   'Daily totals': 'الإجماليات اليومية',
+  'Visits detail': 'تفاصيل الزيارات',
+  'Front-desk check-ins for the selected period': 'تسجيلات حضور الاستقبال للفترة المحددة',
+  'Member visit rows are available for regular gym check-ins only': 'صفوف زيارات الأعضاء متاحة لتسجيلات حضور الجيم العادي فقط',
+  'No PT session rows in this table': 'لا توجد صفوف لجلسات التدريب الشخصي في هذا الجدول',
+  'Switch to Regular gym or All to see front-desk check-in details': 'بدّل إلى الجيم العادي أو الكل لعرض تفاصيل تسجيلات حضور الاستقبال',
+  'Select which extra member fields to show in the visits table.': 'اختر حقول الأعضاء الإضافية التي تظهر في جدول الزيارات.',
 
   // ── Churn report ────────────────────────────────────────────────────────
   'Covered at start': 'المشتركون في البداية',

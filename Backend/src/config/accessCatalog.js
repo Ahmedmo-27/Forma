@@ -587,6 +587,16 @@ const ACCESS_CATALOG = [
         defaultRoles: ["Owner", "General Manager"],
         // Always available — not tied to a plan module.
     },
+    {
+        key: "member_detail_columns",
+        label: "Member detail columns",
+        description: "Show extra member fields (phone, member ID, sales, etc.) on Check In and Attendance tables",
+        icon: "Columns3",
+        group: "Owner",
+        domain: "owner",
+        defaultRoles: ["Owner", "General Manager"],
+        // Ability-only — unlocks the Columns control, not a separate page.
+    },
 ];
 
 // General Manager follows the owner, plus coaching tools the owner does not
