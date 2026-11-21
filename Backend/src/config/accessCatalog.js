@@ -592,10 +592,10 @@ const ACCESS_CATALOG = [
         label: "Member detail columns",
         description: "Show extra member fields (phone, member ID, sales, etc.) on Check In and Attendance tables",
         icon: "Columns3",
-        group: "Owner",
-        domain: "owner",
+        group: "Receptionist",
+        domain: "sales",
         defaultRoles: ["Owner", "General Manager"],
-        // Ability-only — unlocks the Columns control, not a separate page.
+        // Ability-only — unlocks the Columns control on Check In / Attendance (no separate page).
     },
 ];
 

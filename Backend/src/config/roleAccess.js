@@ -27,6 +27,7 @@ const AREA_BY_KEY = new Map(AREAS.map((area) => [area.key, area]));
 /** Feature key from accessCatalog -> area key. Unlisted features are not area-gated. */
 const FEATURE_AREA = {
     check_in: "checkin",
+    member_detail_columns: "checkin",
     members: "members",
     member_profile: "members",
     sales_dashboard: "sales",

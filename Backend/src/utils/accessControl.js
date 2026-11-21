@@ -210,12 +210,14 @@ function canEditFeature(actor, feature) {
 
     const area = featureArea(feature.key);
     if (Array.isArray(actor.areas)) {
+        // Ability-only keys with no area (e.g. feature trials) stay Owner-editable above;
+        // everyone else needs a mapped area they possess.
         if (!area) return false;
         return actor.areas.includes(area);
     }
 
     if (actor.role === "General Manager") {
-        if (!area) return false;
+        if (!area) return feature.domain === "owner";
         return true;
     }
     if (actor.role === "Sales Manager") {
