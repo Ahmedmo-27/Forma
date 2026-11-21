@@ -968,6 +968,70 @@ async function bulkTenantActions(req, res) {
 }
 
 /**
+ * Rename a tenant (gym display/system name).
+ * PATCH /api/platform/tenants/:id/name
+ * Body: { name: string }
+ */
+async function updateTenantName(req, res) {
+    try {
+        const name = String(req.body?.name || "").trim();
+        if (!name) {
+            return res.status(400).json({ message: "Gym name is required" });
+        }
+        if (name.length > 120) {
+            return res.status(400).json({ message: "Gym name must not exceed 120 characters" });
+        }
+
+        const tenant = await Tenant.findById(req.params.id);
+        if (!tenant || tenant.isSoftDeleted) {
+            return res.status(404).json({ message: "Tenant not found" });
+        }
+
+        const previousName = tenant.name;
+        if (previousName === name) {
+            return res.json({
+                message: "Gym name unchanged",
+                tenant: { id: tenant._id, name: tenant.name },
+            });
+        }
+
+        tenant.name = name;
+        await tenant.save();
+        invalidateTenantCache(tenant._id, "tenant");
+
+        try {
+            await AuditLog.create({
+                tenantId: tenant._id,
+                action: "tenant_status_updated",
+                actor: req.platformUser.id,
+                actorRole: "PlatformUser",
+                targetType: "tenant",
+                targetId: tenant._id.toString(),
+                meta: {
+                    action: "tenant_name_updated",
+                    from: previousName,
+                    to: name,
+                    updatedBy: req.platformUser.email,
+                },
+            });
+        } catch (auditErr) {
+            logger.error("platform", "updateTenantName audit failed", {
+                tenantId: String(tenant._id),
+                error: auditErr.message,
+            });
+        }
+
+        res.json({
+            message: "Gym name updated",
+            tenant: { id: tenant._id, name: tenant.name },
+        });
+    } catch (err) {
+        logger.error("platform", "updateTenantName error", { error: err.message });
+        res.status(500).json({ message: "Server error", error: err.message });
+    }
+}
+
+/**
  * Mark or unmark a tenant as a locked Forma showcase workspace.
  * PATCH /api/platform/tenants/:id/purpose
  * Body: { purpose: "showcase" | "customer" }
@@ -1032,6 +1096,7 @@ module.exports = {
     getTenants,
     getTenantDetail,
     onboardTenant,
+    updateTenantName,
     updateTenantPurpose,
     updateTenantLifecycle,
     addTenantNote,

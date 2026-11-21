@@ -28,6 +28,7 @@ const {
     getTenants,
     getTenantDetail,
     onboardTenant,
+    updateTenantName,
     updateTenantPurpose,
     updateTenantLifecycle,
     addTenantNote,
@@ -132,6 +133,7 @@ const {
     createPlanSchema,
     updatePlanSchema,
     createTenantSchema,
+    updateTenantNameSchema,
 } = require("../validation/schemas");
 
 // Apply IP Allowlist to all platform endpoints
@@ -202,6 +204,7 @@ router.post("/tenants/:id/locations", requirePlatformPermission(PERMISSIONS.TENA
 router.patch("/tenants/:id/locations/:locationId", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), updateTenantLocation);
 router.delete("/tenants/:id/locations/:locationId", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), deleteTenantLocation);
 router.patch("/tenants/:id/lifecycle", requirePlatformPermission(PERMISSIONS.TENANTS_LIFECYCLE), autoInvalidate(["tenants", "analytics"], "platform"), updateTenantLifecycle);
+router.patch("/tenants/:id/name", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), autoInvalidate(["tenants"], "platform"), validate(updateTenantNameSchema), updateTenantName);
 router.patch("/tenants/:id/purpose", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), autoInvalidate(["tenants"], "platform"), updateTenantPurpose);
 router.post("/tenants/:id/notes", requirePlatformPermission(PERMISSIONS.TENANTS_NOTES), addTenantNote);
 router.delete("/tenants/:id/notes/:noteId", requirePlatformPermission(PERMISSIONS.TENANTS_NOTES), deleteTenantNote);

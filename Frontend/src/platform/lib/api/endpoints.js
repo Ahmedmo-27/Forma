@@ -72,6 +72,9 @@ export const apiDeleteTenantLocation = (id, locationId, signal) =>
 export const apiOnboardTenant = (data, signal) =>
   platformClient.post("/tenants", data, { signal });
 
+export const apiUpdateTenantName = (id, name, signal) =>
+  platformClient.patch(`/tenants/${id}/name`, { name }, { signal });
+
 export const apiUpdateTenantPurpose = (id, purpose, signal) =>
   platformClient.patch(`/tenants/${id}/purpose`, { purpose }, { signal });
 

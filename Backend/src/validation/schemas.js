@@ -447,6 +447,10 @@ const createTenantSchema = z.object({
 
 const updateTenantSchema = createTenantSchema.partial();
 
+const updateTenantNameSchema = z.object({
+    name: z.string().trim().min(1, "Gym name is required").max(120),
+});
+
 const updateEntitlementPolicySchema = z.object({
     entitlementPolicy: z.enum(["follow_tier", "snapshot"]),
 });
@@ -678,6 +682,7 @@ module.exports = {
     updatePlanSchema,
     createTenantSchema,
     updateTenantSchema,
+    updateTenantNameSchema,
     tenantSettingsSchema,
     packageTransferFeeSchema,
     updateEntitlementPolicySchema,

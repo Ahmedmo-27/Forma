@@ -11,6 +11,7 @@ import TenantNote from "../models/TenantNote";
 import {
     onboardTenant,
     updateTenantLifecycle,
+    updateTenantName,
     bulkTenantActions,
 } from "../controllers/platformTenantController";
 import {
@@ -227,6 +228,72 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
                         inviteUrl: expect.stringContaining("/auth/setup-password?token="),
                     }),
                 })
+            );
+        });
+    });
+
+    describe("Rename Tenant", () => {
+        it("updates gym name and writes an audit log", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
+            const mockTenant = {
+                _id: tenantId,
+                name: "Old Gym Name",
+                isSoftDeleted: false,
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            vi.spyOn(Tenant, "findById").mockResolvedValue(mockTenant);
+            vi.spyOn(AuditLog, "create").mockResolvedValue({});
+
+            const req = {
+                params: { id: tenantId.toString() },
+                body: { name: "  New Gym Name  " },
+                platformUser: adminUser,
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await updateTenantName(req, res);
+
+            expect(mockTenant.name).toBe("New Gym Name");
+            expect(mockTenant.save).toHaveBeenCalled();
+            expect(res.json).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    message: "Gym name updated",
+                    tenant: expect.objectContaining({ name: "New Gym Name" }),
+                })
+            );
+            expect(AuditLog.create).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    tenantId,
+                    action: "tenant_status_updated",
+                    meta: expect.objectContaining({
+                        action: "tenant_name_updated",
+                        from: "Old Gym Name",
+                        to: "New Gym Name",
+                    }),
+                })
+            );
+        });
+
+        it("rejects empty gym names", async () => {
+            const req = {
+                params: { id: new mongoose.Types.ObjectId().toString() },
+                body: { name: "   " },
+                platformUser: adminUser,
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await updateTenantName(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith(
+                expect.objectContaining({ message: "Gym name is required" })
             );
         });
     });

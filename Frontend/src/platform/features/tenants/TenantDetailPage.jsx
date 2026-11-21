@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useDetailCrumb } from "../../lib/pageMeta";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -10,11 +10,13 @@ import {
   Download,
   Trash2,
   Pin,
+  Pencil,
   X,
   Sliders,
   Sparkles,
   Clock,
   AlertTriangle,
+  UserRoundPen,
 } from "lucide-react";
 import {
   apiGetTenantDetail,
@@ -22,7 +24,9 @@ import {
   apiAddTenantNote,
   apiDeleteTenantNote,
   apiUpdateTenantTags,
+  apiUpdateTenantName,
   apiUpdateTenantPurpose,
+  apiListTenantStaff,
   apiPurgeTenant,
   apiCreateImpersonationSession,
   apiExportTenantData,
@@ -33,9 +37,11 @@ import { CopyChip } from "../../ui/CopyChip";
 import { UsageMeter } from "../../ui/UsageMeter";
 import { Tabs, TabsList, TabTrigger, TabContent } from "../../ui/Tabs";
 import { Input } from "../../ui/Input";
+import { Select } from "../../ui/Select";
 import { Textarea } from "../../ui/Textarea";
 import { Checkbox } from "../../ui/Checkbox";
 import { Skeleton } from "../../ui/Skeleton";
+import { Dialog } from "../../ui/Dialog";
 import { ConfirmDialog } from "../../shell/ConfirmDialog";
 import TenantOverridesModal from "./TenantOverridesModal";
 import TenantFeatureEditor from "./TenantFeatureEditor";
@@ -117,10 +123,31 @@ export default function TenantDetailPage() {
     title: "",
     impactSummary: "",
   });
+  const [lifecycleDays, setLifecycleDays] = useState(7);
+  const [lifecycleSlug, setLifecycleSlug] = useState("");
+  const [lifecycleOwnerId, setLifecycleOwnerId] = useState("");
   const [purgeModal, setPurgeModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [overridesModalOpen, setOverridesModalOpen] = useState(false);
   const [purposeModalOpen, setPurposeModalOpen] = useState(false);
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
+  const [renameSaving, setRenameSaving] = useState(false);
+
+  const closeLifecycleModal = () =>
+    setLifecycleModal({ isOpen: false, action: null, title: "", impactSummary: "" });
+
+  const openLifecycleModal = (next) => {
+    setLifecycleModal({
+      isOpen: true,
+      action: next.action,
+      title: next.title,
+      impactSummary: next.impactSummary || "",
+    });
+    if (next.action === "extend_trial") setLifecycleDays(next.days ?? 7);
+    if (next.action === "change_slug") setLifecycleSlug(next.newSlug ?? "");
+    if (next.action === "transfer_ownership") setLifecycleOwnerId(next.newOwnerUserId ?? "");
+  };
 
   // Permissions
   const canLifecycle = usePermission("tenants.lifecycle");
@@ -147,6 +174,8 @@ export default function TenantDetailPage() {
 
   const tenant = data?.tenant;
   useDetailCrumb(tenant?.name);
+  const owner = tenant?.owner || tenant?.ownerUserId || null;
+  const ownerId = owner?._id || owner?.id || null;
   const usage = data?.usage || {};
   const effectiveLimits = data?.effectiveLimits || tenant?.effectiveLimits || {};
   const effectiveFeatures = Array.isArray(data?.effectiveFeatures)
@@ -162,6 +191,24 @@ export default function TenantDetailPage() {
   const recentAudit = data?.recentAudit || [];
   const recentLedger = data?.recentLedger || [];
   const invoices = data?.invoices || recentLedger;
+
+  const transferOwnershipOpen = lifecycleModal.isOpen && lifecycleModal.action === "transfer_ownership";
+  const staffQuery = useQuery({
+    queryKey: ["tenant-staff", id],
+    queryFn: async () => {
+      const res = await apiListTenantStaff(id);
+      return res.data;
+    },
+    enabled: Boolean(id && transferOwnershipOpen),
+  });
+  const staffOptions = useMemo(() => {
+    const users = staffQuery.data?.users || [];
+    return users.map((user) => ({
+      value: String(user._id),
+      label: `${user.name}${user.isPrimaryOwner ? " (current owner)" : ""} — ${user.email || user.username || user.role}`,
+      disabled: ownerId ? String(user._id) === String(ownerId) : false,
+    }));
+  }, [staffQuery.data, ownerId]);
 
   // Add Note Handler
   const handleAddNote = async (e) => {
@@ -231,6 +278,39 @@ export default function TenantDetailPage() {
 
   const isShowcase = tenant?.purpose === "showcase";
 
+  const openRenameModal = () => {
+    setRenameValue(tenant?.name || "");
+    setRenameModalOpen(true);
+  };
+
+  const handleRenameTenant = async (e) => {
+    e?.preventDefault?.();
+    const nextName = renameValue.trim();
+    if (!nextName) {
+      platformToast.error("Gym name is required");
+      return;
+    }
+    if (nextName.length > 120) {
+      platformToast.error("Gym name must not exceed 120 characters");
+      return;
+    }
+    if (nextName === tenant.name) {
+      setRenameModalOpen(false);
+      return;
+    }
+    setRenameSaving(true);
+    try {
+      await apiUpdateTenantName(id, nextName);
+      platformToast.success("Gym name updated");
+      setRenameModalOpen(false);
+      refetch();
+    } catch (err) {
+      platformToast.error(err.message || "Failed to update gym name");
+    } finally {
+      setRenameSaving(false);
+    }
+  };
+
   const handleConfirmPurpose = async () => {
     setActionLoading(true);
     try {
@@ -252,20 +332,57 @@ export default function TenantDetailPage() {
 
   // Handle Lifecycle Confirmation
   const handleConfirmLifecycle = async ({ reason }) => {
+    const action = lifecycleModal.action;
+    const payload = { action, reason };
+
+    if (action === "extend_trial") {
+      const days = Number(lifecycleDays);
+      if (!Number.isFinite(days) || days <= 0) {
+        platformToast.error("Enter a positive number of days");
+        return;
+      }
+      payload.days = days;
+    }
+
+    if (action === "change_slug") {
+      const newSlug = lifecycleSlug.trim().toLowerCase();
+      if (!newSlug || !/^[a-z0-9-]+$/.test(newSlug)) {
+        platformToast.error("Slug must be lowercase letters, numbers, and hyphens only");
+        return;
+      }
+      if (newSlug === tenant.slug) {
+        platformToast.error("Enter a different slug");
+        return;
+      }
+      payload.newSlug = newSlug;
+    }
+
+    if (action === "transfer_ownership") {
+      if (!lifecycleOwnerId) {
+        platformToast.error("Select a staff member to become the new owner");
+        return;
+      }
+      if (ownerId && String(lifecycleOwnerId) === String(ownerId)) {
+        platformToast.error("Select a different staff member");
+        return;
+      }
+      payload.newOwnerUserId = lifecycleOwnerId;
+    }
+
     setActionLoading(true);
     try {
-      await apiUpdateTenantLifecycle(id, {
-        action: lifecycleModal.action,
-        reason,
-        ...(lifecycleModal.action === "extend_trial" ? { days: 7 } : {}),
-      });
+      await apiUpdateTenantLifecycle(id, payload);
 
+      const successByAction = {
+        mark_past_due: `${tenant.name} is past due. The grace period has started.`,
+        extend_trial: `Trial extended by ${payload.days} day${payload.days === 1 ? "" : "s"} for ${tenant.name}`,
+        change_slug: `Slug updated to /${payload.newSlug}`,
+        transfer_ownership: `Ownership transferred for ${tenant.name}`,
+      };
       platformToast.success(
-        lifecycleModal.action === "mark_past_due"
-          ? `${tenant.name} is past due. The grace period has started.`
-          : `Action '${lifecycleModal.action}' applied to ${tenant.name}`
+        successByAction[action] || `Action '${action}' applied to ${tenant.name}`
       );
-      setLifecycleModal({ isOpen: false, action: null });
+      closeLifecycleModal();
       refetch();
     } catch (err) {
       platformToast.error(err.message || "Action failed");
@@ -395,7 +512,39 @@ export default function TenantDetailPage() {
             <h1 className="text-xl font-bold tracking-tight text-[var(--platform-text-primary)]">
               {tenant.name}
             </h1>
+            {canWrite && (
+              <Button
+                size="sm"
+                variant="ghost"
+                leftIcon={Pencil}
+                onClick={openRenameModal}
+                aria-label="Edit gym name"
+                className="text-[var(--platform-text-muted)]"
+              >
+                Edit name
+              </Button>
+            )}
             <CopyChip value={tenant.slug} prefix="/" />
+            {canLifecycle && (
+              <Button
+                size="sm"
+                variant="ghost"
+                leftIcon={Pencil}
+                onClick={() =>
+                  openLifecycleModal({
+                    action: "change_slug",
+                    title: `Change slug: ${tenant.name}`,
+                    impactSummary:
+                      "The old slug is kept in history. Login and deep links that use the previous slug may stop working until updated.",
+                    newSlug: tenant.slug,
+                  })
+                }
+                aria-label="Edit gym slug"
+                className="text-[var(--platform-text-muted)]"
+              >
+                Edit slug
+              </Button>
+            )}
             <StatusPill status={tenant.status} />
             {tenant.purpose === "showcase" && (
               <Badge variant="accent" size="sm">Showcase</Badge>
@@ -431,14 +580,29 @@ export default function TenantDetailPage() {
 
           {canLifecycle && (
             <>
+              <Button
+                size="sm"
+                variant="outline"
+                leftIcon={Clock}
+                onClick={() =>
+                  openLifecycleModal({
+                    action: "extend_trial",
+                    title: `Extend trial: ${tenant.name}`,
+                    impactSummary:
+                      "Adds the chosen number of days to the current trial end (or from today if the trial already ended) and sets status to trial.",
+                    days: 7,
+                  })
+                }
+              >
+                Extend trial
+              </Button>
               {!isLifetime && (tenant.status === "active" || tenant.status === "trial") && (
                 <Button
                   size="sm"
                   variant="outline"
-                  leftIcon={Clock}
+                  leftIcon={AlertTriangle}
                   onClick={() =>
-                    setLifecycleModal({
-                      isOpen: true,
+                    openLifecycleModal({
                       action: "mark_past_due",
                       title: `Mark past due: ${tenant.name}`,
                       impactSummary:
@@ -456,8 +620,7 @@ export default function TenantDetailPage() {
                   variant="outline"
                   leftIcon={Ban}
                   onClick={() =>
-                    setLifecycleModal({
-                      isOpen: true,
+                    openLifecycleModal({
                       action: "suspend",
                       title: `Suspend Gym: ${tenant.name}`,
                       impactSummary:
@@ -474,8 +637,7 @@ export default function TenantDetailPage() {
                   variant="outline"
                   leftIcon={CheckCircle}
                   onClick={() =>
-                    setLifecycleModal({
-                      isOpen: true,
+                    openLifecycleModal({
                       action: "reactivate",
                       title: `Reactivate Gym: ${tenant.name}`,
                       impactSummary: "Restores normal access for staff and members immediately.",
@@ -590,14 +752,35 @@ export default function TenantDetailPage() {
         </div>
 
         <div className="p-4 rounded-[var(--platform-radius-lg)] border border-[var(--platform-border)] bg-[var(--platform-surface)] space-y-1">
-          <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--platform-text-muted)]">
-            Primary Owner
+          <div className="flex items-center justify-between gap-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-[var(--platform-text-muted)]">
+              Primary Owner
+            </div>
+            {canLifecycle && (
+              <Button
+                size="xs"
+                variant="ghost"
+                leftIcon={UserRoundPen}
+                onClick={() =>
+                  openLifecycleModal({
+                    action: "transfer_ownership",
+                    title: `Transfer ownership: ${tenant.name}`,
+                    impactSummary:
+                      "The selected staff member becomes the primary owner and is promoted to the Owner role. The previous owner keeps their account unless you change their role separately.",
+                  })
+                }
+                aria-label="Transfer ownership"
+                className="text-[var(--platform-text-muted)] -mr-1"
+              >
+                Transfer
+              </Button>
+            )}
           </div>
           <div className="text-base font-bold text-[var(--platform-text-primary)] truncate">
-            {tenant.ownerUserId?.name || "Unassigned"}
+            {owner?.name || "Unassigned"}
           </div>
           <div className="text-[11px] platform-mono text-[var(--platform-text-muted)] truncate">
-            {tenant.ownerUserId?.email || "—"}
+            {owner?.email || "—"}
           </div>
         </div>
       </div>
@@ -1054,6 +1237,40 @@ export default function TenantDetailPage() {
         </TabContent>
       </Tabs>
 
+      <Dialog
+        isOpen={renameModalOpen}
+        onClose={() => !renameSaving && setRenameModalOpen(false)}
+        title="Edit gym name"
+        description="This updates the gym name shown in the platform console and as the fallback workspace name."
+        size="sm"
+        footer={
+          <>
+            <Button variant="ghost" disabled={renameSaving} onClick={() => setRenameModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="primary"
+              loading={renameSaving}
+              disabled={renameSaving || !renameValue.trim()}
+              onClick={handleRenameTenant}
+            >
+              Save name
+            </Button>
+          </>
+        }
+      >
+        <form onSubmit={handleRenameTenant} className="space-y-3">
+          <Input
+            label="Gym name"
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            maxLength={120}
+            autoFocus
+            placeholder="e.g. Spartan Gym"
+          />
+        </form>
+      </Dialog>
+
       <ConfirmDialog
         isOpen={purposeModalOpen}
         onClose={() => setPurposeModalOpen(false)}
@@ -1078,14 +1295,69 @@ export default function TenantDetailPage() {
       {/* Lifecycle Mutation Dialog */}
       <ConfirmDialog
         isOpen={lifecycleModal.isOpen}
-        onClose={() => setLifecycleModal({ isOpen: false, action: null })}
+        onClose={closeLifecycleModal}
         onConfirm={handleConfirmLifecycle}
         title={lifecycleModal.title}
         impactSummary={lifecycleModal.impactSummary}
-        confirmLabel={`Confirm ${lifecycleModal.action}`}
+        confirmLabel={
+          lifecycleModal.action === "extend_trial"
+            ? "Extend trial"
+            : lifecycleModal.action === "change_slug"
+              ? "Save slug"
+              : lifecycleModal.action === "transfer_ownership"
+                ? "Transfer ownership"
+                : `Confirm ${lifecycleModal.action}`
+        }
         variant={lifecycleModal.action === "suspend" ? "danger" : "primary"}
         loading={actionLoading}
-      />
+      >
+        {lifecycleModal.action === "extend_trial" && (
+          <Input
+            label="Days to add"
+            type="number"
+            min={1}
+            max={365}
+            value={lifecycleDays}
+            onChange={(e) => setLifecycleDays(e.target.value)}
+            helperText={
+              tenant.trialEndsAt
+                ? `Current trial ends ${formatDate(tenant.trialEndsAt)}`
+                : "No active trial end date on file; extension starts from today."
+            }
+          />
+        )}
+        {lifecycleModal.action === "change_slug" && (
+          <Input
+            label="New slug"
+            value={lifecycleSlug}
+            onChange={(e) => setLifecycleSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
+            isMono
+            maxLength={80}
+            placeholder={tenant.slug}
+            helperText="Lowercase letters, numbers, and hyphens only."
+          />
+        )}
+        {lifecycleModal.action === "transfer_ownership" && (
+          <div className="space-y-2">
+            <Select
+              label="New primary owner"
+              placeholder={staffQuery.isLoading ? "Loading staff…" : "Select a staff member"}
+              options={staffOptions}
+              value={lifecycleOwnerId}
+              onChange={(e) => setLifecycleOwnerId(e.target.value)}
+              disabled={staffQuery.isLoading || staffOptions.length === 0}
+            />
+            {staffQuery.isError && (
+              <p className="text-xs text-[var(--platform-danger)]">Could not load staff for this gym.</p>
+            )}
+            {!staffQuery.isLoading && !staffQuery.isError && staffOptions.filter((o) => !o.disabled).length === 0 && (
+              <p className="text-xs text-[var(--platform-text-muted)]">
+                No other staff members are available. Add staff under Access first.
+              </p>
+            )}
+          </div>
+        )}
+      </ConfirmDialog>
 
       {/* Hard Purge Dialog */}
       <ConfirmDialog
