@@ -1669,6 +1669,7 @@ const getTodayCheckIns = async (req, res) => {
                     status: 1,
                     photo: 1,
                     assignedSales: 1,
+                    current_couch: 1,
                     package: {
                         $let: {
                             vars: { last: { $arrayElemAt: ["$subscriptions", -1] } },
@@ -1725,22 +1726,27 @@ const getTodayCheckIns = async (req, res) => {
         for (const member of members) {
             const staffById = new Map((member.staff || []).map((user) => [String(user._id), user]));
             const pkg = member.packageDoc?.[0] || member.package || null;
+            // Same phone privacy as member profile / lists: Sales only for their book,
+            // Coach only for their trainees, Receptionist when view_phones is on.
+            const visibleMember = redactMemberForViewer({
+                _id: member._id,
+                name: member.name,
+                systemId: member.systemId,
+                memberId: member.memberId,
+                phones: member.phones,
+                status: member.status,
+                photo: member.photo,
+                package: pkg,
+                assignedSales: staffById.get(refId(member.assignedSales)) || member.assignedSales,
+                current_couch: member.current_couch,
+            }, req.user);
+            const { current_couch: _coach, ...memberRow } = visibleMember;
             for (const log of member.checkIns || []) {
                 checkIns.push({
                     _id: log._id,
                     time: log.createdAt,
                     checkedInBy: staffById.get(refId(log.createdBy)) || log.createdBy,
-                    member: {
-                        _id: member._id,
-                        name: member.name,
-                        systemId: member.systemId,
-                        memberId: member.memberId,
-                        phones: member.phones,
-                        status: member.status,
-                        photo: member.photo,
-                        package: pkg,
-                        assignedSales: staffById.get(refId(member.assignedSales)) || member.assignedSales,
-                    },
+                    member: memberRow,
                 });
             }
         }

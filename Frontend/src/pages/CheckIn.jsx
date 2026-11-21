@@ -796,7 +796,7 @@ export default function CheckIn() {
                           </span>
                         )}
                       </div>
-                      {member.phones && (
+                      {member.phones && member.phones !== 'hidden' && (
                         <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
                           <Phone size={12} aria-hidden /> <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{member.phones}</span>
                         </div>

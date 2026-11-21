@@ -49,8 +49,11 @@ export function optionalColumnValue(entry, key) {
       return member.memberId != null && member.memberId !== '' ? String(member.memberId) : '—';
     case 'systemId':
       return member.systemId != null && member.systemId !== '' ? String(member.systemId) : '—';
-    case 'phone':
-      return member.phones || '—';
+    case 'phone': {
+      const phone = member.phones;
+      if (!phone || phone === 'hidden') return '—';
+      return phone;
+    }
     case 'package':
       return member.package?.name || '—';
     case 'sales':
