@@ -935,13 +935,13 @@ export default function CheckIn() {
 
             {/* Activity board spans the content width */}
             <div data-walkthrough="checkin-board" style={{
-              background: 'var(--card)', borderRadius: 16, overflow: 'hidden',
+              background: 'var(--card)', borderRadius: 16,
               border: '1px solid var(--border)',
               boxShadow: '0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.06)',
               width: '100%',
             }}>
               {/* Header */}
-              <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: 'var(--bg)' }}>
+              <div style={{ padding: '16px 22px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: 'var(--bg)', borderRadius: '16px 16px 0 0' }}>
                 <div>
                   <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--t1)', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                     {viewingToday ? t("Today's Activity") : t('Activity')}
@@ -955,9 +955,11 @@ export default function CheckIn() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <DateRangePicker value={range} onChange={setRange} loading={histLoad} />
                   <div style={{
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    height: 36, padding: '0 14px', boxSizing: 'border-box',
                     background: 'linear-gradient(135deg,var(--navy),var(--navy-2))',
-                    color: '#fff', fontSize: 14, fontWeight: 800,
-                    padding: '4px 14px', borderRadius: 20,
+                    color: '#fff', fontSize: 13, fontWeight: 800,
+                    borderRadius: 20,
                     boxShadow: '0 2px 8px color-mix(in srgb, var(--navy) 30%, transparent)',
                   }}>
                     {histLoad ? '…' : (todayCount === 1 ? t('1 check-in') : t('{count} check-ins', { count: todayCount }))}
@@ -966,7 +968,7 @@ export default function CheckIn() {
               </div>
 
               {/* List */}
-              <div style={{ maxHeight: 560, overflowY: 'auto' }}>
+              <div style={{ maxHeight: 560, overflowY: 'auto', borderRadius: '0 0 16px 16px' }}>
                 {histLoad ? (
                   <div style={{ padding: 16 }}>
                     <CardListSkeleton rows={6} />

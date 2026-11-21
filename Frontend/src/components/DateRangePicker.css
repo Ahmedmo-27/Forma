@@ -1,27 +1,46 @@
 .drp-root {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  z-index: 1;
+}
+
+.drp-root:has(.drp-popover) {
+  z-index: 70;
 }
 
 .drp-trigger {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  min-height: 40px;
+  height: 36px;
   padding: 0 12px;
   font-family: inherit;
   font-size: 13px;
+  font-weight: 600;
   color: var(--t1);
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 8px;
   cursor: pointer;
   text-align: start;
-  transition: border-color 0.15s, opacity 0.15s;
+  box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, opacity 0.15s;
 }
 
 .drp-trigger:hover:not(:disabled) {
   border-color: var(--border-md);
+}
+
+.drp-trigger:focus-visible {
+  border-color: var(--navy);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--navy) 12%, transparent);
+}
+
+.drp-trigger[aria-expanded="true"] {
+  border-color: var(--navy);
+  box-shadow: none;
 }
 
 .drp-trigger:disabled {
@@ -55,7 +74,7 @@
 .drp-popover {
   position: absolute;
   z-index: 60;
-  top: calc(100% + 4px);
+  top: calc(100% + 8px);
   inset-inline-start: 0;
   max-width: calc(100vw - 24px);
   background: var(--card);
