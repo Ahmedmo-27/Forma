@@ -5,6 +5,8 @@ const {
     usernameFromEmail,
     usernameFromName,
     tenantUsername,
+    validateUsernameFormat,
+    resolveUsername,
 } = require("../utils/username");
 
 /** Minimal stand-in for the User model: findOne matches only on `username`. */
@@ -107,5 +109,55 @@ describe("tenant-scoped usernames", () => {
         expect(User.findOne).toHaveBeenCalledWith(
             expect.objectContaining({ username: "fouda-gym.ahmed.hassan", _id: { $ne: excludeId } })
         );
+    });
+});
+
+describe("validateUsernameFormat", () => {
+    it("accepts Instagram-style usernames", () => {
+        expect(validateUsernameFormat("ahmed.hassan").ok).toBe(true);
+        expect(validateUsernameFormat("Coach_Sara").username).toBe("coach_sara");
+        expect(validateUsernameFormat("a.b_c1").ok).toBe(true);
+    });
+
+    it("rejects invalid usernames", () => {
+        expect(validateUsernameFormat("ab").ok).toBe(false);
+        expect(validateUsernameFormat("ahmed hassan").ok).toBe(false);
+        expect(validateUsernameFormat(".ahmed").ok).toBe(false);
+        expect(validateUsernameFormat("ahmed.").ok).toBe(false);
+        expect(validateUsernameFormat("ahmed..h").ok).toBe(false);
+        expect(validateUsernameFormat("ahmed@gym").ok).toBe(false);
+    });
+});
+
+describe("resolveUsername", () => {
+    it("uses a custom username when provided and free", async () => {
+        const User = fakeUserModel();
+        const username = await resolveUsername(
+            User,
+            { slug: "fouda-gym" },
+            { name: "Ahmed Hassan", email: "x@x.com", username: "CoachAhmed" }
+        );
+        expect(username).toBe("coachahmed");
+    });
+
+    it("falls back to the tenant auto-username when blank", async () => {
+        const User = fakeUserModel();
+        const username = await resolveUsername(
+            User,
+            { slug: "fouda-gym" },
+            { name: "Ahmed Hassan", email: "x@x.com", username: "  " }
+        );
+        expect(username).toBe("fouda-gym.ahmed.hassan");
+    });
+
+    it("rejects a taken custom username", async () => {
+        const User = fakeUserModel(["coachahmed"]);
+        await expect(
+            resolveUsername(
+                User,
+                { slug: "fouda-gym" },
+                { name: "Ahmed Hassan", email: "x@x.com", username: "CoachAhmed" }
+            )
+        ).rejects.toMatchObject({ statusCode: 409, field: "username" });
     });
 });

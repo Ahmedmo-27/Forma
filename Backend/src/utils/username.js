@@ -1,11 +1,46 @@
 const { isPlatformContext, runAsPlatform } = require("../context/tenantContext");
 
+const USERNAME_MIN = 3;
+const USERNAME_MAX = 30;
+/** Instagram-style: letters, numbers, periods, underscores. */
+const USERNAME_BODY_RE = /^[a-z0-9._]+$/;
+
 function escapeRegex(value) {
     return String(value).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function normalizeUsername(value) {
     return String(value || "").trim().toLowerCase();
+}
+
+/**
+ * Validate a chosen username (create / self-edit).
+ * Returns { ok: true, username } or { ok: false, message }.
+ */
+function validateUsernameFormat(value) {
+    const username = normalizeUsername(value);
+    if (!username) {
+        return { ok: false, message: "Username is required" };
+    }
+    if (username.length < USERNAME_MIN || username.length > USERNAME_MAX) {
+        return {
+            ok: false,
+            message: `Username must be between ${USERNAME_MIN} and ${USERNAME_MAX} characters`,
+        };
+    }
+    if (!USERNAME_BODY_RE.test(username)) {
+        return {
+            ok: false,
+            message: "Username can only use letters, numbers, periods, and underscores",
+        };
+    }
+    if (username.startsWith(".") || username.endsWith(".")) {
+        return { ok: false, message: "Username cannot start or end with a period" };
+    }
+    if (username.includes("..")) {
+        return { ok: false, message: "Username cannot contain consecutive periods" };
+    }
+    return { ok: true, username };
 }
 
 /** Local-part of an email, safe to store as a username. */
@@ -78,11 +113,59 @@ async function tenantUsername(User, tenant, { name, email } = {}, { excludeId } 
     return allocateFreeUsername(User, `${slug}.${personPart}`, { excludeId });
 }
 
+/**
+ * True when no other user owns this username (optionally excluding one id).
+ * Checked across every gym — login resolves usernames globally.
+ */
+async function isUsernameTaken(User, username, { excludeId } = {}) {
+    const check = async () => {
+        const query = { username };
+        if (excludeId) query._id = { $ne: excludeId };
+        return Boolean(await User.findOne(query));
+    };
+    if (isPlatformContext()) return check();
+    return runAsPlatform(check, { reason: "check globally unique username" });
+}
+
+/**
+ * Claim a custom username, or fall back to the tenant auto-username.
+ * `rawUsername` empty/undefined → auto. Otherwise format + uniqueness must pass.
+ */
+async function resolveUsername(User, tenant, { name, email, username: rawUsername } = {}, { excludeId } = {}) {
+    const trimmed = String(rawUsername || "").trim();
+    if (!trimmed) {
+        return tenantUsername(User, tenant, { name, email }, { excludeId });
+    }
+
+    const parsed = validateUsernameFormat(trimmed);
+    if (!parsed.ok) {
+        const error = new Error(parsed.message);
+        error.statusCode = 400;
+        error.code = "INVALID_USERNAME";
+        throw error;
+    }
+
+    if (await isUsernameTaken(User, parsed.username, { excludeId })) {
+        const error = new Error("This username is already in use.");
+        error.statusCode = 409;
+        error.code = "CONFLICT_DUPLICATE";
+        error.field = "username";
+        throw error;
+    }
+
+    return parsed.username;
+}
+
 module.exports = {
+    USERNAME_MIN,
+    USERNAME_MAX,
     escapeRegex,
     normalizeUsername,
+    validateUsernameFormat,
     usernameFromEmail,
     usernameFromName,
     uniqueUsername,
     tenantUsername,
+    isUsernameTaken,
+    resolveUsername,
 };

@@ -117,10 +117,11 @@ export default function TenantSettings() {
   const { t } = useI18n();
   const { fmtNumber, fmtDate } = useFormat();
   usePageTitle(t('Gym Settings'));
-  const { tenant, refreshTenant, applyTenant, applyBranding, loading: tenantLoading } = useTenant();
+  const { tenant, refreshTenant, applyTenant, applyBranding, hasFeature, loading: tenantLoading } = useTenant();
   const { user } = useAuth();
   const [searchParams] = useSearchParams();
   const settingsTab = searchParams.get('tab');
+  const whatsappInPlan = Boolean(hasFeature?.('whatsapp'));
 
   const [activeTab, setActiveTab] = useState(() => (
     SETTINGS_TABS.includes(settingsTab) ? settingsTab : 'branding'
@@ -196,11 +197,17 @@ export default function TenantSettings() {
     };
   }, [tenant, applyBranding]);
 
-  // WhatsApp status checker
+  // WhatsApp status checker — only hit the gated API when the plan includes WhatsApp.
+  // Otherwise Gym Settings (branding, locale, plan) would trigger Upgrade Required.
   const checkWhatsAppStatus = useCallback(async (quiet = false) => {
+    if (!whatsappInPlan) {
+      setWaSession(null);
+      if (!quiet) setWaLoading(false);
+      return null;
+    }
     try {
       if (!quiet) setWaLoading(true);
-      const res = await getWhatsAppSession();
+      const res = await getWhatsAppSession({ skipGlobalError: true });
       setWaSession(res.data);
       return res.data;
     } catch (err) {
@@ -208,9 +215,15 @@ export default function TenantSettings() {
     } finally {
       if (!quiet) setWaLoading(false);
     }
-  }, []);
+  }, [whatsappInPlan]);
 
   useEffect(() => {
+    if (tenantLoading) return undefined;
+    if (!whatsappInPlan) {
+      setWaSession(null);
+      setWaLoading(false);
+      return undefined;
+    }
     let cancelled = false;
     checkWhatsAppStatus()
       .catch(() => {})
@@ -218,10 +231,11 @@ export default function TenantSettings() {
         if (!cancelled) setWaLoading(false);
       });
     return () => { cancelled = true; };
-  }, [checkWhatsAppStatus]);
+  }, [tenantLoading, whatsappInPlan, checkWhatsAppStatus]);
 
   // Poll WhatsApp session status while QR or connecting, or every 15s otherwise
   useEffect(() => {
+    if (!whatsappInPlan) return undefined;
     const status = waSession?.status;
     if (!status) return undefined;
     const pollDelay = status === 'qr' || status === 'connecting' ? 2500 : 15000;
@@ -229,7 +243,7 @@ export default function TenantSettings() {
       checkWhatsAppStatus(true).catch(() => {});
     }, pollDelay);
     return () => clearInterval(timer);
-  }, [waSession?.status, checkWhatsAppStatus]);
+  }, [whatsappInPlan, waSession?.status, checkWhatsAppStatus]);
 
   // Convert QR code text to data URL image
   useEffect(() => {
@@ -490,7 +504,11 @@ export default function TenantSettings() {
             {
               id: 'whatsapp',
               label: 'WhatsApp', // i18n-ignore
-              badge: waSession?.status === 'connected' ? 'connected' : (waSession?.status === 'qr' ? 'qr' : 'disconnected'),
+              badge: !whatsappInPlan
+                ? 'outside'
+                : waSession?.status === 'connected'
+                  ? 'connected'
+                  : (waSession?.status === 'qr' ? 'qr' : 'disconnected'),
             },
             { id: 'locations', label: t('Locations') },
             { id: 'billing', label: t('Billing & Reports') },
@@ -524,11 +542,26 @@ export default function TenantSettings() {
                       width: 8,
                       height: 8,
                       borderRadius: '50%',
-                      background: tabItem.badge === 'connected' ? '#16A34A' : (tabItem.badge === 'qr' ? '#D97706' : '#9CA3AF'),
+                      background:
+                        tabItem.badge === 'connected'
+                          ? '#16A34A'
+                          : tabItem.badge === 'qr'
+                            ? '#D97706'
+                            : tabItem.badge === 'outside'
+                              ? '#3B82F6'
+                              : '#9CA3AF',
                       boxShadow: tabItem.badge === 'connected' ? '0 0 6px rgba(22,163,74,0.6)' : 'none',
                       display: 'inline-block',
                     }}
-                    title={tabItem.badge === 'connected' ? t('WhatsApp Linked') : (tabItem.badge === 'qr' ? t('QR Code Pending') : t('Not Linked'))}
+                    title={
+                      tabItem.badge === 'connected'
+                        ? t('WhatsApp Linked')
+                        : tabItem.badge === 'qr'
+                          ? t('QR Code Pending')
+                          : tabItem.badge === 'outside'
+                            ? t('Outside current plan')
+                            : t('Not Linked')
+                    }
                   />
                 )}
               </button>
@@ -997,6 +1030,57 @@ export default function TenantSettings() {
         {/* Tab 3: WhatsApp */}
         {activeTab === 'whatsapp' && (
           <div data-walkthrough="settings-whatsapp" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            {!whatsappInPlan ? (
+              <Card>
+                <div style={{ padding: '28px 20px', textAlign: 'center' }}>
+                  <div
+                    style={{
+                      width: 52,
+                      height: 52,
+                      borderRadius: '50%',
+                      background: 'rgba(59, 130, 246, 0.1)',
+                      color: '#2563EB',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      margin: '0 auto 14px',
+                      fontSize: 22,
+                      fontWeight: 700,
+                    }}
+                    aria-hidden
+                  >
+                    i
+                  </div>
+                  <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--t1)', margin: '0 0 8px' }}>
+                    {t('WhatsApp is outside your current plan')}
+                  </h3>
+                  <p style={{ fontSize: 14, color: 'var(--t3)', maxWidth: 480, margin: '0 auto 16px', lineHeight: 1.5 }}>
+                    {t('This feature is not included in your gym’s plan. You can keep customizing other settings. Ask your platform administrator to add WhatsApp if you need it.')}
+                  </p>
+                  <div
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      padding: '6px 14px',
+                      borderRadius: 20,
+                      background: 'var(--surface-2, #F3F4F6)',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: 'var(--t2, #4B5563)',
+                    }}
+                  >
+                    {t('Current Tier:')} <span style={{ color: 'var(--navy)' }}>{plan?.name || t('Standard')}</span>
+                  </div>
+                  <div style={{ marginTop: 18 }}>
+                    <Btn variant="outline" size="sm" onClick={() => setActiveTab('plan')}>
+                      {t('View Plan & Usage')}
+                    </Btn>
+                  </div>
+                </div>
+              </Card>
+            ) : (
+            <>
             <Card>
               <CardHeader
                 title={t('WhatsApp Account Linking')}
@@ -1255,6 +1339,8 @@ export default function TenantSettings() {
                 </div>
               </div>
             </Card>
+            </>
+            )}
           </div>
         )}
 

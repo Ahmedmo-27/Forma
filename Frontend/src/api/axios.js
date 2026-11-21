@@ -122,12 +122,18 @@ api.interceptors.response.use(
     }
 
     const catalogMeta = ERROR_MESSAGES[normalized.code] || ERROR_MESSAGES.INTERNAL_ERROR;
+    const presentation = catalogMeta.presentation;
 
-    if (catalogMeta.presentation === "modal" || normalized.status === 403 || normalized.status === 429 || normalized.status >= 500) {
+    // Plan/feature gates are handled by FeatureGate and nav — never a global modal.
+    if (presentation === "silent") {
+      return Promise.reject(err);
+    }
+
+    if (presentation === "modal" || normalized.status === 403 || normalized.status === 429 || normalized.status >= 500) {
       emitErrorEvent(normalized, { modal: true });
-    } else if (catalogMeta.presentation === "banner") {
+    } else if (presentation === "banner") {
       emitErrorEvent(normalized, { banner: true });
-    } else if (catalogMeta.presentation === "toast") {
+    } else if (presentation === "toast") {
       toast.error(normalized.message);
     }
 

@@ -19,6 +19,11 @@ export const getReceptionists = () => api.get('/users/receptionists');
 export const getSalesTeam    = () => api.get('/users/team');
 export const getSalesProfile = (id) => api.get(`/users/team/${id}`);
 export const updateMyProfile = (data) => api.patch('/users/me', data);
+export const checkUsernameAvailable = (username) =>
+  api.get('/users/username-available', {
+    params: { username },
+    skipGlobalError: true,
+  });
 export const resetUserPassword = (id, newPassword) => api.patch(`/users/${id}/reset-password`, { newPassword });
 export const getSalesManagerRevenue = (params = {}) =>
   api.get('/users/sales-manager/revenue', { params });
@@ -78,8 +83,8 @@ export const updateRoleAccess = (role, areas, locationIds) =>
 export const createStaffUser = (data) => api.post('/users/staff', data);
 
 // ── Notifications ─────────────────────────────────────────────────────────────
-export const getNotifications    = (params) => api.get('/notifications', { params });
-export const getUnreadCount      = () => api.get('/notifications/unread-count');
+export const getNotifications    = (params) => api.get('/notifications', { params, skipGlobalError: true });
+export const getUnreadCount      = () => api.get('/notifications/unread-count', { skipGlobalError: true });
 export const markNotificationRead = (id) => api.patch(`/notifications/${id}/read`);
 export const markAllNotificationsRead = () => api.patch('/notifications/read-all');
 
@@ -159,7 +164,7 @@ export const createWhatsAppTemplate  = (data) => api.post('/whatsapp-templates',
 export const updateWhatsAppTemplate  = (id, data) => api.patch(`/whatsapp-templates/${id}`, data);
 export const deleteWhatsAppTemplate  = (id) => api.delete(`/whatsapp-templates/${id}`);
 export const logWhatsAppTemplateSend = (data) => api.post('/whatsapp-templates/log-send', data);
-export const getWhatsAppSession = () => api.get('/whatsapp/session');
+export const getWhatsAppSession = (config) => api.get('/whatsapp/session', config);
 export const startWhatsAppSession = () => api.post('/whatsapp/session/start');
 export const logoutWhatsAppSession = () => api.post('/whatsapp/session/logout');
 
@@ -248,6 +253,11 @@ export const getMaintenanceHistory = (id, params = {}) =>
 
 // ── Multi-Tenant Billing ──────────────────────────────────────────────────────
 export const getBillingPrices = () => api.get('/tenant/billing/prices');
+
+// ── Feature trial requests ────────────────────────────────────────────────────
+export const getMyFeatureTrials = () => api.get('/feature-trials/mine');
+export const createFeatureTrialRequest = (data) => api.post('/feature-trials', data);
+export const cancelFeatureTrialRequest = (id) => api.post(`/feature-trials/${id}/cancel`);
 
 // ── Tasks: Two Player Types (Assigning & Assigned) ──────────────────────────
 // Player Type 1: Assigning (Sales Manager, Head Coach, Owner, General Manager)

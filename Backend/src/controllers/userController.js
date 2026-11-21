@@ -7,9 +7,18 @@ const logger = require("../utils/logger");
 const { hashPassword, verifyPassword, normalizeEmail, MIN_PASSWORD_LENGTH, bumpTokenVersion } = require("../utils/passwordUtils");
 const passwordSetup = require("../services/passwordSetupService");
 const { invalidateAuthContext } = require("../middleware/authContextCache");
-const { normalizeUsername, uniqueUsername, tenantUsername, escapeRegex } = require("../utils/username");
+const {
+    normalizeUsername,
+    uniqueUsername,
+    tenantUsername,
+    resolveUsername,
+    validateUsernameFormat,
+    isUsernameTaken,
+    escapeRegex,
+} = require("../utils/username");
 const {
     assertEmailAvailable,
+    assertUsernameAvailable,
     assertPhoneAvailable,
     replyIfConflict,
 } = require("../utils/identityUniqueness");
@@ -780,6 +789,7 @@ const createStaffUser = async (req, res) => {
             password,
             role,
             mobile_number,
+            username: rawUsername,
             canAccessAllLocations,
             allowedLocationIds,
         } = req.body;
@@ -810,7 +820,11 @@ const createStaffUser = async (req, res) => {
         const staffTenant = req.tenant?.slug
             ? req.tenant
             : await runAsPlatform(() => Tenant.findById(req.user.tenantId).select("slug"));
-        const username = await tenantUsername(User, staffTenant, { name, email: normalizedEmail });
+        const username = await resolveUsername(User, staffTenant, {
+            name,
+            email: normalizedEmail,
+            username: rawUsername,
+        });
 
         const {
             applyLocationAccessToUser,
@@ -1556,16 +1570,59 @@ const resetUserPassword = async (req, res) => {
 };
 
 
+const checkUsernameAvailability = async (req, res) => {
+    try {
+        const parsed = validateUsernameFormat(req.query?.username);
+        if (!parsed.ok) {
+            return res.json({
+                available: false,
+                username: normalizeUsername(req.query?.username),
+                reason: "invalid",
+                message: parsed.message,
+            });
+        }
+
+        const excludeId = req.user?.id || null;
+        const taken = await isUsernameTaken(User, parsed.username, { excludeId });
+        if (taken) {
+            return res.json({
+                available: false,
+                username: parsed.username,
+                reason: "taken",
+                message: "This username is already in use.",
+            });
+        }
+
+        return res.json({
+            available: true,
+            username: parsed.username,
+            message: "Username is available",
+        });
+    } catch (error) {
+        logger.auth("error", "Username availability check failed", { error: error.message });
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 const updateMyProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
         if (!user) return res.status(404).json({ message: "User not found" });
 
-        const { name, currentPassword, newPassword } = req.body;
+        const { name, username: rawUsername, currentPassword, newPassword } = req.body;
 
         // Update name
         if (name && name.trim()) {
             user.name = name.trim();
+        }
+
+        let usernameChanged = false;
+        if (rawUsername !== undefined) {
+            const nextUsername = await assertUsernameAvailable(rawUsername, { excludeUserId: user._id });
+            if (nextUsername !== user.username) {
+                user.username = nextUsername;
+                usernameChanged = true;
+            }
         }
 
         // Update password — require current password first
@@ -1596,11 +1653,13 @@ const updateMyProfile = async (req, res) => {
         logger.auth("info", "Profile updated", {
             userId: user._id.toString(),
             nameChanged: Boolean(name),
+            usernameChanged,
             passwordChanged,
         });
 
         res.json({ message: "Profile updated successfully", user: formatUserResponse(user, { includeAccess: true }) });
     } catch (error) {
+        if (replyIfConflict(res, error)) return;
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
@@ -1637,6 +1696,7 @@ module.exports = {
     getCoachTeam,
     getCoachProfile,
     getTeamsPage,
+    checkUsernameAvailability,
     updateMyProfile,
     resetUserPassword,
 };

@@ -28,6 +28,7 @@ import HelpButton from './tutorials/HelpButton';
 import { MenuSelect } from './ui';
 import LanguageSwitch from './LanguageSwitch';
 import { useI18n } from '../i18n/useI18n';
+import UsernameField, { validateUsernameClient } from './UsernameField';
 
 function LocationSwitcher({ compact = false }) {
   const { t } = useI18n();
@@ -198,6 +199,7 @@ export function isNavItemActive(item, pathname, visibleItems = []) {
 // ── Tab button (second row on desktop) ─────────────────────────────────────────
 function TabItem({ item, active }) {
   const { t } = useI18n();
+  const locked = Boolean(item?.locked);
   return (
     <NavLink to={item.to} style={{ textDecoration: 'none', flexShrink: 0 }}>
       {({ isActive: navActive }) => {
@@ -205,16 +207,17 @@ function TabItem({ item, active }) {
         return (
           <span
             style={{
-              display: 'inline-flex', alignItems: 'center',
+              display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '10px 22px', borderRadius: 8,
               fontSize: 14, fontWeight: isActive ? 700 : 500,
-              color: isActive ? '#fff' : 'rgba(255,255,255,0.62)',
+              color: isActive ? '#fff' : locked ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.62)',
               background: isActive ? 'linear-gradient(135deg, var(--navy-2), var(--navy-3, var(--navy-2)))' : 'rgba(0,0,0,0.22)',
               border: `1px solid ${isActive ? 'rgba(255,255,255,0.22)' : 'rgba(255,255,255,0.08)'}`,
               cursor: 'pointer',
               transition: 'all 0.15s cubic-bezier(0.16,1,0.3,1)',
               whiteSpace: 'nowrap', letterSpacing: '0.25px',
               boxShadow: isActive ? '0 2px 10px rgba(0,0,0,0.30),inset 0 1px 0 rgba(255,255,255,0.12)' : 'none',
+              opacity: locked && !isActive ? 0.85 : 1,
             }}
             onMouseEnter={e => {
               if (!isActive) {
@@ -225,13 +228,18 @@ function TabItem({ item, active }) {
             }}
             onMouseLeave={e => {
               if (!isActive) {
-                e.currentTarget.style.color = 'rgba(255,255,255,0.62)';
+                e.currentTarget.style.color = locked ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.62)';
                 e.currentTarget.style.background = 'rgba(0,0,0,0.22)';
                 e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
               }
             }}
           >
             {t(item.label)}
+            {locked ? (
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', opacity: 0.8 }}>
+                {t('Plan')}
+              </span>
+            ) : null}
           </span>
         );
       }}
@@ -242,6 +250,7 @@ function TabItem({ item, active }) {
 // ── Drawer nav item ───────────────────────────────────────────────────────────
 function DrawerItem({ item, active, onNavigate }) {
   const { t } = useI18n();
+  const locked = Boolean(item?.locked);
   return (
     <NavLink to={item.to} onClick={onNavigate} style={{ textDecoration: 'none', display: 'block' }}>
       {({ isActive: navActive }) => {
@@ -251,13 +260,18 @@ function DrawerItem({ item, active, onNavigate }) {
             padding: '11px 14px', borderRadius: 8, margin: '3px 0',
             background: isActive ? 'rgba(91,56,186,0.5)' : 'transparent',
             border: `1px solid ${isActive ? 'rgba(255,255,255,0.15)' : 'transparent'}`,
-            color: isActive ? '#fff' : 'rgba(255,255,255,0.65)',
+            color: isActive ? '#fff' : locked ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.65)',
             fontSize: 14, fontWeight: isActive ? 600 : 400,
-            display: 'flex', alignItems: 'center', gap: 10,
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
             transition: 'all 0.12s',
             minHeight: 44,
           }}>
-            {t(item.label)}
+            <span>{t(item.label)}</span>
+            {locked ? (
+              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.04em', opacity: 0.75 }}>
+                {t('Plan')}
+              </span>
+            ) : null}
           </div>
         );
       }}
@@ -267,7 +281,7 @@ function DrawerItem({ item, active, onNavigate }) {
 
 // ── Main layout ───────────────────────────────────────────────────────────────
 export default function Layout({ children }) {
-  const { user, signOut } = useAuth();
+  const { user, signOut, refreshUser } = useAuth();
   const { tenant, branding, hasFeature } = useTenant();
   const { version: locationVersion } = useLocationScope();
   const { t, isRtl } = useI18n();
@@ -277,9 +291,10 @@ export default function Layout({ children }) {
   const [drop, setDrop]       = useState(false);
   const [showMobileSearch, setShowMobileSearch] = useState(false);
   const [editProfile, setEditProfile] = useState(false);
-  const [profileForm, setProfileForm] = useState({ name: '', currentPassword: '', newPassword: '', confirmPassword: '' });
+  const [profileForm, setProfileForm] = useState({ name: '', username: '', currentPassword: '', newPassword: '', confirmPassword: '' });
   const [profileErrors, setProfileErrors] = useState({});
   const [profileSaving, setProfileSaving] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState('idle');
   const dropRef         = useRef(null);
 
   const items = useMemo(() => visibleNavItems(user, hasFeature), [user, hasFeature]);
@@ -476,6 +491,11 @@ export default function Layout({ children }) {
                 }}>
                   <div style={{ padding: '8px 12px 10px', borderBottom: '1px solid var(--border)', marginBottom: 4 }}>
                     <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>{user?.name}</p>
+                    {user?.username && (
+                      <p style={{ fontSize: 11, color: 'var(--t3)', marginTop: 2, fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace' }} dir="ltr">
+                        @{user.username}
+                      </p>
+                    )}
                     <p style={{ fontSize: 11, color: 'var(--t4)', marginTop: 2 }}>{t(user?.role || '')}</p>
                   </div>
                   {user?.role === 'Owner' && (
@@ -508,7 +528,7 @@ export default function Layout({ children }) {
                       {t('Connect WhatsApp')}
                     </button>
                   )}
-                  <button onClick={() => { setDrop(false); setProfileForm({ name: user?.name || '', currentPassword: '', newPassword: '', confirmPassword: '' }); setProfileErrors({}); setEditProfile(true); }} style={{
+                  <button onClick={() => { setDrop(false); setProfileForm({ name: user?.name || '', username: user?.username || '', currentPassword: '', newPassword: '', confirmPassword: '' }); setProfileErrors({}); setUsernameStatus('idle'); setEditProfile(true); }} style={{
                     width: '100%', display: 'flex', alignItems: 'center', gap: 8,
                     padding: '8px 12px', borderRadius: 6, border: 'none',
                     background: 'transparent', cursor: 'pointer',
@@ -741,6 +761,14 @@ export default function Layout({ children }) {
                 e.preventDefault();
                 const errs = {};
                 if (!profileForm.name.trim()) errs.name = t('Name is required');
+                if (!profileForm.username.trim()) {
+                  errs.username = t('Username is required');
+                } else {
+                  const usernameError = validateUsernameClient(profileForm.username, t);
+                  if (usernameError) errs.username = usernameError;
+                  else if (usernameStatus === 'taken') errs.username = t('This username is already taken');
+                  else if (usernameStatus === 'checking') errs.username = t('Checking availability…');
+                }
                 if (profileForm.newPassword) {
                   if (!profileForm.currentPassword) errs.currentPassword = t('Required to change password');
                   if (profileForm.newPassword.length < 8) errs.newPassword = t('At least 8 characters');
@@ -750,18 +778,28 @@ export default function Layout({ children }) {
                 if (Object.keys(errs).length) return;
                 setProfileSaving(true);
                 try {
-                  const payload = { name: profileForm.name.trim() };
+                  const payload = {
+                    name: profileForm.name.trim(),
+                    username: profileForm.username.trim().toLowerCase(),
+                  };
                   if (profileForm.newPassword) {
                     payload.currentPassword = profileForm.currentPassword;
                     payload.newPassword = profileForm.newPassword;
                   }
                   await updateMyProfile(payload);
-                  toast.success(t('Profile updated! Please sign in again to see your new name.'));
+                  refreshUser?.();
+                  toast.success(t('Profile updated successfully'));
                   setEditProfile(false);
                 } catch (err) {
                   const msg = err.response?.data?.message || t('Failed to update profile');
-                  if (msg.toLowerCase().includes('password')) setProfileErrors({ currentPassword: msg });
-                  else toast.error(msg);
+                  const field = err.response?.data?.field;
+                  if (field === 'username' || msg.toLowerCase().includes('username')) {
+                    setProfileErrors({ username: msg });
+                  } else if (msg.toLowerCase().includes('password')) {
+                    setProfileErrors({ currentPassword: msg });
+                  } else {
+                    toast.error(msg);
+                  }
                 } finally {
                   setProfileSaving(false);
                 }
@@ -775,6 +813,20 @@ export default function Layout({ children }) {
                     onFocus={e => { e.target.style.borderColor = 'var(--navy)'; e.target.style.boxShadow = '0 0 0 3px color-mix(in srgb, var(--navy) 10%, transparent)'; }}
                     onBlur={e => { e.target.style.borderColor = profileErrors.name ? 'var(--red-bd)' : 'var(--border)'; e.target.style.boxShadow = 'none'; }} />
                   {profileErrors.name && <p style={{ fontSize: 11, color: 'var(--red)', marginTop: 4 }}>{profileErrors.name}</p>}
+                </div>
+
+                <div style={{ marginBottom: 16 }}>
+                  <UsernameField
+                    label={t('Username')}
+                    value={profileForm.username}
+                    onChange={(v) => setProfileForm((f) => ({ ...f, username: v }))}
+                    error={profileErrors.username}
+                    required
+                    optionalHint={false}
+                    currentUsername={user?.username || ''}
+                    disabled={profileSaving}
+                    onAvailabilityChange={setUsernameStatus}
+                  />
                 </div>
 
                 <div style={{ height: 1, background: 'var(--border)', margin: '18px 0 14px' }} />

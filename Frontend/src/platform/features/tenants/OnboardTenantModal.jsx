@@ -22,6 +22,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
     slug: "",
     ownerName: "",
     ownerEmail: "",
+    ownerUsername: "",
     planKey: "basic",
     cycle: "monthly",
     intervalCount: 1,
@@ -40,6 +41,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
         slug: "",
         ownerName: "",
         ownerEmail: "",
+        ownerUsername: "",
         planKey: "basic",
         cycle: "monthly",
         intervalCount: 1,
@@ -101,6 +103,21 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
       return;
     }
 
+    const ownerUsername = form.ownerUsername.trim().toLowerCase();
+    if (ownerUsername) {
+      if (ownerUsername.length < 3 || ownerUsername.length > 30) {
+        setError("Owner username must be 3–30 characters.");
+        return;
+      }
+      if (!/^[a-z0-9._]+$/.test(ownerUsername)
+        || ownerUsername.startsWith(".")
+        || ownerUsername.endsWith(".")
+        || ownerUsername.includes("..")) {
+        setError("Owner username can only use letters, numbers, periods, and underscores.");
+        return;
+      }
+    }
+
     const trial = Number(form.trialDays);
     if (isNaN(trial) || !Number.isInteger(trial) || trial < 1 || trial > 365) {
       setError("Trial duration must be a whole number of days between 1 and 365.");
@@ -129,6 +146,7 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
         slug: slugTrim,
         ownerEmail: emailTrim,
         ownerName: form.ownerName.trim(),
+        ownerUsername: ownerUsername || undefined,
         trialDays: trial,
         amountPaid: paid,
         intervalCount,
@@ -181,6 +199,12 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
                 <span className="text-[var(--platform-text-muted)]">Owner Email:</span>
                 <CopyChip value={credentials.owner.email} />
               </div>
+              {credentials.owner?.username && (
+                <div className="flex items-center justify-between">
+                  <span className="text-[var(--platform-text-muted)]">Username:</span>
+                  <CopyChip value={credentials.owner.username} />
+                </div>
+              )}
               {credentials.invite?.inviteUrl && (
                 <div className="space-y-1 pt-2 border-t border-[var(--platform-border-subtle)]">
                   <span className="text-[var(--platform-text-muted)] block">
@@ -279,6 +303,18 @@ export function OnboardTenantModal({ isOpen, onClose, onSuccess }) {
             onChange={(e) => setForm({ ...form, ownerEmail: e.target.value })}
           />
         </div>
+
+        <Input
+          label="Owner Username"
+          placeholder="e.g. ahmed.hassan"
+          isMono
+          value={form.ownerUsername}
+          onChange={(e) => setForm({
+            ...form,
+            ownerUsername: e.target.value.replace(/\s/g, "").toLowerCase(),
+          })}
+          helperText="Optional. Leave blank to auto-generate from the owner name."
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Select

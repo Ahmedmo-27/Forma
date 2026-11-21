@@ -31,7 +31,8 @@ export function GlobalErrorContainer() {
       }
 
       // 2. Specialized Modals
-      if (code === "PLAN_LIMIT_REACHED" || code === "FEATURE_NOT_IN_PLAN" || code === "ROLE_NOT_IN_PLAN") {
+      // FEATURE_NOT_IN_PLAN / ROLE_NOT_IN_PLAN are silent — FeatureGate owns that UX.
+      if (code === "PLAN_LIMIT_REACHED") {
         setActiveModal({ type: "upgrade", error, options });
       } else if (code === "AUTH_TOKEN_EXPIRED" || code === "AUTH_SESSION_REVOKED") {
         setActiveModal({ type: "session", error, options });

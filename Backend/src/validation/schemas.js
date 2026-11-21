@@ -149,6 +149,10 @@ const createStaffSchema = z.object({
     email: z.string().trim().email().max(200),
     password: z.string().min(8).max(200),
     mobile_number: z.string().trim().min(5).max(40).optional(),
+    username: z.preprocess(
+        (value) => (value == null || String(value).trim() === "" ? undefined : String(value).trim()),
+        z.string().min(3).max(30).optional()
+    ),
     role: z.enum(GYM_ROLES),
     canAccessAllLocations: z.boolean().optional(),
     allowedLocationIds: z.array(z.string().trim().min(1)).optional(),

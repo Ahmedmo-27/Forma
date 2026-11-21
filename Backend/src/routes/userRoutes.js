@@ -27,6 +27,7 @@ const {
     getReceptionistTeam,
     resetUserPassword,
     updateMyProfile,
+    checkUsernameAvailability,
     getTeamsPage
 } = require("../controllers/userController");
 const {
@@ -67,6 +68,7 @@ router.get("/profile", (req, res) => {
 
 router.get("/me", getMyProfile);
 router.patch("/me", autoInvalidate(["users"]), updateMyProfile);
+router.get("/username-available", checkUsernameAvailability);
 router.get("/access/search", allowRoles("access_control", "Owner", "General Manager", "Sales Manager", "Head Coach"), requireFeature("access_control"), searchUsersForAccess);
 router.get("/sales-revenue", allowRoles("sales_dashboard", "Sales"), requireFeature("sales_crm"), cacheResponse({ ttlSeconds: 60, scope: "user", tags: ["revenue"] }), getSalesRevenue);
 router.get("/sales-manager/revenue", allowRoles("reports", "Sales Manager", "Owner", "Accountant"), requireFeature("accounting"), cacheResponse({ ttlSeconds: 120, tags: ["revenue"] }), getSalesManagerRevenue);
@@ -79,7 +81,7 @@ router.get("/team", allowRoles("sales_team", "Sales Manager", "Owner", "Accounta
 router.get("/team/:id", allowRoles("sales_team", "Sales Manager", "Owner", "Accountant"), requireFeature("sales_crm"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getSalesProfile);
 router.get("/coach-team", allowRoles("coach_team", "Head Coach", "Owner", "Sales Manager", "Receptionist", "Sales", "Accountant", "General Manager"), requireFeature("coaching"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getCoachTeam);
 router.get("/coach-team/:id", allowRoles("coach_team", "Head Coach", "Owner"), requireFeature("coaching"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getCoachProfile);
-router.post("/staff", allowRoles("staff", "Sales Manager", "Owner", "Head Coach"), requireFeature("staff_management"), enforceStaffLimit, autoInvalidate(["users"]), createStaffUser);
+router.post("/staff", allowRoles("staff", "Sales Manager", "Owner", "General Manager", "Head Coach"), requireFeature("staff_management"), enforceStaffLimit, validate(createStaffSchema), autoInvalidate(["users"]), createStaffUser);
 router.patch("/:id/target", protect, allowRoles("targets", "Sales Manager", "Owner", "Accountant"), requireFeature("accounting"), autoInvalidate(["users", "revenue"]), updateSalesRepTarget);
 router.patch("/:id/abilities", protect, authorizeRoles("Sales Manager", "Owner", "General Manager"), autoInvalidate(["users"]), updateSalesRepAbilities);
 router.patch("/:id/coach-abilities", protect, authorizeRoles("Head Coach", "Owner", "General Manager"), requireFeature("coaching"), autoInvalidate(["users"]), updateCoachRepAbilities);

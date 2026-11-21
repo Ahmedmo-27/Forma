@@ -184,6 +184,20 @@ const tenantSchema = new mongoose.Schema(
             add: [{ type: String }],
             remove: [{ type: String }],
         },
+        // Time-boxed feature grants from approved FeatureTrialRequest rows.
+        featureTrials: [
+            {
+                featureKey: { type: String, required: true, lowercase: true, trim: true },
+                startsAt: { type: Date, default: Date.now },
+                endsAt: { type: Date, required: true },
+                requestId: { type: mongoose.Schema.Types.ObjectId, ref: "FeatureTrialRequest", default: null },
+                grantedByPlatformUserId: {
+                    type: mongoose.Schema.Types.ObjectId,
+                    ref: "PlatformUser",
+                    default: null,
+                },
+            },
+        ],
         roleOverrides: {
             add: [{ type: String }],
             remove: [{ type: String }],
@@ -340,8 +354,10 @@ tenantSchema.methods.getDecryptedWhatsApp = function () {
  *   baseFeatures = featureSnapshot
  * - Else: baseFeatures = plan.features
  * - Then apply: + overrides.add - overrides.remove
+ * - Then + active featureTrials (endsAt > now)
+ * - Then rollout filter
  */
-function getEffectiveFeatures(tenant, plan) {
+function getEffectiveFeatures(tenant, plan, now = new Date()) {
     let baseFeaturesList = plan?.features || [];
     if (
         tenant?.billing?.cycle === "lifetime" &&
@@ -358,6 +374,14 @@ function getEffectiveFeatures(tenant, plan) {
 
     add.forEach((f) => baseFeatures.add(f));
     remove.forEach((f) => baseFeatures.delete(f));
+
+    const trials = Array.isArray(tenant?.featureTrials) ? tenant.featureTrials : [];
+    for (const trial of trials) {
+        if (!trial?.featureKey || !trial?.endsAt) continue;
+        if (new Date(trial.endsAt) > now) {
+            baseFeatures.add(trial.featureKey);
+        }
+    }
 
     const { applyRollout } = require("../services/featureRollout");
     return applyRollout(Array.from(baseFeatures), tenant);

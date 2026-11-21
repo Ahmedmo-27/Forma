@@ -148,6 +148,18 @@ export const apiConfirmPayment = (id, data, signal) =>
 export const apiRejectPayment = (id, data, signal) =>
   platformClient.post(`/billing/payments/${id}/reject`, data, { signal });
 
+// ==========================================
+// 6b. Feature trial requests
+// ==========================================
+export const apiGetFeatureTrials = (params, signal) =>
+  platformClient.get("/feature-trials", { params, signal });
+
+export const apiApproveFeatureTrial = (id, data, signal) =>
+  platformClient.post(`/feature-trials/${id}/approve`, data, { signal });
+
+export const apiRejectFeatureTrial = (id, data, signal) =>
+  platformClient.post(`/feature-trials/${id}/reject`, data, { signal });
+
 export const apiGetInvoices = (params, signal) =>
   platformClient.get("/billing/invoices", { params, signal });
 

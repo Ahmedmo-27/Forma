@@ -25,10 +25,12 @@ const { setPackageTransferFee } = require("../utils/packageTransferFee");
 const { countMonthlyWhatsAppMessages } = require("../utils/whatsappTracking");
 const { publicBranding, resolveSavedPalette } = require("../utils/showcasePalette");
 const { resolveFairUseLimits, DEFAULT_CAPS } = require("../utils/fairUse");
+const { activeFeatureTrials, buildLockedFeatureCatalog } = require("../services/featurePlanLookup");
 
 function sanitizeTenantResponse(tenant, plan, usage = {}) {
     const effectiveFeatures = getEffectiveFeatures(tenant, plan);
     const limits = getEffectiveLimits(tenant, plan);
+    const trials = activeFeatureTrials(tenant);
 
     const isLifetime = tenant?.billing?.cycle === "lifetime";
     const lifetimeDetails = isLifetime && tenant?.billing?.lifetime ? {
@@ -73,6 +75,7 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
         } : null,
         effectiveFeatures,
         effectiveRoles: getEffectiveRoles(tenant, plan),
+        activeFeatureTrials: trials,
         limits: resolvedLimits,
         effectiveLimits: resolvedLimits,
         usage: {
@@ -198,6 +201,7 @@ const getMyTenant = async (req, res) => {
             CHECKLIST_ROLES.map((role) => [role, roleDefaults(role)])
         );
         response.effectiveAccess = effectiveAreas(actor, accessContext);
+        response.lockedFeatureCatalog = await buildLockedFeatureCatalog(response.effectiveFeatures);
 
         res.json({ ...response, tenant: response });
     } catch (error) {

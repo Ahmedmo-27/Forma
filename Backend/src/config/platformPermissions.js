@@ -17,6 +17,7 @@ const PERMISSIONS = {
     TENANTS_WRITE: "tenants.write",
     TENANTS_LIFECYCLE: "tenants.lifecycle",
     TENANTS_OVERRIDE: "tenants.override",
+    TENANTS_FEATURE_TRIALS: "tenants.feature_trials",
     TENANTS_NOTES: "tenants.notes",
     TENANTS_PURGE: "tenants.purge",
     PLANS_MANAGE: "plans.manage",
@@ -56,6 +57,7 @@ const ROLE_PERMISSIONS = {
     [ROLES.SUPPORT]: [
         PERMISSIONS.TENANTS_READ,
         PERMISSIONS.TENANTS_NOTES,
+        PERMISSIONS.TENANTS_FEATURE_TRIALS,
         PERMISSIONS.SUPPORT_IMPERSONATE_READ,
         PERMISSIONS.SUPPORT_EXPORT_DATA,
         PERMISSIONS.AUDIT_VIEW,

@@ -10,10 +10,12 @@ import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
 import { useI18n } from '../../i18n/useI18n';
+import UsernameField, { validateUsernameClient } from '../../components/UsernameField';
 
 const INIT = {
   name: '',
   email: '',
+  username: '',
   mobile_number: '',
   password: '',
   role: 'Coach',
@@ -41,6 +43,7 @@ export default function CoachStaff() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [locations, setLocations] = useState([]);
+  const [usernameStatus, setUsernameStatus] = useState('idle');
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -99,6 +102,14 @@ export default function CoachStaff() {
       e.password = t('Password must not exceed 200 characters');
     }
 
+    const usernameError = validateUsernameClient(form.username, t);
+    if (usernameError) e.username = usernameError;
+    else if (form.username.trim() && (usernameStatus === 'taken' || usernameStatus === 'checking')) {
+      e.username = usernameStatus === 'taken'
+        ? t('This username is already taken')
+        : t('Checking availability…');
+    }
+
     if (
       canSetLocations
       && !form.canAccessAllLocations
@@ -123,6 +134,7 @@ export default function CoachStaff() {
         password: form.password,
         role: 'Coach',
       };
+      if (form.username.trim()) payload.username = form.username.trim().toLowerCase();
       if (canSetLocations) {
         payload.canAccessAllLocations = Boolean(form.canAccessAllLocations);
         payload.allowedLocationIds = form.canAccessAllLocations
@@ -165,6 +177,12 @@ export default function CoachStaff() {
               value={form.email}
               onChange={e => set('email', e.target.value)}
               error={errors.email}
+            />
+            <UsernameField
+              value={form.username}
+              onChange={(v) => set('username', v)}
+              error={errors.username}
+              onAvailabilityChange={setUsernameStatus}
             />
             <Input
               label={t('Mobile Number *')}

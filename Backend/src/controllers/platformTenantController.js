@@ -11,8 +11,8 @@ const { getEffectiveFeatures, getEffectiveLimits, getEffectiveRoles } = require(
 const { runAsPlatform, runWithTenant } = require("../context/tenantContext");
 const storageService = require("../services/storageService");
 const { normalizeEmail, hashPassword } = require("../utils/passwordUtils");
-const { tenantUsername } = require("../utils/username");
-const { assertEmailAvailable } = require("../utils/identityUniqueness");
+const { resolveUsername } = require("../utils/username");
+const { assertEmailAvailable, replyIfConflict } = require("../utils/identityUniqueness");
 const passwordSetup = require("../services/passwordSetupService");
 const mailer = require("../services/mailer");
 const { parsePagination, buildPagination } = require("../utils/pagination");
@@ -261,6 +261,14 @@ async function getTenantDetail(req, res) {
                 owner: tenant.ownerUserId,
                 billing: tenant.billing,
                 featureOverrides: tenant.featureOverrides || { add: [], remove: [] },
+                featureTrials: (tenant.featureTrials || [])
+                    .filter((t) => t?.featureKey && t?.endsAt && new Date(t.endsAt) > new Date())
+                    .map((t) => ({
+                        featureKey: t.featureKey,
+                        startsAt: t.startsAt || null,
+                        endsAt: t.endsAt,
+                        requestId: t.requestId || null,
+                    })),
                 roleOverrides: tenant.roleOverrides || { add: [], remove: [] },
                 limitOverrides: tenant.limitOverrides || {},
                 effectiveFeatures,
@@ -312,6 +320,7 @@ async function onboardTenant(req, res) {
             slug,
             ownerName,
             ownerEmail,
+            ownerUsername,
             planKey = "basic",
             cycle = "monthly",
             intervalCount: rawIntervalCount = 1,
@@ -413,9 +422,10 @@ async function onboardTenant(req, res) {
         const ownerUser = await runWithTenant(
             { tenantId: String(tenant._id), tenantSlug: tenant.slug },
             async () => {
-                const username = await tenantUsername(User, tenant, {
+                const username = await resolveUsername(User, tenant, {
                     name: ownerName,
                     email: normalizedEmail,
+                    username: ownerUsername,
                 });
                 return User.create({
                     tenantId: tenant._id,
@@ -511,6 +521,7 @@ async function onboardTenant(req, res) {
                 id: ownerUser._id,
                 name: ownerUser.name,
                 email: ownerUser.email,
+                username: ownerUser.username,
             },
             invite: {
                 inviteToken,
@@ -519,10 +530,12 @@ async function onboardTenant(req, res) {
             },
         });
     } catch (err) {
+        if (replyIfConflict(res, err)) return;
         if (err.statusCode && err.statusCode < 500) {
             return res.status(err.statusCode).json({
                 code: err.code,
                 message: err.message,
+                field: err.field,
             });
         }
         logger.error("platform", "onboardTenant error", { error: err.message });

@@ -707,6 +707,21 @@ export default function TenantDetailPage() {
                 </div>
               )}
 
+              {Array.isArray(tenant.featureTrials) && tenant.featureTrials.length > 0 && (
+                <div className="p-2.5 rounded-md bg-amber-500/10 border border-amber-500/20 text-xs text-amber-800 dark:text-amber-300 space-y-1">
+                  <div className="font-semibold flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5" />
+                    <span>Active feature trials</span>
+                  </div>
+                  {tenant.featureTrials.map((trial) => (
+                    <div key={`${trial.featureKey}-${trial.endsAt}`} className="text-[11px] flex justify-between gap-2">
+                      <span className="font-mono">{trial.featureKey}</span>
+                      <span>ends {formatDate(trial.endsAt)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
               {/* Features Matrix Grid */}
               <div className="space-y-2">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--platform-text-muted)] block">
@@ -720,11 +735,14 @@ export default function TenantDetailPage() {
                   ) : (
                     effectiveFeatures.map((featKey) => {
                       const isCustomAdded = (tenant.featureOverrides?.add || []).includes(featKey);
+                      const trial = (tenant.featureTrials || []).find((t) => t.featureKey === featKey);
                       return (
                         <div
                           key={featKey}
                           className={`flex items-center justify-between p-2 rounded-[var(--platform-radius-sm)] border ${
-                            isCustomAdded
+                            trial
+                              ? "bg-amber-500/10 border-amber-500/30 text-amber-800 dark:text-amber-300"
+                              : isCustomAdded
                               ? "bg-blue-500/10 border-blue-500/30 text-blue-700 dark:text-blue-300"
                               : "bg-[var(--platform-surface-subtle)] border-[var(--platform-border-subtle)]"
                           }`}
@@ -732,8 +750,8 @@ export default function TenantDetailPage() {
                           <span className="platform-mono text-[11px]">
                             {featKey}
                           </span>
-                          <Badge variant={isCustomAdded ? "accent" : "success"} size="xs">
-                            {isCustomAdded ? "Custom (+)" : "Included"}
+                          <Badge variant={trial ? "warning" : isCustomAdded ? "accent" : "success"} size="xs">
+                            {trial ? "Trial" : isCustomAdded ? "Custom (+)" : "Included"}
                           </Badge>
                         </div>
                       );

@@ -219,6 +219,8 @@ export function TenantProvider({ children }) {
     checklistRoles: tenant?.checklistRoles || EMPTY_LIST,
     roleDefaults: tenant?.roleDefaults || EMPTY_OBJECT,
     effectiveAccess: tenant?.effectiveAccess || EMPTY_LIST,
+    lockedFeatureCatalog: tenant?.lockedFeatureCatalog || EMPTY_LIST,
+    activeFeatureTrials: tenant?.activeFeatureTrials || EMPTY_LIST,
   };
 
   const brandingPending = Boolean(userId) && paletteUserId !== userId;

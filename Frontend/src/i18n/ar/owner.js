@@ -185,6 +185,10 @@ const AR = {
   'Add custom activity (e.g. Pilates)': 'أضف نشاطًا مخصصًا (مثال: بيلاتس)',
 
   // Gym settings: WhatsApp
+  'Outside current plan': 'خارج الباقة الحالية',
+  'WhatsApp is outside your current plan': 'واتساب خارج باقتك الحالية',
+  'This feature is not included in your gym’s plan. You can keep customizing other settings. Ask your platform administrator to add WhatsApp if you need it.': 'هذه الميزة غير مضمّنة في باقة جيمك. يمكنك متابعة تخصيص الإعدادات الأخرى. اطلب من مسؤول المنصة إضافة واتساب إذا احتجتها.',
+  'View Plan & Usage': 'عرض الباقة والاستخدام',
   'WhatsApp Account Linking': 'ربط حساب واتساب',
   'Check and manage WhatsApp connectivity for your account to send invoices, messages, and QR passes.': 'تحقق من اتصال واتساب لحسابك وأدِره لإرسال الفواتير والرسائل وتصاريح QR.',
   'Checking WhatsApp account status…': 'جارٍ التحقق من حالة حساب واتساب…',

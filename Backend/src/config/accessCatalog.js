@@ -577,6 +577,16 @@ const ACCESS_CATALOG = [
         path: "/management/access",
         nav: { to: "/management/access", label: "Access" },
     },
+    {
+        key: "request_feature_trials",
+        label: "Feature trials",
+        description: "See locked plan modules and request timed feature trials",
+        icon: "Sparkles",
+        group: "Owner",
+        domain: "owner",
+        defaultRoles: ["Owner", "General Manager"],
+        // Always available — not tied to a plan module.
+    },
 ];
 
 // General Manager follows the owner, plus coaching tools the owner does not

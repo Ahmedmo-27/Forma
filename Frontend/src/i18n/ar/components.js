@@ -172,10 +172,13 @@ const AR = {
   'Resume Session': 'استئناف الجلسة',
   'Plan Limit Reached': 'تم بلوغ حد الخطة',
   'Upgrade Required': 'الترقية مطلوبة',
+  'Outside current plan': 'خارج الباقة الحالية',
   'You have reached your current plan limit of {max} {limit} (currently using {current}). Upgrade your plan to expand your gym\'s capacity.': 'لقد بلغت الحد الأقصى لخطتك الحالية وهو {max} من {limit} (المستخدم حاليًا {current}). قم بترقية خطتك لزيادة سعة الجيم.',
   'this feature': 'هذه الميزة',
   'The {feature} feature is not included in your current subscription. Upgrade to the {plan} tier to unlock it.': 'ميزة {feature} غير مضمّنة في اشتراكك الحالي. قم بالترقية إلى مستوى {plan} لتفعيلها.',
   'The {feature} feature is not included in your current subscription.': 'ميزة {feature} غير مضمّنة في اشتراكك الحالي.',
+  'The {feature} feature is outside your current plan. You can keep working in other areas; ask your platform administrator if this gym needs it enabled.': 'ميزة {feature} خارج باقتك الحالية. يمكنك متابعة العمل في المناطق الأخرى؛ اطلب من مسؤول المنصة تفعيلها لهذا الجيم عند الحاجة.',
+  'View Plan & Usage': 'عرض الباقة والاستخدام',
   'Upgrade Plan': 'ترقية الخطة',
   'Contact Gym Owner': 'تواصل مع مالك الجيم',
 

@@ -66,6 +66,28 @@ function models() {
     };
 }
 
+async function assertUsernameAvailable(username, { excludeUserId } = {}) {
+    const { normalizeUsername, validateUsernameFormat } = require("./username");
+    const parsed = validateUsernameFormat(username);
+    if (!parsed.ok) {
+        const error = new Error(parsed.message);
+        error.statusCode = 400;
+        error.code = "INVALID_USERNAME";
+        throw error;
+    }
+
+    const normalized = normalizeUsername(parsed.username);
+    const { User } = models();
+    const taken = await unscoped(async () => {
+        const query = { username: normalized };
+        if (excludeUserId) query._id = { $ne: excludeUserId };
+        return Boolean(await User.findOne(query).select("_id"));
+    });
+
+    if (taken) throw duplicateError("username");
+    return normalized;
+}
+
 async function assertEmailAvailable(email, { excludeUserId, excludePlatformUserId } = {}) {
     const normalized = normalizeEmail(email);
     if (!normalized) return normalized;
@@ -182,8 +204,8 @@ function replyIfConflict(res, error) {
         return true;
     }
 
-    if (error?.statusCode === 400 && error.code === "INVALID_PHONE") {
-        res.status(400).json({ message: error.message });
+    if (error?.statusCode === 400 && (error.code === "INVALID_PHONE" || error.code === "INVALID_USERNAME")) {
+        res.status(400).json({ message: error.message, code: error.code, field: error.field || (error.code === "INVALID_USERNAME" ? "username" : undefined) });
         return true;
     }
 
@@ -194,6 +216,7 @@ module.exports = {
     normalizePhone,
     phoneCandidates,
     assertEmailAvailable,
+    assertUsernameAvailable,
     assertPhoneAvailable,
     takenPhoneSet,
     phoneAlreadyUsed,

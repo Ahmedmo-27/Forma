@@ -1,5 +1,6 @@
 import { hasAccess } from './access.js';
 import { canSeeRoute, routeFeatureAllowed } from './canSeeRoute.js';
+import { canSeeLockedFeatures } from './featureTrials.js';
 
 export const NAV = {
   Receptionist:  [{ to: '/checkin', label: 'Check In', access: 'check_in' }, { to: '/members', label: 'Members', access: 'members' }, { to: '/maintenance', label: 'Maintenance', access: 'maintenance_checklist' }, { to: '/retail/pos', label: 'Bar & Shop', access: 'retail_pos' }, { to: '/contacts', label: 'Contacts' }],
@@ -68,10 +69,22 @@ const ANALYTICS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Accountan
  * Bottom tabs for a role. Pass the user and hasFeature to drop tabs the gym's
  * plan (or the person's access) no longer allows; remaining tabs move up.
  */
+function withLockedFlag(item, hasFeature) {
+  const unlocked = routeFeatureAllowed(hasFeature, item.to);
+  return unlocked ? item : { ...item, locked: true };
+}
+
 export function bottomNavFor(role, user, hasFeature) {
   const roleNav = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG.Receptionist;
+  const showLocked = canSeeLockedFeatures(user);
   const allowed = user && typeof hasFeature === 'function'
-    ? roleNav.filter((item) => canSeeRoute(user, hasFeature, item.to))
+    ? roleNav
+        .filter((item) => {
+          if (!canSeeRoute(user, () => true, item.to)) return false;
+          if (routeFeatureAllowed(hasFeature, item.to)) return true;
+          return showLocked;
+        })
+        .map((item) => withLockedFlag(item, hasFeature))
     : roleNav;
   return allowed.slice(0, 4);
 }
@@ -80,12 +93,13 @@ export function bottomNavFor(role, user, hasFeature) {
 export function visibleNavItems(user, hasFeature = () => true) {
   const rawItems = NAV[user?.role] ?? NAV.Receptionist;
   const keys = Array.isArray(user?.access) ? user.access : null;
+  const showLocked = canSeeLockedFeatures(user);
   const visible = rawItems.filter((item) => {
     if (keys && item.access && !keys.includes(item.access)) return false;
-    // Plan gating comes from the route guard so nav and routes never disagree.
-    if (!routeFeatureAllowed(hasFeature, item.to)) return false;
+    // Plan gating: hide missing modules unless this person may browse locked ones.
+    if (!routeFeatureAllowed(hasFeature, item.to)) return showLocked;
     return true;
-  });
+  }).map((item) => withLockedFlag(item, hasFeature));
   const seenPaths = new Set(visible.map((item) => item.to));
   const seenLabels = new Set(visible.map((item) => navLabelKey(item.label)));
   const markSeen = (item) => {
@@ -93,8 +107,9 @@ export function visibleNavItems(user, hasFeature = () => true) {
     seenLabels.add(navLabelKey(item.label));
   };
   const canSeeAnalytics = ANALYTICS_ROLES.includes(user?.role) && hasAccess(user, ['reports', 'owner_dashboard', 'accounting_dashboard', 'sales_dashboard']);
-  if (canSeeAnalytics && routeFeatureAllowed(hasFeature, '/analytics') && !seenPaths.has('/analytics')) {
-    const analytics = { to: '/analytics', label: 'Analytics' };
+  const analyticsUnlocked = routeFeatureAllowed(hasFeature, '/analytics');
+  if (canSeeAnalytics && (analyticsUnlocked || showLocked) && !seenPaths.has('/analytics')) {
+    const analytics = withLockedFlag({ to: '/analytics', label: 'Analytics' }, hasFeature);
     markSeen(analytics);
     const contactsAt = visible.findIndex((item) => item.to === '/contacts');
     if (contactsAt >= 0) visible.splice(contactsAt, 0, analytics);
@@ -106,8 +121,15 @@ export function visibleNavItems(user, hasFeature = () => true) {
     markSeen(reports);
     visible.push(reports);
   }
-  if (['Owner', 'General Manager', 'Sales Manager'].includes(user?.role) && hasAccess(user, 'access_control') && routeFeatureAllowed(hasFeature, '/owner/access') && !seenPaths.has('/owner/access') && !seenPaths.has('/management/access')) {
-    const accessNav = { to: '/owner/access', label: 'Access', access: 'access_control' };
+  const accessUnlocked = routeFeatureAllowed(hasFeature, '/owner/access');
+  if (
+    ['Owner', 'General Manager', 'Sales Manager'].includes(user?.role)
+    && hasAccess(user, 'access_control')
+    && (accessUnlocked || showLocked)
+    && !seenPaths.has('/owner/access')
+    && !seenPaths.has('/management/access')
+  ) {
+    const accessNav = withLockedFlag({ to: '/owner/access', label: 'Access', access: 'access_control' }, hasFeature);
     markSeen(accessNav);
     seenPaths.add('/management/access');
     const contactsAt = visible.findIndex((item) => item.to === '/contacts');
@@ -117,12 +139,13 @@ export function visibleNavItems(user, hasFeature = () => true) {
   const extras = Array.isArray(user?.navExtras) ? user.navExtras : [];
   for (const extra of extras) {
     if (!extra?.to) continue;
-    if (!routeFeatureAllowed(hasFeature, extra.to)) continue;
+    const unlocked = routeFeatureAllowed(hasFeature, extra.to);
+    if (!unlocked && !showLocked) continue;
     const label = extra.label || 'Feature';
     // Non-default grants often add alternate role paths (coach/accounting dashboards,
     // my-callcenter, management access) that collide with the role's existing tabs.
     if (seenPaths.has(extra.to) || seenLabels.has(navLabelKey(label))) continue;
-    const item = { to: extra.to, label, access: extra.key };
+    const item = withLockedFlag({ to: extra.to, label, access: extra.key }, hasFeature);
     markSeen(item);
     if (extra.to === '/owner/access' || extra.to === '/management/access') {
       seenPaths.add('/owner/access');

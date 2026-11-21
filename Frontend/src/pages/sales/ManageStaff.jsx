@@ -11,6 +11,7 @@ import { useTenant } from '../../context/TenantContext';
 import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
 import { useI18n } from '../../i18n/useI18n';
 import { tr } from '../../i18n/translate';
+import UsernameField, { validateUsernameClient } from '../../components/UsernameField';
 
 const ALL_STAFF_ROLES = [
   ['General Manager', tr('General Manager')],
@@ -37,6 +38,7 @@ const CREATABLE_ROLES = {
 const INIT = {
   name: '',
   email: '',
+  username: '',
   mobile_number: '',
   password: '',
   role: 'Sales',
@@ -72,6 +74,7 @@ export default function ManageStaff() {
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const [locations, setLocations] = useState([]);
+  const [usernameStatus, setUsernameStatus] = useState('idle');
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
@@ -141,6 +144,14 @@ export default function ManageStaff() {
       e.password = t('Password must not exceed 200 characters');
     }
 
+    const usernameError = validateUsernameClient(form.username, t);
+    if (usernameError) e.username = usernameError;
+    else if (form.username.trim() && (usernameStatus === 'taken' || usernameStatus === 'checking')) {
+      e.username = usernameStatus === 'taken'
+        ? t('This username is already taken')
+        : t('Checking availability…');
+    }
+
     if (!roleOptions.some(([role]) => role === form.role)) {
       e.role = t('Please select a valid staff role');
     }
@@ -169,6 +180,7 @@ export default function ManageStaff() {
         password: form.password,
         role: form.role,
       };
+      if (form.username.trim()) payload.username = form.username.trim().toLowerCase();
       if (canSetLocations) {
         payload.canAccessAllLocations = Boolean(form.canAccessAllLocations);
         payload.allowedLocationIds = form.canAccessAllLocations
@@ -216,6 +228,12 @@ export default function ManageStaff() {
               value={form.email}
               onChange={(e) => set('email', e.target.value)}
               error={errors.email}
+            />
+            <UsernameField
+              value={form.username}
+              onChange={(v) => set('username', v)}
+              error={errors.username}
+              onAvailabilityChange={setUsernameStatus}
             />
             <Input
               label={t('Mobile Number *')}

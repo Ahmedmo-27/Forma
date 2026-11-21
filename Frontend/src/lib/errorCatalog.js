@@ -109,12 +109,11 @@ export const ERROR_MESSAGES = {
     primaryAction: { label: tr("Refresh"), action: "reload" },
   },
   FEATURE_NOT_IN_PLAN: {
-    title: tr("Plan Upgrade Required"),
+    title: tr("Outside current plan"),
     message: tr("The '{feature}' feature is not included in your current subscription plan. Upgrade to {requiredPlan} to unlock it."),
     severity: "info",
-    presentation: "modal",
-    primaryAction: { label: tr("Upgrade Plan"), action: "upgrade" },
-    secondaryAction: { label: tr("Not Now"), action: "dismiss" },
+    // FeatureGate / route guards own this UX — never pop a global upgrade modal.
+    presentation: "silent",
   },
   PLAN_LIMIT_REACHED: {
     title: tr("Plan Limit Reached"),
@@ -127,9 +126,8 @@ export const ERROR_MESSAGES = {
   ROLE_NOT_IN_PLAN: {
     title: tr("Role Not Permitted"),
     message: tr("The '{role}' staff role is not available under your current plan tier."),
-    severity: "warning",
-    presentation: "modal",
-    primaryAction: { label: tr("Upgrade Plan"), action: "upgrade" },
+    severity: "info",
+    presentation: "silent",
   },
 
   // Billing

@@ -73,6 +73,12 @@ const {
 } = require("../controllers/platformBillingController");
 
 const {
+    listFeatureTrials,
+    approveFeatureTrial,
+    rejectFeatureTrial,
+} = require("../controllers/platformFeatureTrialController");
+
+const {
     getOverview,
     getSnapshots,
     getUpsellAndChurnLists,
@@ -191,6 +197,21 @@ router.post("/tenants/:id/impersonate", requirePlatformPermission(PERMISSIONS.SU
 router.get("/billing/payments", requirePlatformPermission(PERMISSIONS.BILLING_PAYMENTS), getPendingPayments);
 router.post("/billing/payments/:id/confirm", requirePlatformPermission(PERMISSIONS.BILLING_PAYMENTS), autoInvalidate(["tenants", "analytics"], "platform"), confirmPayment);
 router.post("/billing/payments/:id/reject", requirePlatformPermission(PERMISSIONS.BILLING_PAYMENTS), autoInvalidate(["tenants", "analytics"], "platform"), rejectPayment);
+
+// Feature trial requests inbox
+router.get("/feature-trials", requirePlatformPermission(PERMISSIONS.TENANTS_FEATURE_TRIALS), listFeatureTrials);
+router.post(
+    "/feature-trials/:id/approve",
+    requirePlatformPermission(PERMISSIONS.TENANTS_FEATURE_TRIALS),
+    autoInvalidate(["tenants"], "platform"),
+    approveFeatureTrial
+);
+router.post(
+    "/feature-trials/:id/reject",
+    requirePlatformPermission(PERMISSIONS.TENANTS_FEATURE_TRIALS),
+    autoInvalidate(["tenants"], "platform"),
+    rejectFeatureTrial
+);
 
 router.get("/billing/invoices", requirePlatformPermission(PERMISSIONS.BILLING_INVOICES), getInvoices);
 router.get("/billing/invoices/:id/download", requirePlatformPermission(PERMISSIONS.BILLING_INVOICES), downloadInvoice);
