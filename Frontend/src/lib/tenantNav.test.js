@@ -14,6 +14,7 @@ const NAV_PATHS = {
     Coach: ["/coach/dashboard", "/coach/members", "/tasks", "/coach/checkin", "/coach/my-transfers", "/contacts"],
     Receptionist: ["/checkin", "/members", "/maintenance", "/retail/pos", "/contacts"],
     Accountant: ["/accounting/dashboard", "/members", "/tasks", "/accounting/contract-history", "/sales/targets", "/accounting/package-requests", "/retail/reports", "/analytics", "/contacts", "/reports"],
+    Retail: ["/retail/pos", "/contacts"],
 };
 
 const BOTTOM = {
@@ -25,6 +26,7 @@ const BOTTOM = {
     Coach: ["/coach/dashboard", "/coach/members", "/coach/checkin", "/tasks"],
     Receptionist: ["/checkin", "/members", "/contacts"],
     Accountant: ["/accounting/dashboard", "/members", "/checkin", "/accounting/contract-history"],
+    Retail: ["/retail/pos", "/contacts"],
 };
 
 function user(role, extra = {}) {

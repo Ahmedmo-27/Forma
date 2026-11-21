@@ -12,6 +12,7 @@ import {
   Headphones,
   LayoutDashboard,
   Phone,
+  ShoppingCart,
   Tag,
   Users,
   X,
@@ -85,6 +86,7 @@ const NAV_ICONS = {
   contracts: ClipboardList,
   callcenter: Headphones,
   transfer: ArrowLeftRight,
+  retail: ShoppingCart,
 };
 
 function NavIcon({ name, size = 20 }) {

@@ -34,6 +34,7 @@ const ROLE_COLOUR = {
   'Head Coach':  { bg: '#fdf4ff', color: '#9333ea', border: '#e9d5ff' },
   'Accountant':     { bg: '#f0fdf4', color: '#0f766e', border: '#99f6e4' },
   'Receptionist': { bg: 'var(--slate-bg)', color: 'var(--slate)', border: 'var(--slate-bd)' },
+  'Retail':         { bg: '#fff7ed', color: '#c2410c', border: '#fed7aa' },
   'General Manager': { bg: '#f5f3ff', color: '#6d28d9', border: '#ddd6fe' },
 };
 

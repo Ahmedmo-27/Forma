@@ -25,6 +25,7 @@ const DEFAULT_ROLES_FALLBACK = [
   { key: "Sales", name: "Sales Rep", description: "Lead tracking & sales calls" },
   { key: "Sales Manager", name: "Sales Manager", description: "Lead assignment & sales funnels" },
   { key: "General Manager", name: "General Manager", description: "Day-to-day operations. The owner sets their access." },
+  { key: "Retail", name: "Retail / Bar & Shop", description: "Bar and shop POS; owners can grant vendors and revenue" },
 ];
 
 export default function CreatePlanModal({

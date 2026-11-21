@@ -19,7 +19,6 @@ const AR = {
   'Contracts': 'العقود',
   'Targets': 'المستهدفات',
   'Requests': 'الطلبات',
-  'Retail': 'المبيعات',
   'Transfers': 'التحويلات',
   'Attendance': 'الحضور',
   'Analytics': 'التحليلات',
@@ -46,6 +45,7 @@ const AR = {
   'Receptionist': 'موظف استقبال',
   'Coach': 'مدرب',
   'Head Coach': 'كبير المدربين',
+  'Retail': 'موظف التجزئة',
 
   // Profile menu and session
   'Gym Settings': 'إعدادات الجيم',

@@ -21,6 +21,7 @@ const ALL_STAFF_ROLES = [
   ['Coach', tr('Coach')],
   ['Receptionist', tr('Receptionist')],
   ['Accountant', tr('Accountant')],
+  ['Retail', tr('Retail')],
 ];
 
 const CREATABLE_ROLES = {

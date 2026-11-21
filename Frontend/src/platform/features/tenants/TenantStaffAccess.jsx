@@ -31,6 +31,7 @@ const ROLE_ORDER = [
   "Coach",
   "Receptionist",
   "Accountant",
+  "Retail",
 ];
 
 const ROLE_OPTIONS = ROLE_ORDER.map((role) => ({ value: role, label: role }));

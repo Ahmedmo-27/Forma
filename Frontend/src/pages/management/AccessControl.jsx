@@ -40,8 +40,8 @@ function canEditFeatureAccess(actor, targetRole) {
 }
 
 const ROLE_CHOICES = {
-  Owner: ['General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'],
-  'General Manager': ['Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'],
+  Owner: ['General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant', 'Retail'],
+  'General Manager': ['Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant', 'Retail'],
   'Sales Manager': ['Sales', 'Receptionist'],
   'Head Coach': ['Coach'],
 };
@@ -144,10 +144,10 @@ export default function AccessControl({ defaultTab = 'staff' }) {
   // ══════════════════════════════════════════════════════════════════════
   const staffFilterRoles = useMemo(() => {
     if (isOwner) {
-      return ['General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'];
+      return ['General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant', 'Retail'];
     }
     if (user?.role === 'General Manager') {
-      return ['Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'];
+      return ['Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant', 'Retail'];
     }
     if (user?.role === 'Sales Manager') {
       return ['Sales', 'Receptionist'];
@@ -156,7 +156,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
       return ['Coach'];
     }
     if (hasStaff) {
-      return ['Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'].filter(
+      return ['Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant', 'Retail'].filter(
         (r) => r !== user?.role && r !== 'General Manager'
       );
     }
@@ -329,7 +329,7 @@ export default function AccessControl({ defaultTab = 'staff' }) {
   const editableChecklistRoles = useMemo(() => {
     const all = checklistRoles.length
       ? checklistRoles
-      : ['General Manager', 'Receptionist', 'Coach', 'Head Coach', 'Accountant', 'Sales', 'Sales Manager'];
+      : ['General Manager', 'Receptionist', 'Coach', 'Head Coach', 'Accountant', 'Sales', 'Sales Manager', 'Retail'];
     if (isOwner) return all;
     if (user?.role === 'Sales Manager') {
       return all.filter((r) => ['Sales', 'Receptionist'].includes(r));

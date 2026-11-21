@@ -12,6 +12,7 @@ export const ALL_TENANT_ROLES = [
   'Coach',
   'Receptionist',
   'Accountant',
+  'Retail',
 ];
 
 const CHECKIN_ROLES = ['Receptionist', 'Owner', 'General Manager', 'Sales Manager', 'Sales'];
@@ -31,7 +32,7 @@ const OWNER_ROLES = ['Owner', 'General Manager'];
 const ACCESS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Head Coach'];
 const WHATSAPP_ROLES = ['Sales Manager', 'Owner', 'General Manager', 'Accountant', 'Head Coach'];
 const MAINTENANCE_ROLES = ['Receptionist', 'Owner', 'General Manager'];
-const RETAIL_POS_ROLES = ['Receptionist', 'Owner', 'General Manager'];
+const RETAIL_POS_ROLES = ['Receptionist', 'Owner', 'General Manager', 'Retail'];
 const RETAIL_MANAGE_ROLES = ['Owner', 'General Manager'];
 const RETAIL_REPORT_ROLES = ['Owner', 'General Manager', 'Accountant'];
 

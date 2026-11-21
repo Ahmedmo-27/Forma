@@ -38,6 +38,7 @@ describe("Frontend Role Hierarchy Utilities (roles.js)", () => {
             expect(canChangeUserRole("Sales Manager", "Coach")).toBe(false);
             expect(canChangeUserRole("Sales Manager", "Head Coach")).toBe(false);
             expect(canChangeUserRole("Sales Manager", "Accountant")).toBe(false);
+            expect(canChangeUserRole("Sales Manager", "Retail")).toBe(false);
         });
 
         it("restricts Head Coach to changing only Coach", () => {
@@ -103,8 +104,8 @@ describe("Frontend Role Hierarchy Utilities (roles.js)", () => {
     });
 });
 
-const GYM_ROLES = ["Owner", "General Manager", "Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant"];
-const GM_TARGETS = ["Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant"];
+const GYM_ROLES = ["Owner", "General Manager", "Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant", "Retail"];
+const GM_TARGETS = ["Sales Manager", "Sales", "Head Coach", "Coach", "Receptionist", "Accountant", "Retail"];
 
 function expectedCanChange(actorRole, targetRole) {
     if (targetRole === "Owner") return false;
@@ -135,6 +136,7 @@ describe("Frontend role matrix", () => {
             "Coach",
             "Receptionist",
             "Accountant",
+            "Retail",
         ]);
         expect(roleChoicesFor("General Manager", "Coach")).toEqual([
             "Sales Manager",
@@ -143,6 +145,7 @@ describe("Frontend role matrix", () => {
             "Coach",
             "Receptionist",
             "Accountant",
+            "Retail",
         ]);
         expect(roleChoicesFor("Sales Manager", "Sales")).toEqual(["Sales", "Receptionist"]);
         expect(roleChoicesFor("Head Coach", "Coach")).toEqual(["Coach"]);
@@ -150,11 +153,12 @@ describe("Frontend role matrix", () => {
         expect(roleChoicesFor("Coach", "Coach")).toEqual([]);
         expect(roleChoicesFor("Receptionist", "Receptionist")).toEqual([]);
         expect(roleChoicesFor("Accountant", "Accountant")).toEqual([]);
+        expect(roleChoicesFor("Retail", "Retail")).toEqual([]);
         expect(roleChoicesFor("Owner", "Owner")).not.toContain("Owner");
     });
 
     it("lets delegated staff change the same targets as a general manager", () => {
-        for (const actorRole of ["Sales", "Coach", "Receptionist", "Accountant", "Sales Manager", "Head Coach"]) {
+        for (const actorRole of ["Sales", "Coach", "Receptionist", "Accountant", "Retail", "Sales Manager", "Head Coach"]) {
             const actor = { role: actorRole, accessOverrides: { add: ["staff"] } };
             for (const targetRole of GYM_ROLES) {
                 const allowed = GM_TARGETS.includes(targetRole);

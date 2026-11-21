@@ -1,7 +1,7 @@
 /** Roles each actor can assign. The Owner role stays assigned only at account creation. */
 export const ASSIGNABLE_ROLES = {
-  Owner: ['General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'],
-  'General Manager': ['Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'],
+  Owner: ['General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant', 'Retail'],
+  'General Manager': ['Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant', 'Retail'],
   'Sales Manager': ['Sales', 'Receptionist'],
   'Head Coach': ['Coach'],
 };
@@ -10,14 +10,14 @@ export function assignableRolesFor(actor) {
   const actorRole = typeof actor === 'string' ? actor : actor?.role;
   if (!actorRole) return [];
   if (actorRole === 'Owner') {
-    return ['General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'];
+    return ['General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant', 'Retail'];
   }
   const hasStaff = typeof actor === 'object' && Boolean(
     actor?.accessOverrides?.add?.includes('staff') ||
     actor?.access?.includes('access_control')
   );
   if (actorRole === 'General Manager' || hasStaff) {
-    return ['Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant'];
+    return ['Sales Manager', 'Sales', 'Head Coach', 'Coach', 'Receptionist', 'Accountant', 'Retail'];
   }
   return ASSIGNABLE_ROLES[actorRole] ? [...ASSIGNABLE_ROLES[actorRole]] : [];
 }

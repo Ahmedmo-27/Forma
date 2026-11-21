@@ -21,6 +21,7 @@ const OPEN = {
     Coach: ["/account/whatsapp", "/tasks", "/tasks/assigned", "/members/:id", "/sales/requests", "/coach/dashboard", "/coach/members", "/coach/checkin", "/coach/my-transfers", "/contacts"],
     Receptionist: ["/account/whatsapp", "/members", "/tasks", "/tasks/assign", "/tasks/filter", "/tasks/filter/results", "/tasks/assigned", "/members/:id", "/checkin", "/maintenance", "/retail/pos", "/retail/sales", "/contacts"],
     Accountant: ["/account/whatsapp", "/members", "/tasks", "/tasks/assign", "/tasks/filter", "/tasks/filter/results", "/tasks/assigned", "/members/:id", "/retail/sales", "/retail/vendors", "/retail/reports", "/sales/team", "/sales/team/receptionist/:id", "/sales/team/:id", "/sales/whatsapp-templates", "/coach/whatsapp-templates", "/sales/targets", "/accounting/dashboard", "/accounting/package-requests", "/accounting/contract-history", "/contacts", "/analytics", "/reports", "/reports/executive", "/reports/churn", "/reports/forecast", "/reports/cohorts", "/reports/attendance", "/reports/funnel"],
+    Retail: ["/account/whatsapp", "/retail/pos", "/retail/sales", "/contacts"],
 };
 
 const HOME = {
@@ -32,6 +33,7 @@ const HOME = {
     Coach: "/coach/dashboard",
     Receptionist: "/checkin",
     Accountant: "/accounting/dashboard",
+    Retail: "/retail/pos",
 };
 
 function user(role) {
