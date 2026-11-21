@@ -539,7 +539,7 @@ export default function CheckIn() {
                     }}><CheckCircle2 size={20} color="var(--navy)" aria-hidden /></div>
                     <div>
                       <h1 style={{ fontSize: 18, fontWeight: 800, color: 'var(--t1)', margin: 0, letterSpacing: '-0.3px' }}>{t('Check In')}</h1>
-                      <p style={{ fontSize: 12, color: 'var(--t4)', margin: '2px 0 0' }}>{today}</p>
+                      <p style={{ fontSize: 12, color: 'var(--t4)', margin: '2px 0 0' }}>{todayLabel}</p>
                     </div>
                   </div>
                   {needsDeskPicker && (

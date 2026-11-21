@@ -211,7 +211,7 @@ export default function FeatureGate({ feature, fallback, children }) {
             {t('Ask your gym owner to request a trial for this module.')}
           </p>
         ) : pendingRequest ? (
-          <div style={{ textAlign: 'left', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 12, padding: 16 }}>
+          <div style={{ textAlign: 'start', background: '#F9FAFB', border: '1px solid #E5E7EB', borderRadius: 12, padding: 16 }}>
             <p style={{ fontSize: 14, color: '#111827', fontWeight: 600, marginBottom: 6 }}>
               {t('Trial request pending')}
             </p>
@@ -231,7 +231,7 @@ export default function FeatureGate({ feature, fallback, children }) {
             </button>
           </div>
         ) : (
-          <form onSubmit={submitRequest} style={{ textAlign: 'left' }}>
+          <form onSubmit={submitRequest} style={{ textAlign: 'start' }}>
             <p style={{ fontSize: 13, color: '#6B7280', marginBottom: 12, lineHeight: 1.45 }}>
               {t('Request a timed trial. Your platform admin can accept or change the period.')}
             </p>
