@@ -1049,6 +1049,7 @@ export default function TenantSettings() {
                     }}
                     aria-hidden
                   >
+                    {/* i18n-ignore */}
                     i
                   </div>
                   <h3 style={{ fontSize: 17, fontWeight: 700, color: 'var(--t1)', margin: '0 0 8px' }}>

@@ -180,6 +180,7 @@ export default function FeatureGate({ feature, fallback, children }) {
           }}
           aria-hidden
         >
+          {/* i18n-ignore */}
           i
         </div>
         <h3 style={{ fontSize: 18, fontWeight: 700, color: '#111827', marginBottom: 8 }}>
