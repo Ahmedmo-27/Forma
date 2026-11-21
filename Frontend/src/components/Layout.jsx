@@ -282,7 +282,7 @@ function DrawerItem({ item, active, onNavigate }) {
 // ── Main layout ───────────────────────────────────────────────────────────────
 export default function Layout({ children }) {
   const { user, signOut, refreshUser } = useAuth();
-  const { tenant, branding, hasFeature } = useTenant();
+  const { tenant, branding, hasFeature, showOutOfPlanFeatures } = useTenant();
   const { version: locationVersion } = useLocationScope();
   const { t, isRtl } = useI18n();
   const navigate = useNavigate();
@@ -297,8 +297,14 @@ export default function Layout({ children }) {
   const [usernameStatus, setUsernameStatus] = useState('idle');
   const dropRef         = useRef(null);
 
-  const items = useMemo(() => visibleNavItems(user, hasFeature), [user, hasFeature]);
-  const bottomNavItems = useMemo(() => bottomNavFor(user?.role, user, hasFeature), [user, hasFeature]);
+  const items = useMemo(
+    () => visibleNavItems(user, hasFeature, showOutOfPlanFeatures),
+    [user, hasFeature, showOutOfPlanFeatures],
+  );
+  const bottomNavItems = useMemo(
+    () => bottomNavFor(user?.role, user, hasFeature, showOutOfPlanFeatures),
+    [user, hasFeature, showOutOfPlanFeatures],
+  );
 
   const showNotif = ['Sales', 'Sales Manager', 'Accountant'].includes(user?.role) && hasFeature('notifications');
   const showWhatsNew = hasFeature('notifications');

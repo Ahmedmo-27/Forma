@@ -4,6 +4,7 @@ import Tenant from "../models/Tenant";
 import Plan from "../models/Plan";
 import User from "../models/User";
 import PlatformUser from "../models/PlatformUser";
+import Member from "../models/Member";
 import AuditLog from "../models/AuditLog";
 import BillingEvent from "../models/BillingEvent";
 import TenantNote from "../models/TenantNote";
@@ -15,10 +16,20 @@ import {
 import {
     listTenantStaff,
     getTenantStaffAccess,
+    updateTenantStaff,
     updateTenantStaffAccess,
 } from "../controllers/platformStaffAccessController";
 import mailer from "../services/mailer";
 import PasswordSetupToken from "../models/PasswordSetupToken";
+const identityUniqueness = require("../utils/identityUniqueness");
+const passwordUtils = require("../utils/passwordUtils");
+
+vi.mock("../middleware/authContextCache", () => ({
+    invalidateAuthContext: vi.fn(),
+}));
+vi.mock("../services/passwordSetupService", () => ({
+    revokeUnusedTokens: vi.fn(async () => undefined),
+}));
 
 describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
     const adminUser = {
@@ -323,6 +334,92 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
             expect(mockTenant.slugHistory).toHaveLength(1);
             expect(mockTenant.slugHistory[0].slug).toBe("old-slug");
         });
+
+        it("updates featureVisibility.showOutOfPlan for out-of-plan previews", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
+            const mockTenant = {
+                _id: tenantId,
+                name: "Preview Gym",
+                slug: "preview-gym",
+                status: "active",
+                billing: { cycle: "monthly" },
+                featureVisibility: { showOutOfPlan: [] },
+                markModified: vi.fn(),
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            vi.spyOn(Tenant, "findById").mockReturnValue({
+                populate: vi.fn().mockResolvedValue(mockTenant),
+            });
+            vi.spyOn(AuditLog, "create").mockResolvedValue({});
+
+            const req = {
+                params: { id: tenantId.toString() },
+                body: {
+                    action: "change_feature_visibility",
+                    reason: "Show reports preview in gym nav",
+                    featureVisibility: { showOutOfPlan: ["reports_basic", "accounting"] },
+                },
+                platformUser: adminUser,
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await updateTenantLifecycle(req, res);
+
+            expect(mockTenant.featureVisibility.showOutOfPlan).toEqual(["reports_basic", "accounting"]);
+            expect(mockTenant.markModified).toHaveBeenCalledWith("featureVisibility");
+            expect(mockTenant.save).toHaveBeenCalled();
+            expect(res.json).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    tenant: expect.objectContaining({
+                        featureVisibility: { showOutOfPlan: ["reports_basic", "accounting"] },
+                    }),
+                })
+            );
+        });
+
+        it("rejects unknown feature keys in featureVisibility", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
+            const mockTenant = {
+                _id: tenantId,
+                name: "Preview Gym",
+                slug: "preview-gym",
+                status: "active",
+                billing: { cycle: "monthly" },
+                featureVisibility: { showOutOfPlan: [] },
+                markModified: vi.fn(),
+                save: vi.fn().mockResolvedValue(true),
+            };
+
+            vi.spyOn(Tenant, "findById").mockReturnValue({
+                populate: vi.fn().mockResolvedValue(mockTenant),
+            });
+
+            const req = {
+                params: { id: tenantId.toString() },
+                body: {
+                    action: "change_feature_visibility",
+                    reason: "Bad key",
+                    featureVisibility: { showOutOfPlan: ["not_a_real_feature"] },
+                },
+                platformUser: adminUser,
+            };
+            const res = {
+                status: vi.fn().mockReturnThis(),
+                json: vi.fn(),
+            };
+
+            await updateTenantLifecycle(req, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith(
+                expect.objectContaining({ code: "INVALID_FEATURE" })
+            );
+            expect(mockTenant.save).not.toHaveBeenCalled();
+        });
     });
 
     describe("Bulk Actions on Filtered Selections", () => {
@@ -407,9 +504,12 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
                 _id: new mongoose.Types.ObjectId(),
                 name: "Staff",
                 email: "staff@gym.com",
+                username: "staffuser",
+                mobile_number: "01000000000",
                 role: "Sales",
                 abilities: {},
                 featureAccess: { grants: [], revokes: [] },
+                accessOverrides: { add: [], remove: [] },
                 markModified: vi.fn(),
                 save: vi.fn().mockResolvedValue(true),
                 ...overrides,
@@ -422,12 +522,14 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
             const owner = staffDoc({
                 name: "Gym Owner",
                 email: "owner@gym.com",
+                username: "gymowner",
                 role: "Owner",
                 tenantId,
             });
             const coach = staffDoc({
                 name: "Gym Coach",
                 email: "coach@gym.com",
+                username: "gymcoach",
                 role: "Coach",
                 tenantId,
             });
@@ -456,7 +558,96 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
             expect(ids).not.toContain(String(stranger._id));
             expect(payload.users.find((user) => String(user._id) === String(owner._id)).isPrimaryOwner).toBe(true);
             expect(payload.users.find((user) => String(user._id) === String(coach._id)).role).toBe("Coach");
+            expect(payload.users.find((user) => String(user._id) === String(coach._id)).username).toBe("gymcoach");
             expect(res.status).not.toHaveBeenCalled();
+        });
+
+        it("updates staff profile fields and writes a platform audit action", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
+            const coach = staffDoc({
+                name: "Gym Coach",
+                email: "coach@gym.com",
+                username: "gymcoach",
+                mobile_number: "01000000001",
+                role: "Coach",
+                tenantId,
+            });
+
+            vi.spyOn(Tenant, "findById").mockImplementation(() => (
+                queryResult({ _id: tenantId, ownerUserId: null })
+            ));
+            vi.spyOn(User, "findOne").mockImplementation((query) => {
+                if (query?._id && query?.tenantId) return queryResult(coach);
+                return queryResult(null);
+            });
+            vi.spyOn(PlatformUser, "findOne").mockImplementation(() => queryResult(null));
+            vi.spyOn(Member, "findOne").mockImplementation(() => queryResult(null));
+            vi.spyOn(identityUniqueness, "assertEmailAvailable").mockResolvedValue("coach.new@gym.com");
+            vi.spyOn(identityUniqueness, "assertUsernameAvailable").mockResolvedValue("newcoach");
+            vi.spyOn(identityUniqueness, "assertPhoneAvailable").mockResolvedValue("201000000099");
+            vi.spyOn(passwordUtils, "normalizeEmail").mockReturnValue("coach.new@gym.com");
+            const audit = vi.spyOn(AuditLog, "create").mockResolvedValue({});
+
+            const res = mockRes();
+            await updateTenantStaff({
+                params: { id: tenantId.toString(), userId: coach._id.toString() },
+                body: {
+                    name: "Updated Coach",
+                    email: "coach.new@gym.com",
+                    username: "newcoach",
+                    mobile_number: "01000000099",
+                    role: "Head Coach",
+                },
+                platformUser: adminUser,
+            }, res);
+
+            expect(coach.name).toBe("Updated Coach");
+            expect(coach.email).toBe("coach.new@gym.com");
+            expect(coach.username).toBe("newcoach");
+            expect(coach.mobile_number).toBe("01000000099");
+            expect(coach.role).toBe("Head Coach");
+            expect(coach.save).toHaveBeenCalled();
+            expect(audit).toHaveBeenCalledWith(expect.objectContaining({
+                action: "platform_staff_updated",
+                targetId: String(coach._id),
+            }));
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                message: "Staff updated",
+                user: expect.objectContaining({
+                    name: "Updated Coach",
+                    username: "newcoach",
+                    role: "Head Coach",
+                }),
+            }));
+        });
+
+        it("blocks demoting the primary owner", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
+            const owner = staffDoc({
+                name: "Gym Owner",
+                email: "owner@gym.com",
+                username: "gymowner",
+                role: "Owner",
+                tenantId,
+            });
+
+            vi.spyOn(Tenant, "findById").mockImplementation(() => (
+                queryResult({ _id: tenantId, ownerUserId: owner._id })
+            ));
+            vi.spyOn(User, "findOne").mockImplementation(() => queryResult(owner));
+
+            const res = mockRes();
+            await updateTenantStaff({
+                params: { id: tenantId.toString(), userId: owner._id.toString() },
+                body: { role: "Sales" },
+                platformUser: adminUser,
+            }, res);
+
+            expect(res.status).toHaveBeenCalledWith(400);
+            expect(res.json).toHaveBeenCalledWith(expect.objectContaining({
+                message: expect.stringContaining("primary owner"),
+            }));
+            expect(owner.save).not.toHaveBeenCalled();
         });
 
         it("saves an owner feature revoke and writes the platform audit action", async () => {

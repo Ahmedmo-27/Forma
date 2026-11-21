@@ -32,13 +32,20 @@ const featureTrialRequestSchema = new mongoose.Schema(
             enum: ["days", "weeks"],
             required: true,
         },
+        // Null when the trial was started by a platform admin (no gym user).
         requestedByUserId: {
             type: mongoose.Schema.Types.ObjectId,
             ref: "User",
-            required: true,
+            default: null,
         },
         requestedByName: { type: String, default: "" },
         requestedByRole: { type: String, default: "" },
+        // "tenant" = gym staff request; "platform" = admin-started grant.
+        source: {
+            type: String,
+            enum: ["tenant", "platform"],
+            default: "tenant",
+        },
         status: {
             type: String,
             enum: ["pending", "approved", "rejected", "cancelled"],

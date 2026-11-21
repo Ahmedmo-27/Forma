@@ -38,8 +38,17 @@ const {
 const {
     listTenantStaff,
     getTenantStaffAccess,
+    createTenantStaff,
+    updateTenantStaff,
     updateTenantStaffAccess,
+    deleteTenantStaff,
 } = require("../controllers/platformStaffAccessController");
+const {
+    listTenantLocations,
+    createTenantLocation,
+    updateTenantLocation,
+    deleteTenantLocation,
+} = require("../controllers/platformLocationController");
 const {
     getFeatures,
     getRoles,
@@ -76,6 +85,7 @@ const {
     listFeatureTrials,
     approveFeatureTrial,
     rejectFeatureTrial,
+    grantFeatureTrial,
 } = require("../controllers/platformFeatureTrialController");
 
 const {
@@ -181,8 +191,16 @@ router.get("/tenants", requirePlatformPermission(PERMISSIONS.TENANTS_READ), cach
 router.post("/tenants", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), autoInvalidate(["tenants", "analytics"], "platform"), onboardTenant);
 router.get("/tenants/:id", requirePlatformPermission(PERMISSIONS.TENANTS_READ), cacheResponse({ ttlSeconds: 60, scope: "platform", tags: ["platform:tenants"] }), getTenantDetail);
 router.get("/tenants/:id/staff", requirePlatformPermission(PERMISSIONS.TENANTS_READ), listTenantStaff);
+router.post("/tenants/:id/staff", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), createTenantStaff);
 router.get("/tenants/:id/staff/:userId/access", requirePlatformPermission(PERMISSIONS.TENANTS_READ), getTenantStaffAccess);
+router.patch("/tenants/:id/staff/:userId", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), updateTenantStaff);
 router.put("/tenants/:id/staff/:userId/access", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), updateTenantStaffAccess);
+router.delete("/tenants/:id/staff/:userId", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), deleteTenantStaff);
+
+router.get("/tenants/:id/locations", requirePlatformPermission(PERMISSIONS.TENANTS_READ), listTenantLocations);
+router.post("/tenants/:id/locations", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), createTenantLocation);
+router.patch("/tenants/:id/locations/:locationId", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), updateTenantLocation);
+router.delete("/tenants/:id/locations/:locationId", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), deleteTenantLocation);
 router.patch("/tenants/:id/lifecycle", requirePlatformPermission(PERMISSIONS.TENANTS_LIFECYCLE), autoInvalidate(["tenants", "analytics"], "platform"), updateTenantLifecycle);
 router.patch("/tenants/:id/purpose", requirePlatformPermission(PERMISSIONS.TENANTS_WRITE), autoInvalidate(["tenants"], "platform"), updateTenantPurpose);
 router.post("/tenants/:id/notes", requirePlatformPermission(PERMISSIONS.TENANTS_NOTES), addTenantNote);
@@ -200,6 +218,12 @@ router.post("/billing/payments/:id/reject", requirePlatformPermission(PERMISSION
 
 // Feature trial requests inbox
 router.get("/feature-trials", requirePlatformPermission(PERMISSIONS.TENANTS_FEATURE_TRIALS), listFeatureTrials);
+router.post(
+    "/tenants/:id/feature-trials",
+    requirePlatformPermission(PERMISSIONS.TENANTS_FEATURE_TRIALS),
+    autoInvalidate(["tenants"], "platform"),
+    grantFeatureTrial
+);
 router.post(
     "/feature-trials/:id/approve",
     requirePlatformPermission(PERMISSIONS.TENANTS_FEATURE_TRIALS),

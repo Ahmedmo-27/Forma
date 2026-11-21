@@ -26,6 +26,7 @@ const { applyPastDue, clearDunning, refreshTenantCaches } = require("../services
 const { resolveFairUseLimits } = require("../utils/fairUse");
 const { loadDunningSchedule } = require("../services/ownerMail");
 const { assessLimitChange, findOverages, overLimitResponse } = require("../services/planLimitService");
+const { isKnownFeature } = require("../config/featureRegistry");
 
 const RESERVED_SLUGS = new Set([
     "www",
@@ -269,6 +270,11 @@ async function getTenantDetail(req, res) {
                         endsAt: t.endsAt,
                         requestId: t.requestId || null,
                     })),
+                featureVisibility: {
+                    showOutOfPlan: Array.isArray(tenant.featureVisibility?.showOutOfPlan)
+                        ? tenant.featureVisibility.showOutOfPlan
+                        : [],
+                },
                 roleOverrides: tenant.roleOverrides || { add: [], remove: [] },
                 limitOverrides: tenant.limitOverrides || {},
                 effectiveFeatures,
@@ -573,6 +579,7 @@ async function updateTenantLifecycle(req, res) {
             trialEndsAt: tenant.trialEndsAt,
             slug: tenant.slug,
             featureOverrides: tenant.featureOverrides,
+            featureVisibility: tenant.featureVisibility || { showOutOfPlan: [] },
             roleOverrides: tenant.roleOverrides,
             limitOverrides: tenant.limitOverrides,
             entitlementPolicy: tenant.billing?.lifetime?.entitlementPolicy,
@@ -686,6 +693,34 @@ async function updateTenantLifecycle(req, res) {
                 break;
             }
 
+            case "change_feature_visibility": {
+                const raw = payload.featureVisibility?.showOutOfPlan;
+                if (!Array.isArray(raw)) {
+                    return res.status(400).json({
+                        message: "featureVisibility.showOutOfPlan must be an array of feature keys",
+                    });
+                }
+                const normalized = [];
+                const seen = new Set();
+                for (const entry of raw) {
+                    const key = String(entry || "").trim().toLowerCase();
+                    if (!key || seen.has(key)) continue;
+                    if (!isKnownFeature(key)) {
+                        return res.status(400).json({
+                            code: "INVALID_FEATURE",
+                            message: `Unknown feature key: ${key}`,
+                        });
+                    }
+                    seen.add(key);
+                    normalized.push(key);
+                }
+                if (!tenant.featureVisibility) tenant.featureVisibility = { showOutOfPlan: [] };
+                tenant.featureVisibility.showOutOfPlan = normalized;
+                tenant.markModified("featureVisibility");
+                afterState.featureVisibility = { showOutOfPlan: normalized };
+                break;
+            }
+
             case "change_entitlement_policy": {
                 const { entitlementPolicy } = payload;
                 if (!["follow_tier", "snapshot"].includes(entitlementPolicy)) {
@@ -776,6 +811,7 @@ async function updateTenantLifecycle(req, res) {
                 billing: tenant.billing,
                 trialEndsAt: tenant.trialEndsAt,
                 featureOverrides: tenant.featureOverrides,
+                featureVisibility: tenant.featureVisibility || { showOutOfPlan: [] },
                 roleOverrides: tenant.roleOverrides,
                 limitOverrides: tenant.limitOverrides,
             },

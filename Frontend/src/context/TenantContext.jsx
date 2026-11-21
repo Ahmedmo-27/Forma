@@ -221,6 +221,9 @@ export function TenantProvider({ children }) {
     effectiveAccess: tenant?.effectiveAccess || EMPTY_LIST,
     lockedFeatureCatalog: tenant?.lockedFeatureCatalog || EMPTY_LIST,
     activeFeatureTrials: tenant?.activeFeatureTrials || EMPTY_LIST,
+    showOutOfPlanFeatures: Array.isArray(tenant?.featureVisibility?.showOutOfPlan)
+      ? tenant.featureVisibility.showOutOfPlan
+      : EMPTY_LIST,
   };
 
   const brandingPending = Boolean(userId) && paletteUserId !== userId;

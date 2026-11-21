@@ -76,6 +76,11 @@ function sanitizeTenantResponse(tenant, plan, usage = {}) {
         effectiveFeatures,
         effectiveRoles: getEffectiveRoles(tenant, plan),
         activeFeatureTrials: trials,
+        featureVisibility: {
+            showOutOfPlan: Array.isArray(tenant.featureVisibility?.showOutOfPlan)
+                ? tenant.featureVisibility.showOutOfPlan
+                : [],
+        },
         limits: resolvedLimits,
         effectiveLimits: resolvedLimits,
         usage: {

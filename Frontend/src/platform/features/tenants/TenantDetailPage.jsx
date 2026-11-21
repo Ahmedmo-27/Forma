@@ -39,8 +39,10 @@ import { Skeleton } from "../../ui/Skeleton";
 import { ConfirmDialog } from "../../shell/ConfirmDialog";
 import TenantOverridesModal from "./TenantOverridesModal";
 import TenantFeatureEditor from "./TenantFeatureEditor";
+import TenantOutOfPlanPanel from "./TenantOutOfPlanPanel";
 import TenantSubscriptionPanel from "./TenantSubscriptionPanel";
 import TenantStaffAccess from "./TenantStaffAccess";
+import TenantBranchesPanel from "./TenantBranchesPanel";
 import { usePermission } from "../../lib/auth/PermissionContext";
 import { usePlatformAuth } from "../../lib/auth/AuthContext";
 import { formatCurrency, formatDate, formatBytes } from "../../lib/utils/formatters";
@@ -155,6 +157,7 @@ export default function TenantDetailPage() {
     : (Array.isArray(tenant?.effectiveRoles) ? tenant.effectiveRoles : (tenant?.planId?.allowedRoles || tenant?.plan?.allowedRoles || []));
   const memberCount = usage.memberCount ?? usage.members ?? 0;
   const staffCount = usage.staffCount ?? usage.staff ?? 0;
+  const branchCount = usage.branchCount ?? usage.branches ?? 0;
   const notes = data?.notes || [];
   const recentAudit = data?.recentAudit || [];
   const recentLedger = data?.recentLedger || [];
@@ -280,10 +283,13 @@ export default function TenantDetailPage() {
         reason: "Direct console tenant inspection",
       });
 
-      startImpersonation({
-        tenant: res.data.session?.tenant || { id: tenant._id, name: tenant.name, slug: tenant.slug },
-        mode: res.data.session?.mode || "read_only",
-      });
+      startImpersonation(
+        {
+          tenant: res.data.session?.tenant || { id: tenant._id, name: tenant.name, slug: tenant.slug },
+          mode: res.data.session?.mode || "read_only",
+        },
+        res.data
+      );
 
       platformToast.success(`Read-only session initiated for ${tenant.name}.`);
       window.open(res.data.redirectPath || "/members", "_blank");
@@ -602,6 +608,9 @@ export default function TenantDetailPage() {
           <TabTrigger value="overview">Overview & Limits</TabTrigger>
           <TabTrigger value="features">Features</TabTrigger>
           <TabTrigger value="access">Access</TabTrigger>
+          <TabTrigger value="branches" badge={branchCount || undefined}>
+            Branches
+          </TabTrigger>
           <TabTrigger value="notes" badge={notes.length}>
             Internal Notes
           </TabTrigger>
@@ -636,6 +645,12 @@ export default function TenantDetailPage() {
                   current={staffCount}
                   max={effectiveLimits.maxStaff > 0 ? effectiveLimits.maxStaff : null}
                   unit="staff"
+                />
+                <UsageMeter
+                  label="Branches"
+                  current={branchCount}
+                  max={effectiveLimits.maxBranches > 0 ? effectiveLimits.maxBranches : null}
+                  unit="branches"
                 />
                 <UsageMeter
                   label="Disk Storage Consumption"
@@ -793,12 +808,17 @@ export default function TenantDetailPage() {
         <TabContent value="features">
           <div className="space-y-4">
             <TenantSubscriptionPanel tenant={tenant} onSaved={refetch} />
+            <TenantOutOfPlanPanel tenant={tenant} onSaved={refetch} />
             <TenantFeatureEditor tenant={tenant} onSaved={refetch} />
           </div>
         </TabContent>
 
         <TabContent value="access">
           <TenantStaffAccess tenantId={id} />
+        </TabContent>
+
+        <TabContent value="branches">
+          <TenantBranchesPanel tenantId={id} />
         </TabContent>
 
         {/* TAB 2: INTERNAL NOTES */}

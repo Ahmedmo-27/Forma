@@ -222,6 +222,8 @@ export const refundPTSessions = (id, refund_amount, reason) =>
 // ── Multi-Tenant SaaS ─────────────────────────────────────────────────────────
 export const getTenantMe = () => api.get('/tenant/me', {
   params: { _: Date.now() },
+  // Boot/branding fetch — never open System Error beside a successful login toast.
+  skipGlobalError: true,
 });
 export const updateTenantMe = (data) => api.patch('/tenant/me', data);
 export const getTenantOnboarding = () => api.get('/tenant/onboarding');
@@ -235,7 +237,7 @@ export const uploadTenantLogo = (formData) =>
   api.post('/tenant/me/logo', formData);
 
 // ── Locations / branches ──────────────────────────────────────────────────────
-export const listLocations = () => api.get('/locations');
+export const listLocations = () => api.get('/locations', { skipGlobalError: true });
 export const createLocation = (data) => api.post('/locations', data);
 export const updateLocation = (id, data) => api.patch(`/locations/${id}`, data);
 export const deleteLocation = (id) => api.delete(`/locations/${id}`);

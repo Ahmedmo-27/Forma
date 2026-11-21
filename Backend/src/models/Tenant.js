@@ -198,6 +198,11 @@ const tenantSchema = new mongoose.Schema(
                 },
             },
         ],
+        // Platform-controlled: which out-of-plan feature keys appear as locked
+        // previews in the gym nav. Empty = hide all (default).
+        featureVisibility: {
+            showOutOfPlan: [{ type: String, lowercase: true, trim: true }],
+        },
         roleOverrides: {
             add: [{ type: String }],
             remove: [{ type: String }],

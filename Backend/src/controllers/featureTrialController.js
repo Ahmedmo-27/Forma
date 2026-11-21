@@ -34,6 +34,7 @@ function serializeRequest(doc) {
         requestedByUserId: plain.requestedByUserId ? String(plain.requestedByUserId) : null,
         requestedByName: plain.requestedByName || "",
         requestedByRole: plain.requestedByRole || "",
+        source: plain.source === "platform" ? "platform" : "tenant",
         status: plain.status,
         adminNote: plain.adminNote || "",
         approvedDurationValue: plain.approvedDurationValue,

@@ -7,7 +7,7 @@ export const apiLogin = (data, signal) =>
   platformClient.post("/auth/login", data, { signal });
 
 export const apiGetMe = (signal) =>
-  platformClient.get("/auth/me", { signal });
+  platformClient.get("/auth/me", { signal, skipGlobalError: true });
 
 // ==========================================
 // 2. Platform Operators & Users
@@ -42,11 +42,32 @@ export const apiGetTenantDetail = (id, signal) =>
 export const apiListTenantStaff = (id, signal) =>
   platformClient.get(`/tenants/${id}/staff`, { signal });
 
+export const apiCreateTenantStaff = (id, data, signal) =>
+  platformClient.post(`/tenants/${id}/staff`, data, { signal });
+
 export const apiGetTenantStaffAccess = (id, userId, signal) =>
   platformClient.get(`/tenants/${id}/staff/${userId}/access`, { signal });
 
+export const apiUpdateTenantStaff = (id, userId, data, signal) =>
+  platformClient.patch(`/tenants/${id}/staff/${userId}`, data, { signal });
+
 export const apiUpdateTenantStaffAccess = (id, userId, features, signal) =>
   platformClient.put(`/tenants/${id}/staff/${userId}/access`, { features }, { signal });
+
+export const apiDeleteTenantStaff = (id, userId, signal) =>
+  platformClient.delete(`/tenants/${id}/staff/${userId}`, { signal });
+
+export const apiListTenantLocations = (id, signal) =>
+  platformClient.get(`/tenants/${id}/locations`, { signal });
+
+export const apiCreateTenantLocation = (id, data, signal) =>
+  platformClient.post(`/tenants/${id}/locations`, data, { signal });
+
+export const apiUpdateTenantLocation = (id, locationId, data, signal) =>
+  platformClient.patch(`/tenants/${id}/locations/${locationId}`, data, { signal });
+
+export const apiDeleteTenantLocation = (id, locationId, signal) =>
+  platformClient.delete(`/tenants/${id}/locations/${locationId}`, { signal });
 
 export const apiOnboardTenant = (data, signal) =>
   platformClient.post("/tenants", data, { signal });
@@ -153,6 +174,9 @@ export const apiRejectPayment = (id, data, signal) =>
 // ==========================================
 export const apiGetFeatureTrials = (params, signal) =>
   platformClient.get("/feature-trials", { params, signal });
+
+export const apiGrantTenantFeatureTrial = (tenantId, data, signal) =>
+  platformClient.post(`/tenants/${tenantId}/feature-trials`, data, { signal });
 
 export const apiApproveFeatureTrial = (id, data, signal) =>
   platformClient.post(`/feature-trials/${id}/approve`, data, { signal });

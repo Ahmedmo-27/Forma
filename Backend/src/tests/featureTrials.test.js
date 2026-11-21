@@ -9,7 +9,11 @@ import {
 import FeatureTrialRequest from "../models/FeatureTrialRequest";
 import Tenant from "../models/Tenant";
 import { createRequest } from "../controllers/featureTrialController";
-import { approveFeatureTrial, rejectFeatureTrial } from "../controllers/platformFeatureTrialController";
+import {
+    approveFeatureTrial,
+    rejectFeatureTrial,
+    grantFeatureTrial,
+} from "../controllers/platformFeatureTrialController";
 
 vi.mock("../services/featureRollout", () => ({
     applyRollout: (features) => features,
@@ -18,6 +22,10 @@ vi.mock("../services/featureRollout", () => ({
 vi.mock("../utils/audit", () => ({
     writeAudit: vi.fn().mockResolvedValue(true),
     writePlatformAudit: vi.fn().mockResolvedValue(true),
+}));
+
+vi.mock("../utils/cacheInvalidator", () => ({
+    invalidateTenantCache: vi.fn(),
 }));
 
 vi.mock("../services/featurePlanLookup", () => ({
@@ -326,6 +334,113 @@ describe("platform feature trial decisions", () => {
             expect.objectContaining({
                 request: expect.objectContaining({ status: "rejected" }),
             })
+        );
+    });
+
+    it("grants a platform-initiated trial for a tenant", async () => {
+        const now = new Date("2026-06-01T00:00:00.000Z");
+        vi.useFakeTimers();
+        vi.setSystemTime(now);
+
+        const tenant = {
+            _id: "t1",
+            name: "Gym",
+            slug: "gym",
+            planId: basicPlan,
+            featureOverrides: { add: [], remove: [] },
+            featureTrials: [],
+            markModified: vi.fn(),
+            save: vi.fn().mockResolvedValue(undefined),
+        };
+
+        const created = {
+            _id: "grant-1",
+            tenantId: "t1",
+            featureKey: "accounting",
+            featureName: "Ledger & Accounting",
+            status: "approved",
+            source: "platform",
+            requestedDurationValue: 14,
+            requestedDurationUnit: "days",
+            toObject() {
+                return { ...this };
+            },
+        };
+
+        vi.spyOn(Tenant, "findById").mockReturnValue({
+            populate: vi.fn().mockResolvedValue(tenant),
+        });
+        vi.spyOn(FeatureTrialRequest, "updateMany").mockResolvedValue({ modifiedCount: 0 });
+        vi.spyOn(FeatureTrialRequest, "create").mockResolvedValue(created);
+
+        const req = {
+            params: { id: "t1" },
+            body: { featureKey: "accounting", durationValue: 14, durationUnit: "days", note: "Pilot" },
+            platformUser: { id: "admin-1", email: "admin@forma.app" },
+        };
+        const res = mockRes();
+        await grantFeatureTrial(req, res);
+
+        expect(FeatureTrialRequest.create).toHaveBeenCalledWith(
+            expect.objectContaining({
+                featureKey: "accounting",
+                source: "platform",
+                status: "approved",
+                requestedByUserId: null,
+            })
+        );
+        expect(tenant.featureTrials).toHaveLength(1);
+        expect(tenant.featureTrials[0].featureKey).toBe("accounting");
+        expect(tenant.featureTrials[0].endsAt.toISOString()).toBe("2026-06-15T00:00:00.000Z");
+        expect(res.status).toHaveBeenCalledWith(201);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({
+                featureTrial: expect.objectContaining({ featureKey: "accounting" }),
+            })
+        );
+    });
+
+    it("rejects platform grant when feature already enabled", async () => {
+        const tenant = {
+            _id: "t1",
+            name: "Gym",
+            slug: "gym",
+            planId: basicPlan,
+            featureOverrides: { add: [], remove: [] },
+            featureTrials: [],
+            markModified: vi.fn(),
+            save: vi.fn().mockResolvedValue(undefined),
+        };
+        vi.spyOn(Tenant, "findById").mockReturnValue({
+            populate: vi.fn().mockResolvedValue(tenant),
+        });
+
+        const req = {
+            params: { id: "t1" },
+            body: { featureKey: "members", durationValue: 7, durationUnit: "days" },
+            platformUser: { id: "admin-1" },
+        };
+        const res = mockRes();
+        await grantFeatureTrial(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ code: "FEATURE_ALREADY_ENABLED" })
+        );
+    });
+
+    it("rejects platform grant for unknown feature keys", async () => {
+        const req = {
+            params: { id: "t1" },
+            body: { featureKey: "not_real", durationValue: 7, durationUnit: "days" },
+            platformUser: { id: "admin-1" },
+        };
+        const res = mockRes();
+        await grantFeatureTrial(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(400);
+        expect(res.json).toHaveBeenCalledWith(
+            expect.objectContaining({ code: "INVALID_FEATURE" })
         );
     });
 });

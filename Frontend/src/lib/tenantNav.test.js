@@ -49,18 +49,27 @@ describe("Tenant navigation", () => {
         expect(manager).not.toContain("/sales/callcenter");
         expect(manager).toContain("/members");
 
-        // Owners may still browse locked modules (trial request access).
+        // Default: out-of-plan modules stay hidden even for Owner (empty allow-list).
         const reportless = visibleNavItems(
             user("Owner"),
             without("reports_basic", "exec_analytics", "funnels", "business_intelligence"),
         );
-        expect(reportless.find((item) => item.to === "/reports")?.locked).toBe(true);
+        expect(reportless.map((item) => item.to)).not.toContain("/reports");
         expect(reportless.map((item) => item.to)).toContain("/owner/settings");
 
-        // Roles without trial-request access hide missing plan modules.
+        // Allow-listed out-of-plan feature shows as locked for Owner.
+        const reportPreview = visibleNavItems(
+            user("Owner"),
+            without("reports_basic", "exec_analytics", "funnels", "business_intelligence"),
+            ["reports_basic"],
+        );
+        expect(reportPreview.find((item) => item.to === "/reports")?.locked).toBe(true);
+
+        // Roles without trial-request access hide missing plan modules even if allow-listed.
         const salesReportless = visibleNavItems(
             user("Sales"),
             without("reports_basic", "exec_analytics", "funnels", "business_intelligence"),
+            ["reports_basic"],
         ).map((item) => item.to);
         expect(salesReportless).not.toContain("/reports");
 
@@ -72,10 +81,10 @@ describe("Tenant navigation", () => {
         expect(receptionist).toEqual([]);
 
         const ownerOff = visibleNavItems(user("Owner"), off);
-        // Dashboard and settings have no plan feature; other Owner tabs stay as locked previews.
+        // Dashboard and settings have no plan feature; other Owner tabs stay hidden by default.
         expect(ownerOff.map((item) => item.to)).toContain("/owner/dashboard");
         expect(ownerOff.map((item) => item.to)).toContain("/owner/settings");
-        expect(ownerOff.find((item) => item.to === "/members")?.locked).toBe(true);
+        expect(ownerOff.map((item) => item.to)).not.toContain("/members");
     });
 
     it("hides the new module pages when their feature is removed", () => {
@@ -87,20 +96,37 @@ describe("Tenant navigation", () => {
             access_control: { path: "/owner/access", role: "Sales Manager" },
         };
         for (const [feature, { path, role }] of Object.entries(gated)) {
-            // Owner keeps locked previews; roles without trial-request access hide them.
-            const ownerItem = visibleNavItems(user("Owner"), (key) => key !== feature).find((item) => item.to === path);
-            expect(ownerItem?.locked, `owner ${feature}`).toBe(true);
+            // Without allow-list, Owner also hides locked modules.
+            const ownerPaths = visibleNavItems(user("Owner"), (key) => key !== feature).map((item) => item.to);
+            expect(ownerPaths, `owner ${feature}`).not.toContain(path);
 
-            const paths = visibleNavItems(user(role), (key) => key !== feature).map((item) => item.to);
+            // With allow-list, Owner sees a locked preview.
+            const ownerItem = visibleNavItems(
+                user("Owner"),
+                (key) => key !== feature,
+                [feature],
+            ).find((item) => item.to === path);
+            expect(ownerItem?.locked, `owner preview ${feature}`).toBe(true);
+
+            const paths = visibleNavItems(user(role), (key) => key !== feature, [feature]).map((item) => item.to);
             expect(paths, feature).not.toContain(path);
         }
     });
 
     it("filters bottom tabs by plan feature and lets later tabs move up", () => {
-        // Owner keeps locked Tasks; Sales Manager drops it so later tabs are not needed here.
+        // Default: Owner hides locked Tasks so the bottom bar only keeps unlocked tabs.
         const ownerTabs = bottomNavFor("Owner", user("Owner"), (feature) => feature !== "tasks");
-        expect(ownerTabs.map((item) => item.to)).toEqual(["/owner/dashboard", "/members", "/checkin", "/tasks"]);
-        expect(ownerTabs.find((item) => item.to === "/tasks")?.locked).toBe(true);
+        expect(ownerTabs.map((item) => item.to)).toEqual(["/owner/dashboard", "/members", "/checkin"]);
+
+        // Allow-listed Tasks stays as a locked bottom tab.
+        const ownerPreview = bottomNavFor(
+            "Owner",
+            user("Owner"),
+            (feature) => feature !== "tasks",
+            ["tasks"],
+        );
+        expect(ownerPreview.map((item) => item.to)).toEqual(["/owner/dashboard", "/members", "/checkin", "/tasks"]);
+        expect(ownerPreview.find((item) => item.to === "/tasks")?.locked).toBe(true);
 
         const managerTabs = bottomNavFor("Sales Manager", user("Sales Manager"), (feature) => feature !== "tasks");
         expect(managerTabs.map((item) => item.to)).toEqual(["/sales/dashboard", "/members", "/checkin"]);

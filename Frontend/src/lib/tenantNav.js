@@ -1,6 +1,6 @@
 import { hasAccess } from './access.js';
 import { canSeeRoute, routeFeatureAllowed } from './canSeeRoute.js';
-import { canSeeLockedFeatures } from './featureTrials.js';
+import { canShowLockedNavTarget } from './featureTrials.js';
 
 export const NAV = {
   Receptionist:  [{ to: '/checkin', label: 'Check In', access: 'check_in' }, { to: '/members', label: 'Members', access: 'members' }, { to: '/maintenance', label: 'Maintenance', access: 'maintenance_checklist' }, { to: '/retail/pos', label: 'Bar & Shop', access: 'retail_pos' }, { to: '/contacts', label: 'Contacts' }],
@@ -74,15 +74,14 @@ function withLockedFlag(item, hasFeature) {
   return unlocked ? item : { ...item, locked: true };
 }
 
-export function bottomNavFor(role, user, hasFeature) {
+export function bottomNavFor(role, user, hasFeature, showOutOfPlanKeys = []) {
   const roleNav = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG.Receptionist;
-  const showLocked = canSeeLockedFeatures(user);
   const allowed = user && typeof hasFeature === 'function'
     ? roleNav
         .filter((item) => {
           if (!canSeeRoute(user, () => true, item.to)) return false;
           if (routeFeatureAllowed(hasFeature, item.to)) return true;
-          return showLocked;
+          return canShowLockedNavTarget(user, item.to, showOutOfPlanKeys);
         })
         .map((item) => withLockedFlag(item, hasFeature))
     : roleNav;
@@ -90,14 +89,15 @@ export function bottomNavFor(role, user, hasFeature) {
 }
 
 /** Same visibility rules the sidebar used inline. */
-export function visibleNavItems(user, hasFeature = () => true) {
+export function visibleNavItems(user, hasFeature = () => true, showOutOfPlanKeys = []) {
   const rawItems = NAV[user?.role] ?? NAV.Receptionist;
   const keys = Array.isArray(user?.access) ? user.access : null;
-  const showLocked = canSeeLockedFeatures(user);
   const visible = rawItems.filter((item) => {
     if (keys && item.access && !keys.includes(item.access)) return false;
-    // Plan gating: hide missing modules unless this person may browse locked ones.
-    if (!routeFeatureAllowed(hasFeature, item.to)) return showLocked;
+    // Plan gating: hide missing modules unless platform allow-listed for preview.
+    if (!routeFeatureAllowed(hasFeature, item.to)) {
+      return canShowLockedNavTarget(user, item.to, showOutOfPlanKeys);
+    }
     return true;
   }).map((item) => withLockedFlag(item, hasFeature));
   const seenPaths = new Set(visible.map((item) => item.to));
@@ -108,7 +108,8 @@ export function visibleNavItems(user, hasFeature = () => true) {
   };
   const canSeeAnalytics = ANALYTICS_ROLES.includes(user?.role) && hasAccess(user, ['reports', 'owner_dashboard', 'accounting_dashboard', 'sales_dashboard']);
   const analyticsUnlocked = routeFeatureAllowed(hasFeature, '/analytics');
-  if (canSeeAnalytics && (analyticsUnlocked || showLocked) && !seenPaths.has('/analytics')) {
+  const analyticsVisible = analyticsUnlocked || canShowLockedNavTarget(user, '/analytics', showOutOfPlanKeys);
+  if (canSeeAnalytics && analyticsVisible && !seenPaths.has('/analytics')) {
     const analytics = withLockedFlag({ to: '/analytics', label: 'Analytics' }, hasFeature);
     markSeen(analytics);
     const contactsAt = visible.findIndex((item) => item.to === '/contacts');
@@ -122,10 +123,11 @@ export function visibleNavItems(user, hasFeature = () => true) {
     visible.push(reports);
   }
   const accessUnlocked = routeFeatureAllowed(hasFeature, '/owner/access');
+  const accessVisible = accessUnlocked || canShowLockedNavTarget(user, '/owner/access', showOutOfPlanKeys);
   if (
     ['Owner', 'General Manager', 'Sales Manager'].includes(user?.role)
     && hasAccess(user, 'access_control')
-    && (accessUnlocked || showLocked)
+    && accessVisible
     && !seenPaths.has('/owner/access')
     && !seenPaths.has('/management/access')
   ) {
@@ -140,7 +142,7 @@ export function visibleNavItems(user, hasFeature = () => true) {
   for (const extra of extras) {
     if (!extra?.to) continue;
     const unlocked = routeFeatureAllowed(hasFeature, extra.to);
-    if (!unlocked && !showLocked) continue;
+    if (!unlocked && !canShowLockedNavTarget(user, extra.to, showOutOfPlanKeys)) continue;
     const label = extra.label || 'Feature';
     // Non-default grants often add alternate role paths (coach/accounting dashboards,
     // my-callcenter, management access) that collide with the role's existing tabs.
