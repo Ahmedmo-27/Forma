@@ -30,6 +30,8 @@ const AR = {
   'More Options': 'خيارات إضافية',
   'Open Navigation Menu': 'فتح قائمة التنقل',
   'Close menu': 'إغلاق القائمة',
+  'Scroll tabs left': 'تمرير علامات التبويب لليسار',
+  'Scroll tabs right': 'تمرير علامات التبويب لليمين',
   'Search members': 'البحث عن الأعضاء',
   'Go to dashboard': 'الذهاب إلى لوحة التحكم',
   'User Profile Menu': 'قائمة الملف الشخصي',

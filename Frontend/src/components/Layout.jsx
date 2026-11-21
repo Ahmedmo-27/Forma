@@ -1,11 +1,13 @@
 import { apiOrigin } from '../api/axios';
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import {
   AlertTriangle,
   ArrowLeftRight,
   CheckSquare,
+  ChevronLeft,
+  ChevronRight,
   ClipboardList,
   Headphones,
   LayoutDashboard,
@@ -207,6 +209,7 @@ function TabItem({ item, active }) {
         const isActive = active ?? navActive;
         return (
           <span
+            data-nav-active={isActive ? 'true' : undefined}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
               padding: '10px 22px', borderRadius: 8,
@@ -245,6 +248,174 @@ function TabItem({ item, active }) {
         );
       }}
     </NavLink>
+  );
+}
+
+const TAB_SCROLL_BTN = {
+  width: 32,
+  height: 32,
+  borderRadius: 8,
+  border: '1px solid rgba(255,255,255,0.14)',
+  background: 'rgba(255,255,255,0.10)',
+  color: '#fff',
+  display: 'inline-flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  cursor: 'pointer',
+  padding: 0,
+  pointerEvents: 'auto',
+  flexShrink: 0,
+  fontFamily: 'inherit',
+};
+
+function TabNavBar({ items, pathname }) {
+  const { t } = useI18n();
+  const scrollRef = useRef(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const updateOverflow = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el?.children?.length) {
+      setCanScrollLeft(false);
+      setCanScrollRight(false);
+      return;
+    }
+    const { left, right } = el.getBoundingClientRect();
+    let minLeft = Infinity;
+    let maxRight = -Infinity;
+    for (const child of el.children) {
+      const rect = child.getBoundingClientRect();
+      minLeft = Math.min(minLeft, rect.left);
+      maxRight = Math.max(maxRight, rect.right);
+    }
+    setCanScrollLeft(minLeft < left - 1);
+    setCanScrollRight(maxRight > right + 1);
+  }, []);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    updateOverflow();
+    el.addEventListener('scroll', updateOverflow, { passive: true });
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(updateOverflow) : null;
+    ro?.observe(el);
+    window.addEventListener('resize', updateOverflow);
+    return () => {
+      el.removeEventListener('scroll', updateOverflow);
+      ro?.disconnect();
+      window.removeEventListener('resize', updateOverflow);
+    };
+  }, [updateOverflow, items]);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    const active = el.querySelector('[data-nav-active="true"]');
+    if (active) {
+      active.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+      const timer = window.setTimeout(updateOverflow, 360);
+      return () => window.clearTimeout(timer);
+    }
+    updateOverflow();
+    return undefined;
+  }, [pathname, items, updateOverflow]);
+
+  const scrollByDir = (dir) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const amount = Math.max(160, Math.floor(el.clientWidth * 0.7));
+    el.scrollBy({ left: dir * amount, behavior: 'smooth' });
+  };
+
+  return (
+    <div
+      id="tab-nav-bar"
+      data-walkthrough="tab-nav"
+      style={{
+        position: 'relative',
+        background: TAB_BG,
+        borderTop: '1px solid rgba(255,255,255,0.06)',
+        height: 56,
+        boxShadow: '0 3px 10px rgba(0,0,0,0.35)',
+      }}
+    >
+      <div
+        ref={scrollRef}
+        className="tab-nav-scroll"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 6,
+          height: '100%',
+          padding: '0 24px',
+          overflowX: 'auto',
+          scrollbarWidth: 'none',
+        }}
+      >
+        {items.map((item) => (
+          <TabItem
+            key={item.to}
+            item={item}
+            active={isNavItemActive(item, pathname, items)}
+          />
+        ))}
+      </div>
+
+      {canScrollLeft ? (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: 48,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(to right, var(--nav-tab-bg, var(--nav-bg)) 55%, transparent)',
+            zIndex: 1,
+            pointerEvents: 'none',
+          }}
+        >
+          <button
+            type="button"
+            aria-label={t('Scroll tabs left')}
+            onClick={() => scrollByDir(-1)}
+            style={TAB_SCROLL_BTN}
+          >
+            <ChevronLeft size={18} strokeWidth={2.25} aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
+
+      {canScrollRight ? (
+        <div
+          style={{
+            position: 'absolute',
+            right: 0,
+            top: 0,
+            bottom: 0,
+            width: 48,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'linear-gradient(to left, var(--nav-tab-bg, var(--nav-bg)) 55%, transparent)',
+            zIndex: 1,
+            pointerEvents: 'none',
+          }}
+        >
+          <button
+            type="button"
+            aria-label={t('Scroll tabs right')}
+            onClick={() => scrollByDir(1)}
+            style={TAB_SCROLL_BTN}
+          >
+            <ChevronRight size={18} strokeWidth={2.25} aria-hidden="true" />
+          </button>
+        </div>
+      ) : null}
+    </div>
   );
 }
 
@@ -594,24 +765,7 @@ export default function Layout({ children }) {
       {/* END sticky row 1 */}
 
       {/* ── ROW 2 — tab nav (scrolls away with page on desktop) ── */}
-      <div id="tab-nav-bar" data-walkthrough="tab-nav" style={{
-        background: TAB_BG,
-        borderTop: '1px solid rgba(255,255,255,0.06)',
-        padding: '0 24px',
-        height: 56,
-        display: 'flex', alignItems: 'center',
-        gap: 6,
-        overflowX: 'auto', scrollbarWidth: 'none',
-        boxShadow: '0 3px 10px rgba(0,0,0,0.35)',
-      }}>
-        {items.map(item => (
-          <TabItem
-            key={item.to}
-            item={item}
-            active={isNavItemActive(item, location.pathname, items)}
-          />
-        ))}
-      </div>
+      <TabNavBar items={items} pathname={location.pathname} />
 
       {/* ── MOBILE DRAWER ──────────────────────────────────────── */}
       {mob && <div onClick={() => setMob(false)} className="modal-backdrop-in" style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(3px)' }} />}
@@ -892,7 +1046,7 @@ export default function Layout({ children }) {
 
       {/* i18n-ignore */}
       <style>{`
-        #tab-nav-bar::-webkit-scrollbar { display: none; }
+        #tab-nav-bar .tab-nav-scroll::-webkit-scrollbar { display: none; }
         #desk-search > * { width: 100% !important; max-width: 100% !important; flex: none !important; }
         @media (max-width: 1280px) { #prof-text, #prof-arrow { display: none !important; } }
         @media (max-width: 1024px) {
