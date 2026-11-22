@@ -42,7 +42,7 @@ const AR = {
   'No sales person': 'بدون مندوب مبيعات',
   'Who should be credited for this contract': 'من يجب احتساب هذا العقد له',
   'This contract is signed. You can still change the sales person, but package terms are locked.': 'هذا العقد موقَّع. يمكنك تغيير مندوب المبيعات، لكن شروط الباقة مقفلة.',
-  'Sale': 'بيعة',
+  'Attributed sale': 'بيعة منسوبة',
 
   // Package requests
   'Package Exception Request': 'طلب باقة استثنائية',

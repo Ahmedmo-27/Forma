@@ -27,7 +27,7 @@ function DetailRow({ label, value }) {
 function sourceLabel(t, source) {
   if (source === 'direct_assignment') return t('Direct Assignment');
   if (source === 'approved_request') return t('Approved Request');
-  return t('Sale');
+  return t('Attributed sale');
 }
 
 function formFromContract(contract) {
