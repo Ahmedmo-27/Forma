@@ -15,6 +15,7 @@ import MemberDetailColumnsModal from '../components/MemberDetailColumnsModal';
 import MemberVisitsTable from '../components/MemberVisitsTable';
 import { isCheckInTypeRequired } from '../lib/checkInType';
 import CheckInScanner from '../components/CheckInScanner';
+import MemberRestrictionControls from '../components/MemberRestrictionControls';
 import { parseScannedIdentifier } from '../lib/scannerParser';
 import useHardwareScanner from '../hooks/useHardwareScanner';
 import useLocationEffect from '../hooks/useLocationEffect';
@@ -882,6 +883,16 @@ export default function CheckIn() {
                         </div>
                       </div>
                     )}
+
+                    <MemberRestrictionControls
+                      member={member}
+                      user={user}
+                      layout="stretch"
+                      onUpdated={(updated) => {
+                        setMember(updated);
+                        window.dispatchEvent(new Event('members-changed'));
+                      }}
+                    />
 
                     {/* Result */}
                     {result && (

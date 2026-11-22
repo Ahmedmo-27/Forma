@@ -7,9 +7,9 @@ import { featureAllowed } from '../../lib/canSeeRoute';
 import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Tabs, Badge, Btn, Spinner, Skeleton, Modal, Input } from '../../components/ui';
-import { getMemberProfile, checkInMember, blockMember, unblockMember, suspendMember } from '../../api/endpoints';
-import { hasAccess } from '../../lib/access';
+import { PageHeader, Tabs, Badge, Btn, Spinner, Skeleton } from '../../components/ui';
+import { getMemberProfile, checkInMember } from '../../api/endpoints';
+import MemberRestrictionControls, { canManageMemberRestrictions } from '../../components/MemberRestrictionControls';
 import { memberStatusBadge, isMemberSuspended, checkInRestrictionMessage } from '../../lib/memberRestriction';
 import ProfilePhotoUpload from '../../components/ProfilePhotoUpload';
 import MemberQrButton from '../../components/MemberQrButton';
@@ -89,13 +89,6 @@ export default function MemberProfile() {
 
   const [alertPopup, setAlertPopup] = useState(null); // array of alert texts or null
   const alertShownRef = useRef(false);
-  const [showBlockModal, setShowBlockModal] = useState(false);
-  const [showSuspendModal, setShowSuspendModal] = useState(false);
-  const [blockReason, setBlockReason]       = useState('');
-  const [suspendUntil, setSuspendUntil]     = useState('');
-  const [suspendReason, setSuspendReason]   = useState('');
-  const [blocking, setBlocking]             = useState(false);
-
   usePageTitle(data?.member?.name ?? t('Profile'));
 
   useEffect(() => {
@@ -176,48 +169,6 @@ export default function MemberProfile() {
     handleCheckIn(type);
   };
 
-  const handleBlock = async () => {
-    setBlocking(true);
-    try {
-      await blockMember(member.systemId, blockReason.trim() || undefined);
-      toast.success(t('Member locked'));
-      setShowBlockModal(false);
-      setBlockReason('');
-      fetchProfile();
-    } catch (e) { toast.error(e.response?.data?.message ?? t('Failed to lock member.')); }
-    finally { setBlocking(false); }
-  };
-
-  const handleSuspend = async () => {
-    if (!suspendUntil) {
-      toast.error(t('Select a suspension end date.'));
-      return;
-    }
-    setBlocking(true);
-    try {
-      await suspendMember(member.systemId, {
-        suspendedUntil: suspendUntil,
-        reason: suspendReason.trim() || undefined,
-      });
-      toast.success(t('Member suspended'));
-      setShowSuspendModal(false);
-      setSuspendUntil('');
-      setSuspendReason('');
-      fetchProfile();
-    } catch (e) { toast.error(e.response?.data?.message ?? t('Failed to suspend member.')); }
-    finally { setBlocking(false); }
-  };
-
-  const handleUnblock = async () => {
-    setBlocking(true);
-    try {
-      await unblockMember(member.systemId);
-      toast.success(isMemberSuspended(member) ? t('Member unsuspended') : t('Member unlocked'));
-      fetchProfile();
-    } catch (e) { toast.error(e.response?.data?.message ?? t('Failed to unlock member.')); }
-    finally { setBlocking(false); }
-  };
-
   const member = data?.member;
   const stats  = data?.stats;
   const currentSub = coveringSubscription(member?.subscriptions);
@@ -235,8 +186,7 @@ export default function MemberProfile() {
   const visibleTabs = TABS.filter((tb) => tabAllowed(tb.id));
   const shownTab = tabAllowed(activeTab) ? activeTab : 'dashboard';
   const canUseCheckIn = featureAllowed(hasFeature, 'checkin');
-  const canManageRestrictions = hasAccess(user, 'management')
-    || ['Owner', 'General Manager', 'Sales Manager', 'Head Coach'].includes(user?.role);
+  const canManageRestrictions = canManageMemberRestrictions(user);
 
   return (
     <Layout>
@@ -271,20 +221,11 @@ export default function MemberProfile() {
             </Btn>
           )}
           {member && canManageRestrictions && (
-            member.isBlocked ? (
-              <Btn variant="outline" size="sm" onClick={handleUnblock} disabled={blocking}>
-                {blocking ? <Spinner size="sm" /> : (isMemberSuspended(member) ? t('Lift suspension') : t('Unlock'))}
-              </Btn>
-            ) : (
-              <>
-                <Btn variant="outline" size="sm" onClick={() => setShowSuspendModal(true)}>
-                  {t('Suspend')}
-                </Btn>
-                <Btn variant="danger" size="sm" onClick={() => setShowBlockModal(true)}>
-                  {t('Lock')}
-                </Btn>
-              </>
-            )
+            <MemberRestrictionControls
+              member={member}
+              user={user}
+              onUpdated={() => fetchProfile()}
+            />
           )}
         </div>
 
@@ -347,50 +288,6 @@ export default function MemberProfile() {
         onChoose={chooseCheckInType}
         onClose={() => setTypePrompt(null)}
       />
-
-      <Modal open={showBlockModal} onClose={() => setShowBlockModal(false)} title={t('Lock Member')} size="sm"
-        footer={<>
-          <Btn variant="ghost" size="sm" onClick={() => setShowBlockModal(false)} disabled={blocking}>{t('Cancel')}</Btn>
-          <Btn variant="danger" size="sm" onClick={handleBlock} disabled={blocking}>
-            {blocking ? <Spinner size="sm" /> : t('Lock Member')}
-          </Btn>
-        </>}
-      >
-        <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 14, lineHeight: 1.6 }}>
-          {t('Locking prevents check-ins until you unlock manually. Are you sure?')}
-        </p>
-        <Input
-          label={t('Reason (optional)')}
-          value={blockReason}
-          onChange={e => setBlockReason(e.target.value)}
-          placeholder={t('e.g. Outstanding balance, inappropriate behavior')}
-        />
-      </Modal>
-
-      <Modal open={showSuspendModal} onClose={() => setShowSuspendModal(false)} title={t('Suspend Member')} size="sm"
-        footer={<>
-          <Btn variant="ghost" size="sm" onClick={() => setShowSuspendModal(false)} disabled={blocking}>{t('Cancel')}</Btn>
-          <Btn variant="primary" size="sm" onClick={handleSuspend} disabled={blocking || !suspendUntil}>
-            {blocking ? <Spinner size="sm" /> : t('Suspend Member')}
-          </Btn>
-        </>}
-      >
-        <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 14, lineHeight: 1.6 }}>
-          {t('Suspension blocks check-ins until the end date, then lifts automatically.')}
-        </p>
-        <Input
-          label={t('Suspended until *')}
-          type="date"
-          value={suspendUntil}
-          onChange={e => setSuspendUntil(e.target.value)}
-        />
-        <Input
-          label={t('Reason (optional)')}
-          value={suspendReason}
-          onChange={e => setSuspendReason(e.target.value)}
-          placeholder={t('e.g. Temporary disciplinary action')}
-        />
-      </Modal>
 
       {/* ── Alert Popup (big centered, auto-dismiss 5s) ──────────── */}
       {alertPopup && (
