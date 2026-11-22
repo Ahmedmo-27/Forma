@@ -109,7 +109,11 @@ async function assertEmailAvailable(email, { excludeUserId, excludePlatformUserI
     return normalized;
 }
 
-async function assertPhoneAvailable(phone, { excludeUserId, excludeMemberId } = {}) {
+/**
+ * Look up who holds a phone globally (staff user or member).
+ * Returns { kind: null| "user"|"member", phoneKey, doc?, tenantId? }.
+ */
+async function findPhoneConflict(phone, { excludeUserId, excludeMemberId } = {}) {
     const phoneKey = normalizePhone(phone);
     if (!phoneKey) {
         const error = new Error("A valid phone number is required");
@@ -120,7 +124,7 @@ async function assertPhoneAvailable(phone, { excludeUserId, excludeMemberId } = 
 
     const candidates = phoneCandidates(phone);
     const { User, Member } = models();
-    const taken = await unscoped(async () => {
+    return unscoped(async () => {
         const userQuery = {
             $or: [
                 { phoneKey: { $in: candidates } },
@@ -128,8 +132,11 @@ async function assertPhoneAvailable(phone, { excludeUserId, excludeMemberId } = 
             ],
         };
         if (excludeUserId) userQuery._id = { $ne: excludeUserId };
-        const user = await User.findOne(userQuery);
-        if (user) return true;
+        const user = await User.findOne(userQuery)
+            .select("_id tenantId phoneKey mobile_number name");
+        if (user) {
+            return { kind: "user", phoneKey, doc: user, tenantId: user.tenantId || null };
+        }
 
         const memberQuery = {
             $or: [
@@ -138,12 +145,20 @@ async function assertPhoneAvailable(phone, { excludeUserId, excludeMemberId } = 
             ],
         };
         if (excludeMemberId) memberQuery._id = { $ne: excludeMemberId };
-        const member = await Member.findOne(memberQuery);
-        return Boolean(member);
-    });
+        const member = await Member.findOne(memberQuery)
+            .select("_id tenantId systemId name locationId locationIds phones phoneKey");
+        if (member) {
+            return { kind: "member", phoneKey, doc: member, tenantId: member.tenantId || null };
+        }
 
-    if (taken) throw duplicateError("phone");
-    return phoneKey;
+        return { kind: null, phoneKey, doc: null, tenantId: null };
+    });
+}
+
+async function assertPhoneAvailable(phone, { excludeUserId, excludeMemberId } = {}) {
+    const conflict = await findPhoneConflict(phone, { excludeUserId, excludeMemberId });
+    if (conflict.kind) throw duplicateError("phone");
+    return conflict.phoneKey;
 }
 
 async function takenPhoneSet(phones) {
@@ -217,6 +232,7 @@ module.exports = {
     phoneCandidates,
     assertEmailAvailable,
     assertUsernameAvailable,
+    findPhoneConflict,
     assertPhoneAvailable,
     takenPhoneSet,
     phoneAlreadyUsed,

@@ -243,6 +243,18 @@ export const ERROR_MESSAGES = {
     presentation: "inline",
     primaryAction: { label: tr("Review Value"), action: "retry" },
   },
+  MEMBER_EXISTS_OTHER_LOCATION: {
+    title: tr("Member already exists"),
+    message: tr("This phone belongs to an existing member at another branch."),
+    severity: "warning",
+    presentation: "silent",
+  },
+  MEMBER_EXISTS_HERE: {
+    title: tr("Member already exists"),
+    message: tr("This member is already registered at this branch."),
+    severity: "warning",
+    presentation: "silent",
+  },
   WHATSAPP_NOT_CONNECTED: {
     title: tr("WhatsApp Not Connected"),
     message: tr("Connect WhatsApp before sending. Open Connect WhatsApp from your profile menu."),

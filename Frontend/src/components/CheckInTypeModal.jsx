@@ -1,7 +1,17 @@
-import { DoorOpen, Dumbbell } from 'lucide-react';
+import { DoorOpen, Dumbbell, Flame, PersonStanding, Swords, Target, Zap } from 'lucide-react';
 import { Modal, Spinner, CAIRO_ZONE } from './ui';
 import { useI18n } from '../i18n/useI18n';
 import { useFormat } from '../i18n/useFormat';
+
+const ACTIVITY_ICONS = {
+  gym: DoorOpen,
+  crossfit: Flame,
+  box: Target,
+  mma: Swords,
+  kickboxing: Zap,
+  calisthenics: PersonStanding,
+  pt: Dumbbell,
+};
 
 function Choice({ icon: Icon, title, lines, onClick, disabled }) {
   return (
@@ -50,32 +60,83 @@ function Choice({ icon: Icon, title, lines, onClick, disabled }) {
   );
 }
 
+function activityTitle(t, activityType) {
+  if (activityType === 'gym') return t('Regular gym');
+  if (activityType === 'pt') return t('PT session');
+  return t(activityType);
+}
+
+function promptMessage(t, prompt) {
+  const packages = prompt?.packages || prompt?.member?.packages || [];
+  const hasPt = Array.isArray(prompt?.options)
+    ? prompt.options.includes('pt')
+    : Number(prompt?.member?.ptSessionsLeft) > 0;
+  if (packages.length > 1 && hasPt) {
+    return t('This member has multiple active packages and PT sessions. Ask them what they are attending today, then pick one.');
+  }
+  if (packages.length > 1) {
+    return t('This member has more than one active package. Ask them what they are attending today, then pick one.');
+  }
+  if (packages.length >= 1 && hasPt) {
+    return t('This member has both a membership package and PT sessions. Ask them what they are attending today, then pick one.');
+  }
+  return t('This member has more than one active package. Ask them what they are attending today, then pick one.');
+}
+
 /**
- * Shown when a member has both an active gym package and PT sessions.
- * `prompt` is the 409 response body. `onChoose` receives 'gym' or 'pt'.
+ * Shown when a member has more than one active check-in choice
+ * (multiple package categories and/or PT). `onChoose` receives the option key.
  */
 export default function CheckInTypeModal({ prompt, busy = false, onChoose, onClose }) {
   const { t } = useI18n();
   const { fmtDate } = useFormat();
   const member = prompt?.member || {};
+  const packages = prompt?.packages || member.packages || [];
+  const options = Array.isArray(prompt?.options) && prompt.options.length
+    ? prompt.options
+    : [
+      ...packages.map((pkg) => pkg.activityType),
+      ...(member.ptSessionsLeft > 0 ? ['pt'] : []),
+    ];
+  const packageByType = Object.fromEntries(
+    packages.map((pkg) => [pkg.activityType, pkg]),
+  );
   const sessionsLeft = member.ptSessionsLeft ?? 0;
-  const gymLines = [
-    member.gymPackage || null,
-    member.gymEndsAt
-      ? t('Active until {date}', {
-        date: fmtDate(member.gymEndsAt, {
-          timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric',
-        }),
-      })
-      : null,
-  ];
-  const ptLines = [
-    member.ptSessionsLeft === 1
-      ? t('1 session left')
-      : t('{count} sessions left', { count: sessionsLeft }),
-    member.coachName ? t('Coach: {name}', { name: member.coachName }) : null,
-    t('Uses 1 PT session'),
-  ];
+
+  const choices = options.map((key) => {
+    if (key === 'pt') {
+      return {
+        key: 'pt',
+        icon: ACTIVITY_ICONS.pt,
+        title: activityTitle(t, 'pt'),
+        lines: [
+          member.ptSessionsLeft === 1
+            ? t('1 session left')
+            : t('{count} sessions left', { count: sessionsLeft }),
+          member.coachName ? t('Coach: {name}', { name: member.coachName }) : null,
+          t('Uses 1 PT session'),
+        ],
+      };
+    }
+    const pkg = packageByType[key];
+    const endsAt = pkg?.endsAt || (key === 'gym' ? member.gymEndsAt : null);
+    const packageName = pkg?.packageName || (key === 'gym' ? member.gymPackage : null);
+    return {
+      key,
+      icon: ACTIVITY_ICONS[key] || DoorOpen,
+      title: activityTitle(t, key),
+      lines: [
+        packageName || null,
+        endsAt
+          ? t('Active until {date}', {
+            date: fmtDate(endsAt, {
+              timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric',
+            }),
+          })
+          : null,
+      ],
+    };
+  });
 
   return (
     <Modal
@@ -98,11 +159,19 @@ export default function CheckInTypeModal({ prompt, busy = false, onChoose, onClo
       )}
     >
       <p style={{ fontSize: 13, color: 'var(--t2)', margin: '0 0 14px', lineHeight: 1.5 }}>
-        {t('This member has both a gym package and PT sessions. Ask them what they are attending today, then pick one.')}
+        {promptMessage(t, prompt)}
       </p>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-        <Choice icon={DoorOpen} title={t('Regular gym')} lines={gymLines} disabled={busy} onClick={() => onChoose('gym')} />
-        <Choice icon={Dumbbell} title={t('PT session')} lines={ptLines} disabled={busy} onClick={() => onChoose('pt')} />
+        {choices.map((choice) => (
+          <Choice
+            key={choice.key}
+            icon={choice.icon}
+            title={choice.title}
+            lines={choice.lines}
+            disabled={busy}
+            onClick={() => onChoose(choice.key)}
+          />
+        ))}
       </div>
       {busy && (
         <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 14 }}><Spinner size="sm" /></div>

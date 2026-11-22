@@ -309,6 +309,12 @@ const memberSchema = new mongoose.Schema({
         default: null,
     },
 
+    // All branches this member belongs to (includes locationId)
+    locationIds: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Location",
+    }],
+
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: "User",
@@ -467,5 +473,6 @@ memberSchema.index(
 );
 memberSchema.index({ tenantId: 1, locationId: 1 });
 memberSchema.index({ tenantId: 1, locationId: 1, status: 1 });
+memberSchema.index({ tenantId: 1, locationIds: 1 });
 
 module.exports = mongoose.models.Member || mongoose.model("Member", memberSchema);

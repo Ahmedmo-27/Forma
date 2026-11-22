@@ -1,4 +1,8 @@
 const mongoose = require("mongoose");
+const {
+    memberLinkedLocationIds,
+    memberLinkedToLocationsClause,
+} = require("./memberLocations");
 
 /**
  * Owner always has all-location access. GM (and others) use canAccessAllLocations
@@ -85,20 +89,17 @@ function filterUsersByLocationScope(users, tenant, locationScope) {
 }
 
 /**
- * Build a Mongo filter fragment for Member.locationId (home branch).
+ * Build a Mongo filter fragment for members linked to the active branch scope
+ * (primary locationId or any entry in locationIds).
  * Empty object = no restriction.
  */
 function memberLocationFilter(scope) {
     if (!scope || scope.mode === "unrestricted") return {};
     if (scope.mode === "one" && scope.locationId) {
-        return { locationId: new mongoose.Types.ObjectId(String(scope.locationId)) };
+        return memberLinkedToLocationsClause([scope.locationId]);
     }
     if (scope.mode === "subset" && Array.isArray(scope.locationIds) && scope.locationIds.length) {
-        return {
-            locationId: {
-                $in: scope.locationIds.map((id) => new mongoose.Types.ObjectId(String(id))),
-            },
-        };
+        return memberLinkedToLocationsClause(scope.locationIds);
     }
     if (scope.mode === "none") {
         // No granted locations — match nothing
@@ -135,6 +136,14 @@ function checkInLocationElemMatch(scope, dateRange) {
 
 function mergeLocationIntoFilter(filter, scope) {
     const loc = memberLocationFilter(scope);
+    if (!Object.keys(loc).length) return filter;
+    // $or location clauses must go under $and so they do not clobber other filters
+    if (loc.$or) {
+        const next = { ...filter };
+        if (!next.$and) next.$and = [];
+        next.$and.push(loc);
+        return next;
+    }
     return { ...filter, ...loc };
 }
 
@@ -142,23 +151,54 @@ function locationFilterIsActive(locationFilter) {
     return Boolean(locationFilter && Object.keys(locationFilter).length > 0);
 }
 
+function extractLocationIdsFromFilter(locationFilter) {
+    const targets = new Set();
+    const collect = (clause) => {
+        if (!clause || typeof clause !== "object") return;
+        const lid = clause.locationId;
+        if (lid && lid.$in) {
+            for (const value of lid.$in) targets.add(String(value));
+        } else if (lid != null) {
+            targets.add(String(lid._id || lid));
+        }
+        const lids = clause.locationIds;
+        if (lids && lids.$in) {
+            for (const value of lids.$in) targets.add(String(value));
+        } else if (lids != null && !Array.isArray(lids)) {
+            targets.add(String(lids._id || lids));
+        }
+    };
+
+    if (Array.isArray(locationFilter.$or)) {
+        for (const clause of locationFilter.$or) collect(clause);
+        return [...targets];
+    }
+    if (Array.isArray(locationFilter.$and)) {
+        for (const clause of locationFilter.$and) {
+            if (clause?.$or) {
+                for (const nested of clause.$or) collect(nested);
+            } else {
+                collect(clause);
+            }
+        }
+        if (targets.size) return [...targets];
+    }
+    collect(locationFilter);
+    return [...targets];
+}
+
 /**
- * Whether a member's home branch matches req.locationFilter.
+ * Whether a member's linked branches intersect req.locationFilter.
  */
 function memberMatchesLocationFilter(member, locationFilter) {
     if (!locationFilterIsActive(locationFilter)) return true;
     if (!member) return false;
-    const raw = member.locationId;
-    if (raw == null) return false;
-    const id = String(raw._id || raw);
-    const clause = locationFilter.locationId;
-    if (clause && clause.$in) {
-        return clause.$in.some((value) => String(value) === id);
-    }
-    if (clause != null) {
-        return String(clause) === id;
-    }
-    return true;
+    const memberIds = memberLinkedLocationIds(member);
+    if (!memberIds.length) return false;
+
+    const targets = extractLocationIdsFromFilter(locationFilter);
+    if (!targets.length) return true;
+    return memberIds.some((id) => targets.includes(id));
 }
 
 /**

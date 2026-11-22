@@ -16,6 +16,7 @@ const { getContractSignature, signContract } = require("../controllers/contractS
 const {
     createMemberSchema,
     updateMemberSchema,
+    assignMemberLocationSchema,
     freezeMemberSchema,
     addNoteSchema,
     addAlertSchema,
@@ -28,6 +29,7 @@ const {
 const {
     createMember,
     updateMember,
+    assignMemberLocation,
     getMemberProfile,
     getAllMembers,
     checkInMember,
@@ -136,6 +138,7 @@ router.patch(
 );
 router.patch("/:memberId/national-id", protect, allowRoles("accounting_dashboard", "Accountant", "Owner"), uploadLimiter, uploadSingle("nationalIdFile"), autoInvalidate(["members"]), uploadNationalId);
 router.patch("/:memberId/photo", protect, allowRoles("members", "Accountant", "Owner", "Receptionist"), uploadLimiter, uploadSinglePhoto("photoFile"), autoInvalidate(["members"]), uploadProfilePhoto);
+router.post("/:memberId/locations", allowRoles("members", "Receptionist", "Owner", "Sales Manager", "Sales", "Accountant", "General Manager"), validate(assignMemberLocationSchema), autoInvalidate(["members"]), assignMemberLocation);
 router.patch("/:memberId", allowRoles("members", "Receptionist", "Owner", "Sales Manager", "Sales", "Accountant", "General Manager"), validate(updateMemberSchema), autoInvalidate(["members"]), updateMember);
 router.delete("/:memberId/photo", protect, allowRoles("members", "Accountant", "Owner", "Receptionist"), uploadLimiter, autoInvalidate(["members"]), deleteProfilePhoto);
 

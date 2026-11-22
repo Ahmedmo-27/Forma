@@ -36,6 +36,26 @@ function packageEligibleForLocation(pkg, memberLocationId) {
     return allowed.includes(String(memberLocationId._id || memberLocationId));
 }
 
+/**
+ * Eligible if the package matches any of the member's linked branch ids
+ * (or a preferred branch when it is one of those links).
+ */
+function packageEligibleForMemberLocations(pkg, locationIds, preferredLocationId = null) {
+    if (!pkg) return false;
+    if (pkg.locationScope !== "branches") return true;
+    const linked = (locationIds || [])
+        .map((id) => String(id?._id || id || ""))
+        .filter(Boolean);
+    if (!linked.length) return false;
+    if (preferredLocationId) {
+        const preferred = String(preferredLocationId._id || preferredLocationId);
+        if (linked.includes(preferred) && packageEligibleForLocation(pkg, preferred)) {
+            return true;
+        }
+    }
+    return linked.some((id) => packageEligibleForLocation(pkg, id));
+}
+
 function allOrBranchesContaining(ids) {
     return {
         $or: [
@@ -88,5 +108,6 @@ function packageListLocationFilter(req) {
 module.exports = {
     normalizeLocationEligibility,
     packageEligibleForLocation,
+    packageEligibleForMemberLocations,
     packageListLocationFilter,
 };

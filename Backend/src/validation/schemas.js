@@ -84,6 +84,10 @@ const updateMemberSchema = z.object({
     locationId: nullableObjectId,
 });
 
+const assignMemberLocationSchema = z.object({
+    locationId: objectId,
+});
+
 const freezeMemberSchema = z.object({
     startDate: z.string().min(1),
     endDate: z.string().min(1),
@@ -134,6 +138,7 @@ const assignPackageSchema = z.object({
     pricePaid: z.coerce.number().positive("Price paid must be greater than zero"),
     discountPercent: z.coerce.number().min(0).max(100).optional(),
     startDate: z.string().max(40).nullable().optional(),
+    locationId: nullableObjectId,
     upgrade: z.preprocess(
         (v) => v === true || v === "true" || v === 1 || v === "1",
         z.boolean()
@@ -704,6 +709,7 @@ module.exports = {
     forgotPasswordSchema,
     createMemberSchema,
     updateMemberSchema,
+    assignMemberLocationSchema,
     freezeMemberSchema,
     blockMemberSchema,
     suspendMemberSchema,

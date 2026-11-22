@@ -132,7 +132,7 @@ export default function CheckIn() {
     checkInMode === 'lookup' || checkInMode === 'scanner' ? checkInMode : 'scanner'
   ));
   const [lastScannedResult, setLastScannedResult] = useState(null);
-  // Set when a member has both a gym package and PT sessions and the desk must ask which one.
+  // Set when a member has more than one active choice (packages / PT) and the desk must ask which.
   const [typePrompt, setTypePrompt] = useState(null);
   const [deskLocationId, setDeskLocationId] = useState(() => {
     try {
@@ -506,7 +506,7 @@ export default function CheckIn() {
   const todayCount  = history.length;
   const activeToday = history.filter(e => String(e.member?.status).toLowerCase() === 'active' && !e.member?.isBlocked).length;
 
-  // `type` is 'gym' or 'pt' once the member has said what they are attending. Otherwise the server decides.
+  // `type` is an activity (gym, crossfit, …) or 'pt' once chosen. Otherwise the server decides or asks.
   const handleCheckIn = async (type) => {
     if (!member || !canCheckIn) return;
     if (needsDeskPicker && !checkInPayload().locationId) {

@@ -269,6 +269,7 @@ const AR = {
 
   // Packages tab: packages, refunds, transfers, requests
   'Active Package': 'الباقة النشطة',
+  'Active Packages ({count})': 'الباقات النشطة ({count})',
   'Created At': 'تاريخ الإنشاء',
   'Sold By': 'تم البيع بواسطة',
   'Renewal Discount': 'خصم التجديد',

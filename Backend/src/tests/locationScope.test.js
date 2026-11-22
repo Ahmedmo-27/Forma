@@ -61,13 +61,16 @@ describe("locationScope helpers", () => {
             mode: "one",
             locationId: "dddddddddddddddddddddddd",
         });
-        expect(String(one.locationId)).toBe("dddddddddddddddddddddddd");
+        expect(one.$or).toHaveLength(2);
+        expect(String(one.$or[0].locationId)).toBe("dddddddddddddddddddddddd");
+        expect(String(one.$or[1].locationIds)).toBe("dddddddddddddddddddddddd");
 
         const subset = memberLocationFilter({
             mode: "subset",
             locationIds: ["eeeeeeeeeeeeeeeeeeeeeeee", "ffffffffffffffffffffffff"],
         });
-        expect(subset.locationId.$in).toHaveLength(2);
+        expect(subset.$or[0].locationId.$in).toHaveLength(2);
+        expect(subset.$or[1].locationIds.$in).toHaveLength(2);
 
         const none = memberLocationFilter({ mode: "none" });
         expect(none.locationId.$in).toEqual([]);
@@ -82,20 +85,23 @@ describe("locationScope helpers", () => {
             { mode: "one", locationId: "dddddddddddddddddddddddd" }
         );
         expect(merged.status).toBe("active");
-        expect(String(merged.locationId)).toBe("dddddddddddddddddddddddd");
+        expect(merged.$and).toHaveLength(1);
+        expect(merged.$and[0].$or).toHaveLength(2);
     });
 
     it("matches members against locationFilter and forbids out-of-scope access", () => {
         expect(locationFilterIsActive({})).toBe(false);
         const loc = "dddddddddddddddddddddddd";
-        const filter = { locationId: loc };
+        const other = "eeeeeeeeeeeeeeeeeeeeeeee";
+        const filter = memberLocationFilter({ mode: "one", locationId: loc });
         expect(memberMatchesLocationFilter({ locationId: loc }, filter)).toBe(true);
-        expect(memberMatchesLocationFilter({ locationId: "eeeeeeeeeeeeeeeeeeeeeeee" }, filter)).toBe(false);
+        expect(memberMatchesLocationFilter({ locationId: other, locationIds: [loc] }, filter)).toBe(true);
+        expect(memberMatchesLocationFilter({ locationId: other }, filter)).toBe(false);
         expect(forbidIfOutOfLocationScope({ locationFilter: {} }, { locationId: loc })).toBeNull();
         expect(forbidIfOutOfLocationScope({ locationFilter: filter }, { locationId: loc })).toBeNull();
         expect(forbidIfOutOfLocationScope(
             { locationFilter: filter },
-            { locationId: "eeeeeeeeeeeeeeeeeeeeeeee" }
+            { locationId: other }
         )?.code).toBe("MEMBER_LOCATION_FORBIDDEN");
     });
 

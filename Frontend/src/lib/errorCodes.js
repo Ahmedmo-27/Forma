@@ -205,6 +205,18 @@ export const ERROR_CODES = {
     category: "data",
     retryable: true,
   },
+  MEMBER_EXISTS_OTHER_LOCATION: {
+    code: "MEMBER_EXISTS_OTHER_LOCATION",
+    status: 409,
+    category: "data",
+    retryable: true,
+  },
+  MEMBER_EXISTS_HERE: {
+    code: "MEMBER_EXISTS_HERE",
+    status: 409,
+    category: "data",
+    retryable: true,
+  },
   WHATSAPP_NOT_CONNECTED: {
     code: "WHATSAPP_NOT_CONNECTED",
     status: 409,

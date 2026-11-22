@@ -75,14 +75,27 @@ const { isAssignedToRep, redactMemberForViewer } = require("../utils/memberPriva
 const { assertAllowedUpload, assertAllowedImage } = require("../utils/fileMagic");
 const { writeAudit } = require("../utils/audit");
 const sequence = require("../utils/sequence");
-const { normalizePhone, assertPhoneAvailable, replyIfConflict } = require("../utils/identityUniqueness");
+const { normalizePhone, assertPhoneAvailable, findPhoneConflict, replyIfConflict } = require("../utils/identityUniqueness");
+const {
+    applyMemberLocations,
+    memberHasLocation,
+    memberLinkedLocationIds,
+} = require("../utils/memberLocations");
 const { startMemberImport, getMemberImport } = require("../services/memberImportRunner");
 const { remainingCapacity, planLimitPayload } = require("../services/planLimitService");
 const { resolveSalesAssignee, ensureSalesManagerAssignments } = require("../utils/salesAssignment");
 const { resolveCoachAssignee, ensureHeadCoachAssignments } = require("../utils/coachAssignment");
 const { sanitizePlainText } = require("../utils/sanitizeText");
 const { validateNoOverlappingSubscription, resolveNextPackageStart, closeRefundedSubscription, findActiveSubscription, currentPackageSubscription, latestOpenSubscription, isClosedSubscription, isForfeitedCancellation, isTransferredAway } = require("../utils/subscriptionUtils");
-const { normalizeCheckInType, checkInOptions, ptSessionsLeft, COACH_ROLES } = require("../utils/checkInOptions");
+const {
+    normalizeCheckInType,
+    isMembershipCheckInType,
+    checkInOptions,
+    checkInChoiceKeys,
+    ptSessionsLeft,
+    COACH_ROLES,
+    CHECK_IN_TYPES,
+} = require("../utils/checkInOptions");
 const { setPackageTransferFee } = require("../utils/packageTransferFee");
 const { buildPackageSnapshot, resolveSubscriptionPackage } = require("../utils/packageSnapshot");
 const { generateBarcode } = require("../utils/barcodeHelper");
@@ -294,6 +307,22 @@ async function resolveMemberLocationId(req, explicitLocationId) {
     return { locationId: first._id };
 }
 
+async function existingMemberConflictPayload(memberDoc) {
+    const locationId = memberDoc.locationId || null;
+    let locationName = null;
+    if (locationId) {
+        const loc = await Location.findById(locationId).select("name").lean();
+        locationName = loc?.name || null;
+    }
+    return {
+        systemId: memberDoc.systemId,
+        name: memberDoc.name,
+        locationId,
+        locationName,
+        locationIds: memberLinkedLocationIds(memberDoc),
+    };
+}
+
 const createMember = async (req, res) => {
     try {
         const {
@@ -302,7 +331,45 @@ const createMember = async (req, res) => {
             packageId, assignedSales, coachId, locationId: bodyLocationId,
         } = req.body;
 
-        const phoneKey = await assertPhoneAvailable(phones);
+        const loc = await resolveMemberLocationId(req, bodyLocationId);
+        if (loc.error) {
+            return res.status(loc.status || 400).json({ message: loc.error });
+        }
+
+        const conflict = await findPhoneConflict(phones);
+        if (conflict.kind === "user") {
+            return res.status(409).json({
+                code: "CONFLICT_DUPLICATE",
+                message: "This phone number is already in use.",
+                field: "phone",
+            });
+        }
+        if (conflict.kind === "member") {
+            const sameTenant = String(conflict.tenantId || "") === String(req.user.tenantId || "");
+            if (!sameTenant) {
+                return res.status(409).json({
+                    code: "CONFLICT_DUPLICATE",
+                    message: "This phone number is already in use.",
+                    field: "phone",
+                });
+            }
+            const existing = await existingMemberConflictPayload(conflict.doc);
+            if (memberHasLocation(conflict.doc, loc.locationId)) {
+                return res.status(409).json({
+                    code: "MEMBER_EXISTS_HERE",
+                    message: "This member is already registered at this branch.",
+                    field: "phone",
+                    member: existing,
+                });
+            }
+            return res.status(409).json({
+                code: "MEMBER_EXISTS_OTHER_LOCATION",
+                message: "This phone belongs to an existing member at another branch.",
+                field: "phone",
+                existing,
+            });
+        }
+        const phoneKey = conflict.phoneKey;
 
         const systemId = await generateSystemId();
         const salesAssignee = await resolveSalesAssignee(assignedSales || null);
@@ -315,10 +382,6 @@ const createMember = async (req, res) => {
             coachAssigneeId = coachAssignee._id;
         } else {
             coachAssigneeId = await resolveCoachAssignee(null);
-        }
-        const loc = await resolveMemberLocationId(req, bodyLocationId);
-        if (loc.error) {
-            return res.status(loc.status || 400).json({ message: loc.error });
         }
 
         const personData = {
@@ -335,6 +398,7 @@ const createMember = async (req, res) => {
             current_couch: coachAssigneeId || null,
             couch_subscription_status: coachAssigneeId ? "active" : undefined,
             locationId:    loc.locationId,
+            locationIds:   [loc.locationId],
             createdBy:     req.user.id
         };
 
@@ -799,10 +863,60 @@ async function recordFrontDeskPtSession(req, res, { query, deskLoc, now }) {
     return res.status(409).json({ message: "Could not record the PT check-in. Please try again." });
 }
 
+// Mongo cond for an open subscription covering `now`, optionally limited to one activity category.
+function activeSubscriptionMongoCond(now, activityType = null) {
+    const parts = [
+        { $lte: ["$$sub.startDate", now] },
+        { $gt: ["$$sub.endDate", now] },
+        { $ne: ["$$sub.refunded", true] },
+        { $ne: ["$$sub.cancelled", true] },
+        { $ne: ["$$sub.subscriptionStatus", "cancelled"] },
+        { $lte: [{ $ifNull: ["$$sub.refundAmount", 0] }, 0] },
+    ];
+    if (activityType) {
+        parts.push({
+            $eq: [{ $ifNull: ["$$sub.packageSnapshot.activityType", "gym"] }, activityType],
+        });
+    }
+    return { $and: parts };
+}
+
+function checkInTypeRequiredPayload(member, options, coachName = null) {
+    const packages = options.packages || [];
+    const choices = checkInChoiceKeys(options);
+    const gymPkg = packages.find((pkg) => pkg.activityType === "gym") || null;
+    const hasMultiplePackages = packages.length > 1;
+    const hasPt = Boolean(options.pt);
+    let message = "This member has more than one active package. Ask what they are attending.";
+    if (hasMultiplePackages && hasPt) {
+        message = "This member has multiple active packages and PT sessions. Ask what they are attending.";
+    } else if (!hasMultiplePackages && hasPt && packages.length === 1) {
+        message = "This member has both a membership package and PT sessions. Ask what they are attending.";
+    }
+    return {
+        code: "CHECKIN_TYPE_REQUIRED",
+        message,
+        options: choices,
+        packages,
+        member: {
+            name: member.name,
+            systemId: member.systemId,
+            memberId: member.memberId,
+            packages,
+            gymPackage: gymPkg?.packageName || packages[0]?.packageName || null,
+            gymEndsAt: gymPkg?.endsAt || packages[0]?.endsAt || null,
+            ptSessionsLeft: options.ptSessionsLeft,
+            ptExpiresAt: member.PT_sessions_expDate || null,
+            coachName: coachName || null,
+        },
+    };
+}
+
 // ─── 4. Check In Member ───────────────────────────────────────────────────────
-// Front desk check-in. Body `type` is "gym" or "pt". Without it, a member who has both an
-// active gym package and an active PT pack gets a 409 CHECKIN_TYPE_REQUIRED so the desk can ask.
-// Coaches never check in the regular gym; they use the PT session check-in.
+// Front desk check-in. Body `type` is a membership activity (gym, crossfit, …) or "pt".
+// Without it, more than one active choice (multiple package categories and/or PT) returns
+// 409 CHECKIN_TYPE_REQUIRED so the desk can ask what the member is attending.
+// Coaches never check in membership packages; they use the PT session check-in.
 const checkInMember = async (req, res) => {
     try {
         const { memberId } = req.params;
@@ -822,7 +936,9 @@ const checkInMember = async (req, res) => {
         const rawType = req.body?.type;
         const requestedType = normalizeCheckInType(rawType);
         if (rawType !== undefined && rawType !== null && rawType !== "" && !requestedType) {
-            return res.status(400).json({ message: "Check-in type must be gym or pt" });
+            return res.status(400).json({
+                message: `Check-in type must be one of: ${CHECK_IN_TYPES.join(", ")}`,
+            });
         }
 
         const deskLoc = await resolveCheckInLocationId(req);
@@ -843,21 +959,27 @@ const checkInMember = async (req, res) => {
             return await recordFrontDeskPtSession(req, res, { query, deskLoc, now });
         }
 
-        // With no explicit type, members who also hold PT sessions skip the gym fast path below.
-        // They land in the slow path, which already loads the member and decides gym, PT, or ask.
-        const decideType = !requestedType && ptEnabled;
+        // No explicit type: skip the fast path when the member might have more than one choice
+        // (multiple package categories, and/or PT). Slow path loads the member and asks or auto-picks.
+        const decideType = !requestedType;
+        const membershipType = isMembershipCheckInType(requestedType) ? requestedType : null;
 
         const entry = {
             _id: new mongoose.Types.ObjectId(),
             type: "check-in",
-            text: "Member checked in",
+            text: membershipType && membershipType !== "gym"
+                ? `Member checked in · ${membershipType}`
+                : "Member checked in",
             createdBy: req.user.id,
             createdAt: now,
             locationId: deskLoc.locationId || null,
         };
 
-        // Active members with an active subscription only append a log entry. One update, no full-document save.
+        // Active members with exactly one matching active subscription append a log entry.
+        // When deciding type, require a single open package and exclude PT-eligible members.
         // Do not filter by member home branch — guests can check in at any desk the staff may operate.
+        const activeSizeCompare = decideType ? "$eq" : "$gt";
+        const activeSizeThreshold = decideType ? 1 : 0;
         const updated = await Member.findOneAndUpdate(
             {
                 ...query,
@@ -865,28 +987,19 @@ const checkInMember = async (req, res) => {
                 isMember: true,
                 status: "active",
                 "subscriptions.0": { $exists: true },
-                ...(decideType ? { $nor: [PT_ELIGIBLE_FILTER] } : {}),
+                ...(decideType && ptEnabled ? { $nor: [PT_ELIGIBLE_FILTER] } : {}),
                 $expr: {
-                    $gt: [
+                    [activeSizeCompare]: [
                         {
                             $size: {
                                 $filter: {
                                     input: { $ifNull: ["$subscriptions", []] },
                                     as: "sub",
-                                    cond: {
-                                        $and: [
-                                            { $lte: ["$$sub.startDate", now] },
-                                            { $gt: ["$$sub.endDate", now] },
-                                            { $ne: ["$$sub.refunded", true] },
-                                            { $ne: ["$$sub.cancelled", true] },
-                                            { $ne: ["$$sub.subscriptionStatus", "cancelled"] },
-                                            { $lte: [{ $ifNull: ["$$sub.refundAmount", 0] }, 0] },
-                                        ],
-                                    },
+                                    cond: activeSubscriptionMongoCond(now, membershipType),
                                 },
                             },
                         },
-                        0,
+                        activeSizeThreshold,
                     ],
                 },
             },
@@ -895,8 +1008,13 @@ const checkInMember = async (req, res) => {
         ).lean();
 
         if (updated) {
-            const currentSub = findActiveSubscription(updated.subscriptions, now);
+            const currentSub = membershipType
+                ? findActiveSubscription(updated.subscriptions, now, membershipType)
+                : findActiveSubscription(updated.subscriptions, now);
             const pkgName = currentSub?.packageSnapshot?.name || null;
+            const checkInType = membershipType
+                || currentSub?.packageSnapshot?.activityType
+                || "gym";
             publishLive(req.user.tenantId, {
                 type: "check-in",
                 message: `${updated.name} checked in${pkgName ? ` · ${pkgName}` : ""}`,
@@ -906,7 +1024,12 @@ const checkInMember = async (req, res) => {
                 status: updated.status,
                 packageName: pkgName,
             });
-            return res.status(201).json({ message: "Check-in recorded", checkInType: "gym", checkIn: entry, status: updated.status });
+            return res.status(201).json({
+                message: "Check-in recorded",
+                checkInType,
+                checkIn: entry,
+                status: updated.status,
+            });
         }
 
         // Fast-path did not match. Inspect the member to return the exact reason or handle frozen members.
@@ -923,35 +1046,36 @@ const checkInMember = async (req, res) => {
         }
 
         if (decideType) {
-            const options = checkInOptions(member, { now, dayStart: cairoDayBounds().start });
-            if (options.pt && options.gym) {
-                const coach = member.current_couch
+            const options = checkInOptions(member, {
+                now,
+                dayStart: cairoDayBounds().start,
+                ptEnabled,
+            });
+            const choices = checkInChoiceKeys(options);
+            if (choices.length > 1) {
+                const coach = options.pt && member.current_couch
                     ? await User.findById(member.current_couch).select("name").lean()
                     : null;
-                const gymSub = findActiveSubscription(member.subscriptions, now);
-                return res.status(409).json({
-                    code: "CHECKIN_TYPE_REQUIRED",
-                    message: "This member has both a gym package and PT sessions. Ask what they are attending.",
-                    options: ["gym", "pt"],
-                    member: {
-                        name: member.name,
-                        systemId: member.systemId,
-                        memberId: member.memberId,
-                        gymPackage: gymSub?.packageSnapshot?.name || null,
-                        gymEndsAt: gymSub?.endDate || null,
-                        ptSessionsLeft: options.ptSessionsLeft,
-                        ptExpiresAt: member.PT_sessions_expDate || null,
-                        coachName: coach?.name || null,
-                    },
-                });
+                return res.status(409).json(checkInTypeRequiredPayload(member, options, coach?.name || null));
             }
-            if (options.pt && !options.gym) {
+            if (choices.length === 1 && choices[0] === "pt") {
                 return await recordFrontDeskPtSession(req, res, { query, deskLoc, now });
             }
         }
 
+        if (membershipType) {
+            const typedSub = findActiveSubscription(member.subscriptions, now, membershipType);
+            if (!typedSub) {
+                return res.status(400).json({
+                    message: `Cannot check in — this member has no active ${membershipType} package`,
+                });
+            }
+        }
+
         const hasSubscriptions = Array.isArray(member.subscriptions) && member.subscriptions.length > 0;
-        const currentSub = findActiveSubscription(member.subscriptions, now);
+        const currentSub = membershipType
+            ? findActiveSubscription(member.subscriptions, now, membershipType)
+            : findActiveSubscription(member.subscriptions, now);
         const currentPkg = currentSub?.packageSnapshot || currentSub?.package || null;
 
         if (!currentSub || !currentPkg) {
@@ -1020,6 +1144,14 @@ const checkInMember = async (req, res) => {
             member.status = "active";
         }
 
+        const resolvedType = membershipType
+            || currentSub?.packageSnapshot?.activityType
+            || (typeof currentSub?.package === "object" && currentSub.package?.activityType)
+            || "gym";
+        if (resolvedType && resolvedType !== "gym" && entry.text === "Member checked in") {
+            entry.text = `Member checked in · ${resolvedType}`;
+        }
+
         member.userlog.push(entry);
         await member.save();
 
@@ -1034,7 +1166,12 @@ const checkInMember = async (req, res) => {
             status: member.status,
             packageName: pkgName,
         });
-        return res.status(201).json({ message: "Check-in recorded", checkInType: "gym", checkIn: savedEntry, status: member.status });
+        return res.status(201).json({
+            message: "Check-in recorded",
+            checkInType: resolvedType,
+            checkIn: savedEntry,
+            status: member.status,
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -1652,14 +1789,33 @@ const getTodayCheckIns = async (req, res) => {
         const elem = checkInLocationElemMatch(req.locationScope, { start, end });
         const homeFilter = memberLocationFilter(req.locationScope);
 
-        // Prefer stamped check-in locationId; legacy logs without locationId match via member home branch.
+        // Prefer stamped check-in locationId; legacy logs without locationId match via member home/linked branches.
         const dateElem = {
             type: "check-in",
             createdAt: { $gte: start, $lte: end },
         };
         let match;
-        if (homeFilter.locationId) {
-            const stamped = { ...dateElem, locationId: homeFilter.locationId };
+        const scopedLocationIds = (() => {
+            if (homeFilter.locationId && !homeFilter.$or) {
+                const clause = homeFilter.locationId;
+                if (clause?.$in) return clause.$in;
+                return [clause];
+            }
+            if (Array.isArray(homeFilter.$or)) {
+                const ids = [];
+                for (const part of homeFilter.$or) {
+                    if (part.locationId?.$in) ids.push(...part.locationId.$in);
+                    else if (part.locationId) ids.push(part.locationId);
+                    if (part.locationIds?.$in) ids.push(...part.locationIds.$in);
+                    else if (part.locationIds) ids.push(part.locationIds);
+                }
+                return ids;
+            }
+            return null;
+        })();
+
+        if (scopedLocationIds?.length) {
+            const stamped = { ...dateElem, locationId: { $in: scopedLocationIds } };
             const legacy = {
                 ...dateElem,
                 $or: [{ locationId: null }, { locationId: { $exists: false } }],
@@ -2012,8 +2168,15 @@ const assignPackage = async (req, res) => {
             return res.status(400).json({ message: "Package not found or unavailable" });
         }
 
-        const { packageEligibleForLocation } = require("../utils/packageLocationEligibility");
-        if (!packageEligibleForLocation(basePkg, member.locationId)) {
+        const { packageEligibleForMemberLocations } = require("../utils/packageLocationEligibility");
+        const preferredLocationId = req.body?.locationId
+            || req.locationScope?.locationId
+            || member.locationId;
+        if (!packageEligibleForMemberLocations(
+            basePkg,
+            memberLinkedLocationIds(member),
+            preferredLocationId
+        )) {
             return res.status(400).json({
                 code: "PACKAGE_NOT_ELIGIBLE_FOR_BRANCH",
                 message: "This package is not eligible for the member's branch",
@@ -2065,12 +2228,14 @@ const assignPackage = async (req, res) => {
 
         const now = new Date();
         const upgrading = Boolean(upgrade);
+        const assignActivityType = terms.activityType || "gym";
 
         const resolvedStart = resolveNextPackageStart({
             subscriptions: member.subscriptions,
             startDate,
             upgrade: upgrading,
             now,
+            activityType: assignActivityType,
         });
         if (resolvedStart.error) {
             return res.status(400).json({ message: resolvedStart.error });
@@ -2079,7 +2244,7 @@ const assignPackage = async (req, res) => {
 
         const overlapError = upgrading
             ? null
-            : validateNoOverlappingSubscription(member.subscriptions, start, now);
+            : validateNoOverlappingSubscription(member.subscriptions, start, now, assignActivityType);
         if (overlapError) {
             return res.status(400).json({ message: overlapError });
         }
@@ -3413,6 +3578,9 @@ const transferPackage = async (req, res) => {
                 subscriptions: [],
                 userlog: [],
             };
+            if (donor.locationId) {
+                applyMemberLocations(personData, { primaryLocationId: donor.locationId });
+            }
             recipient = await createMemberRecord(personData);
             createdRecipientId = recipient._id;
         } else {
@@ -3731,7 +3899,10 @@ const updateMember = async (req, res) => {
             if (loc.error) {
                 return res.status(loc.status || 400).json({ message: loc.error });
             }
-            member.locationId = loc.locationId;
+            // Change primary home branch and keep prior branches linked
+            applyMemberLocations(member, { primaryLocationId: loc.locationId });
+        } else {
+            applyMemberLocations(member);
         }
 
         member.userlog.push({
@@ -3744,6 +3915,55 @@ const updateMember = async (req, res) => {
         res.json({ message: "Member updated" });
     } catch (error) {
         if (replyIfConflict(res, error)) return;
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const assignMemberLocation = async (req, res) => {
+    try {
+        // Lookup without home-branch scope so staff at branch B can link a member whose home is A
+        const memberDoc = await findMemberByIdentifier(req.params.memberId);
+        if (!memberDoc) {
+            return res.status(404).json({ message: "Member not found" });
+        }
+
+        const loc = await resolveMemberLocationId(req, req.body.locationId);
+        if (loc.error) {
+            return res.status(loc.status || 400).json({ message: loc.error });
+        }
+
+        if (!userCanAccessLocation(req.user, req.tenant, loc.locationId) && req.user.role !== "Owner") {
+            return res.status(403).json({
+                code: "LOCATION_FORBIDDEN",
+                message: "You do not have access to this location",
+            });
+        }
+
+        if (memberHasLocation(memberDoc, loc.locationId)) {
+            return res.json({ message: "Member already linked to this branch", member: memberDoc });
+        }
+
+        applyMemberLocations(memberDoc, { addLocationId: loc.locationId });
+        memberDoc.userlog.push({
+            type: "other",
+            text: "Linked to an additional branch",
+            createdBy: req.user.id,
+            locationId: loc.locationId,
+        });
+        await memberDoc.save();
+
+        await writeAudit({
+            action: "member_location_linked",
+            actor: req.user.id,
+            actorRole: req.user.role,
+            targetType: "member",
+            targetId: memberDoc._id,
+            meta: { systemId: memberDoc.systemId, locationId: loc.locationId, action: "link_branch" },
+            req,
+        });
+
+        res.json({ message: "Member linked to branch", member: memberDoc });
+    } catch (error) {
         res.status(500).json({ message: error.message });
     }
 };
@@ -3762,6 +3982,7 @@ const getMemberImportJob = async (req, res) => {
 module.exports = {
     createMember,
     updateMember,
+    assignMemberLocation,
     getAllMembers,
     getMemberProfile,
     checkInMember,

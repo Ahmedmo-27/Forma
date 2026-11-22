@@ -85,7 +85,7 @@ export default function MemberProfile() {
   const [loading, setLoading]   = useState(true);
   const [activeTab, setTab]     = useState(() => searchParams.get('tab') || 'dashboard');
   const [checkingIn, setChecking] = useState(false);
-  const [typePrompt, setTypePrompt] = useState(null); // 409 payload when the member has both gym and PT
+  const [typePrompt, setTypePrompt] = useState(null); // 409 payload when multiple check-in choices need a pick
 
   const [alertPopup, setAlertPopup] = useState(null); // array of alert texts or null
   const alertShownRef = useRef(false);
@@ -124,7 +124,7 @@ export default function MemberProfile() {
 
   useEffect(() => { fetchProfile(); }, [fetchProfile]);
 
-  // `type` is 'gym' or 'pt' once the member has said what they are attending.
+  // `type` is an activity (gym, crossfit, …) or 'pt' once the member has said what they are attending.
   const handleCheckIn = async (type) => {
     if (!canCheckIn) {
       const restriction = checkInRestrictionMessage(member, t);

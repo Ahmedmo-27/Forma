@@ -45,8 +45,15 @@ function isTransferredAway(sub) {
   return Boolean(sub?.transferredTo);
 }
 
-function defaultPackageStart(member) {
-  const open = [...(member.subscriptions || [])].reverse().find((sub) => !isClosedSubscription(sub));
+function subscriptionActivityType(sub) {
+  return sub?.packageSnapshot?.activityType || sub?.package?.activityType || 'gym';
+}
+
+/** Next start defaults from the open package in the same activity category only. */
+function defaultPackageStart(member, activityType = 'gym') {
+  const open = [...(member.subscriptions || [])].reverse().find(
+    (sub) => !isClosedSubscription(sub) && subscriptionActivityType(sub) === activityType
+  );
   if (!open?.endDate) return '';
   const currentEnd = new Date(open.endDate);
   return currentEnd > new Date() ? toLocalDateString(currentEnd) : '';
@@ -567,15 +574,37 @@ function PackagesContent({ member, user, onRefresh }) {
 
   const purchasedPkg = (sub) => sub?.packageSnapshot ?? sub?.package;
 
+  const packageDetails = (sub) => {
+    const pkg = purchasedPkg(sub);
+    if (!pkg || !sub) return [];
+    return [
+      { label: t('Package'),          value: pkg.name },
+      { label: t('Activity'),         value: pkg.activityType ? t(pkg.activityType) : pkg.activityType },
+      { label: t('Duration'),         value: pkg.duration ? t(pkg.duration) : pkg.duration },
+      { label: t('Created At'),       value: fmtDateTime(sub.createdAt) },
+      { label: t('Start'),            value: fmtDate(sub.startDate) },
+      { label: t('Expiry'),           value: fmtDate(sub.endDate) },
+      { label: t('Price Paid'),       value: money(sub.pricePaid) },
+      { label: t('Discount'),         value: sub.discountPercent ? `${sub.discountPercent}%` : t('None') },
+      { label: t('Freeze Limit'),     value: t('{count} days', { count: pkg.freezeLimitDays ?? 0 }) },
+      { label: t('Invitation Slots'), value: `${pkg.invitationLimit ?? 0}` },
+      { label: t('Renewal Discount'), value: pkg.renewalDiscountPercent ? `${pkg.renewalDiscountPercent}%` : t('None') },
+      { label: t('Exception'),        value: pkg.hasException ? t('Yes') : t('No') },
+      { label: t('Type'),             value: sub.transferredFrom ? t('Received by transfer from {name}', { name: sub.transferredFromName || t('another member') }) : sub.isUpgrade ? t('Upgrade') : sub.isRenewal ? t('Renewal') : t('New subscription') },
+      { label: t('Sold By'),          value: sub.createdBy?.name },
+      { label: t('Status'),           value: <Badge status={member.status} /> },
+    ];
+  };
+
   const subs    = member.subscriptions ?? [];
   const now = new Date();
-  const activeSub = [...subs].reverse().find((s) => {
+  const activeSubs = subs.filter((s) => {
     if (isClosedSubscription(s) || !s?.startDate || !s?.endDate) return false;
     return new Date(s.startDate) <= now && new Date(s.endDate) > now;
-  }) || null;
+  });
+  const activeSub = activeSubs.length ? activeSubs[activeSubs.length - 1] : null;
   const canUpgrade = canAddPackage && !loadingPending && !member.isBlocked && Boolean(activeSub);
-  const lastSub = activeSub;
-  const pkg     = purchasedPkg(lastSub);
+  const pkg     = purchasedPkg(activeSub);
 
   // Find upcoming/scheduled package (start date is in the future)
   const upcomingSub = subs.find(s => !isClosedSubscription(s) && new Date(s.startDate) > now);
@@ -584,24 +613,6 @@ function PackagesContent({ member, user, onRefresh }) {
   const lastSale = subs.at(-1);
   const lastSaleForfeited = isForfeitedCancellation(lastSale);
   const lastSaleTransferred = isTransferredAway(lastSale);
-
-  const details = pkg ? [
-    { label: t('Package'),          value: pkg.name },
-    { label: t('Activity'),         value: pkg.activityType ? t(pkg.activityType) : pkg.activityType },
-    { label: t('Duration'),         value: pkg.duration ? t(pkg.duration) : pkg.duration },
-    { label: t('Created At'),       value: fmtDateTime(lastSub.createdAt) },
-    { label: t('Start'),            value: fmtDate(lastSub.startDate) },
-    { label: t('Expiry'),           value: fmtDate(lastSub.endDate) },
-    { label: t('Price Paid'),       value: money(lastSub.pricePaid) },
-    { label: t('Discount'),         value: lastSub.discountPercent ? `${lastSub.discountPercent}%` : t('None') },
-    { label: t('Freeze Limit'),     value: t('{count} days', { count: pkg.freezeLimitDays ?? 0 }) },
-    { label: t('Invitation Slots'), value: `${pkg.invitationLimit ?? 0}` },
-    { label: t('Renewal Discount'), value: pkg.renewalDiscountPercent ? `${pkg.renewalDiscountPercent}%` : t('None') },
-    { label: t('Exception'),        value: pkg.hasException ? t('Yes') : t('No') },
-    { label: t('Type'),             value: lastSub.transferredFrom ? t('Received by transfer from {name}', { name: lastSub.transferredFromName || t('another member') }) : lastSub.isUpgrade ? t('Upgrade') : lastSub.isRenewal ? t('Renewal') : t('New subscription') },
-    { label: t('Sold By'),          value: lastSub.createdBy?.name },
-    { label: t('Status'),           value: <Badge status={member.status} /> },
-  ] : [];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -638,16 +649,8 @@ function PackagesContent({ member, user, onRefresh }) {
       )}
 
       <Card>
-        <CardHeader title={t('Active Package')}>
+        <CardHeader title={activeSubs.length > 1 ? t('Active Packages ({count})', { count: activeSubs.length }) : t('Active Package')}>
           <div data-walkthrough="package-actions" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            {activeSub && member.status !== 'guest' && (
-              <Btn variant="outline" size="xs" onClick={() => setContractSub(activeSub)}><FileSignature size={14} aria-hidden /> {t('Contract')}</Btn>
-            )}
-            {canEditSubscription && (activeSub || upcomingSub) && !member.isBlocked && (
-              <Btn variant="outline" size="xs" onClick={() => setEditSub(activeSub || upcomingSub)}>
-                <Pencil size={14} aria-hidden /> {t('Edit')}
-              </Btn>
-            )}
             {canRefund && (member.subscriptions?.length ?? 0) > 0 && !lastSaleForfeited && !lastSaleTransferred && (
               <Btn variant="outline" size="xs" onClick={() => setShowRefundModal(true)}><Banknote size={14} aria-hidden /> {t('Refund')}</Btn>
             )}
@@ -688,18 +691,58 @@ function PackagesContent({ member, user, onRefresh }) {
 
         {!pkg || member.status === 'guest'
           ? <EmptyState message={t('No active package')} sub={requestOnly && !pending ? t('Submit a package request — Owner, GM, or Accountant must approve before it is assigned.') : canAssignPackageDirectly && !pending ? t('Click Add Package to assign a package to this member.') : t('No package assigned yet.')} />
-          : <div style={{
-              display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 1,
-              background: 'var(--border)', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden',
-              opacity: member.isBlocked ? 0.5 : 1,
-              pointerEvents: member.isBlocked ? 'none' : 'auto',
-            }}>
-              {details.map(d => (
-                <div key={d.label} style={{ background: 'var(--card)', padding: '10px 14px' }}>
-                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{d.label}</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{d.value ?? '—'}</div>
-                </div>
-              ))}
+          : <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {activeSubs.map((sub) => {
+                const details = packageDetails(sub);
+                const subPkg = purchasedPkg(sub);
+                return (
+                  <div key={sub._id || sub.subscriptionId || `${sub.startDate}-${subPkg?.activityType}`}>
+                    {activeSubs.length > 1 && (
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)' }}>
+                          {subPkg?.activityType ? t(subPkg.activityType) : t('Package')}
+                          {subPkg?.name ? ` · ${subPkg.name}` : ''}
+                        </div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {member.status !== 'guest' && (
+                            <Btn variant="outline" size="xs" onClick={() => setContractSub(sub)}><FileSignature size={14} aria-hidden /> {t('Contract')}</Btn>
+                          )}
+                          {canEditSubscription && !member.isBlocked && (
+                            <Btn variant="outline" size="xs" onClick={() => setEditSub(sub)}>
+                              <Pencil size={14} aria-hidden /> {t('Edit')}
+                            </Btn>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                    {activeSubs.length === 1 && (
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, marginBottom: 8 }}>
+                        {member.status !== 'guest' && (
+                          <Btn variant="outline" size="xs" onClick={() => setContractSub(sub)}><FileSignature size={14} aria-hidden /> {t('Contract')}</Btn>
+                        )}
+                        {canEditSubscription && !member.isBlocked && (
+                          <Btn variant="outline" size="xs" onClick={() => setEditSub(sub)}>
+                            <Pencil size={14} aria-hidden /> {t('Edit')}
+                          </Btn>
+                        )}
+                      </div>
+                    )}
+                    <div style={{
+                      display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 1,
+                      background: 'var(--border)', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden',
+                      opacity: member.isBlocked ? 0.5 : 1,
+                      pointerEvents: member.isBlocked ? 'none' : 'auto',
+                    }}>
+                      {details.map(d => (
+                        <div key={d.label} style={{ background: 'var(--card)', padding: '10px 14px' }}>
+                          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{d.label}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--t1)' }}>{d.value ?? '—'}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
         }
       </Card>
@@ -1230,7 +1273,7 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
   useLocationEffect(() => {
     if (!open) return;
     setMakeException(false);
-    const defaultStart = upgrade ? toLocalDateString(new Date()) : defaultPackageStart(member);
+    const defaultStart = upgrade ? toLocalDateString(new Date()) : defaultPackageStart(member, 'gym');
     setForm({ ...EMPTY_FORM, startDate: defaultStart });
     setShowCreatePackage(false);
     setCreateForm(EMPTY_PACKAGE_FORM);
@@ -1246,6 +1289,9 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
       const discount = Math.min(100, Math.max(0, Number(k === 'discountPercent' ? v : updated.discountPercent) || 0));
       updated.pricePaid = String(Math.round(price * (1 - discount / 100)));
     }
+    if (!upgrade && k === 'activityType') {
+      updated.startDate = defaultPackageStart(member, v) || '';
+    }
     return updated;
   });
 
@@ -1254,6 +1300,7 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
     if (!pkg) { set('basePackageId', id); return; }
     const discount = Math.min(100, Math.max(0, Number(form.discountPercent) || 0));
     const computedPricePaid = String(Math.round(pkg.price * (1 - discount / 100)));
+    const categoryStart = upgrade ? null : defaultPackageStart(member, pkg.activityType || 'gym');
     setForm(f => ({
       ...f,
       basePackageId: id,
@@ -1266,6 +1313,7 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
       renewalDiscountPercent: String(pkg.renewalDiscountPercent ?? 0),
       description: pkg.description ?? '',
       pricePaid: computedPricePaid,
+      ...(upgrade ? {} : { startDate: categoryStart || '' }),
     }));
   };
 
@@ -1283,6 +1331,7 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
       setCreateErrors({});
       await loadPackages();
       if (pkg?._id) {
+        const categoryStart = upgrade ? null : defaultPackageStart(member, pkg.activityType || 'gym');
         setForm(f => ({
           ...f,
           basePackageId: pkg._id,
@@ -1295,6 +1344,7 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
           renewalDiscountPercent: String(pkg.renewalDiscountPercent ?? 0),
           description: pkg.description ?? '',
           pricePaid: String(pkg.price),
+          ...(upgrade ? {} : { startDate: categoryStart || '' }),
         }));
       }
     } catch (e) {

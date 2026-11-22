@@ -94,11 +94,13 @@ const applyApprovedException = async (request, reviewerId) => {
 
     const upgrading = Boolean(request.isUpgrade);
     const now = new Date();
+    const assignActivityType = request.activityType || basePkg?.activityType || "gym";
     const resolvedStart = resolveNextPackageStart({
         subscriptions: member.subscriptions,
         startDate: upgrading ? now : request.startDate,
         upgrade: upgrading,
         now,
+        activityType: assignActivityType,
     });
     if (resolvedStart.error) {
         const error = new Error(resolvedStart.error);
@@ -107,7 +109,7 @@ const applyApprovedException = async (request, reviewerId) => {
     }
     const overlapError = upgrading
         ? null
-        : validateNoOverlappingSubscription(member.subscriptions, resolvedStart.start, now);
+        : validateNoOverlappingSubscription(member.subscriptions, resolvedStart.start, now, assignActivityType);
     if (overlapError) {
         const error = new Error(overlapError);
         error.statusCode = 400;
@@ -210,18 +212,20 @@ const createException = async (req, res) => {
         const packageName = name ?? basePkg.name;
         const now = new Date();
         const upgrading = Boolean(upgrade);
+        const assignActivityType = activityType ?? basePkg.activityType ?? "gym";
         const resolvedStart = resolveNextPackageStart({
             subscriptions: member.subscriptions,
             startDate: upgrading ? now : startDate,
             upgrade: upgrading,
             now,
+            activityType: assignActivityType,
         });
         if (resolvedStart.error) {
             return res.status(400).json({ message: resolvedStart.error });
         }
         const overlapError = upgrading
             ? null
-            : validateNoOverlappingSubscription(member.subscriptions, resolvedStart.start, now);
+            : validateNoOverlappingSubscription(member.subscriptions, resolvedStart.start, now, assignActivityType);
         if (overlapError) {
             return res.status(400).json({ message: overlapError });
         }

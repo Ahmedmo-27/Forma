@@ -16,8 +16,8 @@ describe("Front desk check-in: gym or PT", () => {
         return { req, res };
     };
 
-    const activeSub = () => ({
-        packageSnapshot: { name: "3 Month Gym" },
+    const activeSub = (activityType = "gym", name = "3 Month Gym") => ({
+        packageSnapshot: { name, activityType },
         startDate: new Date(Date.now() - 5 * DAY),
         endDate: new Date(Date.now() + 30 * DAY),
         pricePaid: 1000,
@@ -78,9 +78,36 @@ describe("Front desk check-in: gym or PT", () => {
         expect(body).toMatchObject({
             code: "CHECKIN_TYPE_REQUIRED",
             options: ["gym", "pt"],
+            packages: [expect.objectContaining({ activityType: "gym", packageName: "3 Month Gym" })],
             member: { name: "Both Packages", gymPackage: "3 Month Gym", ptSessionsLeft: 6, coachName: "Coach Sara" },
         });
         // Nothing was recorded while waiting for the answer.
+        expect(update).toHaveBeenCalledTimes(1);
+    });
+
+    it("asks what the member is attending when multiple package categories are active", async () => {
+        const { req, res } = makeReqRes();
+        const multi = baseMember({
+            couch_subscription_status: null,
+            PT_sessions: 0,
+            used_PT_sessions: 0,
+            subscriptions: [
+                activeSub("gym", "3 Month Gym"),
+                activeSub("crossfit", "CrossFit Month"),
+            ],
+        });
+        const update = vi.spyOn(Member, "findOneAndUpdate").mockReturnValue(leanOnce(null));
+        vi.spyOn(Member, "findOne").mockReturnValue({ populate: vi.fn().mockResolvedValue(multi) });
+
+        await checkInMember(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(409);
+        const body = res.json.mock.calls[0][0];
+        expect(body).toMatchObject({
+            code: "CHECKIN_TYPE_REQUIRED",
+            options: ["gym", "crossfit"],
+        });
+        expect(body.packages.map((pkg) => pkg.activityType).sort()).toEqual(["crossfit", "gym"]);
         expect(update).toHaveBeenCalledTimes(1);
     });
 
@@ -111,6 +138,23 @@ describe("Front desk check-in: gym or PT", () => {
         expect(update).toHaveBeenCalledTimes(1);
         expect(res.status).toHaveBeenCalledWith(201);
         expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ checkInType: "pt" }));
+    });
+
+    it("records a class check-in when the desk picks a package category", async () => {
+        const crossfit = activeSub("crossfit", "CrossFit Month");
+        const { req, res } = makeReqRes({ body: { type: "crossfit" } });
+        const update = vi.spyOn(Member, "findOneAndUpdate").mockReturnValue(leanOnce({
+            name: "Both Packages",
+            systemId: 100,
+            status: "active",
+            subscriptions: [activeSub("gym"), crossfit],
+        }));
+
+        await checkInMember(req, res);
+
+        expect(res.status).toHaveBeenCalledWith(201);
+        expect(res.json).toHaveBeenCalledWith(expect.objectContaining({ checkInType: "crossfit" }));
+        expect(update.mock.calls[0][0].$nor).toBeUndefined();
     });
 
     it("explains why a PT check-in failed", async () => {

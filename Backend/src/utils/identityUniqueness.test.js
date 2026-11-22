@@ -9,6 +9,7 @@ const {
     phoneCandidates,
     assertEmailAvailable,
     assertPhoneAvailable,
+    findPhoneConflict,
 } = require("./identityUniqueness");
 
 describe("global identity uniqueness", () => {
@@ -40,9 +41,15 @@ describe("global identity uniqueness", () => {
         });
     });
 
+    function mockFindOne(Model, value) {
+        return vi.spyOn(Model, "findOne").mockReturnValue({
+            select: vi.fn().mockResolvedValue(value),
+        });
+    }
+
     it("rejects a phone already used by a member in any gym", async () => {
-        vi.spyOn(User, "findOne").mockResolvedValueOnce(null);
-        vi.spyOn(Member, "findOne").mockResolvedValueOnce({ _id: new mongoose.Types.ObjectId() });
+        mockFindOne(User, null);
+        mockFindOne(Member, { _id: new mongoose.Types.ObjectId() });
         await expect(assertPhoneAvailable("01012345678")).rejects.toMatchObject({
             statusCode: 409,
             field: "phone",
@@ -54,11 +61,45 @@ describe("global identity uniqueness", () => {
 
     it("accepts a phone that belongs to the user being edited", async () => {
         const userId = new mongoose.Types.ObjectId();
-        vi.spyOn(User, "findOne").mockResolvedValueOnce(null);
-        vi.spyOn(Member, "findOne").mockResolvedValueOnce(null);
+        mockFindOne(User, null);
+        mockFindOne(Member, null);
         await expect(assertPhoneAvailable("01012345678", { excludeUserId: userId })).resolves.toBe("201012345678");
         expect(User.findOne).toHaveBeenCalledWith(expect.objectContaining({
             _id: { $ne: userId },
         }));
+    });
+
+    it("findPhoneConflict returns staff vs member vs none", async () => {
+        const tenantId = new mongoose.Types.ObjectId();
+        const userId = new mongoose.Types.ObjectId();
+        mockFindOne(User, { _id: userId, tenantId });
+        await expect(findPhoneConflict("01012345678")).resolves.toMatchObject({
+            kind: "user",
+            phoneKey: "201012345678",
+            tenantId,
+        });
+
+        const memberId = new mongoose.Types.ObjectId();
+        mockFindOne(User, null);
+        mockFindOne(Member, {
+            _id: memberId,
+            tenantId,
+            systemId: 42,
+            name: "Ahmed",
+            locationId: new mongoose.Types.ObjectId(),
+        });
+        await expect(findPhoneConflict("01012345678")).resolves.toMatchObject({
+            kind: "member",
+            phoneKey: "201012345678",
+            tenantId,
+            doc: expect.objectContaining({ systemId: 42, name: "Ahmed" }),
+        });
+
+        mockFindOne(User, null);
+        mockFindOne(Member, null);
+        await expect(findPhoneConflict("01099999999")).resolves.toMatchObject({
+            kind: null,
+            phoneKey: "201099999999",
+        });
     });
 });

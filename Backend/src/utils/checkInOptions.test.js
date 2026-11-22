@@ -1,11 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { checkInOptions, normalizeCheckInType, ptSessionsLeft } from "./checkInOptions";
+import {
+    checkInChoiceKeys,
+    checkInOptions,
+    normalizeCheckInType,
+    ptSessionsLeft,
+} from "./checkInOptions";
 
 const NOW = new Date(2026, 10, 20, 12, 0, 0);
 const DAY_START = new Date(2026, 10, 20, 0, 0, 0);
 
 function sub(start, end, extra = {}) {
-    return { startDate: start, endDate: end, pricePaid: 1000, ...extra };
+    return {
+        startDate: start,
+        endDate: end,
+        pricePaid: 1000,
+        packageSnapshot: { activityType: "gym", name: "Gym", duration: "1 month", price: 1000 },
+        ...extra,
+    };
 }
 
 function member(extra = {}) {
@@ -30,8 +41,9 @@ const pt = (extra = {}) => ({
 });
 
 describe("normalizeCheckInType", () => {
-    it("accepts gym and pt in any case and rejects the rest", () => {
+    it("accepts membership activities and pt in any case and rejects the rest", () => {
         expect(normalizeCheckInType("gym")).toBe("gym");
+        expect(normalizeCheckInType(" CrossFit ")).toBe("crossfit");
         expect(normalizeCheckInType(" PT ")).toBe("pt");
         expect(normalizeCheckInType("other")).toBeNull();
         expect(normalizeCheckInType(undefined)).toBeNull();
@@ -41,12 +53,32 @@ describe("normalizeCheckInType", () => {
 
 describe("checkInOptions", () => {
     it("offers only the gym for a regular member", () => {
-        expect(checkInOptions(member(), { now: NOW, dayStart: DAY_START })).toMatchObject({ gym: true, pt: false });
+        const options = checkInOptions(member(), { now: NOW, dayStart: DAY_START });
+        expect(options).toMatchObject({ gym: true, pt: false });
+        expect(options.packages).toEqual([
+            expect.objectContaining({ activityType: "gym", packageName: "Gym" }),
+        ]);
+        expect(checkInChoiceKeys(options)).toEqual(["gym"]);
     });
 
     it("offers both when a member has an active gym package and PT sessions left", () => {
         const options = checkInOptions(member(pt()), { now: NOW, dayStart: DAY_START });
         expect(options).toMatchObject({ gym: true, pt: true, ptSessionsLeft: 6 });
+        expect(checkInChoiceKeys(options)).toEqual(["gym", "pt"]);
+    });
+
+    it("lists every active membership category plus PT when both apply", () => {
+        const options = checkInOptions(member(pt({
+            subscriptions: [
+                sub(new Date(2026, 9, 1), new Date(2026, 11, 1)),
+                sub(new Date(2026, 9, 1), new Date(2026, 11, 1), {
+                    packageSnapshot: { activityType: "crossfit", name: "CF", duration: "1 month", price: 800 },
+                }),
+            ],
+        })), { now: NOW, dayStart: DAY_START });
+
+        expect(options.packages.map((pkg) => pkg.activityType).sort()).toEqual(["crossfit", "gym"]);
+        expect(checkInChoiceKeys(options)).toEqual(["gym", "crossfit", "pt"]);
     });
 
     it("offers only PT when the gym package has ended", () => {

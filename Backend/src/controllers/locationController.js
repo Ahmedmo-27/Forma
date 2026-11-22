@@ -184,7 +184,8 @@ const deleteLocation = async (req, res) => {
             });
         }
 
-        const memberCount = await Member.countDocuments({ locationId: location._id });
+        const { memberLinkedToLocationsClause } = require("../utils/memberLocations");
+        const memberCount = await Member.countDocuments(memberLinkedToLocationsClause([location._id]));
         if (memberCount > 0) {
             return res.status(400).json({
                 message: `Reassign ${memberCount} member(s) before deleting this location`,

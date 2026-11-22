@@ -138,10 +138,15 @@ function buildMemberListFilter({
 }) {
     const filter = {};
 
-    if (locationFilter && typeof locationFilter === "object") {
-        Object.assign(filter, locationFilter);
+    if (locationFilter && typeof locationFilter === "object" && Object.keys(locationFilter).length) {
+        if (locationFilter.$or) {
+            pushAnd(filter, locationFilter);
+        } else {
+            Object.assign(filter, locationFilter);
+        }
     } else if (locationId && locationId !== "all") {
-        filter.locationId = locationId;
+        const { memberLinkedToLocationsClause } = require("./memberLocations");
+        pushAnd(filter, memberLinkedToLocationsClause([locationId]));
     }
 
     if (status === "blocked") {
