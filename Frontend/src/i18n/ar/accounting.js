@@ -36,6 +36,8 @@ const AR = {
   'Cancelled · no refund': 'ملغى · بدون استرداد',
   'Signed by {name}': 'وقّعه {name}',
   'Not signed': 'غير موقّع',
+  'This contract is signed and cannot be edited.': 'هذا العقد موقَّع ولا يمكن تعديله.',
+  'Refunded or cancelled packages cannot be edited.': 'لا يمكن تعديل الباقات المستردة أو الملغاة.',
 
   // Package requests
   'Package Exception Request': 'طلب باقة استثنائية',

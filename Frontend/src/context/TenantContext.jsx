@@ -3,6 +3,7 @@ import { getTenantMe } from '../api/endpoints';
 import { useAuth } from './AuthContext';
 import {  normalizeHexColor } from '../lib/validation';
 import WorkspaceBoot from '../components/WorkspaceBoot';
+import { subscribeSessionResume } from '../lib/sessionResume';
 
 const TenantContext = createContext(null);
 
@@ -66,6 +67,8 @@ export function TenantProvider({ children }) {
   const [tenant, setTenant] = useState(null);
   const [loading, setLoading] = useState(true);
   const [paletteUserId, setPaletteUserId] = useState(null);
+  // Bumped on session re-login so /tenant/me re-runs even when user id is unchanged.
+  const [resumeEpoch, setResumeEpoch] = useState(0);
 
   const applyBranding = useCallback((branding) => {
     const palette = workspacePalette(branding?.palette);
@@ -165,7 +168,7 @@ export function TenantProvider({ children }) {
         setLoading(false);
       }
     }
-  }, [user, applyTenant]);
+  }, [user, applyTenant, resumeEpoch]);
 
   useLayoutEffect(() => {
     if (userId) return;
@@ -176,6 +179,18 @@ export function TenantProvider({ children }) {
   useEffect(() => {
     fetchTenant();
   }, [fetchTenant]);
+
+  // After session re-login, force branding/features to reload (same user id would
+  // otherwise leave stale Forma defaults + Dashboard/Settings-only nav).
+  useEffect(() => {
+    return subscribeSessionResume((detail) => {
+      if (detail.surface === 'platform') return;
+      if (!detail.user) return;
+      setPaletteUserId(null);
+      setLoading(true);
+      setResumeEpoch((n) => n + 1);
+    });
+  }, []);
 
   const hasFeature = useCallback((featureKey) => {
     // Until the gym's plan is known nothing is unlocked. Pages wait on `loading`

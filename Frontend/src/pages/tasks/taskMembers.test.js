@@ -250,6 +250,44 @@ describe("tasks member groups", () => {
     expect(mayOnly.map((m) => m._id)).toEqual(["m1"]);
   });
 
+  it("uses the last subscription for stacked date + package filters", () => {
+    const list = [
+      {
+        _id: "keep",
+        status: "expired",
+        gender: "male",
+        assignedSales: { _id: "rep1" },
+        subscriptions: [
+          { endDate: "2026-01-01T00:00:00.000Z", package: { _id: "old", name: "Old" } },
+          { endDate: "2026-05-15T00:00:00.000Z", package: { _id: "pkg1", name: "Gold" } },
+        ],
+      },
+      {
+        _id: "drop-old-match",
+        status: "expired",
+        gender: "male",
+        assignedSales: { _id: "rep1" },
+        // Older row would match May + pkg1; last row does not.
+        subscriptions: [
+          { endDate: "2026-05-15T00:00:00.000Z", package: { _id: "pkg1", name: "Gold" } },
+          { endDate: "2026-07-01T00:00:00.000Z", package: { _id: "pkg2", name: "Silver" } },
+        ],
+      },
+    ];
+
+    const out = filterMembersAdvanced(list, {
+      status: "expired",
+      dateField: "endDate",
+      dateFrom: "2026-05-01",
+      dateTo: "2026-05-31",
+      packageId: "pkg1",
+      gender: "male",
+      kind: "sales",
+      personId: "rep1",
+    });
+    expect(out.map((m) => m._id)).toEqual(["keep"]);
+  });
+
   it("filters members by transfer history (transferred, never, bulk)", () => {
     const list = [
       {

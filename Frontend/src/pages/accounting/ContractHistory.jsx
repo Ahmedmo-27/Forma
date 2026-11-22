@@ -196,6 +196,7 @@ export default function ContractHistory() {
         contract={selected}
         open={!!selected}
         onClose={() => setSelected(null)}
+        onSaved={fetchContracts}
       />
     </Layout>
   );

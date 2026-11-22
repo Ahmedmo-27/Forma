@@ -1,13 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { Card, CardHeader, Badge, Table, EmptyState, Btn, Modal, Input, Textarea, Select, Spinner, ConfirmDialog, Switch, Alert, toLocalDateString } from '../../../components/ui';
-import { getPackages, getMemberPendingException, createPackageException, updatePackageExceptionStatus, assignPackage, createPackage, addPTSessions, refundMember, refundPTSessions, cancelMemberPackage, transferMemberPackage } from '../../../api/endpoints';
+import { getPackages, getMemberPendingException, createPackageException, updatePackageExceptionStatus, assignPackage, updateMemberSubscription, createPackage, addPTSessions, refundMember, refundPTSessions, cancelMemberPackage, transferMemberPackage } from '../../../api/endpoints';
 import CatalogPackageForm, { EMPTY_PACKAGE_FORM, validatePackageForm, packageFormToPayload } from '../../../components/PackageForm';
 import PackageAcceptModal from '../../../components/accounting/PackageAcceptModal';
 import { useTenant } from '../../../context/TenantContext';
 import { useTourReveal, useWalkthrough } from '../../../tutorials/walkthrough-context';
 import useLocationEffect from '../../../hooks/useLocationEffect';
-import { ArrowLeftRight, Ban, Banknote, Calendar, CircleOff, CornerDownLeft, FileSignature } from 'lucide-react';
+import { ArrowLeftRight, Ban, Banknote, Calendar, CircleOff, CornerDownLeft, FileSignature, Pencil } from 'lucide-react';
 import ContractSignModal from '../../../components/contracts/ContractSignModal';
 import { useI18n } from '../../../i18n/useI18n';
 import { useFormat } from '../../../i18n/useFormat';
@@ -399,6 +399,7 @@ function PackagesContent({ member, user, onRefresh }) {
   const [refunding, setRefunding]             = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [contractSub, setContractSub] = useState(null);
+  const [editSub, setEditSub] = useState(null);
   const [cancelReason, setCancelReason]       = useState('');
   const [cancelling, setCancelling]           = useState(false);
   const [showTransferModal, setShowTransferModal] = useState(false);
@@ -438,6 +439,7 @@ function PackagesContent({ member, user, onRefresh }) {
   const requestOnly = canRequestPackage && !canAssignPackageDirectly;
   const canRefund = isOwner || isAccountant || isGM;
   const canTransfer = isOwner || isAccountant || isGM;
+  const canEditSubscription = isOwner || isGM || isSalesManager;
   const memberKey = member.systemId ?? member._id;
 
   const fetchPending = useCallback(async () => {
@@ -640,6 +642,11 @@ function PackagesContent({ member, user, onRefresh }) {
           <div data-walkthrough="package-actions" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
             {activeSub && member.status !== 'guest' && (
               <Btn variant="outline" size="xs" onClick={() => setContractSub(activeSub)}><FileSignature size={14} aria-hidden /> {t('Contract')}</Btn>
+            )}
+            {canEditSubscription && (activeSub || upcomingSub) && !member.isBlocked && (
+              <Btn variant="outline" size="xs" onClick={() => setEditSub(activeSub || upcomingSub)}>
+                <Pencil size={14} aria-hidden /> {t('Edit')}
+              </Btn>
             )}
             {canRefund && (member.subscriptions?.length ?? 0) > 0 && !lastSaleForfeited && !lastSaleTransferred && (
               <Btn variant="outline" size="xs" onClick={() => setShowRefundModal(true)}><Banknote size={14} aria-hidden /> {t('Refund')}</Btn>
@@ -989,6 +996,19 @@ function PackagesContent({ member, user, onRefresh }) {
         subscriptionId={contractSub?._id}
         defaultSignerName={member.name}
       />
+
+      {editSub && (
+        <EditPackageModal
+          open={!!editSub}
+          onClose={() => setEditSub(null)}
+          member={member}
+          subscription={editSub}
+          onSuccess={() => {
+            setEditSub(null);
+            onRefresh?.();
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -1016,7 +1036,7 @@ const PACKAGE_TERM_KEYS = new Set([
   'freezeLimitDays', 'invitationLimit', 'renewalDiscountPercent',
 ]);
 
-function PackageFormFields({ form, set, readOnly, makeException, allEditable, lockStartDate }) {
+function PackageFormFields({ form, set, readOnly, makeException, allEditable, lockStartDate, showEndDate = false, showReason = false }) {
   const { t } = useI18n();
   const { currency = 'EGP' } = useTenant() || {};
   const fieldDisabled = (key) => {
@@ -1041,13 +1061,118 @@ function PackageFormFields({ form, set, readOnly, makeException, allEditable, lo
       <Input label={t('Freeze Limit (days)')} type="number" value={form.freezeLimitDays} onChange={e => set?.('freezeLimitDays', e.target.value)} disabled={fieldDisabled('freezeLimitDays')} readOnly={readOnly} />
       <Input label={t('Invitation Slots')} type="number" value={form.invitationLimit} onChange={e => set?.('invitationLimit', e.target.value)} disabled={fieldDisabled('invitationLimit')} readOnly={readOnly} />
       <Input label={t('Renewal Discount %')} type="number" min="0" max="100" value={form.renewalDiscountPercent} onChange={e => set?.('renewalDiscountPercent', e.target.value)} disabled={fieldDisabled('renewalDiscountPercent')} readOnly={readOnly} />
-      <Input label={t('Start Date')} type="date" value={form.startDate} onChange={e => set?.('startDate', e.target.value)} hint={lockStartDate ? t('Upgrade starts today. The current package keeps its end date and price.') : allEditable ? t('Defaults to current package end date if active, otherwise today') : undefined} disabled={lockStartDate || fieldDisabled('startDate')} readOnly={readOnly || lockStartDate} />
-      {!readOnly && !allEditable && (
+      <Input label={t('Start Date')} type="date" value={form.startDate} onChange={e => set?.('startDate', e.target.value)} hint={lockStartDate ? t('Upgrade starts today. The current package keeps its end date and price.') : allEditable && !showEndDate ? t('Defaults to current package end date if active, otherwise today') : undefined} disabled={lockStartDate || fieldDisabled('startDate')} readOnly={readOnly || lockStartDate} />
+      {showEndDate && (
+        <Input label={t('End Date')} type="date" value={form.endDate} onChange={e => set?.('endDate', e.target.value)} disabled={fieldDisabled('endDate')} readOnly={readOnly} />
+      )}
+      {!readOnly && (showReason || !allEditable) && (
         <div style={{ gridColumn: '1 / -1' }}>
-          <Input label={t('Reason')} value={form.reason} onChange={e => set?.('reason', e.target.value)} placeholder={t('Why is this exception needed?')} disabled={fieldDisabled('reason')} />
+          <Input label={t('Reason')} value={form.reason} onChange={e => set?.('reason', e.target.value)} placeholder={showReason ? t('Optional note for this edit') : t('Why is this exception needed?')} disabled={fieldDisabled('reason')} />
         </div>
       )}
     </div>
+  );
+}
+
+function subscriptionToEditForm(subscription) {
+  const pkg = subscription?.packageSnapshot ?? subscription?.package ?? {};
+  return {
+    ...EMPTY_FORM,
+    name: pkg.name ?? '',
+    activityType: pkg.activityType ?? 'gym',
+    duration: pkg.duration ?? '1 month',
+    price: String(pkg.price ?? ''),
+    freezeLimitDays: String(pkg.freezeLimitDays ?? 0),
+    invitationLimit: String(pkg.invitationLimit ?? 0),
+    renewalDiscountPercent: String(pkg.renewalDiscountPercent ?? 0),
+    description: pkg.description ?? '',
+    pricePaid: String(subscription?.pricePaid ?? ''),
+    discountPercent: String(subscription?.discountPercent ?? 0),
+    startDate: subscription?.startDate ? toLocalDateString(subscription.startDate) : '',
+    endDate: subscription?.endDate ? toLocalDateString(subscription.endDate) : '',
+    reason: '',
+  };
+}
+
+function EditPackageModal({ open, onClose, member, subscription, onSuccess }) {
+  const { t } = useI18n();
+  const [form, setForm] = useState(() => subscriptionToEditForm(subscription));
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) setForm(subscriptionToEditForm(subscription));
+  }, [open, subscription]);
+
+  const set = (k, v) => setForm((f) => {
+    const updated = { ...f, [k]: v };
+    if (k === 'price' || k === 'discountPercent') {
+      const price = Number(k === 'price' ? v : updated.price) || 0;
+      const discount = Math.min(100, Math.max(0, Number(k === 'discountPercent' ? v : updated.discountPercent) || 0));
+      updated.pricePaid = String(Math.round(price * (1 - discount / 100)));
+    }
+    return updated;
+  });
+
+  const handleSave = async () => {
+    if (!form.name?.trim()) { toast.error(t('Package name is required.')); return; }
+    if (!form.duration) { toast.error(t('Duration is required.')); return; }
+    if (form.pricePaid === '' || form.pricePaid == null || isNaN(Number(form.pricePaid)) || Number(form.pricePaid) < 0) {
+      toast.error(t('Price paid must be a non-negative number.'));
+      return;
+    }
+    if (!form.startDate || !form.endDate) {
+      toast.error(t('Start and end dates are required.'));
+      return;
+    }
+    if (form.endDate <= form.startDate) {
+      toast.error(t('End date must be after start date.'));
+      return;
+    }
+
+    const subscriptionKey = subscription._id ?? subscription.subscriptionId;
+    setLoading(true);
+    try {
+      await updateMemberSubscription(member.systemId ?? member._id, subscriptionKey, {
+        name: form.name.trim(),
+        activityType: form.activityType,
+        duration: form.duration,
+        price: Number(form.price) || 0,
+        freezeLimitDays: Number(form.freezeLimitDays) || 0,
+        invitationLimit: Number(form.invitationLimit) || 0,
+        renewalDiscountPercent: Number(form.renewalDiscountPercent) || 0,
+        pricePaid: Number(form.pricePaid),
+        discountPercent: Number(form.discountPercent) || 0,
+        startDate: form.startDate,
+        endDate: form.endDate,
+        reason: form.reason?.trim() || undefined,
+      });
+      toast.success(t('Package updated.'));
+      onSuccess?.();
+    } catch (e) {
+      toast.error(e.response?.data?.message ?? t('Failed to update package.'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <Modal
+      open={open}
+      onClose={() => !loading && onClose?.()}
+      title={t('Edit Package')}
+      size="lg"
+      footer={<>
+        <Btn variant="ghost" size="sm" onClick={onClose} disabled={loading}>{t('Cancel')}</Btn>
+        <Btn size="sm" onClick={handleSave} disabled={loading}>
+          {loading ? <Spinner size="sm" /> : t('Save changes')}
+        </Btn>
+      </>}
+    >
+      <Alert type="info">
+        {t('Changes apply to this membership only. Signed contracts cannot be edited.')}
+      </Alert>
+      <PackageFormFields form={form} set={set} allEditable showEndDate showReason />
+    </Modal>
   );
 }
 

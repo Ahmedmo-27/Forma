@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
-const { buildMemberListFilter, statsFilterFromListFilter, getMemberStatusStats, numericId } = require("./memberFilters");
+const { buildMemberListFilter, statsFilterFromListFilter, getMemberStatusStats, numericId, buildDateRange } = require("./memberFilters");
+const { cairoDayBounds } = require("./revenueUtils");
 
 describe("member list filters", () => {
     it("reads an S-prefixed system id as a number and never filters unassigned", () => {
@@ -38,21 +39,20 @@ describe("member list filters", () => {
         expect(stats.status).toBeUndefined();
         expect(stats.userlog).toBeUndefined();
         expect(stats.createdAt).toBeUndefined();
-        expect(stats["subscriptions.endDate"]).toBeUndefined();
-        expect(stats["subscriptions"]).toBeUndefined();
+        expect(stats.$expr).toBeUndefined();
+        expect(stats.$and?.some((c) => c.$expr)).toBeFalsy();
     });
 
-    it("builds expiringSoon filter using $elemMatch and proper date boundaries without refunded/cancelled", () => {
+    it("builds expiringSoon filter against the last subscription end date", () => {
         const filter = buildMemberListFilter({
             expiringSoon: "true",
         });
         expect(filter.status).toBe("active");
-        expect(filter.subscriptions).toBeDefined();
-        expect(filter.subscriptions.$elemMatch).toBeDefined();
-        expect(filter.subscriptions.$elemMatch.refunded).toEqual({ $ne: true });
-        expect(filter.subscriptions.$elemMatch.cancelled).toEqual({ $ne: true });
-        expect(filter.subscriptions.$elemMatch.endDate.$gte).toBeInstanceOf(Date);
-        expect(filter.subscriptions.$elemMatch.endDate.$lte).toBeInstanceOf(Date);
+        expect(filter.$and).toEqual(expect.arrayContaining([
+            { "subscriptions.0": { $exists: true } },
+            expect.objectContaining({ $expr: expect.any(Object) }),
+        ]));
+        expect(filter.subscriptions).toBeUndefined();
         expect(filter["subscriptions.endDate"]).toBeUndefined();
     });
 
@@ -76,6 +76,7 @@ describe("member list filters", () => {
     });
 
     it("supports date period from/to and transfer type filtering in member list", () => {
+        const { start, end } = cairoDayBounds("2026-05-01", "2026-05-31");
         const periodFilter = buildMemberListFilter({
             dateFrom: "2026-05-01",
             dateTo: "2026-05-31",
@@ -85,10 +86,19 @@ describe("member list filters", () => {
             currentCouch: "507f1f77bcf86cd799439012",
         });
 
-        expect(periodFilter["subscriptions.endDate"].$gte).toEqual(new Date("2026-05-01"));
         expect(periodFilter.userlog).toEqual({ $elemMatch: { type: "assign", text: /bulk/i } });
         expect(periodFilter.assignedSales).toBe("507f1f77bcf86cd799439011");
         expect(periodFilter.current_couch).toBe("507f1f77bcf86cd799439012");
+        expect(periodFilter.$and).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                $expr: expect.objectContaining({
+                    $and: expect.arrayContaining([
+                        { $gte: expect.arrayContaining([expect.any(Object), start]) },
+                        { $lte: expect.arrayContaining([expect.any(Object), end]) },
+                    ]),
+                }),
+            }),
+        ]));
 
         const neverFilter = buildMemberListFilter({ transferType: "never" });
         expect(neverFilter["userlog.type"]).toEqual({ $ne: "assign" });
@@ -109,6 +119,7 @@ describe("member list filters", () => {
     });
 
     it("ANDs transfer type with transfer-date period in one userlog $elemMatch", () => {
+        const { start } = cairoDayBounds("2026-05-01", "2026-05-31");
         const filter = buildMemberListFilter({
             transferType: "bulk",
             dateFrom: "2026-05-01",
@@ -117,7 +128,7 @@ describe("member list filters", () => {
         });
         expect(filter.userlog.$elemMatch.type).toBe("assign");
         expect(filter.userlog.$elemMatch.text).toEqual(/bulk/i);
-        expect(filter.userlog.$elemMatch.createdAt.$gte).toEqual(new Date("2026-05-01"));
+        expect(filter.userlog.$elemMatch.createdAt.$gte).toEqual(start);
     });
 
     it("ANDs recent members with an explicit join-date period", () => {
@@ -131,14 +142,14 @@ describe("member list filters", () => {
         expect(filter.$and).toEqual(expect.arrayContaining([
             expect.objectContaining({
                 createdAt: expect.objectContaining({
-                    $gte: new Date("2026-01-01"),
+                    $gte: expect.any(Date),
                     $lte: expect.any(Date),
                 }),
             }),
         ]));
     });
 
-    it("ANDs expiringSoon with subscription end-date period filters", () => {
+    it("ANDs expiringSoon with last-subscription end-date period filters", () => {
         const filter = buildMemberListFilter({
             expiringSoon: "true",
             dateFrom: "2026-05-01",
@@ -146,13 +157,12 @@ describe("member list filters", () => {
             dateField: "endDate",
         });
         expect(filter.status).toBe("active");
-        expect(filter.subscriptions.$elemMatch).toBeDefined();
-        expect(filter.$and).toEqual(expect.arrayContaining([
-            expect.objectContaining({ "subscriptions.endDate": expect.any(Object) }),
-        ]));
+        const exprs = (filter.$and || []).filter((c) => c.$expr);
+        expect(exprs.length).toBeGreaterThanOrEqual(2);
     });
 
     it("combines guest-report style filters (status, sales, coach, dates, source)", () => {
+        const { start } = cairoDayBounds("2026-05-01", "2026-05-31");
         const filter = buildMemberListFilter({
             status: "guest",
             assignedSales: "507f1f77bcf86cd799439011",
@@ -165,8 +175,60 @@ describe("member list filters", () => {
         expect(filter.status).toBe("guest");
         expect(filter.assignedSales).toBe("507f1f77bcf86cd799439011");
         expect(filter.current_couch).toBe("507f1f77bcf86cd799439012");
-        expect(filter.createdAt.$gte).toEqual(new Date("2026-05-01"));
+        expect(filter.createdAt.$gte).toEqual(start);
         expect(filter.source).toBe("Walk in");
+    });
+
+    it("matches package + endDate on the SAME last subscription (not any array element)", () => {
+        const packageId = "507f1f77bcf86cd799439099";
+        const filter = buildMemberListFilter({
+            status: "expired",
+            packageId,
+            dateFrom: "2026-05-01",
+            dateTo: "2026-05-31",
+            dateField: "endDate",
+            assignedSales: "507f1f77bcf86cd799439011",
+            currentCouch: "507f1f77bcf86cd799439012",
+            gender: "male",
+        });
+
+        expect(filter["subscriptions.package"]).toBeUndefined();
+        expect(filter["subscriptions.endDate"]).toBeUndefined();
+        expect(filter.gender).toBe("male");
+
+        const exprClause = (filter.$and || []).find((c) => c.$expr);
+        expect(exprClause).toBeDefined();
+        const parts = exprClause.$expr.$and;
+        expect(parts.some((p) => p.$eq && String(p.$eq[1]) === packageId)).toBe(true);
+        expect(parts.some((p) => p.$gte)).toBe(true);
+        expect(parts.some((p) => p.$lte)).toBe(true);
+    });
+
+    it("keeps prior $and clauses when search is combined with other filters", () => {
+        const filter = buildMemberListFilter({
+            packageId: "507f1f77bcf86cd799439099",
+            dateFrom: "2026-05-01",
+            dateTo: "2026-05-31",
+            dateField: "endDate",
+            search: "ahmed",
+        });
+        expect(filter.$or).toBeUndefined();
+        expect(filter.$and).toEqual(expect.arrayContaining([
+            expect.objectContaining({ $expr: expect.any(Object) }),
+            expect.objectContaining({
+                $or: expect.arrayContaining([
+                    { name: expect.any(Object) },
+                    { phones: expect.any(Object) },
+                ]),
+            }),
+        ]));
+    });
+
+    it("uses Cairo day bounds for both ends of a date range", () => {
+        const range = buildDateRange("2026-05-01", "2026-05-01");
+        const { start, end } = cairoDayBounds("2026-05-01", "2026-05-01");
+        expect(range.$gte).toEqual(start);
+        expect(range.$lte).toEqual(end);
     });
 
     it("passes isBlocked: { $ne: true } in status stats queries", async () => {
@@ -178,7 +240,6 @@ describe("member list filters", () => {
             }),
         };
         await getMemberStatusStats(Member, {});
-        // active, frozen, expired, guest calls should include isBlocked: { $ne: true }
         const nonBlockedStatusCalls = statusCalls.filter(c => c.status);
         expect(nonBlockedStatusCalls.length).toBe(4);
         nonBlockedStatusCalls.forEach(call => {

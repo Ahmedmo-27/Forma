@@ -68,15 +68,11 @@ export function parseDateBoundary(dateStr, isEnd = false) {
   return d.getTime();
 }
 
+/** Last array subscription — same row reports, expiry, and API filters use. */
 export function latestSubscription(member) {
   const list = member?.subscriptions;
   if (!Array.isArray(list) || !list.length) return null;
-  return list.reduce((latest, current) => {
-    if (!latest) return current;
-    const latestTime = latest.endDate ? new Date(latest.endDate).getTime() : (latest.startDate ? new Date(latest.startDate).getTime() : 0);
-    const currentTime = current.endDate ? new Date(current.endDate).getTime() : (current.startDate ? new Date(current.startDate).getTime() : 0);
-    return currentTime >= latestTime ? current : latest;
-  }, list[list.length - 1]);
+  return list[list.length - 1];
 }
 
 export function personName(value) {

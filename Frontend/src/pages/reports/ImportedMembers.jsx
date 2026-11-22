@@ -12,6 +12,7 @@ import { useI18n } from '../../i18n/useI18n';
 import { useFormat } from '../../i18n/useFormat';
 import { tr } from '../../i18n/translate';
 import { SHORT_DATE } from './analyticsFormat';
+import { fetchAllMembersByParams } from '../../lib/memberReportFilters';
 
 const PAGE_SIZE = 25;
 const TODAY = toLocalDateString();
@@ -49,10 +50,11 @@ export default function ImportedMembers() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getAllMembers({ source: 'data entry', limit: 5000, page: 1 });
-      const data = (res.data.members ?? [])
-        .slice()
-        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      const data = await fetchAllMembersByParams(getAllMembers, {
+        source: 'data entry',
+        sortBy: 'createdAt',
+        sortDir: -1,
+      });
       setAllMembers(data);
     } catch {
       toast.error(t('Failed to load imported members'));

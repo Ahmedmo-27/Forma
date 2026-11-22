@@ -10,6 +10,7 @@ import {
   clearTenantBearer,
 } from "../../../lib/sessionBearer";
 import { suppressAuthErrorModals } from "../../../lib/authErrorGate";
+import { subscribeSessionResume } from "../../../lib/sessionResume";
 
 const PlatformAuthContext = createContext(null);
 
@@ -70,6 +71,24 @@ export function PlatformAuthProvider({ children }) {
   useEffect(() => {
     if (user) setMonitoringUser({ ...user, surface: "platform" });
   }, [user]);
+
+  // SessionExpiredModal sits outside this provider — adopt its successful re-login.
+  useEffect(() => {
+    return subscribeSessionResume((detail) => {
+      if (detail.surface !== "platform") return;
+      const nextUser = detail.user;
+      if (!nextUser) return;
+      sessionEpoch.current += 1;
+      suppressAuthErrorModals(5000);
+      adoptPlatformAuthTokens(detail.tokens || {});
+      setLoading(false);
+      setUser(nextUser);
+      localStorage.setItem(STORAGE_USER, JSON.stringify(nextUser));
+      localStorage.removeItem("leap_platform_token");
+      localStorage.removeItem("leap_platform_refresh_token");
+      clearWwwPreviewCookie();
+    });
+  }, []);
 
   const loginSuccess = useCallback((authData) => {
     const { user: nextUser } = authData;

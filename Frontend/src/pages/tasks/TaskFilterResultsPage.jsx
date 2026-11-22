@@ -26,6 +26,10 @@ import { useI18n } from '../../i18n/useI18n.js';
 import { useFormat } from '../../i18n/useFormat.js';
 import { tr } from '../../i18n/translate.js';
 import BulkWhatsAppSendModal from '../../components/BulkWhatsAppSendModal';
+import {
+  fetchAllMembersByParams,
+  buildMemberFindApiParams,
+} from '../../lib/memberReportFilters';
 
 const DEFAULT_PAGE_SIZE = 20;
 const PAGE_SIZE_OPTIONS = [10, 20, 30, 50];
@@ -41,18 +45,28 @@ const GENDER_LABELS = { male: tr('Male'), female: tr('Female') };
 const TRANSFER_LABELS = { transferred: tr('Transferred'), never: tr('Never Transferred'), bulk: tr('Bulk Transferred') };
 const DATE_FIELD_LABELS = { endDate: tr('End Date'), startDate: tr('Start Date'), createdAt: tr('Join Date'), transferDate: tr('Transfer Date') };
 
-async function loadAllMembers() {
-  const members = [];
-  let page = 1;
-  for (;;) {
-    const params = { page, limit: 100, sortBy: 'name', sortDir: 1 };
-    const res = await getAllMembers(params);
-    members.push(...(res.data.members ?? []));
-    const totalPages = res.data.pagination?.totalPages ?? 1;
-    page += 1;
-    if (page > totalPages || page > 40) break;
-  }
-  return members;
+async function loadAllMembers(filters = {}) {
+  let assignedSales;
+  let currentCouch;
+  if (filters.kind === 'sales' && filters.personId) assignedSales = filters.personId;
+  if (filters.kind === 'coach' && filters.personId) currentCouch = filters.personId;
+
+  const params = buildMemberFindApiParams({
+    status: filters.statusFilter,
+    search: filters.search,
+    assignedSales,
+    currentCouch,
+    dateFrom: filters.dateFrom,
+    dateTo: filters.dateTo,
+    dateField: filters.dateField,
+    packageId: filters.packageFilter,
+    gender: filters.genderFilter,
+    transferType: filters.transferTypeFilter,
+    sortBy: 'name',
+    sortDir: 1,
+  });
+
+  return fetchAllMembersByParams(getAllMembers, params);
 }
 
 export default function TaskFilterResultsPage() {
@@ -154,12 +168,12 @@ function TaskFilterResults({ filters }) {
       .catch(() => {});
   }, []);
 
-  // ── Load all members ──
+  // ── Load all members (server-side filters + full page walk) ──
   const fetchMembers = useCallback(async () => {
     setLoading(true);
     setLoaded(false);
     try {
-      const list = await loadAllMembers();
+      const list = await loadAllMembers(filters);
       setMembers(list);
       setLoaded(true);
     } catch {
@@ -167,7 +181,7 @@ function TaskFilterResults({ filters }) {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, filters]);
 
   useLocationEffect(() => { fetchMembers(); }, [fetchMembers]);
   useLocationEffect(() => {

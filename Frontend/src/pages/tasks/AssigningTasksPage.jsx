@@ -27,6 +27,10 @@ import {
 import AssignedTasksPage from './AssignedTasksPage';
 import BulkWhatsAppSendModal from '../../components/BulkWhatsAppSendModal';
 import {
+  fetchAllMembersByParams,
+  buildMemberFindApiParams,
+} from '../../lib/memberReportFilters';
+import {
   ChevronDown, ChevronUp, CircleDot, ClipboardList, Dumbbell, FolderOpen,
   MessageCircle, RefreshCw, Search, UserRound, Users, X, Zap,
 } from 'lucide-react';
@@ -48,17 +52,12 @@ function downloadExcel(filename, columns, rows) {
 }
 
 async function loadAssigned(scope = {}) {
-  const members = [];
-  let page = 1;
-  for (;;) {
-    const params = { page, limit: 100, sortBy: 'name', sortDir: 1, ...scope };
-    const res = await getAllMembers(params);
-    members.push(...(res.data.members ?? []));
-    const totalPages = res.data.pagination?.totalPages ?? 1;
-    page += 1;
-    if (page > totalPages || page > 40) break;
-  }
-  return members;
+  const params = buildMemberFindApiParams({
+    ...scope,
+    sortBy: 'name',
+    sortDir: 1,
+  });
+  return fetchAllMembersByParams(getAllMembers, params);
 }
 
 export default function AssigningTasksPage() {

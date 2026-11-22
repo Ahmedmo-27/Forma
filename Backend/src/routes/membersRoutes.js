@@ -21,6 +21,7 @@ const {
     addAlertSchema,
     invitationSchema,
     assignPackageSchema,
+    updateSubscriptionSchema,
     blockMemberSchema,
     suspendMemberSchema,
 } = require("../validation/schemas");
@@ -46,6 +47,7 @@ const {
     addCouch_notes,
     switchCoach,
     assignPackage,
+    updateSubscription,
     getTodayCheckIns,
     uploadNationalId,
     uploadProfilePhoto,
@@ -123,6 +125,15 @@ router.patch("/:memberId/block", protect, allowRoles("management", "Owner", "Sal
 router.patch("/:memberId/suspend", protect, allowRoles("management", "Owner", "General Manager", "Sales Manager", "Head Coach"), validate(suspendMemberSchema), autoInvalidate(["members"]), suspendMember);
 router.patch("/:memberId/unblock", protect, allowRoles("management", "Owner", "Sales Manager", "Head Coach", "General Manager"), autoInvalidate(["members"]), unblockMember);
 router.post("/:memberId/package", protect, allowAnyFeature(["package_approvals", "bypass_package_approval"], "Accountant", "Owner", "General Manager"), requireFeature("packages"), validate(assignPackageSchema), autoInvalidate(["members", "revenue", "contracts"]), assignPackage);
+router.patch(
+    "/:memberId/subscriptions/:subscriptionId",
+    protect,
+    allowRoles("packages", "Owner", "General Manager", "Sales Manager"),
+    requireFeature("packages"),
+    validate(updateSubscriptionSchema),
+    autoInvalidate(["members", "revenue", "contracts"]),
+    updateSubscription
+);
 router.patch("/:memberId/national-id", protect, allowRoles("accounting_dashboard", "Accountant", "Owner"), uploadLimiter, uploadSingle("nationalIdFile"), autoInvalidate(["members"]), uploadNationalId);
 router.patch("/:memberId/photo", protect, allowRoles("members", "Accountant", "Owner", "Receptionist"), uploadLimiter, uploadSinglePhoto("photoFile"), autoInvalidate(["members"]), uploadProfilePhoto);
 router.patch("/:memberId", allowRoles("members", "Receptionist", "Owner", "Sales Manager", "Sales", "Accountant", "General Manager"), validate(updateMemberSchema), autoInvalidate(["members"]), updateMember);

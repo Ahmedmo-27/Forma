@@ -81,7 +81,7 @@ const { remainingCapacity, planLimitPayload } = require("../services/planLimitSe
 const { resolveSalesAssignee, ensureSalesManagerAssignments } = require("../utils/salesAssignment");
 const { resolveCoachAssignee, ensureHeadCoachAssignments } = require("../utils/coachAssignment");
 const { sanitizePlainText } = require("../utils/sanitizeText");
-const { validateNoOverlappingSubscription, resolveNextPackageStart, closeRefundedSubscription, findActiveSubscription, currentPackageSubscription, latestOpenSubscription, isForfeitedCancellation, isTransferredAway } = require("../utils/subscriptionUtils");
+const { validateNoOverlappingSubscription, resolveNextPackageStart, closeRefundedSubscription, findActiveSubscription, currentPackageSubscription, latestOpenSubscription, isClosedSubscription, isForfeitedCancellation, isTransferredAway } = require("../utils/subscriptionUtils");
 const { normalizeCheckInType, checkInOptions, ptSessionsLeft, COACH_ROLES } = require("../utils/checkInOptions");
 const { setPackageTransferFee } = require("../utils/packageTransferFee");
 const { buildPackageSnapshot, resolveSubscriptionPackage } = require("../utils/packageSnapshot");
@@ -491,22 +491,27 @@ const getAllMembers = async (req, res) => {
         const statsFilter = statsFilterFromListFilter(filter);
 
         if (isGlobalSearch) {
-            const members = await Member.find(filter)
-                .select(MEMBER_SEARCH_SELECT)
-                .populate("subscriptions.package", "name duration activityType")
-                .populate("assignedSales", "name role")
-                .populate("current_couch", "name role")
-                .sort(sortObj)
-                .skip(skip)
-                .limit(limit)
-                .lean();
+            // Still count so clients know when the page is truncated and can
+            // follow hasNextPage (reports used to treat returned.length as total).
+            const [total, members] = await Promise.all([
+                Member.countDocuments(filter),
+                Member.find(filter)
+                    .select(MEMBER_SEARCH_SELECT)
+                    .populate("subscriptions.package", "name duration activityType")
+                    .populate("assignedSales", "name role")
+                    .populate("current_couch", "name role")
+                    .sort(sortObj)
+                    .skip(skip)
+                    .limit(limit)
+                    .lean(),
+            ]);
 
             const redacted = members.map(m => redactMemberForViewer(m, req.user));
 
             return res.status(200).json({
-                count: redacted.length,
+                count: total,
                 members: redacted,
-                pagination: buildPagination(page, limit, redacted.length),
+                pagination: buildPagination(page, limit, total),
             });
         }
 
@@ -2172,6 +2177,188 @@ const assignPackage = async (req, res) => {
     }
 };
 
+/**
+ * Edit an already-assigned open subscription (Owner / GM / Sales Manager).
+ * Updates packageSnapshot terms and/or pricePaid / dates. Rejects closed or signed contracts.
+ */
+const updateSubscription = async (req, res) => {
+    try {
+        const {
+            name,
+            activityType,
+            duration,
+            price,
+            freezeLimitDays,
+            invitationLimit,
+            renewalDiscountPercent,
+            description,
+            pricePaid,
+            discountPercent,
+            startDate,
+            endDate,
+            reason,
+        } = req.body;
+
+        const memberDoc = await findMember(req.params.memberId);
+        if (!memberDoc) {
+            return res.status(404).json({ message: "Member not found" });
+        }
+        const memberForbidden = forbidIfOutOfLocationScope(req, memberDoc);
+        if (memberForbidden) return sendMemberScopeError(res, memberForbidden);
+        const member = memberDoc;
+
+        const ref = String(req.params.subscriptionId);
+        const sub = (member.subscriptions || []).find(
+            (s) => String(s._id) === ref || (s.subscriptionId != null && String(s.subscriptionId) === ref)
+        );
+        if (!sub) {
+            return res.status(404).json({ message: "Subscription not found" });
+        }
+        if (isClosedSubscription(sub) || isTransferredAway(sub)) {
+            return res.status(400).json({ message: "Cannot edit a refunded, cancelled, or transferred package" });
+        }
+
+        const ContractSignature = require("../models/ContractSignature");
+        const signed = await ContractSignature.exists({ subscription: sub._id });
+        if (signed) {
+            return res.status(409).json({
+                code: "CONTRACT_ALREADY_SIGNED",
+                message: "This package has a signed contract and cannot be edited",
+            });
+        }
+
+        const currentTerms = resolveSubscriptionPackage(sub) || {};
+        const nextSnapshot = buildPackageSnapshot({
+            ...currentTerms,
+            name: name !== undefined ? String(name).trim() : currentTerms.name,
+            activityType: activityType !== undefined ? activityType : (currentTerms.activityType || "gym"),
+            duration: duration !== undefined ? duration : currentTerms.duration,
+            price: price !== undefined ? Number(price) : (Number(currentTerms.price) || 0),
+            freezeLimitDays: freezeLimitDays !== undefined
+                ? Number(freezeLimitDays)
+                : (Number(currentTerms.freezeLimitDays) || 0),
+            invitationLimit: invitationLimit !== undefined
+                ? Number(invitationLimit)
+                : (Number(currentTerms.invitationLimit) || 0),
+            renewalDiscountPercent: renewalDiscountPercent !== undefined
+                ? Number(renewalDiscountPercent)
+                : (Number(currentTerms.renewalDiscountPercent) || 0),
+            description: description !== undefined ? description : (currentTerms.description ?? null),
+            hasException: true,
+            free_pt_sessions: currentTerms.free_pt_sessions || 0,
+            locationScope: currentTerms.locationScope || "all",
+            eligibleLocationIds: currentTerms.eligibleLocationIds || [],
+        });
+
+        if (!nextSnapshot?.name || !nextSnapshot?.duration) {
+            return res.status(400).json({ message: "Package name and duration are required" });
+        }
+
+        const now = new Date();
+        const nextStart = startDate != null && startDate !== ""
+            ? new Date(startDate)
+            : new Date(sub.startDate);
+        if (Number.isNaN(nextStart.getTime())) {
+            return res.status(400).json({ message: "Invalid start date" });
+        }
+
+        let nextEnd;
+        if (endDate != null && endDate !== "") {
+            nextEnd = new Date(endDate);
+            if (Number.isNaN(nextEnd.getTime())) {
+                return res.status(400).json({ message: "Invalid end date" });
+            }
+        } else if (duration !== undefined && duration !== currentTerms.duration) {
+            nextEnd = calcEndDate(nextStart, nextSnapshot.duration);
+        } else if (startDate != null && startDate !== "" && duration === undefined) {
+            // Start moved but duration unchanged — keep the same length when possible
+            const prevStart = new Date(sub.startDate);
+            const prevEnd = new Date(sub.endDate);
+            const spanMs = prevEnd.getTime() - prevStart.getTime();
+            nextEnd = Number.isFinite(spanMs) && spanMs > 0
+                ? new Date(nextStart.getTime() + spanMs)
+                : calcEndDate(nextStart, nextSnapshot.duration);
+        } else {
+            nextEnd = new Date(sub.endDate);
+        }
+
+        if (!(nextEnd > nextStart)) {
+            return res.status(400).json({ message: "End date must be after start date" });
+        }
+
+        const coversNow = nextStart <= now && nextEnd > now;
+        if (coversNow) {
+            const freezeUsed = Number(member.freezeDaysUsed) || 0;
+            if (nextSnapshot.freezeLimitDays < freezeUsed) {
+                return res.status(400).json({
+                    message: `Freeze limit cannot be below days already used (${freezeUsed})`,
+                });
+            }
+            const invitesUsed = Number(member.invitationsUsed) || 0;
+            if (nextSnapshot.invitationLimit < invitesUsed) {
+                return res.status(400).json({
+                    message: `Invitation slots cannot be below invitations already used (${invitesUsed})`,
+                });
+            }
+        }
+
+        const nextPricePaid = pricePaid !== undefined ? Number(pricePaid) : Number(sub.pricePaid);
+        if (!Number.isFinite(nextPricePaid) || nextPricePaid < 0) {
+            return res.status(400).json({ message: "Price paid must be a non-negative number" });
+        }
+        const refundedSoFar = Number(sub.refundAmount) || 0;
+        if (nextPricePaid < refundedSoFar) {
+            return res.status(400).json({
+                message: `Price paid cannot be below refunds already issued (${refundedSoFar})`,
+            });
+        }
+
+        const nextDiscount = discountPercent !== undefined
+            ? Number(discountPercent)
+            : (Number(sub.discountPercent) || 0);
+        if (!Number.isFinite(nextDiscount) || nextDiscount < 0 || nextDiscount > 100) {
+            return res.status(400).json({ message: "Discount percent must be between 0 and 100" });
+        }
+
+        sub.packageSnapshot = nextSnapshot;
+        sub.startDate = nextStart;
+        sub.endDate = nextEnd;
+        sub.pricePaid = nextPricePaid;
+        sub.discountPercent = nextDiscount;
+        if (typeof member.markModified === "function") member.markModified("subscriptions");
+
+        const note = String(reason || "").trim();
+        member.userlog = member.userlog || [];
+        member.userlog.push({
+            type: "other",
+            text: note
+                ? `Package edited: ${nextSnapshot.name} — ${note}`
+                : `Package edited: ${nextSnapshot.name}`,
+            createdBy: req.user.id,
+        });
+
+        await member.save();
+
+        await writeAudit({
+            action: "subscription_updated",
+            actor: req.user.id,
+            actorRole: req.user.role,
+            targetType: "member",
+            targetId: member._id,
+            meta: {
+                subscriptionId: sub.subscriptionId ?? String(sub._id),
+                packageName: nextSnapshot.name,
+                reason: note || null,
+            },
+            req,
+        });
+
+        res.status(200).json({ message: "Package updated successfully", member });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
 // ─── Upload National ID (Accountant only) ─────────────────────────────────────
 const uploadNationalId = async (req, res) => {
     try {
@@ -3537,6 +3724,7 @@ module.exports = {
     addInvitation,
     getAllNotes,
     assignPackage,
+    updateSubscription,
     getTodayCheckIns,
     uploadNationalId,
     uploadProfilePhoto,

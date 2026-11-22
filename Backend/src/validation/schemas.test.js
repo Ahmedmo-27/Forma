@@ -1,4 +1,4 @@
-const { assignPackageSchema, addNoteSchema, createExceptionSchema, salesRequestSchema, updateMemberSchema, tenantSettingsSchema } = require("./schemas");
+const { assignPackageSchema, updateSubscriptionSchema, addNoteSchema, createExceptionSchema, salesRequestSchema, updateMemberSchema, tenantSettingsSchema } = require("./schemas");
 
 const basePayload = {
     packageId: "507f1f77bcf86cd799439011",
@@ -15,6 +15,23 @@ describe("assignPackageSchema", () => {
     it("accepts positive pricePaid", () => {
         const result = assignPackageSchema.safeParse({ ...basePayload, pricePaid: 100 });
         expect(result.success).toBe(true);
+    });
+});
+
+describe("updateSubscriptionSchema", () => {
+    it("rejects an empty body", () => {
+        expect(updateSubscriptionSchema.safeParse({}).success).toBe(false);
+    });
+
+    it("accepts partial term updates including zero pricePaid", () => {
+        const result = updateSubscriptionSchema.safeParse({
+            freezeLimitDays: 12,
+            pricePaid: 0,
+            endDate: "2026-06-01",
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.freezeLimitDays).toBe(12);
+        expect(result.data.pricePaid).toBe(0);
     });
 });
 

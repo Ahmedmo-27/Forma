@@ -382,6 +382,15 @@ const AR = {
   'Package request sent for Owner, GM, or Accountant approval.': 'تم إرسال طلب الباقة لموافقة المالك أو المدير العام أو المحاسب.',
   'Package upgraded.': 'تمت ترقية الباقة.',
   'Package assigned.': 'تم تعيين الباقة.',
+  'Edit Package': 'تعديل الباقة',
+  'Save changes': 'حفظ التغييرات',
+  'Package updated.': 'تم تحديث الباقة.',
+  'Failed to update package.': 'تعذر تحديث الباقة.',
+  'Start and end dates are required.': 'تاريخ البدء والانتهاء مطلوبان.',
+  'End date must be after start date.': 'يجب أن يكون تاريخ الانتهاء بعد تاريخ البدء.',
+  'Optional note for this edit': 'ملاحظة اختيارية لهذا التعديل',
+  'Changes apply to this membership only. Signed contracts cannot be edited.': 'تُطبَّق التغييرات على هذا الاشتراك فقط. لا يمكن تعديل العقود الموقَّعة.',
+  'End Date': 'تاريخ الانتهاء',
 };
 
 export default AR;

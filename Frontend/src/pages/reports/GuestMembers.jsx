@@ -10,7 +10,10 @@ import { useI18n } from '../../i18n/useI18n';
 import { useFormat } from '../../i18n/useFormat';
 import { tr } from '../../i18n/translate';
 import { SHORT_DATE, sourceLabel } from './analyticsFormat';
-import { buildGuestReportApiParams } from '../../lib/memberReportFilters';
+import {
+  buildGuestReportApiParams,
+  fetchAllMembersByParams,
+} from '../../lib/memberReportFilters';
 
 const TODAY      = toLocalDateString();
 const MONTH_START = `${TODAY.slice(0, 7)}-01`;
@@ -127,8 +130,8 @@ export default function GuestMembers() {
         source,
       });
 
-      const res = await getAllMembers(params);
-      setResults(res.data.members ?? []);
+      const members = await fetchAllMembersByParams(getAllMembers, params);
+      setResults(members);
     } catch {
       setResults([]);
     } finally {

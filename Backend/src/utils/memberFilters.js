@@ -1,4 +1,5 @@
 const { escapeRegex } = require("./username");
+const { cairoDayBounds } = require("./revenueUtils");
 
 function numericId(value) {
     const raw = String(value ?? "").trim().replace(/^[sS]/, "");
@@ -44,17 +45,76 @@ function stashSubscriptionPeriodKeys(filter) {
         pushAnd(filter, { "subscriptions.endDate": filter["subscriptions.endDate"] });
         delete filter["subscriptions.endDate"];
     }
+    if (filter["subscriptions.startDate"]) {
+        pushAnd(filter, { "subscriptions.startDate": filter["subscriptions.startDate"] });
+        delete filter["subscriptions.startDate"];
+    }
+    if (filter["subscriptions.package"]) {
+        pushAnd(filter, { "subscriptions.package": filter["subscriptions.package"] });
+        delete filter["subscriptions.package"];
+    }
 }
 
+/**
+ * Cairo calendar-day bounds for YYYY-MM-DD inputs.
+ * Both ends use the same timezone so multi-day report filters do not drop
+ * people near midnight.
+ */
 function buildDateRange(dateFrom, dateTo) {
-    const range = {};
-    if (dateFrom) range.$gte = new Date(dateFrom);
-    if (dateTo) {
-        const end = new Date(dateTo);
-        end.setHours(23, 59, 59, 999);
-        range.$lte = end;
+    if (!dateFrom && !dateTo) return null;
+    if (dateFrom && dateTo) {
+        const { start, end } = cairoDayBounds(dateFrom, dateTo);
+        return { $gte: start, $lte: end };
     }
-    return Object.keys(range).length ? range : null;
+    if (dateFrom) {
+        const { start } = cairoDayBounds(dateFrom, dateFrom);
+        return { $gte: start };
+    }
+    const { end } = cairoDayBounds(dateTo, dateTo);
+    return { $lte: end };
+}
+
+function lastSubPath(field) {
+    return { $arrayElemAt: [`$subscriptions.${field}`, -1] };
+}
+
+/**
+ * Match package / start / end against the LAST subscription only.
+ * Dotted paths like subscriptions.endDate match ANY array element, so
+ * combining package + dates (or Type on the client) dropped or mis-matched
+ * people whose older rows happened to satisfy part of the filter.
+ */
+function pushLastSubscriptionConstraints(filter, { packageId, startDateRange, endDateRange } = {}) {
+    const exprs = [];
+
+    if (packageId) {
+        exprs.push({
+            $eq: [
+                { $toString: { $ifNull: [lastSubPath("package"), ""] } },
+                String(packageId),
+            ],
+        });
+    }
+
+    if (startDateRange?.$gte) {
+        exprs.push({ $gte: [lastSubPath("startDate"), startDateRange.$gte] });
+    }
+    if (startDateRange?.$lte) {
+        exprs.push({ $lte: [lastSubPath("startDate"), startDateRange.$lte] });
+    }
+    if (endDateRange?.$gte) {
+        exprs.push({ $gte: [lastSubPath("endDate"), endDateRange.$gte] });
+    }
+    if (endDateRange?.$lte) {
+        exprs.push({ $lte: [lastSubPath("endDate"), endDateRange.$lte] });
+    }
+
+    if (!exprs.length) return;
+
+    pushAnd(filter, { "subscriptions.0": { $exists: true } });
+    pushAnd(filter, {
+        $expr: exprs.length === 1 ? exprs[0] : { $and: exprs },
+    });
 }
 
 function buildMemberListFilter({
@@ -103,16 +163,13 @@ function buildMemberListFilter({
         filter.gender = gender;
     }
 
-    if (packageId && packageId !== "all" && packageId !== "All") {
-        filter["subscriptions.package"] = packageId;
-    }
-
     if (source && source !== "all" && source !== "All") {
         filter.source = source;
     }
 
     const periodRange = buildDateRange(dateFrom, dateTo);
     const normalizedDateField = dateField === "joined" ? "createdAt" : dateField;
+    const hasPackage = Boolean(packageId && packageId !== "all" && packageId !== "All");
 
     // Transfer history constraints (merged with transfer-date period when both are set)
     let userlogElem = null;
@@ -140,15 +197,26 @@ function buildMemberListFilter({
         setUserlogElemMatch(filter, userlogElem);
     }
 
+    let startDateRange = null;
+    let endDateRange = null;
     if (periodRange && normalizedDateField !== "transferDate") {
         if (normalizedDateField === "createdAt") {
             setCreatedAtRange(filter, periodRange);
         } else if (normalizedDateField === "startDate") {
-            filter["subscriptions.startDate"] = periodRange;
+            startDateRange = periodRange;
         } else {
-            stashSubscriptionPeriodKeys(filter);
-            filter["subscriptions.endDate"] = periodRange;
+            // default / endDate — last subscription end date
+            endDateRange = periodRange;
         }
+    }
+
+    if (hasPackage || startDateRange || endDateRange) {
+        stashSubscriptionPeriodKeys(filter);
+        pushLastSubscriptionConstraints(filter, {
+            packageId: hasPackage ? packageId : null,
+            startDateRange,
+            endDateRange,
+        });
     }
 
     if (recent === "true" || recent === true) {
@@ -173,13 +241,18 @@ function buildMemberListFilter({
         endOf7thDay.setHours(23, 59, 59, 999);
         if (!filter.status) filter.status = "active";
         stashSubscriptionPeriodKeys(filter);
-        filter.subscriptions = {
-            $elemMatch: {
-                endDate: { $gte: startOfToday, $lte: endOf7thDay },
-                refunded: { $ne: true },
-                cancelled: { $ne: true },
+        // Last open subscription ending within 7 days (same row the UI shows)
+        pushAnd(filter, { "subscriptions.0": { $exists: true } });
+        pushAnd(filter, {
+            $expr: {
+                $and: [
+                    { $gte: [lastSubPath("endDate"), startOfToday] },
+                    { $lte: [lastSubPath("endDate"), endOf7thDay] },
+                    { $ne: [{ $ifNull: [lastSubPath("refunded"), false] }, true] },
+                    { $ne: [{ $ifNull: [lastSubPath("cancelled"), false] }, true] },
+                ],
             },
-        };
+        });
     }
 
     if (search?.trim()) {
@@ -198,9 +271,14 @@ function buildMemberListFilter({
                 or.push({ systemId: num }, { memberId: num });
             }
         }
+        // Never replace an existing $and — that dropped transfer/date/package clauses
+        // when search was combined with other filters.
         if (filter.$or) {
-            filter.$and = [{ $or }, { $or: filter.$or }];
+            pushAnd(filter, { $or: filter.$or });
             delete filter.$or;
+            pushAnd(filter, { $or: or });
+        } else if (filter.$and) {
+            pushAnd(filter, { $or: or });
         } else {
             filter.$or = or;
         }
@@ -219,10 +297,12 @@ function statsFilterFromListFilter(filter = {}) {
     delete statsFilter["subscriptions.endDate"];
     delete statsFilter.subscriptions;
     delete statsFilter["subscriptions.package"];
+    delete statsFilter["subscriptions.0"];
     delete statsFilter.createdAt;
     delete statsFilter.userlog;
     delete statsFilter["userlog.type"];
     delete statsFilter.source;
+    delete statsFilter.$expr;
     if (Array.isArray(statsFilter.$and)) {
         statsFilter.$and = statsFilter.$and.filter(
             (clause) =>
@@ -231,6 +311,10 @@ function statsFilterFromListFilter(filter = {}) {
                 && !clause.createdAt
                 && !clause.subscriptions
                 && !clause["subscriptions.endDate"]
+                && !clause["subscriptions.startDate"]
+                && !clause["subscriptions.package"]
+                && !clause["subscriptions.0"]
+                && !clause.$expr
         );
         if (!statsFilter.$and.length) delete statsFilter.$and;
     }
@@ -252,6 +336,7 @@ async function getMemberStatusStats(Member, baseFilter = {}) {
 
 module.exports = {
     numericId,
+    buildDateRange,
     buildMemberListFilter,
     statsFilterFromListFilter,
     getMemberStatusStats,

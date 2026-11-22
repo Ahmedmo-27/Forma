@@ -140,6 +140,26 @@ const assignPackageSchema = z.object({
     ).optional(),
 });
 
+/** Partial update of an already-assigned subscription (Owner / GM / Sales Manager). */
+const updateSubscriptionSchema = z.object({
+    name: z.string().trim().min(1).max(120).optional(),
+    activityType: activityType.optional(),
+    duration: duration.optional(),
+    price: z.coerce.number().nonnegative().optional(),
+    freezeLimitDays: z.coerce.number().int().nonnegative().optional(),
+    invitationLimit: z.coerce.number().int().nonnegative().optional(),
+    renewalDiscountPercent: z.coerce.number().min(0).max(100).optional(),
+    description: z.string().trim().max(1000).nullable().optional(),
+    pricePaid: z.coerce.number().nonnegative().optional(),
+    discountPercent: z.coerce.number().min(0).max(100).optional(),
+    startDate: z.string().max(40).nullable().optional(),
+    endDate: z.string().max(40).nullable().optional(),
+    reason: z.string().trim().max(1000).nullable().optional(),
+}).refine(
+    (data) => Object.values(data).some((value) => value !== undefined && value !== null && value !== ""),
+    { message: "At least one field is required" }
+);
+
 const createExceptionSchema = z.object({
     memberId: memberIdInput,
     basePackageId: objectId,
@@ -691,6 +711,7 @@ module.exports = {
     addAlertSchema,
     invitationSchema,
     assignPackageSchema,
+    updateSubscriptionSchema,
     createExceptionSchema,
     exceptionStatusSchema,
     salesRequestSchema,

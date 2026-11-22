@@ -5,6 +5,7 @@ import WorkspaceBoot from '../components/WorkspaceBoot';
 import { setMonitoringUser } from '../lib/monitoring';
 import { adoptTenantAuthTokens, clearTenantBearer } from '../lib/sessionBearer';
 import { suppressAuthErrorModals } from '../lib/authErrorGate';
+import { subscribeSessionResume } from '../lib/sessionResume';
 
 const AuthContext = createContext(null);
 
@@ -112,6 +113,23 @@ export function AuthProvider({ children }) {
         setUser(res.data);
       })
       .catch(() => {});
+  }, []);
+
+  // SessionExpiredModal sits outside this provider — adopt its successful re-login.
+  useEffect(() => {
+    return subscribeSessionResume((detail) => {
+      if (detail.surface === 'platform') return;
+      const u = detail.user;
+      if (!u) return;
+      sessionEpoch.current += 1;
+      suppressAuthErrorModals(5000);
+      adoptTenantAuthTokens(detail.tokens || {});
+      localStorage.setItem('ff_user', JSON.stringify(u));
+      localStorage.removeItem('ff_token');
+      if (u.tenantSlug) localStorage.setItem('ff_tenant_slug', u.tenantSlug);
+      setUser(u);
+      setChecked(true);
+    });
   }, []);
 
   useEffect(() => {

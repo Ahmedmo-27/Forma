@@ -191,6 +191,8 @@ export const sendWhatsAppImage = (formData) => api.post('/whatsapp/messages/imag
 
 export const assignPackage       = (id, data) =>
   api.post(`/members/${id}/package`, data);
+export const updateMemberSubscription = (memberId, subscriptionId, data) =>
+  api.patch(`/members/${memberId}/subscriptions/${subscriptionId}`, data);
 export const addPTSessions       = (id, data) =>
   api.post(`/members/${id}/pt-sessions`, data);
 

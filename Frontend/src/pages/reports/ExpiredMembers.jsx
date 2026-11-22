@@ -13,6 +13,8 @@ import { SHORT_DATE } from './analyticsFormat';
 import {
   buildExpiredReportApiParams,
   applyExpiredReportExtraFilters,
+  fetchAllMembersByParams,
+  latestSubscriptionForReport,
 } from '../../lib/memberReportFilters';
 
 const TODAY       = toLocalDateString();
@@ -144,9 +146,7 @@ export default function ExpiredMembers() {
         gender,
       });
 
-      const res = await getAllMembers(params);
-      let members = res.data.members ?? [];
-
+      let members = await fetchAllMembersByParams(getAllMembers, params);
       members = applyExpiredReportExtraFilters(members, { type, categories });
 
       setResults(members);
@@ -292,7 +292,7 @@ export default function ExpiredMembers() {
                   </thead>
                   <tbody>
                     {paginatedResults.map(m => {
-                      const lastSub = m.subscriptions?.at(-1);
+                      const lastSub = latestSubscriptionForReport(m);
                       const pkg = lastSub?.packageSnapshot ?? lastSub?.package;
                       const genderKey = String(m.gender ?? '').toLowerCase();
                       const memberCode = `M${m.memberId}`;

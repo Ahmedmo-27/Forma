@@ -3,6 +3,7 @@ import { Clock, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import axios from "axios";
 import { apiOrigin } from "../../api/axios";
 import { useI18n } from "../../i18n/useI18n";
+import { emitSessionResume } from "../../lib/sessionResume";
 
 function readStoredUser() {
   try {
@@ -72,15 +73,20 @@ export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess, error }) 
           { email, password },
           { withCredentials: true }
         );
-        if (res.data?.user) {
-          localStorage.setItem("leap_platform_user", JSON.stringify(res.data.user));
+        const platformUser = res.data?.user;
+        if (!platformUser) {
+          setErrorMsg(t("Invalid password. Please check your credentials."));
+          return;
         }
+        localStorage.setItem("leap_platform_user", JSON.stringify(platformUser));
         localStorage.removeItem("leap_platform_token");
         localStorage.removeItem("leap_platform_refresh_token");
         const { adoptPlatformAuthTokens } = await import("../../lib/sessionBearer");
         const { suppressAuthErrorModals } = await import("../../lib/authErrorGate");
         suppressAuthErrorModals(5000);
         adoptPlatformAuthTokens(res.data || {});
+        // Providers mount outside this modal — push session into React state.
+        emitSessionResume({ surface: "platform", user: platformUser, tokens: res.data || {} });
       } else {
         const tenantSlug = localStorage.getItem("ff_tenant_slug");
         const res = await axios.post(
@@ -94,12 +100,21 @@ export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess, error }) 
           { withCredentials: true }
         );
         const user = res.data?.user || res.data;
+        if (!user || typeof user !== "object") {
+          setErrorMsg(t("Invalid password. Please check your credentials."));
+          return;
+        }
         localStorage.setItem("ff_user", JSON.stringify(user));
         localStorage.removeItem("ff_token");
+        if (user.tenantSlug) {
+          localStorage.setItem("ff_tenant_slug", user.tenantSlug);
+        }
         const { adoptTenantAuthTokens } = await import("../../lib/sessionBearer");
         const { suppressAuthErrorModals } = await import("../../lib/authErrorGate");
         suppressAuthErrorModals(5000);
         adoptTenantAuthTokens(res.data || {});
+        // Re-hydrate Auth + Tenant (palette, plan features, nav) after cookie refresh.
+        emitSessionResume({ surface: "tenant", user, tokens: res.data || {} });
       }
 
       onClose();

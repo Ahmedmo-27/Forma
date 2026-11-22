@@ -1,7 +1,13 @@
 /**
  * Build GET /members query params for member report pages so every filter
  * is sent to the API (AND semantics via buildMemberListFilter).
+ *
+ * Reports page through the normal list limit (not the silent 2000 cap) so
+ * every matching guest/member is returned under stacked filters.
  */
+
+export const REPORT_PAGE_SIZE = 500;
+export const REPORT_MAX_PAGES = 100;
 
 function omitEmpty(params) {
   const out = {};
@@ -18,17 +24,21 @@ export function buildGuestReportApiParams({
   toDate,
   trainerName,
   source,
+  page = 1,
+  limit = REPORT_PAGE_SIZE,
 }) {
   return omitEmpty({
     status: 'guest',
-    limit: 2000,
-    page: 1,
+    limit,
+    page,
     dateFrom: fromDate,
     dateTo: toDate,
     dateField: 'createdAt',
     assignedSales: salesMan && salesMan !== 'All' ? salesMan : undefined,
     currentCouch: trainerName && trainerName !== 'All' ? trainerName : undefined,
     source: source && source !== 'All' ? source : undefined,
+    sortBy: 'createdAt',
+    sortDir: -1,
   });
 }
 
@@ -40,12 +50,14 @@ export function buildExpiredReportApiParams({
   trainerName,
   packageId,
   gender,
+  page = 1,
+  limit = REPORT_PAGE_SIZE,
 }) {
   const statusParam = !status || status === 'All' ? 'expired' : status;
   return omitEmpty({
     status: statusParam,
-    limit: 2000,
-    page: 1,
+    limit,
+    page,
     dateFrom: fromDate,
     dateTo: toDate,
     dateField: 'endDate',
@@ -53,15 +65,86 @@ export function buildExpiredReportApiParams({
     currentCouch: trainerName && trainerName !== 'All' ? trainerName : undefined,
     packageId: packageId && packageId !== 'All' ? packageId : undefined,
     gender: gender && gender !== 'All' ? gender : undefined,
+    sortBy: 'createdAt',
+    sortDir: -1,
   });
 }
 
+/**
+ * Shared params for any member/guest find UI (tasks, imported, etc.).
+ * Keeps AND filters on the server so client-side passes are not working
+ * from a silently truncated page.
+ */
+export function buildMemberFindApiParams({
+  status,
+  search,
+  assignedSales,
+  currentCouch,
+  dateFrom,
+  dateTo,
+  dateField,
+  packageId,
+  gender,
+  transferType,
+  source,
+  page = 1,
+  limit = REPORT_PAGE_SIZE,
+  sortBy = 'createdAt',
+  sortDir = -1,
+} = {}) {
+  const normalizedStatus = !status || status === 'all' || status === 'All' ? undefined : status;
+  return omitEmpty({
+    status: normalizedStatus,
+    search: search || undefined,
+    assignedSales: assignedSales && assignedSales !== 'all' && assignedSales !== 'All' ? assignedSales : undefined,
+    currentCouch: currentCouch && currentCouch !== 'all' && currentCouch !== 'All' ? currentCouch : undefined,
+    dateFrom: dateFrom || undefined,
+    dateTo: dateTo || undefined,
+    dateField: dateField || undefined,
+    packageId: packageId && packageId !== 'all' && packageId !== 'All' ? packageId : undefined,
+    gender: gender && gender !== 'all' && gender !== 'All' ? gender : undefined,
+    transferType: transferType && transferType !== 'all' && transferType !== 'All' ? transferType : undefined,
+    source: source && source !== 'all' && source !== 'All' ? source : undefined,
+    page,
+    limit,
+    sortBy,
+    sortDir,
+  });
+}
+
+/**
+ * Walk every server page until exhausted so multi-filter reports are complete.
+ */
+export async function fetchAllMembersByParams(getPage, baseParams, {
+  pageSize = REPORT_PAGE_SIZE,
+  maxPages = REPORT_MAX_PAGES,
+} = {}) {
+  const members = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const res = await getPage({ ...baseParams, page, limit: pageSize });
+    const batch = res?.data?.members ?? res?.members ?? [];
+    members.push(...batch);
+    totalPages = res?.data?.pagination?.totalPages
+      ?? res?.pagination?.totalPages
+      ?? 1;
+    const hasNext = res?.data?.pagination?.hasNextPage
+      ?? res?.pagination?.hasNextPage
+      ?? (page < totalPages);
+    page += 1;
+    if (!hasNext || !batch.length) break;
+  } while (page <= totalPages && page <= maxPages);
+
+  return members;
+}
+
+/** Last array subscription — same row the report table and expiry job use. */
 export function latestSubscriptionForReport(member) {
   const subs = member?.subscriptions ?? [];
   if (!subs.length) return null;
-  return [...subs].sort(
-    (a, b) => new Date(b.endDate || b.createdAt || 0) - new Date(a.endDate || a.createdAt || 0),
-  )[0];
+  return subs[subs.length - 1];
 }
 
 /** Filters not modeled on the API (activity type, membership category). */
