@@ -80,6 +80,34 @@ const userSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "Announcement",
     }],
+
+    // Staff account restriction: lock (manual unlock) or timed suspend.
+    isBlocked: {
+        type: Boolean,
+        default: false,
+    },
+    restrictionType: {
+        type: String,
+        enum: ["lock", "suspend"],
+        default: null,
+    },
+    suspendedUntil: {
+        type: Date,
+        default: null,
+    },
+    blockedReason: {
+        type: String,
+        default: null,
+    },
+    blockedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+    },
+    blockedAt: {
+        type: Date,
+        default: null,
+    },
 }, { timestamps: true });
 
 userSchema.plugin(tenantPlugin);

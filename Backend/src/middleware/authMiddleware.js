@@ -8,6 +8,31 @@ const { getAuthContext, setAuthContext } = require("./authContextCache");
 const { getEffectiveFeatures } = require("../models/Tenant");
 const { readTenantToken } = require("../utils/authCookies");
 const featureSync = require("../services/featureSync");
+const {
+    maybeClearExpiredSuspension,
+    loginDeniedPayload,
+    suspensionExpired,
+} = require("../utils/staffRestriction");
+
+function rejectIfStaffRestricted(res, userLike) {
+    const denied = loginDeniedPayload(userLike);
+    if (!denied) return false;
+    res.status(denied.status).json({
+        code: denied.code,
+        message: denied.message,
+        details: denied.details,
+    });
+    return true;
+}
+
+function staffRestrictionSnapshot(user) {
+    return {
+        isBlocked: Boolean(user?.isBlocked),
+        restrictionType: user?.restrictionType || null,
+        suspendedUntil: user?.suspendedUntil || null,
+        blockedReason: user?.blockedReason || null,
+    };
+}
 
 function attachPlanFeatures(req) {
     const plan = req.plan && Array.isArray(req.plan.features)
@@ -79,10 +104,17 @@ const protect = async (req, res, next) => {
 
         if (!decoded.isImpersonation) {
             const cached = getAuthContext(decoded.id, tenantId);
-            if (cached) {
+            const cacheExpiredSuspend = cached?.user
+                && suspensionExpired({
+                    restrictionType: cached.user.restrictionType,
+                    suspendedUntil: cached.user.suspendedUntil,
+                    isBlocked: cached.user.isBlocked,
+                });
+            if (cached && !cacheExpiredSuspend) {
                 if (sessionIsStale(decoded, cached.user?.tokenVersion)) {
                     return res.status(401).json({ message: "Session revoked. Please sign in again." });
                 }
+                if (rejectIfStaffRestricted(res, cached.user)) return;
                 const cachedStatus = cached.tenant?.status;
                 if (cachedStatus === "suspended" || cachedStatus === "cancelled") {
                     return res.status(403).json({
@@ -140,6 +172,9 @@ const protect = async (req, res, next) => {
             return res.status(401).json({ message: "Session revoked. Please sign in again." });
         }
 
+        await maybeClearExpiredSuspension(user);
+        if (rejectIfStaffRestricted(res, user)) return;
+
         if (tenantId) {
             // Validate tenant status
             const tenant = await runAsPlatform(async () => {
@@ -186,6 +221,7 @@ const protect = async (req, res, next) => {
             allowedLocationIds: Array.isArray(user.allowedLocationIds)
                 ? user.allowedLocationIds.map((id) => String(id?._id || id)).filter(Boolean)
                 : [],
+            ...staffRestrictionSnapshot(user),
         };
         req.user = {
             ...authUser,

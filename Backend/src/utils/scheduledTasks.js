@@ -146,10 +146,14 @@ async function processFreezeCycles() {
 }
 
 /**
- * Lift timed suspensions whose suspendedUntil has passed.
+ * Lift timed suspensions whose suspendedUntil has passed (members + staff).
  */
 async function processSuspensionLifts() {
-    const { clearRestrictionFields } = require("./memberRestriction");
+    const { clearRestrictionFields: clearMemberRestriction } = require("./memberRestriction");
+    const { clearRestrictionFields: clearStaffRestriction } = require("./staffRestriction");
+    const { bumpTokenVersion } = require("./passwordUtils");
+    const { invalidateAuthContext } = require("../middleware/authContextCache");
+    const User = require("../models/User");
     return runAsPlatform(async () => {
         const now = new Date();
         try {
@@ -161,7 +165,7 @@ async function processSuspensionLifts() {
 
             let lifted = 0;
             for (const member of expired) {
-                clearRestrictionFields(member);
+                clearMemberRestriction(member);
                 member.userlog.push({
                     type: "other",
                     text: "Suspension ended automatically",
@@ -171,8 +175,26 @@ async function processSuspensionLifts() {
                 lifted += 1;
             }
 
-            if (lifted > 0) {
-                logger.info("scheduler", "Suspension lifts processed", { liftedCount: lifted });
+            const expiredStaff = await User.find({
+                isBlocked: true,
+                restrictionType: "suspend",
+                suspendedUntil: { $lte: now },
+            }).select("_id name tenantId tokenVersion");
+
+            let staffLifted = 0;
+            for (const staff of expiredStaff) {
+                clearStaffRestriction(staff);
+                bumpTokenVersion(staff);
+                await staff.save();
+                invalidateAuthContext({ userId: staff._id, tenantId: staff.tenantId });
+                staffLifted += 1;
+            }
+
+            if (lifted > 0 || staffLifted > 0) {
+                logger.info("scheduler", "Suspension lifts processed", {
+                    liftedCount: lifted,
+                    staffLiftedCount: staffLifted,
+                });
             }
         } catch (error) {
             logger.error("scheduler", "Suspension lift cycle error", { error: error.message });

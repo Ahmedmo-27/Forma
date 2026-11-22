@@ -31,6 +31,11 @@ function formatUserResponse(user, options = {}) {
         role: user.role,
         monthlyTarget: user.monthlyTarget ?? 0,
         createdAt: user.createdAt,
+        isBlocked: Boolean(user.isBlocked),
+        restrictionType: user.restrictionType || null,
+        suspendedUntil: user.suspendedUntil || null,
+        blockedReason: user.blockedReason || null,
+        blockedAt: user.blockedAt || null,
     };
 
     if (user.role === "Sales" || user.role === "Coach" || user.role === "Head Coach") {

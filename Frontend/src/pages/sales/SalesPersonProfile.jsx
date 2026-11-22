@@ -13,6 +13,7 @@ import { useFormat } from '../../i18n/useFormat';
 import { tr } from '../../i18n/translate';
 import { getPasswordStrengthError, PASSWORD_REQUIREMENTS_HINT } from '../../lib/validation';
 import ChangeRoleField from '../../components/ChangeRoleField';
+import StaffRestrictionControls from '../../components/StaffRestrictionControls';
 import {
   getSalesProfile, getSalesUsers, updateSalesRepTarget,
   bulkTransferSalesReps, updateSalesRepAbilities, updatePhonePrivacy,
@@ -279,6 +280,13 @@ export default function SalesPersonProfile() {
                         if (newRole === 'Sales') fetchData();
                         else navigate('/sales/team');
                       }}
+                    />
+                  </div>
+                  <div style={{ marginTop: 12, maxWidth: 480 }}>
+                    <StaffRestrictionControls
+                      staff={user}
+                      currentUser={currentUser}
+                      onUpdated={(next) => setData((prev) => (prev ? { ...prev, user: { ...prev.user, ...next } } : prev))}
                     />
                   </div>
                 </div>

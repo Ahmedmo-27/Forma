@@ -26,6 +26,9 @@ const {
     updateStaffMobile,
     getReceptionistTeam,
     resetUserPassword,
+    lockStaffUser,
+    suspendStaffUser,
+    unlockStaffUser,
     updateMyProfile,
     checkUsernameAvailability,
     getTeamsPage
@@ -41,7 +44,14 @@ const { allowRoles } = require("../middleware/accessMiddleware");
 const loginLimiter = require("../middleware/loginLimiter");
 const { forgotPasswordLimiter, setupPasswordLimiter } = loginLimiter;
 const validate = require("../middleware/validate");
-const { loginSchema, createStaffSchema, setupPasswordSchema, forgotPasswordSchema } = require("../validation/schemas");
+const {
+    loginSchema,
+    createStaffSchema,
+    setupPasswordSchema,
+    forgotPasswordSchema,
+    blockStaffSchema,
+    suspendStaffSchema,
+} = require("../validation/schemas");
 const { setupPassword, forgotPassword } = require("../controllers/passwordSetupController");
 const { enforceStaffLimit, enforceSubscriptionStatus } = require("../middleware/tenantStatus");
 const { requireFeature } = require("../middleware/featureGating");
@@ -88,6 +98,9 @@ router.patch("/:id/coach-abilities", protect, authorizeRoles("Head Coach", "Owne
 router.patch("/:id/phone-privacy", protect, authorizeRoles("Sales Manager", "Owner", "General Manager"), autoInvalidate(["users"]), updatePhonePrivacy);
 router.patch("/:id/mobile", protect, authorizeRoles("Sales Manager", "Owner"), autoInvalidate(["users"]), updateStaffMobile);
 router.patch("/:id/reset-password", protect, allowRoles("staff", "Owner", "General Manager", "Sales Manager", "Head Coach"), requireFeature("staff_management"), autoInvalidate(["users"]), resetUserPassword);
+router.patch("/:id/lock", protect, authorizeRoles("Owner", "General Manager"), requireFeature("staff_management"), validate(blockStaffSchema), autoInvalidate(["users"]), lockStaffUser);
+router.patch("/:id/suspend", protect, authorizeRoles("Owner", "General Manager"), requireFeature("staff_management"), validate(suspendStaffSchema), autoInvalidate(["users"]), suspendStaffUser);
+router.patch("/:id/unlock", protect, authorizeRoles("Owner", "General Manager"), requireFeature("staff_management"), autoInvalidate(["users"]), unlockStaffUser);
 router.get("/receptionist-team", protect, allowRoles("sales_team", "Sales Manager", "Owner", "Accountant"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getReceptionistTeam);
 router.get("/changerole/:id/:new_role", protect, allowRoles("change_role", "Owner", "General Manager", "Sales Manager"), requireFeature("staff_management"), autoInvalidate(["users"]), change_Role);
 router.get("/allTeams", protect, allowRoles("teams_overview", "Owner"), requireFeature("staff_management"), cacheResponse({ ttlSeconds: 180, tags: ["users"] }), getTeamsPage);

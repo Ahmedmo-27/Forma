@@ -8,6 +8,13 @@ const { hashPassword, verifyPassword, normalizeEmail, validatePasswordStrength, 
 const passwordSetup = require("../services/passwordSetupService");
 const { invalidateAuthContext } = require("../middleware/authContextCache");
 const {
+    maybeClearExpiredSuspension,
+    loginDeniedPayload,
+    clearRestrictionFields,
+    isTimedSuspension,
+    staffRestrictionDenied,
+} = require("../utils/staffRestriction");
+const {
     normalizeUsername,
     uniqueUsername,
     tenantUsername,
@@ -336,6 +343,21 @@ const loginUser = async (req, res) => {
             });
         }
 
+        await maybeClearExpiredSuspension(user);
+        const staffDenied = loginDeniedPayload(user);
+        if (staffDenied) {
+            logger.auth("warn", "Login rejected: staff account restricted", {
+                requestId,
+                userId: user._id.toString(),
+                code: staffDenied.code,
+            });
+            return res.status(staffDenied.status).json({
+                code: staffDenied.code,
+                message: staffDenied.message,
+                details: staffDenied.details,
+            });
+        }
+
         const effectiveTenantId = tenant._id.toString();
         const effectiveTenantSlug = tenant.slug || null;
 
@@ -644,8 +666,10 @@ const getUserById = async (req, res) => {
             return res.status(404).json({ message: "User not found" });
         }
 
+        await maybeClearExpiredSuspension(user);
+
         const isSelf = req.user.id === user._id.toString();
-        const isManager = ["Sales Manager", "Owner", "Head Coach"].includes(req.user.role);
+        const isManager = ["Sales Manager", "Owner", "Head Coach", "General Manager"].includes(req.user.role);
 
         if (!isSelf && !isManager) {
             return res.status(403).json({ message: "Not authorized" });
@@ -1537,6 +1561,128 @@ function resetPasswordDenied(actorRole, targetRole) {
     return "You cannot reset this password";
 }
 
+function applyStaffRestriction(target, { type, until = null, reason = null, actorId }) {
+    target.isBlocked = true;
+    target.restrictionType = type;
+    target.suspendedUntil = type === "suspend" ? until : null;
+    target.blockedReason = reason || null;
+    target.blockedBy = actorId;
+    target.blockedAt = new Date();
+    bumpTokenVersion(target);
+}
+
+async function persistStaffRestriction(target) {
+    await target.save();
+    invalidateAuthContext({ userId: target._id, tenantId: target.tenantId });
+}
+
+// ─── Lock / suspend / unlock staff accounts (Owner / GM) ─────────────────────
+const lockStaffUser = async (req, res) => {
+    try {
+        const target = await User.findById(req.params.id);
+        if (!target) return res.status(404).json({ message: "User not found" });
+
+        const denied = staffRestrictionDenied(req.user.role, req.user.id, target);
+        if (denied) return res.status(403).json({ message: denied });
+
+        if (target.isBlocked && target.restrictionType === "lock") {
+            return res.status(400).json({ message: "Staff account is already locked" });
+        }
+
+        const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+        applyStaffRestriction(target, {
+            type: "lock",
+            reason: reason || null,
+            actorId: req.user.id,
+        });
+        await persistStaffRestriction(target);
+
+        logger.auth("info", "Staff account locked", {
+            actorId: req.user.id,
+            actorRole: req.user.role,
+            targetId: target._id.toString(),
+            targetRole: target.role,
+        });
+
+        res.json({ message: "Staff account locked", user: formatUserResponse(target) });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+const suspendStaffUser = async (req, res) => {
+    try {
+        const { suspendedUntil, reason } = req.body || {};
+        const until = new Date(suspendedUntil);
+        if (!suspendedUntil || Number.isNaN(until.getTime())) {
+            return res.status(400).json({ message: "Suspension end date is required" });
+        }
+
+        const target = await User.findById(req.params.id);
+        if (!target) return res.status(404).json({ message: "User not found" });
+
+        const denied = staffRestrictionDenied(req.user.role, req.user.id, target);
+        if (denied) return res.status(403).json({ message: denied });
+
+        if (target.isBlocked && target.restrictionType === "lock") {
+            return res.status(400).json({ message: "Staff account is locked — unlock before suspending" });
+        }
+
+        applyStaffRestriction(target, {
+            type: "suspend",
+            until,
+            reason: typeof reason === "string" && reason.trim() ? reason.trim() : null,
+            actorId: req.user.id,
+        });
+        await persistStaffRestriction(target);
+
+        logger.auth("info", "Staff account suspended", {
+            actorId: req.user.id,
+            actorRole: req.user.role,
+            targetId: target._id.toString(),
+            targetRole: target.role,
+            suspendedUntil: until.toISOString(),
+        });
+
+        res.json({ message: "Staff account suspended", user: formatUserResponse(target) });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+const unlockStaffUser = async (req, res) => {
+    try {
+        const target = await User.findById(req.params.id);
+        if (!target) return res.status(404).json({ message: "User not found" });
+
+        const denied = staffRestrictionDenied(req.user.role, req.user.id, target);
+        if (denied) return res.status(403).json({ message: denied });
+
+        if (!target.isBlocked) {
+            return res.status(400).json({ message: "Staff account is not locked or suspended" });
+        }
+
+        const wasSuspend = isTimedSuspension(target);
+        clearRestrictionFields(target);
+        bumpTokenVersion(target);
+        await persistStaffRestriction(target);
+
+        logger.auth("info", wasSuspend ? "Staff account unsuspended" : "Staff account unlocked", {
+            actorId: req.user.id,
+            actorRole: req.user.role,
+            targetId: target._id.toString(),
+            targetRole: target.role,
+        });
+
+        res.json({
+            message: wasSuspend ? "Staff account unsuspended" : "Staff account unlocked",
+            user: formatUserResponse(target),
+        });
+    } catch (error) {
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
 // ─── Reset another user's password (Sales Manager / Owner only) ──────────────
 const resetUserPassword = async (req, res) => {
     try {
@@ -1708,4 +1854,7 @@ module.exports = {
     checkUsernameAvailability,
     updateMyProfile,
     resetUserPassword,
+    lockStaffUser,
+    suspendStaffUser,
+    unlockStaffUser,
 };

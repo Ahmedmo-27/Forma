@@ -684,6 +684,9 @@ module.exports = {
     freezeMemberSchema,
     blockMemberSchema,
     suspendMemberSchema,
+    // Staff account lock/suspend reuse the same body shape as members.
+    blockStaffSchema: blockMemberSchema,
+    suspendStaffSchema: suspendMemberSchema,
     addNoteSchema,
     addAlertSchema,
     invitationSchema,

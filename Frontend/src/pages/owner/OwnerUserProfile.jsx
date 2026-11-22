@@ -10,9 +10,11 @@ import {
 import { getUserById, getSalesProfile, getCoachProfile, resetUserPassword } from '../../api/endpoints';
 import UserAreaAccess from '../../components/UserAreaAccess';
 import ChangeRoleField from '../../components/ChangeRoleField';
+import StaffRestrictionControls from '../../components/StaffRestrictionControls';
 import { KeyRound, Mail, Phone } from 'lucide-react';
 import { tr } from '../../i18n/translate';
 import { useI18n } from '../../i18n/useI18n';
+import { useAuth } from '../../context/AuthContext';
 import { getPasswordStrengthError, PASSWORD_REQUIREMENTS_HINT } from '../../lib/validation';
 
 const FILTER_LABELS = {
@@ -40,6 +42,7 @@ const ROLE_COLOUR = {
 
 export default function OwnerUserProfile() {
   const { t } = useI18n();
+  const { user: currentUser } = useAuth();
   const { id } = useParams();
   const navigate = useNavigate();
 
@@ -172,6 +175,13 @@ export default function OwnerUserProfile() {
                       currentRole={user?.role}
                       label={t('Change role')}
                       onChanged={() => load()}
+                    />
+                  </div>
+                  <div style={{ marginTop: 12, maxWidth: 480 }}>
+                    <StaffRestrictionControls
+                      staff={user}
+                      currentUser={currentUser}
+                      onUpdated={(next) => setProfile((prev) => (prev ? { ...prev, user: { ...prev.user, ...next } } : prev))}
                     />
                   </div>
                 </div>

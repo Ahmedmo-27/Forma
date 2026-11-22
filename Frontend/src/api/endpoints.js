@@ -25,6 +25,12 @@ export const checkUsernameAvailable = (username) =>
     skipGlobalError: true,
   });
 export const resetUserPassword = (id, newPassword) => api.patch(`/users/${id}/reset-password`, { newPassword });
+export const lockStaffUser = (id, reason) =>
+  api.patch(`/users/${id}/lock`, reason ? { reason } : {});
+export const suspendStaffUser = (id, data) =>
+  api.patch(`/users/${id}/suspend`, data);
+export const unlockStaffUser = (id) =>
+  api.patch(`/users/${id}/unlock`);
 export const getSalesManagerRevenue = (params = {}) =>
   api.get('/users/sales-manager/revenue', { params });
 export const getChurnAnalytics = (params = {}) => api.get('/analytics/churn', { params });

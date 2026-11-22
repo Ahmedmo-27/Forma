@@ -9,6 +9,7 @@ import {
   EmptyState, Avatar, Skeleton, CAIRO_ZONE,
 } from '../../components/ui';
 import { getCoachProfile, updateCoachRepAbilities } from '../../api/endpoints';
+import StaffRestrictionControls from '../../components/StaffRestrictionControls';
 import { ClipboardList, Dumbbell, MessageCircle, RefreshCw } from 'lucide-react';
 import { useI18n } from '../../i18n/useI18n';
 import { useFormat } from '../../i18n/useFormat';
@@ -151,6 +152,13 @@ export default function CoachProfile() {
                         ? fmtDate(user.createdAt, { timeZone: CAIRO_ZONE, day: '2-digit', month: 'short', year: 'numeric' }, 'en-GB')
                         : '—',
                     })}</span>
+                  </div>
+                  <div style={{ marginTop: 12, maxWidth: 480 }}>
+                    <StaffRestrictionControls
+                      staff={user}
+                      currentUser={currentUser}
+                      onUpdated={(next) => setData((prev) => (prev ? { ...prev, user: { ...prev.user, ...next } } : prev))}
+                    />
                   </div>
                 </div>
               </div>

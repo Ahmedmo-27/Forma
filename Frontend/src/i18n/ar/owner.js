@@ -36,6 +36,21 @@ const AR = {
   'Coach Status': 'حالة المدرب',
   'Not interested': 'غير مهتم',
 
+  // Staff account lock / suspend
+  'Staff account locked': 'تم قفل حساب الموظف',
+  'Staff account suspended': 'تم تعليق حساب الموظف',
+  'Staff account unsuspended': 'تم إلغاء تعليق حساب الموظف',
+  'Staff account unlocked': 'تم فتح حساب الموظف',
+  'Failed to lock staff account.': 'تعذر قفل حساب الموظف.',
+  'Failed to suspend staff account.': 'تعذر تعليق حساب الموظف.',
+  'Failed to unlock staff account.': 'تعذر فتح حساب الموظف.',
+  'Lock Staff Account': 'قفل حساب الموظف',
+  'Suspend Staff Account': 'تعليق حساب الموظف',
+  'Locking prevents this staff member from signing in until you unlock manually.': 'القفل يمنع هذا الموظف من تسجيل الدخول حتى تقوم بفتح الحساب يدويًا.',
+  'Suspension blocks sign-in until the end date, then lifts automatically.': 'التعليق يمنع تسجيل الدخول حتى تاريخ الانتهاء ثم يُرفع تلقائيًا.',
+  'e.g. Left the gym, security concern': 'مثال: ترك الجيم، مخاوف أمنية',
+  'e.g. Temporary leave, disciplinary action': 'مثال: إجازة مؤقتة، إجراء تأديبي',
+
   // Locations
   'Failed to load locations': 'تعذر تحميل الفروع',
   'Location name is required': 'اسم الفرع مطلوب',
