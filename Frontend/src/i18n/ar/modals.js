@@ -257,7 +257,7 @@ const AR = {
   'Renewal Discount': 'خصم التجديد',
   '{count} days': '{count} يوم',
   'None': 'لا يوجد',
-  'End Date': 'تاريخ النهاية',
+  'End Date': 'تاريخ الانتهاء',
   'New subscription': 'اشتراك جديد',
   'Description:': 'الوصف:',
   'Direct assignment — no sales request': 'تعيين مباشر — بدون طلب من المبيعات',
