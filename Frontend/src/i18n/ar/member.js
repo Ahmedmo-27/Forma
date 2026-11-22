@@ -33,6 +33,7 @@ const AR = {
   'Member is locked': 'العضو مقفول',
   'Member is Suspended': 'العضو مُعلَّق',
   'Member is Locked': 'العضو مقفول',
+  'Until {date}': 'حتى {date}',
   'Suspended until *': 'مُعلَّق حتى *',
   'Suspension blocks check-ins until the end date, then lifts automatically.': 'يمنع التعليق تسجيل الحضور حتى تاريخ الانتهاء، ثم يُرفع تلقائيًا.',
   'Locking prevents check-ins until you unlock manually. Are you sure?': 'يمنع القفل تسجيل الحضور حتى تلغيه يدويًا. هل أنت متأكد؟',
