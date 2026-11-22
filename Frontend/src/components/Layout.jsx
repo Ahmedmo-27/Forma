@@ -480,7 +480,7 @@ export default function Layout({ children }) {
     [user, hasFeature, showOutOfPlanFeatures],
   );
 
-  const showNotif = ['Sales', 'Sales Manager', 'Accountant'].includes(user?.role) && hasFeature('notifications');
+  const showNotif = ['Sales', 'Sales Manager', 'Accountant', 'Owner', 'General Manager', 'Head Coach'].includes(user?.role) && hasFeature('notifications');
   const showWhatsNew = hasFeature('notifications');
   const showConnectWhatsApp = routeFeatureAllowed(hasFeature, '/account/whatsapp');
 

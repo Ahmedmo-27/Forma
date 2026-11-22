@@ -108,6 +108,67 @@ describe("member list filters", () => {
         expect(allFilter.isBlocked).toBeUndefined();
     });
 
+    it("ANDs transfer type with transfer-date period in one userlog $elemMatch", () => {
+        const filter = buildMemberListFilter({
+            transferType: "bulk",
+            dateFrom: "2026-05-01",
+            dateTo: "2026-05-31",
+            dateField: "transferDate",
+        });
+        expect(filter.userlog.$elemMatch.type).toBe("assign");
+        expect(filter.userlog.$elemMatch.text).toEqual(/bulk/i);
+        expect(filter.userlog.$elemMatch.createdAt.$gte).toEqual(new Date("2026-05-01"));
+    });
+
+    it("ANDs recent members with an explicit join-date period", () => {
+        const filter = buildMemberListFilter({
+            recent: "true",
+            dateFrom: "2026-01-01",
+            dateTo: "2026-06-30",
+            dateField: "createdAt",
+        });
+        expect(filter.createdAt.$gte).toBeInstanceOf(Date);
+        expect(filter.$and).toEqual(expect.arrayContaining([
+            expect.objectContaining({
+                createdAt: expect.objectContaining({
+                    $gte: new Date("2026-01-01"),
+                    $lte: expect.any(Date),
+                }),
+            }),
+        ]));
+    });
+
+    it("ANDs expiringSoon with subscription end-date period filters", () => {
+        const filter = buildMemberListFilter({
+            expiringSoon: "true",
+            dateFrom: "2026-05-01",
+            dateTo: "2026-05-31",
+            dateField: "endDate",
+        });
+        expect(filter.status).toBe("active");
+        expect(filter.subscriptions.$elemMatch).toBeDefined();
+        expect(filter.$and).toEqual(expect.arrayContaining([
+            expect.objectContaining({ "subscriptions.endDate": expect.any(Object) }),
+        ]));
+    });
+
+    it("combines guest-report style filters (status, sales, coach, dates, source)", () => {
+        const filter = buildMemberListFilter({
+            status: "guest",
+            assignedSales: "507f1f77bcf86cd799439011",
+            currentCouch: "507f1f77bcf86cd799439012",
+            dateFrom: "2026-05-01",
+            dateTo: "2026-05-31",
+            dateField: "createdAt",
+            source: "Walk in",
+        });
+        expect(filter.status).toBe("guest");
+        expect(filter.assignedSales).toBe("507f1f77bcf86cd799439011");
+        expect(filter.current_couch).toBe("507f1f77bcf86cd799439012");
+        expect(filter.createdAt.$gte).toEqual(new Date("2026-05-01"));
+        expect(filter.source).toBe("Walk in");
+    });
+
     it("passes isBlocked: { $ne: true } in status stats queries", async () => {
         const statusCalls = [];
         const Member = {

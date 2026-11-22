@@ -146,6 +146,41 @@ async function processFreezeCycles() {
 }
 
 /**
+ * Lift timed suspensions whose suspendedUntil has passed.
+ */
+async function processSuspensionLifts() {
+    const { clearRestrictionFields } = require("./memberRestriction");
+    return runAsPlatform(async () => {
+        const now = new Date();
+        try {
+            const expired = await Member.find({
+                isBlocked: true,
+                restrictionType: "suspend",
+                suspendedUntil: { $lte: now },
+            }).select("_id name systemId userlog");
+
+            let lifted = 0;
+            for (const member of expired) {
+                clearRestrictionFields(member);
+                member.userlog.push({
+                    type: "other",
+                    text: "Suspension ended automatically",
+                    createdBy: null,
+                });
+                await member.save();
+                lifted += 1;
+            }
+
+            if (lifted > 0) {
+                logger.info("scheduler", "Suspension lifts processed", { liftedCount: lifted });
+            }
+        } catch (error) {
+            logger.error("scheduler", "Suspension lift cycle error", { error: error.message });
+        }
+    }, { reason: "scheduled_suspension_lift" });
+}
+
+/**
  * Members with no sales rep belong to that gym's primary sales manager.
  * Runs per tenant so the tenant plugin does not assign one manager across gyms.
  */
@@ -239,6 +274,7 @@ function runOwnerDigestJob() {
 /** Job name, interval, and runner for every scheduled task. */
 const JOBS = [
     { name: "freeze_cycles", intervalMs: HALF_HOUR_MS, run: processFreezeCycles, startDelayMs: 0 },
+    { name: "suspension_lifts", intervalMs: HALF_HOUR_MS, run: processSuspensionLifts, startDelayMs: 60 * 1000 },
     { name: "expiry_cycles", intervalMs: HALF_HOUR_MS, run: processExpiryCycles, startDelayMs: 0 },
     { name: "assign_open_members", intervalMs: HALF_HOUR_MS, run: assignOpenMembers, startDelayMs: 0 },
     // BI snapshots are hourly and idempotent. Platform rollup is daily (00:00 UTC).

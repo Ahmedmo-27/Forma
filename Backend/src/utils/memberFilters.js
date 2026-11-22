@@ -6,6 +6,57 @@ function numericId(value) {
     return Number(raw);
 }
 
+function pushAnd(filter, clause) {
+    if (!filter.$and) filter.$and = [];
+    filter.$and.push(clause);
+}
+
+function stashUserlogConstraints(filter) {
+    if (filter.userlog) {
+        pushAnd(filter, { userlog: filter.userlog });
+        delete filter.userlog;
+    }
+    if (filter["userlog.type"]) {
+        pushAnd(filter, { "userlog.type": filter["userlog.type"] });
+        delete filter["userlog.type"];
+    }
+}
+
+function setUserlogElemMatch(filter, elemMatch) {
+    stashUserlogConstraints(filter);
+    filter.userlog = { $elemMatch: elemMatch };
+}
+
+function setCreatedAtRange(filter, range) {
+    if (filter.createdAt) {
+        pushAnd(filter, { createdAt: filter.createdAt });
+        delete filter.createdAt;
+    }
+    filter.createdAt = range;
+}
+
+function stashSubscriptionPeriodKeys(filter) {
+    if (filter.subscriptions) {
+        pushAnd(filter, { subscriptions: filter.subscriptions });
+        delete filter.subscriptions;
+    }
+    if (filter["subscriptions.endDate"]) {
+        pushAnd(filter, { "subscriptions.endDate": filter["subscriptions.endDate"] });
+        delete filter["subscriptions.endDate"];
+    }
+}
+
+function buildDateRange(dateFrom, dateTo) {
+    const range = {};
+    if (dateFrom) range.$gte = new Date(dateFrom);
+    if (dateTo) {
+        const end = new Date(dateTo);
+        end.setHours(23, 59, 59, 999);
+        range.$lte = end;
+    }
+    return Object.keys(range).length ? range : null;
+}
+
 function buildMemberListFilter({
     status,
     search,
@@ -21,6 +72,7 @@ function buildMemberListFilter({
     packageId,
     gender,
     transferType,
+    source,
     locationId,
     locationFilter,
 }) {
@@ -47,53 +99,62 @@ function buildMemberListFilter({
         filter.current_couch = currentCouch;
     }
 
-    if (gender && gender !== "all") {
+    if (gender && gender !== "all" && gender !== "All") {
         filter.gender = gender;
     }
 
-    if (packageId && packageId !== "all") {
+    if (packageId && packageId !== "all" && packageId !== "All") {
         filter["subscriptions.package"] = packageId;
     }
 
-    // Transfer filters
-    if (transferType === "transferred" || transferred === "true" || transferred === true) {
-        filter.userlog = { $elemMatch: { type: "assign" } };
-    } else if (transferType === "never") {
-        filter["userlog.type"] = { $ne: "assign" };
-    } else if (transferType === "bulk") {
-        filter.userlog = { $elemMatch: { type: "assign", text: /bulk/i } };
-    } else if (transferType === "coach") {
-        filter.userlog = { $elemMatch: { type: "assign", text: /coach|couch/i } };
-    } else if (transferType === "sales") {
-        filter.userlog = { $elemMatch: { type: "assign", text: /sales|salesman|sales rep/i } };
+    if (source && source !== "all" && source !== "All") {
+        filter.source = source;
     }
 
-    // Period / Date filters
-    if (dateFrom || dateTo) {
-        const range = {};
-        if (dateFrom) range.$gte = new Date(dateFrom);
-        if (dateTo) {
-            const end = new Date(dateTo);
-            end.setHours(23, 59, 59, 999);
-            range.$lte = end;
-        }
+    const periodRange = buildDateRange(dateFrom, dateTo);
+    const normalizedDateField = dateField === "joined" ? "createdAt" : dateField;
 
-        if (dateField === "joined" || dateField === "createdAt") {
-            filter.createdAt = range;
-        } else if (dateField === "startDate") {
-            filter["subscriptions.startDate"] = range;
-        } else if (dateField === "transferDate") {
-            filter.userlog = { $elemMatch: { type: "assign", createdAt: range } };
+    // Transfer history constraints (merged with transfer-date period when both are set)
+    let userlogElem = null;
+    if (transferType === "transferred" || transferred === "true" || transferred === true) {
+        userlogElem = { type: "assign" };
+    } else if (transferType === "bulk") {
+        userlogElem = { type: "assign", text: /bulk/i };
+    } else if (transferType === "coach") {
+        userlogElem = { type: "assign", text: /coach|couch/i };
+    } else if (transferType === "sales") {
+        userlogElem = { type: "assign", text: /sales|salesman|sales rep/i };
+    } else if (transferType === "never") {
+        filter["userlog.type"] = { $ne: "assign" };
+    }
+
+    if (periodRange && normalizedDateField === "transferDate") {
+        userlogElem = {
+            ...(userlogElem || {}),
+            type: "assign",
+            createdAt: periodRange,
+        };
+    }
+
+    if (userlogElem) {
+        setUserlogElemMatch(filter, userlogElem);
+    }
+
+    if (periodRange && normalizedDateField !== "transferDate") {
+        if (normalizedDateField === "createdAt") {
+            setCreatedAtRange(filter, periodRange);
+        } else if (normalizedDateField === "startDate") {
+            filter["subscriptions.startDate"] = periodRange;
         } else {
-            // Default period filter applies to subscription end date (membership period)
-            filter["subscriptions.endDate"] = range;
+            stashSubscriptionPeriodKeys(filter);
+            filter["subscriptions.endDate"] = periodRange;
         }
     }
 
     if (recent === "true" || recent === true) {
         const since = new Date();
         since.setDate(since.getDate() - 30);
-        filter.createdAt = { $gte: since };
+        setCreatedAtRange(filter, { $gte: since });
     }
 
     if (subscribedToday === "true") {
@@ -111,16 +172,14 @@ function buildMemberListFilter({
         endOf7thDay.setDate(endOf7thDay.getDate() + 7);
         endOf7thDay.setHours(23, 59, 59, 999);
         if (!filter.status) filter.status = "active";
-        // Use $elemMatch so both conditions must match the SAME subscription element
-        filter["subscriptions"] = {
+        stashSubscriptionPeriodKeys(filter);
+        filter.subscriptions = {
             $elemMatch: {
                 endDate: { $gte: startOfToday, $lte: endOf7thDay },
                 refunded: { $ne: true },
                 cancelled: { $ne: true },
-            }
+            },
         };
-        // Remove any old subscriptions.endDate key if present
-        delete filter["subscriptions.endDate"];
     }
 
     if (search?.trim()) {
@@ -130,7 +189,6 @@ function buildMemberListFilter({
             { name: { $regex: safe, $options: "i" } },
             { phones: { $regex: safe, $options: "i" } },
         ];
-        // m123 → memberId only; s123 / bare digits → systemId + memberId
         const mMatch = /^m(\d+)$/i.exec(q);
         if (mMatch) {
             or.push({ memberId: Number(mMatch[1]) });
@@ -159,10 +217,23 @@ function statsFilterFromListFilter(filter = {}) {
     delete statsFilter["subscriptions.createdAt"];
     delete statsFilter["subscriptions.startDate"];
     delete statsFilter["subscriptions.endDate"];
-    delete statsFilter["subscriptions"];
+    delete statsFilter.subscriptions;
     delete statsFilter["subscriptions.package"];
     delete statsFilter.createdAt;
     delete statsFilter.userlog;
+    delete statsFilter["userlog.type"];
+    delete statsFilter.source;
+    if (Array.isArray(statsFilter.$and)) {
+        statsFilter.$and = statsFilter.$and.filter(
+            (clause) =>
+                !clause.userlog
+                && !clause["userlog.type"]
+                && !clause.createdAt
+                && !clause.subscriptions
+                && !clause["subscriptions.endDate"]
+        );
+        if (!statsFilter.$and.length) delete statsFilter.$and;
+    }
     return statsFilter;
 }
 

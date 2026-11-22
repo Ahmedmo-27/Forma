@@ -34,7 +34,7 @@ describe("General Manager", () => {
         expect(ownerHome.access).toBe("owner_dashboard");
         expect(teams.roles).toEqual(["Owner", "General Manager"]);
         expect(teams.access).toBe("teams_overview");
-        expectAllowed("packages", ["Owner", "Sales Manager"], user);
+        expectAllowed("packages", ["Owner", "Sales Manager", "General Manager"], user);
         expectAllowed("package_approvals", ["Accountant", "Owner", "General Manager"], user);
         expectAllowed("refunds", ["Owner", "Accountant"], user);
         expectAllowed("teams_overview", ["Owner"], user);

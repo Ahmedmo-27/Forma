@@ -126,6 +126,8 @@ export const freezeMember      = (id, data) =>
   api.patch(`/members/${id}/freeze`, data);
 export const blockMember       = (id, reason) =>
   api.patch(`/members/${id}/block`, { reason });
+export const suspendMember     = (id, data) =>
+  api.patch(`/members/${id}/suspend`, data);
 export const unblockMember     = (id) =>
   api.patch(`/members/${id}/unblock`);
 export const checkInMember     = (id, data = {}) => api.post(`/members/${id}/checkin`, data);

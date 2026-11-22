@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, EmptyState, Pagination, Avatar, toLocalDateString, parseDateBoundary, Table, MenuSelect } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, EmptyState, Pagination, Avatar, toLocalDateString, Table, MenuSelect } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAllMembers, getSalesUsers, getCoachTeam, getPackages } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +10,10 @@ import { useI18n } from '../../i18n/useI18n';
 import { useFormat } from '../../i18n/useFormat';
 import { tr } from '../../i18n/translate';
 import { SHORT_DATE } from './analyticsFormat';
+import {
+  buildExpiredReportApiParams,
+  applyExpiredReportExtraFilters,
+} from '../../lib/memberReportFilters';
 
 const TODAY       = toLocalDateString();
 const MONTH_START = `${TODAY.slice(0, 7)}-01`;
@@ -130,49 +134,20 @@ export default function ExpiredMembers() {
     setSearched(true);
     setPage(1);
     try {
-      // Fetch expired members (and frozen/active if status filter changes)
-      const statusParam = status === 'All' ? 'expired' : status;
-      const params = { status: statusParam, limit: 2000, page: 1 };
-      if (salesMan !== 'All') params.assignedSales = salesMan;
+      const params = buildExpiredReportApiParams({
+        status,
+        fromDate,
+        toDate,
+        salesMan,
+        trainerName,
+        packageId,
+        gender,
+      });
 
-      const res  = await getAllMembers(params);
+      const res = await getAllMembers(params);
       let members = res.data.members ?? [];
 
-      const from = parseDateBoundary(fromDate, false);
-      const to   = parseDateBoundary(toDate, true);
-
-      members = members.filter(m => {
-        // Date filter — on subscription end date (for expired)
-        const lastSub = m.subscriptions?.length
-          ? [...m.subscriptions].sort((a, b) => new Date(b.endDate || b.createdAt || 0) - new Date(a.endDate || a.createdAt || 0))[0]
-          : null;
-        const endDate = lastSub?.endDate ? new Date(lastSub.endDate) : null;
-        if (from && (!endDate || endDate < from)) return false;
-        if (to   && (!endDate || endDate > to))   return false;
-
-        // Trainer filter
-        if (trainerName !== 'All') {
-          const coachId = m.current_couch?._id ?? m.current_couch;
-          if (String(coachId) !== trainerName) return false;
-        }
-
-        // Package filter
-        if (packageId !== 'All') {
-          const pkg = lastSub?.package?._id ?? lastSub?.package;
-          if (String(pkg) !== packageId) return false;
-        }
-
-        // Type filter (activityType)
-        if (type !== 'All') {
-          const snap = lastSub?.packageSnapshot ?? lastSub?.package;
-          if (snap?.activityType?.toLowerCase() !== type.toLowerCase()) return false;
-        }
-
-        // Gender filter
-        if (gender !== 'All' && String(m.gender).toLowerCase() !== gender.toLowerCase()) return false;
-
-        return true;
-      });
+      members = applyExpiredReportExtraFilters(members, { type, categories });
 
       setResults(members);
     } catch {
@@ -180,7 +155,7 @@ export default function ExpiredMembers() {
     } finally {
       setLoading(false);
     }
-  }, [fromDate, toDate, salesMan, trainerName, packageId, type, status, gender]);
+  }, [fromDate, toDate, salesMan, trainerName, packageId, type, status, gender, categories]);
 
   const ACTIVITY_TYPES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
   const headers = HEADERS.map(h => t(h));

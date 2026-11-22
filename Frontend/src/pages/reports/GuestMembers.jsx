@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Btn, Spinner, EmptyState, Pagination, Avatar, toLocalDateString, parseDateBoundary, Table, MenuSelect } from '../../components/ui';
+import { PageHeader, Card, Btn, Spinner, EmptyState, Pagination, Avatar, toLocalDateString, Table, MenuSelect } from '../../components/ui';
 import usePageTitle from '../../hooks/usePageTitle';
 import { getAllMembers, getSalesUsers, getCoachTeam } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
@@ -10,6 +10,7 @@ import { useI18n } from '../../i18n/useI18n';
 import { useFormat } from '../../i18n/useFormat';
 import { tr } from '../../i18n/translate';
 import { SHORT_DATE, sourceLabel } from './analyticsFormat';
+import { buildGuestReportApiParams } from '../../lib/memberReportFilters';
 
 const TODAY      = toLocalDateString();
 const MONTH_START = `${TODAY.slice(0, 7)}-01`;
@@ -118,29 +119,16 @@ export default function GuestMembers() {
     setSearched(true);
     setPage(1);
     try {
-      const params = { status: 'guest', limit: 1000, page: 1 };
-      if (salesMan !== 'All') params.assignedSales = salesMan;
-
-      const res = await getAllMembers(params);
-      let members = res.data.members ?? [];
-
-      // Client-side filters
-      const from = parseDateBoundary(fromDate, false);
-      const to   = parseDateBoundary(toDate, true);
-
-      members = members.filter(m => {
-        const created = new Date(m.createdAt);
-        if (from && created < from) return false;
-        if (to   && created > to)   return false;
-        if (trainerName !== 'All') {
-          const coachId = m.current_couch?._id ?? m.current_couch;
-          if (String(coachId) !== trainerName) return false;
-        }
-        if (source !== 'All' && String(m.source).toLowerCase() !== source.toLowerCase()) return false;
-        return true;
+      const params = buildGuestReportApiParams({
+        salesMan,
+        fromDate,
+        toDate,
+        trainerName,
+        source,
       });
 
-      setResults(members);
+      const res = await getAllMembers(params);
+      setResults(res.data.members ?? []);
     } catch {
       setResults([]);
     } finally {

@@ -432,7 +432,7 @@ function PackagesContent({ member, user, onRefresh }) {
   const canRequestPackage = hasAccess(user, 'request_package') || isSales || isSalesManager;
   const canReviewException = hasAccess(user, 'package_approvals')
     || isAccountant || isOwner || isGM;
-  const canAssignPackageDirectly = isAccountant || isOwner || canBypassPackageApproval;
+  const canAssignPackageDirectly = isAccountant || isOwner || isGM || canBypassPackageApproval;
   const canCreateCatalogPackage = hasAccess(user, 'packages') && (isSalesManager || isOwner || isGM);
   const canAddPackage = canRequestPackage || isAccountant || isOwner || isGM || canBypassPackageApproval;
   const requestOnly = canRequestPackage && !canAssignPackageDirectly;
@@ -955,7 +955,15 @@ function PackagesContent({ member, user, onRefresh }) {
           canAssignDirectly={canAssignPackageDirectly}
           canCreateCatalogPackage={canCreateCatalogPackage}
           upgrade={packageMode === 'upgrade'}
-          onSuccess={() => { setShowAddPackage(false); fetchPending(); onRefresh?.(); }}
+          onSuccess={(request) => {
+            setShowAddPackage(false);
+            if (request) {
+              setPending(request);
+            } else {
+              fetchPending();
+            }
+            onRefresh?.();
+          }}
           onReview={(id, status) => setConfirm({ id, status: status === 'declined' ? 'rejected' : status })}
         />
       )}
@@ -1161,7 +1169,7 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
 
     setLoading(true);
     try {
-      await createPackageException({
+      const res = await createPackageException({
         memberId: String(member.systemId ?? member._id),
         basePackageId: form.basePackageId,
         hasException: makeException,
@@ -1180,7 +1188,7 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
         upgrade,
       });
       toast.success(upgrade ? t('Upgrade request sent for Owner, GM, or Accountant approval.') : t('Package request sent for Owner, GM, or Accountant approval.'));
-      onSuccess();
+      onSuccess(res.data?.request ?? null);
     } catch (e) {
       toast.error(e.response?.data?.message ?? t('Failed.'));
     } finally {

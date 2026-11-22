@@ -333,22 +333,31 @@ const memberSchema = new mongoose.Schema({
     },
 
     isBlocked: {
-    type: Boolean,
-    default: false
-},
-blockedReason: {
-    type: String,
-    default: null
-},
-blockedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: "User",
-    default: null
-},
-blockedAt: {
-    type: Date,
-    default: null
-},
+        type: Boolean,
+        default: false,
+    },
+    restrictionType: {
+        type: String,
+        enum: ["lock", "suspend"],
+        default: null,
+    },
+    suspendedUntil: {
+        type: Date,
+        default: null,
+    },
+    blockedReason: {
+        type: String,
+        default: null,
+    },
+    blockedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        default: null,
+    },
+    blockedAt: {
+        type: Date,
+        default: null,
+    },
 
 
     // Current couch assigned to the member

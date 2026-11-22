@@ -9,7 +9,7 @@ const {
     markAllAsRead,
 } = require("../controllers/notificationController");
 
-router.use(protect, authorizeRoles("Sales", "Sales Manager", "Accountant","Coach","Head Coach"));
+router.use(protect, authorizeRoles("Sales", "Sales Manager", "Accountant", "Coach", "Head Coach", "Owner", "General Manager"));
 router.use(requireFeature("notifications"));
 
 router.get("/", getNotifications);

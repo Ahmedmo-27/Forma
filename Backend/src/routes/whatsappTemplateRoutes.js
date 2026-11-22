@@ -35,21 +35,21 @@ router.post(
 
 router.post(
     "/",
-    allowRoles("whatsapp_templates", "Owner", "Sales Manager", "Accountant", "Head Coach"),
+    allowRoles("whatsapp_templates", "Owner", "Sales Manager", "Accountant", "Head Coach", "General Manager"),
     validate(createWhatsAppTemplateSchema),
     autoInvalidate(["whatsapp"]),
     createTemplate
 );
 router.patch(
     "/:id",
-    allowRoles("whatsapp_templates", "Owner", "Sales Manager", "Accountant", "Head Coach"),
+    allowRoles("whatsapp_templates", "Owner", "Sales Manager", "Accountant", "Head Coach", "General Manager"),
     validate(updateWhatsAppTemplateSchema),
     autoInvalidate(["whatsapp"]),
     updateTemplate
 );
 router.delete(
     "/:id",
-    allowRoles("whatsapp_templates", "Owner", "Sales Manager", "Accountant", "Head Coach"),
+    allowRoles("whatsapp_templates", "Owner", "Sales Manager", "Accountant", "Head Coach", "General Manager"),
     autoInvalidate(["whatsapp"]),
     deleteTemplate
 );

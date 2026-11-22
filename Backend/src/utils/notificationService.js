@@ -103,6 +103,25 @@ async function notifyPackageExceptionPending({
     });
 }
 
+async function notifyCoachRepRequestPending({ recipientId, member, actorId, requestId, coachRepName, isTakeover }) {
+    if (!recipientId || !member) return null;
+
+    const repName = coachRepName || "A coach";
+    const memberName = member.name || "a member";
+    const action = isTakeover ? "take over" : "be assigned to";
+    const message = `${repName} requested to ${action} member ${memberName}`;
+
+    return Notification.create({
+        recipient: recipientId,
+        type: "coach_rep_request_pending",
+        title: "Coach assignment change request",
+        message,
+        member: member._id,
+        createdBy: actorId || null,
+        metadata: { requestId: requestId?.toString() },
+    });
+}
+
 async function notifySalesRepRequestPending({ recipientId, member, actorId, requestId, salesRepName, isTakeover }) {
     if (!recipientId || !member) return null;
 
@@ -144,5 +163,6 @@ module.exports = {
     notifyPackageExceptionPending,
     notifyPackageExceptionResolved,
     notifySalesRepRequestPending,
+    notifyCoachRepRequestPending,
     revokeStaleMemberAssignedNotifications,
 };

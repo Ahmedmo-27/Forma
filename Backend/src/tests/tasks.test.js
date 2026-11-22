@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 import Notification from "../models/Notification.js";
 import Task from "../models/Task.js";
 import Member from "../models/Member.js";
-import { notifyMemberAssigned, notifyTaskAssigned } from "../utils/notificationService.js";
+import { notifyMemberAssigned, notifyTaskAssigned, notifyCoachRepRequestPending } from "../utils/notificationService.js";
 import { completeMemberTask, getAssignedHistory, getAssignedTasks, getCreatedTasks, getAssigningOverview } from "../controllers/taskController.js";
 
 describe("Task Notifications and Differentiation", () => {
@@ -72,6 +72,26 @@ describe("Task Notifications and Differentiation", () => {
         expect(payload.message).toBe("3 members have been assigned to you as a task. Check your tasks page to view those 3 members.");
         expect(payload.member).toBeNull();
         expect(payload.metadata.memberCount).toBe(3);
+    });
+
+    it("creates coach rep request pending notification", async () => {
+        const createSpy = vi.spyOn(Notification, "create").mockImplementation(async (doc) => ({ _id: "notif-coach", ...doc }));
+
+        await notifyCoachRepRequestPending({
+            recipientId: "user-hc-1",
+            member: { _id: "m-9", name: "Khaled" },
+            actorId: "user-coach-2",
+            requestId: "req-1",
+            coachRepName: "Coach Ali",
+            isTakeover: false,
+        });
+
+        expect(createSpy).toHaveBeenCalledTimes(1);
+        const payload = createSpy.mock.calls[0][0];
+        expect(payload.type).toBe("coach_rep_request_pending");
+        expect(payload.title).toBe("Coach assignment change request");
+        expect(payload.message).toContain("Coach Ali");
+        expect(payload.message).toContain("Khaled");
     });
 
     it("does not send notification if recipient is the actor (self-assignment)", async () => {

@@ -1,4 +1,5 @@
 const { findActiveSubscription } = require("./subscriptionUtils");
+const { isMemberRestricted } = require("./memberRestriction");
 
 const CHECK_IN_TYPES = ["gym", "pt"];
 const COACH_ROLES = ["Coach", "Head Coach"];
@@ -25,7 +26,7 @@ function defaultDayStart(now) {
  * which stays valid through its last day.
  */
 function checkInOptions(member, { now = new Date(), dayStart, ptEnabled = true } = {}) {
-    if (!member || member.isBlocked) {
+    if (!member || isMemberRestricted(member)) {
         return { gym: false, pt: false, ptSessionsLeft: ptSessionsLeft(member) };
     }
     const gym = Boolean(member.isMember) && Boolean(findActiveSubscription(member.subscriptions, now));

@@ -89,6 +89,26 @@ const freezeMemberSchema = z.object({
     endDate: z.string().min(1),
 });
 
+const blockMemberSchema = z.object({
+    reason: z.preprocess(emptyToNull, plainText(500).nullable().optional()),
+});
+
+const suspendMemberSchema = z.object({
+    suspendedUntil: z.string().min(1, "Suspension end date is required"),
+    reason: z.preprocess(emptyToNull, plainText(500).nullable().optional()),
+}).superRefine((data, ctx) => {
+    const end = new Date(data.suspendedUntil);
+    if (Number.isNaN(end.getTime())) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Invalid suspension end date", path: ["suspendedUntil"] });
+        return;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (end < today) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Suspension end date must be today or later", path: ["suspendedUntil"] });
+    }
+});
+
 const addNoteSchema = z.object({
     text: plainText(2000),
 });
@@ -662,6 +682,8 @@ module.exports = {
     createMemberSchema,
     updateMemberSchema,
     freezeMemberSchema,
+    blockMemberSchema,
+    suspendMemberSchema,
     addNoteSchema,
     addAlertSchema,
     invitationSchema,

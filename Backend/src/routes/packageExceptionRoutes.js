@@ -42,7 +42,7 @@ router.get(
     cacheResponse({ ttlSeconds: 60, tags: ["package-exceptions"] }),
     getMemberPendingException
 );
-router.post("/", allowAnyFeature(["packages", "request_package"], "Sales", "Sales Manager", "Owner"), validate(createExceptionSchema), autoInvalidate(["package-exceptions"]), createException);
+router.post("/", allowAnyFeature(["packages", "request_package"], "Sales", "Sales Manager", "Owner", "General Manager"), validate(createExceptionSchema), autoInvalidate(["package-exceptions"]), createException);
 router.put("/:id/status", allowRoles("package_approvals", "Accountant", "Owner", "General Manager"), validate(exceptionStatusSchema), autoInvalidate(["package-exceptions", "contracts", "revenue"]), updateExceptionStatus);
 
 module.exports = router;

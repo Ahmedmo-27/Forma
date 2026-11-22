@@ -28,6 +28,7 @@ import {
 } from '../lib/memberDetailColumns';
 import { playCheckInSound } from '../lib/audioFeedback';
 import { useI18n } from '../i18n/useI18n';
+import { memberStatusBadge, isMemberSuspended, checkInRestrictionMessage } from '../lib/memberRestriction';
 import { useFormat } from '../i18n/useFormat';
 import { tr } from '../i18n/translate';
 
@@ -786,7 +787,7 @@ export default function CheckIn() {
                     <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
                       <h2 style={{ fontSize: 17, fontWeight: 800, color: '#fff', margin: '0 0 6px', lineHeight: 1.2 }}>{member.name}</h2>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <Badge status={member.isBlocked ? 'blocked' : member.status} />
+                        <Badge status={memberStatusBadge(member)} />
                         <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)', fontFamily: 'monospace' }}>
                           <span dir="ltr" style={{ unicodeBidi: 'isolate' }}>{formatSystemId(member.systemId)}</span>{member.memberId ? ` · ${t('Member #{id}', { id: member.memberId })}` : ''}
                         </span>
@@ -856,11 +857,28 @@ export default function CheckIn() {
 
                     {/* Blocked banner */}
                     {member.isBlocked && (
-                      <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--red-bg)', border: '1px solid var(--red-bd)', borderInlineStart: '4px solid var(--red)', display: 'flex', alignItems: 'center', gap: 10 }}>
-                        <Ban size={20} color="var(--red)" aria-hidden />
+                      <div style={{
+                        padding: '10px 14px', borderRadius: 10,
+                        background: isMemberSuspended(member) ? 'var(--amber-bg)' : 'var(--red-bg)',
+                        border: isMemberSuspended(member) ? '1px solid var(--amber-bd)' : '1px solid var(--red-bd)',
+                        borderInlineStart: isMemberSuspended(member) ? '4px solid var(--amber)' : '4px solid var(--red)',
+                        display: 'flex', alignItems: 'center', gap: 10,
+                      }}>
+                        <Ban size={20} color={isMemberSuspended(member) ? 'var(--amber)' : 'var(--red)'} aria-hidden />
                         <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--red)' }}>{t('Member is Blocked')}</div>
-                          {member.blockedReason && <div style={{ fontSize: 11, color: 'var(--red)', opacity: 0.8, marginTop: 1 }}>{t('Reason: {reason}', { reason: member.blockedReason })}</div>}
+                          <div style={{ fontSize: 13, fontWeight: 700, color: isMemberSuspended(member) ? 'var(--amber)' : 'var(--red)' }}>
+                            {isMemberSuspended(member) ? t('Member is Suspended') : t('Member is Locked')}
+                          </div>
+                          {isMemberSuspended(member) && member.suspendedUntil && (
+                            <div style={{ fontSize: 11, color: 'var(--amber)', opacity: 0.9, marginTop: 1 }}>
+                              {t('Until {date}', { date: new Date(member.suspendedUntil).toLocaleDateString() })}
+                            </div>
+                          )}
+                          {member.blockedReason && (
+                            <div style={{ fontSize: 11, color: isMemberSuspended(member) ? 'var(--amber)' : 'var(--red)', opacity: 0.8, marginTop: 1 }}>
+                              {t('Reason: {reason}', { reason: member.blockedReason })}
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -916,15 +934,14 @@ export default function CheckIn() {
                     {!canCheckIn && (
                       <p style={{ textAlign: 'center', fontSize: 12, color: 'var(--red)', margin: 0, fontWeight: 600 }}>
                         {t('Cannot check in — {reason}', {
-                          reason: member.isBlocked
-                            ? t('member is blocked')
-                            : isGuest
+                          reason: checkInRestrictionMessage(member, t)
+                            || (isGuest
                             ? t('this member is a guest and does not have a package')
                             : !hasPackage
                             ? t('this member does not have a package')
                             : hasExpired
                             ? t('this member has an expired package')
-                            : t('member is {status}', { status: statusText(t, member.status) }),
+                            : t('member is {status}', { status: statusText(t, member.status) })),
                         })}
                       </p>
                     )}

@@ -1,8 +1,9 @@
 const CoachRepRequest = require("../models/CoachRepRequest");
 const Member = require("../models/Member");
+const User = require("../models/User");
 const { hasAccess } = require("../utils/accessControl");
 const { buildMemberFilter, findMemberByIdentifier } = require("../utils/memberLookup");
-const { notifyMemberAssigned } = require("../utils/notificationService");
+const { notifyMemberAssigned, notifyCoachRepRequestPending } = require("../utils/notificationService");
 
 // Submit a request to assign a member to the logged-in sales rep
 const createRequest = async (req, res) => {
@@ -55,6 +56,26 @@ const createRequest = async (req, res) => {
             requestedBy: req.user.id,
             status: "pending"
         });
+
+        const approvers = await User.find({
+            role: { $in: ["Head Coach", "Owner", "General Manager"] },
+        }).select("_id");
+        try {
+            await Promise.all(
+                approvers.map((approver) =>
+                    notifyCoachRepRequestPending({
+                        recipientId: approver._id,
+                        member,
+                        actorId: req.user.id,
+                        requestId: newRequest._id,
+                        coachRepName: req.user.name,
+                        isTakeover,
+                    })
+                )
+            );
+        } catch (notifyError) {
+            console.error("Failed to notify approvers of coach assignment request:", notifyError.message);
+        }
 
         res.status(201).json({ message: "Request submitted successfully", request: newRequest });
     } catch (error) {

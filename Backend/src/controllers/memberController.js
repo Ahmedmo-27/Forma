@@ -61,6 +61,12 @@ function sendMemberScopeError(res, error) {
     });
 }
 const { notifyMemberAssigned, notifyTaskAssigned } = require("../utils/notificationService");
+const {
+    clearRestrictionFields,
+    maybeClearExpiredSuspension,
+    checkInDeniedMessage,
+    isTimedSuspension,
+} = require("../utils/memberRestriction");
 const Task = require("../models/Task");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const { buildMemberListFilter, statsFilterFromListFilter, getMemberStatusStats, numericId } = require("../utils/memberFilters");
@@ -430,7 +436,7 @@ async function createMemberRecord(personData, maxAttempts = 5) {
 const MEMBER_LIST_SELECT = "systemId memberId barcode name phones photo status isMember gender source assignedSales createdBy current_couch couch_subscription_status subscriptions freezeDaysUsed invitationsUsed isBlocked createdAt userlog";
 // Large list / report fetches (limit >= 1000) use this lean select. Include
 // coach + report filter fields so Guest/Members reports can show trainers.
-const MEMBER_SEARCH_SELECT = "systemId memberId name phones photo status gender source subscriptions assignedSales current_couch createdAt";
+const MEMBER_SEARCH_SELECT = "systemId memberId name phones photo status gender source PT_sessions subscriptions assignedSales current_couch createdAt";
 const MEMBER_SORT_FIELDS = new Set(["createdAt", "systemId", "name"]);
 
 function memberListSort(query = {}) {
@@ -478,13 +484,9 @@ const getAllMembers = async (req, res) => {
             packageId:       req.query.packageId,
             gender:          req.query.gender,
             transferType:    req.query.transferType,
+            source:          req.query.source,
             locationFilter:  req.locationFilter,
         });
-
-        // Source filter (e.g. source=data entry for imported members)
-        if (req.query.source) {
-            filter.source = req.query.source;
-        }
 
         const statsFilter = statsFilterFromListFilter(filter);
 
@@ -770,7 +772,9 @@ async function recordFrontDeskPtSession(req, res, { query, deskLoc, now }) {
     // Nothing matched. Say exactly why.
     const member = await Member.findOne(query).select(`${PT_DESK_FIELDS} userlog`).lean();
     if (!member) return res.status(404).json({ message: "Member not found" });
-    if (member.isBlocked) return res.status(403).json({ message: "Cannot check in — member is blocked" });
+    await maybeClearExpiredSuspension(member);
+    const ptDenied = checkInDeniedMessage(member);
+    if (ptDenied) return res.status(403).json({ message: ptDenied });
     if (member.couch_subscription_status !== "active") {
         return res.status(400).json({ message: "Cannot check in — this member has no active PT package" });
     }
@@ -907,8 +911,10 @@ const checkInMember = async (req, res) => {
         }
         const member = memberDoc;
 
-        if (member.isBlocked) {
-            return res.status(403).json({ message: "Cannot check in — member is blocked" });
+        await maybeClearExpiredSuspension(member);
+        const denied = checkInDeniedMessage(member);
+        if (denied) {
+            return res.status(403).json({ message: denied });
         }
 
         if (decideType) {
@@ -1226,6 +1232,13 @@ const getMembers = async (req, res) => {
             recent: req.query.recent,
             expiringSoon: req.query.expiringSoon,
             currentCouch: req.query.currentCouch,
+            dateFrom: req.query.dateFrom,
+            dateTo: req.query.dateTo,
+            dateField: req.query.dateField,
+            packageId: req.query.packageId,
+            gender: req.query.gender,
+            transferType: req.query.transferType,
+            source: req.query.source,
             locationFilter: req.locationFilter,
         });
 
@@ -2316,29 +2329,32 @@ const blockMember = async (req, res) => {
         const member = scoped.member;
 
         if (member.isBlocked) {
-            return res.status(400).json({ message: "Member is already blocked" });
+            const label = isTimedSuspension(member) ? "suspended" : "blocked";
+            return res.status(400).json({ message: `Member is already ${label}` });
         }
 
         member.isBlocked = true;
+        member.restrictionType = "lock";
+        member.suspendedUntil = null;
         member.blockedReason = reason || null;
         member.blockedBy = req.user.id;
         member.blockedAt = new Date();
 
         member.userlog.push({
             type: "other",
-            text: `Member blocked${reason ? `: ${reason}` : ''}`,
+            text: `Member locked${reason ? `: ${reason}` : ""}`,
             createdBy: req.user.id,
         });
 
         await member.save();
         publishLive(req.user.tenantId, {
             type: "member",
-            message: `${member.name} was blocked`,
+            message: `${member.name} was locked`,
             systemId: member.systemId,
             memberName: member.name,
             status: "blocked",
         });
-        res.json({ message: "Member blocked", member });
+        res.json({ message: "Member locked", member });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -2354,29 +2370,77 @@ const unblockMember = async (req, res) => {
         const member = scoped.member;
 
         if (!member.isBlocked) {
-            return res.status(400).json({ message: "Member is not blocked" });
+            return res.status(400).json({ message: "Member is not blocked or suspended" });
         }
 
-        member.isBlocked = false;
-        member.blockedReason = null;
-        member.blockedBy = null;
-        member.blockedAt = null;
+        const wasSuspend = isTimedSuspension(member);
+        clearRestrictionFields(member);
 
         member.userlog.push({
             type: "other",
-            text: "Member unblocked",
+            text: wasSuspend ? "Member suspension lifted" : "Member unlocked",
             createdBy: req.user.id,
         });
 
         await member.save();
         publishLive(req.user.tenantId, {
             type: "member",
-            message: `${member.name} was unblocked`,
+            message: wasSuspend ? `${member.name} suspension was lifted` : `${member.name} was unlocked`,
             systemId: member.systemId,
             memberName: member.name,
             status: member.status,
         });
-        res.json({ message: "Member unblocked", member });
+        res.json({ message: wasSuspend ? "Member unsuspended" : "Member unlocked", member });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+};
+
+const suspendMember = async (req, res) => {
+    try {
+        const identifier = req.params.memberId;
+        const { suspendedUntil, reason } = req.body;
+
+        const scoped = await findScopedMember(req, identifier);
+        if (scoped.error) return sendMemberScopeError(res, scoped.error);
+        const member = scoped.member;
+
+        const until = new Date(suspendedUntil);
+        if (Number.isNaN(until.getTime())) {
+            return res.status(400).json({ message: "Invalid suspension end date" });
+        }
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (until < today) {
+            return res.status(400).json({ message: "Suspension end date must be today or later" });
+        }
+
+        if (member.isBlocked && member.restrictionType === "lock") {
+            return res.status(400).json({ message: "Member is locked — unlock before suspending" });
+        }
+
+        member.isBlocked = true;
+        member.restrictionType = "suspend";
+        member.suspendedUntil = until;
+        member.blockedReason = reason || null;
+        member.blockedBy = req.user.id;
+        member.blockedAt = new Date();
+
+        member.userlog.push({
+            type: "other",
+            text: `Member suspended until ${until.toISOString().slice(0, 10)}${reason ? `: ${reason}` : ""}`,
+            createdBy: req.user.id,
+        });
+
+        await member.save();
+        publishLive(req.user.tenantId, {
+            type: "member",
+            message: `${member.name} was suspended`,
+            systemId: member.systemId,
+            memberName: member.name,
+            status: "suspended",
+        });
+        res.json({ message: "Member suspended", member });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }
@@ -3479,6 +3543,7 @@ module.exports = {
     deleteProfilePhoto,
     blockMember,
     unblockMember,
+    suspendMember,
     sessionCheckIn_for_couch,
     bulkImportMembers,
     getMemberImportJob,

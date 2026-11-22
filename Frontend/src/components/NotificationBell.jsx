@@ -85,13 +85,17 @@ export default function NotificationBell({ variant = 'bar' }) {
       navigate('/sales/requests');
       return;
     }
+    if (n.type === 'coach_rep_request_pending') {
+      navigate('/tasks');
+      return;
+    }
     if (n.type === 'task_assigned' || n.title?.toLowerCase() === 'tasks') {
       navigate('/tasks');
       return;
     }
     const memberId = n.member?.systemId || n.member?._id;
     if (!memberId) return;
-    const tab = n.type === 'package_exception_pending' ? '?tab=packages' : '';
+    const tab = (n.type === 'package_exception_pending' || n.type === 'package_exception_resolved') ? '?tab=packages' : '';
     navigate(`/members/${memberId}${tab}`);
   };
 

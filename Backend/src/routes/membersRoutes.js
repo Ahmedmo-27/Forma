@@ -21,6 +21,8 @@ const {
     addAlertSchema,
     invitationSchema,
     assignPackageSchema,
+    blockMemberSchema,
+    suspendMemberSchema,
 } = require("../validation/schemas");
 const {
     createMember,
@@ -52,6 +54,7 @@ const {
     deactivateAlert,
     blockMember,
     unblockMember,
+    suspendMember,
     addPT_sessions,
     refund,
     cancelPackage,
@@ -116,9 +119,10 @@ router.post("/:memberId/checkin", allowAnyFeature(["check_in"], "Receptionist", 
 router.patch("/:memberId/alerts/:alertId/deactivate", protect, allowRoles("members", "Receptionist", "Sales", "Sales Manager", "Owner"), autoInvalidate(["members"]), deactivateAlert);
 router.patch("/:memberId/assign-sales", allowRoles("members", "Receptionist", "Owner", "Sales Manager", "Sales"), autoInvalidate(["members", "revenue"]), assignSalesman);
 router.patch("/:memberId/freeze", allowRoles("members", "Receptionist", "Owner", "Sales", "Sales Manager"), validate(freezeMemberSchema), autoInvalidate(["members"]), freezeMember);
-router.patch("/:memberId/block", protect, allowRoles("management", "Owner", "Sales Manager", "Head Coach", "General Manager"), autoInvalidate(["members"]), blockMember);
+router.patch("/:memberId/block", protect, allowRoles("management", "Owner", "Sales Manager", "Head Coach", "General Manager"), validate(blockMemberSchema), autoInvalidate(["members"]), blockMember);
+router.patch("/:memberId/suspend", protect, allowRoles("management", "Owner", "General Manager", "Sales Manager", "Head Coach"), validate(suspendMemberSchema), autoInvalidate(["members"]), suspendMember);
 router.patch("/:memberId/unblock", protect, allowRoles("management", "Owner", "Sales Manager", "Head Coach", "General Manager"), autoInvalidate(["members"]), unblockMember);
-router.post("/:memberId/package", protect, allowAnyFeature(["package_approvals", "bypass_package_approval"], "Accountant", "Owner"), requireFeature("packages"), validate(assignPackageSchema), autoInvalidate(["members", "revenue", "contracts"]), assignPackage);
+router.post("/:memberId/package", protect, allowAnyFeature(["package_approvals", "bypass_package_approval"], "Accountant", "Owner", "General Manager"), requireFeature("packages"), validate(assignPackageSchema), autoInvalidate(["members", "revenue", "contracts"]), assignPackage);
 router.patch("/:memberId/national-id", protect, allowRoles("accounting_dashboard", "Accountant", "Owner"), uploadLimiter, uploadSingle("nationalIdFile"), autoInvalidate(["members"]), uploadNationalId);
 router.patch("/:memberId/photo", protect, allowRoles("members", "Accountant", "Owner", "Receptionist"), uploadLimiter, uploadSinglePhoto("photoFile"), autoInvalidate(["members"]), uploadProfilePhoto);
 router.patch("/:memberId", allowRoles("members", "Receptionist", "Owner", "Sales Manager", "Sales", "Accountant", "General Manager"), validate(updateMemberSchema), autoInvalidate(["members"]), updateMember);

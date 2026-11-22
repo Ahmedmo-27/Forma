@@ -21,12 +21,12 @@ router.use(requireAccess("coaching"));
 router.use(locationScopeOptional);
 
 // Coach sees own requests; Head Coach/Owner sees all
-router.get("/",           allowRoles("my_transfers", "Coach", "Head Coach", "Owner"), cacheResponse({ ttlSeconds: 45, tags: ["coach-requests"] }), getRequests);
+router.get("/",           allowRoles("my_transfers", "Coach", "Head Coach", "Owner", "General Manager"), cacheResponse({ ttlSeconds: 45, tags: ["coach-requests"] }), getRequests);
 
 // Coach creates a reassignment request
 router.post("/",          allowAnyFeature(["request_assignment", "request_takeover"], "Coach"), autoInvalidate(["coach-requests", "members"]), createRequest);
 
 // Head Coach / Owner approves or rejects
-router.put("/:id/status", allowRoles("coach_transfer", "Head Coach", "Owner"), autoInvalidate(["coach-requests", "members"]), updateRequestStatus);
+router.put("/:id/status", allowRoles("coach_transfer", "Head Coach", "Owner", "General Manager"), autoInvalidate(["coach-requests", "members"]), updateRequestStatus);
 
 module.exports = router;

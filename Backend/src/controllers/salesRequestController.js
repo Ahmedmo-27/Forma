@@ -58,10 +58,12 @@ const createRequest = async (req, res) => {
             status: "pending"
         });
 
-        const salesManagers = await User.find({ role: "Sales Manager" }).select("_id");
+        const approvers = await User.find({
+            role: { $in: ["Sales Manager", "Owner", "General Manager"] },
+        }).select("_id");
         try {
             await Promise.all(
-                salesManagers.map((manager) =>
+                approvers.map((manager) =>
                     notifySalesRepRequestPending({
                         recipientId: manager._id,
                         member,
@@ -74,7 +76,7 @@ const createRequest = async (req, res) => {
             );
         } catch (notifyError) {
             // Request is already saved — don't fail the submit if notifications fail
-            console.error("Failed to notify sales managers of assignment request:", notifyError.message);
+            console.error("Failed to notify approvers of sales assignment request:", notifyError.message);
         }
 
         res.status(201).json({ message: "Request submitted successfully", request: newRequest });

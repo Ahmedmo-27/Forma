@@ -25,8 +25,8 @@ router.use(requireFeature("sales_crm"));
 router.use(requireAccess("sales"));
 router.use(locationScopeOptional);
 
-router.get("/",           allowRoles("approve_requests", "Sales", "Sales Manager", "Owner"), cacheResponse({ ttlSeconds: 45, tags: ["requests"] }), getRequests);
+router.get("/",           allowRoles("approve_requests", "Sales", "Sales Manager", "Owner", "General Manager"), cacheResponse({ ttlSeconds: 45, tags: ["requests"] }), getRequests);
 router.post("/",          allowAnyFeature(["request_assignment", "request_takeover"], "Sales"), validate(salesRequestSchema), autoInvalidate(["requests", "members"]), createRequest);
-router.put("/:id/status", allowRoles("approve_requests", "Sales Manager", "Owner"), validate(salesRequestStatusSchema), autoInvalidate(["requests", "members"]), updateRequestStatus);
+router.put("/:id/status", allowRoles("approve_requests", "Sales Manager", "Owner", "General Manager"), validate(salesRequestStatusSchema), autoInvalidate(["requests", "members"]), updateRequestStatus);
 
 module.exports = router;

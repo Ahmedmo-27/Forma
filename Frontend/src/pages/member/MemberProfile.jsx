@@ -8,7 +8,9 @@ import { useLocationScope, ALL_LOCATIONS } from '../../context/LocationContext';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
 import { PageHeader, Tabs, Badge, Btn, Spinner, Skeleton, Modal, Input } from '../../components/ui';
-import { getMemberProfile, checkInMember, blockMember, unblockMember } from '../../api/endpoints';
+import { getMemberProfile, checkInMember, blockMember, unblockMember, suspendMember } from '../../api/endpoints';
+import { hasAccess } from '../../lib/access';
+import { memberStatusBadge, isMemberSuspended, checkInRestrictionMessage } from '../../lib/memberRestriction';
 import ProfilePhotoUpload from '../../components/ProfilePhotoUpload';
 import MemberQrButton from '../../components/MemberQrButton';
 import CheckInTypeModal from '../../components/CheckInTypeModal';
@@ -88,7 +90,10 @@ export default function MemberProfile() {
   const [alertPopup, setAlertPopup] = useState(null); // array of alert texts or null
   const alertShownRef = useRef(false);
   const [showBlockModal, setShowBlockModal] = useState(false);
+  const [showSuspendModal, setShowSuspendModal] = useState(false);
   const [blockReason, setBlockReason]       = useState('');
+  const [suspendUntil, setSuspendUntil]     = useState('');
+  const [suspendReason, setSuspendReason]   = useState('');
   const [blocking, setBlocking]             = useState(false);
 
   usePageTitle(data?.member?.name ?? t('Profile'));
@@ -129,15 +134,14 @@ export default function MemberProfile() {
   // `type` is 'gym' or 'pt' once the member has said what they are attending.
   const handleCheckIn = async (type) => {
     if (!canCheckIn) {
-      const reason = member?.isBlocked
-        ? t('Cannot check in — member is blocked')
-        : isGuest
+      const restriction = checkInRestrictionMessage(member, t);
+      const reason = restriction || (isGuest
         ? t('Cannot check in — this member is a guest and does not have a package')
         : !currentPkg
         ? t('Cannot check in — this member does not have a package')
         : isExpired
         ? t('Cannot check in — this member has an expired package')
-        : t('Cannot check in');
+        : t('Cannot check in'));
       toast.error(reason);
       return;
     }
@@ -175,12 +179,32 @@ export default function MemberProfile() {
   const handleBlock = async () => {
     setBlocking(true);
     try {
-      await blockMember(member.systemId, blockReason.trim());
-      toast.success(t('Member blocked'));
+      await blockMember(member.systemId, blockReason.trim() || undefined);
+      toast.success(t('Member locked'));
       setShowBlockModal(false);
       setBlockReason('');
       fetchProfile();
-    } catch (e) { toast.error(e.response?.data?.message ?? t('Failed to block member.')); }
+    } catch (e) { toast.error(e.response?.data?.message ?? t('Failed to lock member.')); }
+    finally { setBlocking(false); }
+  };
+
+  const handleSuspend = async () => {
+    if (!suspendUntil) {
+      toast.error(t('Select a suspension end date.'));
+      return;
+    }
+    setBlocking(true);
+    try {
+      await suspendMember(member.systemId, {
+        suspendedUntil: suspendUntil,
+        reason: suspendReason.trim() || undefined,
+      });
+      toast.success(t('Member suspended'));
+      setShowSuspendModal(false);
+      setSuspendUntil('');
+      setSuspendReason('');
+      fetchProfile();
+    } catch (e) { toast.error(e.response?.data?.message ?? t('Failed to suspend member.')); }
     finally { setBlocking(false); }
   };
 
@@ -188,9 +212,9 @@ export default function MemberProfile() {
     setBlocking(true);
     try {
       await unblockMember(member.systemId);
-      toast.success(t('Member unblocked'));
+      toast.success(isMemberSuspended(member) ? t('Member unsuspended') : t('Member unlocked'));
       fetchProfile();
-    } catch (e) { toast.error(e.response?.data?.message ?? t('Failed to unblock member.')); }
+    } catch (e) { toast.error(e.response?.data?.message ?? t('Failed to unlock member.')); }
     finally { setBlocking(false); }
   };
 
@@ -211,6 +235,8 @@ export default function MemberProfile() {
   const visibleTabs = TABS.filter((tb) => tabAllowed(tb.id));
   const shownTab = tabAllowed(activeTab) ? activeTab : 'dashboard';
   const canUseCheckIn = featureAllowed(hasFeature, 'checkin');
+  const canManageRestrictions = hasAccess(user, 'management')
+    || ['Owner', 'General Manager', 'Sales Manager', 'Head Coach'].includes(user?.role);
 
   return (
     <Layout>
@@ -231,7 +257,7 @@ export default function MemberProfile() {
               title={
                 !canCheckIn
                   ? member.isBlocked
-                    ? t('Member is blocked')
+                    ? (isMemberSuspended(member) ? t('Member is suspended') : t('Member is locked'))
                     : isGuest
                     ? t('This member is a guest and does not have a package')
                     : !currentPkg
@@ -244,14 +270,21 @@ export default function MemberProfile() {
               {checkingIn ? <Spinner size="sm" /> : t('Check In')}
             </Btn>
           )}
-          {member && user?.role === 'Sales Manager' && (
-            member.isBlocked
-              ? <Btn variant="outline" size="sm" onClick={handleUnblock} disabled={blocking}>
-                  {blocking ? <Spinner size="sm" /> : t('Unblock')}
+          {member && canManageRestrictions && (
+            member.isBlocked ? (
+              <Btn variant="outline" size="sm" onClick={handleUnblock} disabled={blocking}>
+                {blocking ? <Spinner size="sm" /> : (isMemberSuspended(member) ? t('Lift suspension') : t('Unlock'))}
+              </Btn>
+            ) : (
+              <>
+                <Btn variant="outline" size="sm" onClick={() => setShowSuspendModal(true)}>
+                  {t('Suspend')}
                 </Btn>
-              : <Btn variant="danger" size="sm" onClick={() => setShowBlockModal(true)}>
-                  {t('Block')}
+                <Btn variant="danger" size="sm" onClick={() => setShowBlockModal(true)}>
+                  {t('Lock')}
                 </Btn>
+              </>
+            )
           )}
         </div>
 
@@ -263,16 +296,27 @@ export default function MemberProfile() {
             {/* Blocked banner */}
             {member.isBlocked && (
               <div style={{
-                background: 'var(--red-bg)', border: '1px solid var(--red-bd)',
-                borderInlineStart: '4px solid var(--red)', borderRadius: 8,
+                background: isMemberSuspended(member) ? 'var(--amber-bg)' : 'var(--red-bg)',
+                border: isMemberSuspended(member) ? '1px solid var(--amber-bd)' : '1px solid var(--red-bd)',
+                borderInlineStart: isMemberSuspended(member) ? '4px solid var(--amber)' : '4px solid var(--red)',
+                borderRadius: 8,
                 padding: '12px 16px', marginBottom: 14,
                 display: 'flex', alignItems: 'center', gap: 12,
               }}>
-                <Ban size={22} color="var(--red)" aria-hidden />
+                <Ban size={22} color={isMemberSuspended(member) ? 'var(--amber)' : 'var(--red)'} aria-hidden />
                 <div style={{ flex: 1 }}>
-                  <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--red)', marginBottom: 2 }}>{t('This member is blocked')}</p>
+                  <p style={{ fontSize: 14, fontWeight: 700, color: isMemberSuspended(member) ? 'var(--amber)' : 'var(--red)', marginBottom: 2 }}>
+                    {isMemberSuspended(member) ? t('This member is suspended') : t('This member is locked')}
+                  </p>
+                  {isMemberSuspended(member) && member.suspendedUntil && (
+                    <p style={{ fontSize: 12, color: 'var(--amber)', opacity: 0.9 }}>
+                      {t('Until {date}', { date: new Date(member.suspendedUntil).toLocaleDateString() })}
+                    </p>
+                  )}
                   {member.blockedReason && (
-                    <p style={{ fontSize: 12, color: 'var(--red)', opacity: 0.8 }}>{t('Reason: {reason}', { reason: member.blockedReason })}</p>
+                    <p style={{ fontSize: 12, color: isMemberSuspended(member) ? 'var(--amber)' : 'var(--red)', opacity: 0.8 }}>
+                      {t('Reason: {reason}', { reason: member.blockedReason })}
+                    </p>
                   )}
                 </div>
               </div>
@@ -304,22 +348,47 @@ export default function MemberProfile() {
         onClose={() => setTypePrompt(null)}
       />
 
-      <Modal open={showBlockModal} onClose={() => setShowBlockModal(false)} title={t('Block Member')} size="sm"
+      <Modal open={showBlockModal} onClose={() => setShowBlockModal(false)} title={t('Lock Member')} size="sm"
         footer={<>
           <Btn variant="ghost" size="sm" onClick={() => setShowBlockModal(false)} disabled={blocking}>{t('Cancel')}</Btn>
           <Btn variant="danger" size="sm" onClick={handleBlock} disabled={blocking}>
-            {blocking ? <Spinner size="sm" /> : t('Block Member')}
+            {blocking ? <Spinner size="sm" /> : t('Lock Member')}
           </Btn>
         </>}
       >
         <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 14, lineHeight: 1.6 }}>
-          {t('Blocking this member will prevent check-ins and flag their profile. Are you sure?')}
+          {t('Locking prevents check-ins until you unlock manually. Are you sure?')}
         </p>
         <Input
           label={t('Reason (optional)')}
           value={blockReason}
           onChange={e => setBlockReason(e.target.value)}
           placeholder={t('e.g. Outstanding balance, inappropriate behavior')}
+        />
+      </Modal>
+
+      <Modal open={showSuspendModal} onClose={() => setShowSuspendModal(false)} title={t('Suspend Member')} size="sm"
+        footer={<>
+          <Btn variant="ghost" size="sm" onClick={() => setShowSuspendModal(false)} disabled={blocking}>{t('Cancel')}</Btn>
+          <Btn variant="primary" size="sm" onClick={handleSuspend} disabled={blocking || !suspendUntil}>
+            {blocking ? <Spinner size="sm" /> : t('Suspend Member')}
+          </Btn>
+        </>}
+      >
+        <p style={{ fontSize: 13, color: 'var(--t3)', marginBottom: 14, lineHeight: 1.6 }}>
+          {t('Suspension blocks check-ins until the end date, then lifts automatically.')}
+        </p>
+        <Input
+          label={t('Suspended until *')}
+          type="date"
+          value={suspendUntil}
+          onChange={e => setSuspendUntil(e.target.value)}
+        />
+        <Input
+          label={t('Reason (optional)')}
+          value={suspendReason}
+          onChange={e => setSuspendReason(e.target.value)}
+          placeholder={t('e.g. Temporary disciplinary action')}
         />
       </Modal>
 
@@ -460,7 +529,7 @@ function ProfileHeader({ member, stats, user, onPhotoUploaded }) {
           <h2 style={{ fontSize: 20, fontWeight: 800, color: 'var(--t1)', margin: 0, letterSpacing: '-0.3px' }}>
             {member.name}
           </h2>
-          <Badge status={member.isBlocked ? 'blocked' : member.status} />
+          <Badge status={memberStatusBadge(member)} />
         </div>
 
         {/* Row 2: IDs + gender + phone + last check-in */}
