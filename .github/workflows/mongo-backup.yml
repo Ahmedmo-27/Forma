@@ -18,12 +18,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      MONGO_URI: ${{ secrets.BACKUP_MONGO_URI }}
+      MONGO_URI: ${{ secrets.MONGO_URI }}
       BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
       BACKUP_BUCKET: ${{ secrets.BACKUP_BUCKET }}
       BACKUP_S3_ENDPOINT: ${{ secrets.BACKUP_S3_ENDPOINT }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: auto
     steps:
       - uses: actions/checkout@v5

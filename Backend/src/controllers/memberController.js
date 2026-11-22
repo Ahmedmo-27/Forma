@@ -2196,6 +2196,7 @@ const updateSubscription = async (req, res) => {
             discountPercent,
             startDate,
             endDate,
+            salesPersonId,
             reason,
         } = req.body;
 
@@ -2218,122 +2219,173 @@ const updateSubscription = async (req, res) => {
             return res.status(400).json({ message: "Cannot edit a refunded, cancelled, or transferred package" });
         }
 
+        const termPatchRequested = [
+            name, activityType, duration, price, freezeLimitDays, invitationLimit,
+            renewalDiscountPercent, description, pricePaid, discountPercent, startDate, endDate,
+        ].some((value) => value !== undefined);
+
         const ContractSignature = require("../models/ContractSignature");
         const signed = await ContractSignature.exists({ subscription: sub._id });
-        if (signed) {
+        if (signed && termPatchRequested) {
             return res.status(409).json({
                 code: "CONTRACT_ALREADY_SIGNED",
                 message: "This package has a signed contract and cannot be edited",
             });
         }
 
-        const currentTerms = resolveSubscriptionPackage(sub) || {};
-        const nextSnapshot = buildPackageSnapshot({
-            ...currentTerms,
-            name: name !== undefined ? String(name).trim() : currentTerms.name,
-            activityType: activityType !== undefined ? activityType : (currentTerms.activityType || "gym"),
-            duration: duration !== undefined ? duration : currentTerms.duration,
-            price: price !== undefined ? Number(price) : (Number(currentTerms.price) || 0),
-            freezeLimitDays: freezeLimitDays !== undefined
-                ? Number(freezeLimitDays)
-                : (Number(currentTerms.freezeLimitDays) || 0),
-            invitationLimit: invitationLimit !== undefined
-                ? Number(invitationLimit)
-                : (Number(currentTerms.invitationLimit) || 0),
-            renewalDiscountPercent: renewalDiscountPercent !== undefined
-                ? Number(renewalDiscountPercent)
-                : (Number(currentTerms.renewalDiscountPercent) || 0),
-            description: description !== undefined ? description : (currentTerms.description ?? null),
-            hasException: true,
-            free_pt_sessions: currentTerms.free_pt_sessions || 0,
-            locationScope: currentTerms.locationScope || "all",
-            eligibleLocationIds: currentTerms.eligibleLocationIds || [],
-        });
-
-        if (!nextSnapshot?.name || !nextSnapshot?.duration) {
-            return res.status(400).json({ message: "Package name and duration are required" });
-        }
-
-        const now = new Date();
-        const nextStart = startDate != null && startDate !== ""
-            ? new Date(startDate)
-            : new Date(sub.startDate);
-        if (Number.isNaN(nextStart.getTime())) {
-            return res.status(400).json({ message: "Invalid start date" });
-        }
-
-        let nextEnd;
-        if (endDate != null && endDate !== "") {
-            nextEnd = new Date(endDate);
-            if (Number.isNaN(nextEnd.getTime())) {
-                return res.status(400).json({ message: "Invalid end date" });
-            }
-        } else if (duration !== undefined && duration !== currentTerms.duration) {
-            nextEnd = calcEndDate(nextStart, nextSnapshot.duration);
-        } else if (startDate != null && startDate !== "" && duration === undefined) {
-            // Start moved but duration unchanged — keep the same length when possible
-            const prevStart = new Date(sub.startDate);
-            const prevEnd = new Date(sub.endDate);
-            const spanMs = prevEnd.getTime() - prevStart.getTime();
-            nextEnd = Number.isFinite(spanMs) && spanMs > 0
-                ? new Date(nextStart.getTime() + spanMs)
-                : calcEndDate(nextStart, nextSnapshot.duration);
-        } else {
-            nextEnd = new Date(sub.endDate);
-        }
-
-        if (!(nextEnd > nextStart)) {
-            return res.status(400).json({ message: "End date must be after start date" });
-        }
-
-        const coversNow = nextStart <= now && nextEnd > now;
-        if (coversNow) {
-            const freezeUsed = Number(member.freezeDaysUsed) || 0;
-            if (nextSnapshot.freezeLimitDays < freezeUsed) {
-                return res.status(400).json({
-                    message: `Freeze limit cannot be below days already used (${freezeUsed})`,
-                });
-            }
-            const invitesUsed = Number(member.invitationsUsed) || 0;
-            if (nextSnapshot.invitationLimit < invitesUsed) {
-                return res.status(400).json({
-                    message: `Invitation slots cannot be below invitations already used (${invitesUsed})`,
-                });
+        let salesPersonName = null;
+        if (salesPersonId !== undefined) {
+            if (salesPersonId === null) {
+                sub.salesManager = null;
+            } else {
+                const salesPerson = await User.findById(salesPersonId).select("name role");
+                if (!salesPerson || !["Sales", "Sales Manager"].includes(salesPerson.role)) {
+                    return res.status(400).json({ message: "Select a valid sales person" });
+                }
+                sub.salesManager = salesPerson._id;
+                salesPersonName = salesPerson.name;
             }
         }
 
-        const nextPricePaid = pricePaid !== undefined ? Number(pricePaid) : Number(sub.pricePaid);
-        if (!Number.isFinite(nextPricePaid) || nextPricePaid < 0) {
-            return res.status(400).json({ message: "Price paid must be a non-negative number" });
-        }
-        const refundedSoFar = Number(sub.refundAmount) || 0;
-        if (nextPricePaid < refundedSoFar) {
-            return res.status(400).json({
-                message: `Price paid cannot be below refunds already issued (${refundedSoFar})`,
+        let nextSnapshot = resolveSubscriptionPackage(sub) || {};
+        let nextStart = sub.startDate ? new Date(sub.startDate) : null;
+        let nextEnd = sub.endDate ? new Date(sub.endDate) : null;
+        let nextPricePaid = Number(sub.pricePaid);
+        let nextDiscount = Number(sub.discountPercent) || 0;
+
+        if (termPatchRequested) {
+            const currentTerms = resolveSubscriptionPackage(sub) || {};
+            const termsChanged = packageTermsDiffer(currentTerms, {
+                name: name !== undefined ? String(name).trim() : currentTerms.name,
+                activityType: activityType !== undefined ? activityType : (currentTerms.activityType || "gym"),
+                duration: duration !== undefined ? duration : currentTerms.duration,
+                price: price !== undefined ? Number(price) : (Number(currentTerms.price) || 0),
+                freezeLimitDays: freezeLimitDays !== undefined
+                    ? Number(freezeLimitDays)
+                    : (Number(currentTerms.freezeLimitDays) || 0),
+                invitationLimit: invitationLimit !== undefined
+                    ? Number(invitationLimit)
+                    : (Number(currentTerms.invitationLimit) || 0),
+                renewalDiscountPercent: renewalDiscountPercent !== undefined
+                    ? Number(renewalDiscountPercent)
+                    : (Number(currentTerms.renewalDiscountPercent) || 0),
             });
+
+            nextSnapshot = buildPackageSnapshot({
+                ...currentTerms,
+                name: name !== undefined ? String(name).trim() : currentTerms.name,
+                activityType: activityType !== undefined ? activityType : (currentTerms.activityType || "gym"),
+                duration: duration !== undefined ? duration : currentTerms.duration,
+                price: price !== undefined ? Number(price) : (Number(currentTerms.price) || 0),
+                freezeLimitDays: freezeLimitDays !== undefined
+                    ? Number(freezeLimitDays)
+                    : (Number(currentTerms.freezeLimitDays) || 0),
+                invitationLimit: invitationLimit !== undefined
+                    ? Number(invitationLimit)
+                    : (Number(currentTerms.invitationLimit) || 0),
+                renewalDiscountPercent: renewalDiscountPercent !== undefined
+                    ? Number(renewalDiscountPercent)
+                    : (Number(currentTerms.renewalDiscountPercent) || 0),
+                description: description !== undefined ? description : (currentTerms.description ?? null),
+                hasException: termsChanged ? true : Boolean(currentTerms.hasException),
+                free_pt_sessions: currentTerms.free_pt_sessions || 0,
+                locationScope: currentTerms.locationScope || "all",
+                eligibleLocationIds: currentTerms.eligibleLocationIds || [],
+            });
+
+            if (!nextSnapshot?.name || !nextSnapshot?.duration) {
+                return res.status(400).json({ message: "Package name and duration are required" });
+            }
+
+            const now = new Date();
+            nextStart = startDate != null && startDate !== ""
+                ? new Date(startDate)
+                : new Date(sub.startDate);
+            if (Number.isNaN(nextStart.getTime())) {
+                return res.status(400).json({ message: "Invalid start date" });
+            }
+
+            if (endDate != null && endDate !== "") {
+                nextEnd = new Date(endDate);
+                if (Number.isNaN(nextEnd.getTime())) {
+                    return res.status(400).json({ message: "Invalid end date" });
+                }
+            } else if (duration !== undefined && duration !== currentTerms.duration) {
+                nextEnd = calcEndDate(nextStart, nextSnapshot.duration);
+            } else if (startDate != null && startDate !== "" && duration === undefined) {
+                const prevStart = new Date(sub.startDate);
+                const prevEnd = new Date(sub.endDate);
+                const spanMs = prevEnd.getTime() - prevStart.getTime();
+                nextEnd = Number.isFinite(spanMs) && spanMs > 0
+                    ? new Date(nextStart.getTime() + spanMs)
+                    : calcEndDate(nextStart, nextSnapshot.duration);
+            } else {
+                nextEnd = new Date(sub.endDate);
+            }
+
+            if (!(nextEnd > nextStart)) {
+                return res.status(400).json({ message: "End date must be after start date" });
+            }
+
+            const coversNow = nextStart <= now && nextEnd > now;
+            if (coversNow) {
+                const freezeUsed = Number(member.freezeDaysUsed) || 0;
+                if (nextSnapshot.freezeLimitDays < freezeUsed) {
+                    return res.status(400).json({
+                        message: `Freeze limit cannot be below days already used (${freezeUsed})`,
+                    });
+                }
+                const invitesUsed = Number(member.invitationsUsed) || 0;
+                if (nextSnapshot.invitationLimit < invitesUsed) {
+                    return res.status(400).json({
+                        message: `Invitation slots cannot be below invitations already used (${invitesUsed})`,
+                    });
+                }
+            }
+
+            nextPricePaid = pricePaid !== undefined ? Number(pricePaid) : Number(sub.pricePaid);
+            if (!Number.isFinite(nextPricePaid) || nextPricePaid < 0) {
+                return res.status(400).json({ message: "Price paid must be a non-negative number" });
+            }
+            const refundedSoFar = Number(sub.refundAmount) || 0;
+            if (nextPricePaid < refundedSoFar) {
+                return res.status(400).json({
+                    message: `Price paid cannot be below refunds already issued (${refundedSoFar})`,
+                });
+            }
+
+            nextDiscount = discountPercent !== undefined
+                ? Number(discountPercent)
+                : (Number(sub.discountPercent) || 0);
+            if (!Number.isFinite(nextDiscount) || nextDiscount < 0 || nextDiscount > 100) {
+                return res.status(400).json({ message: "Discount percent must be between 0 and 100" });
+            }
+
+            sub.packageSnapshot = nextSnapshot;
+            sub.startDate = nextStart;
+            sub.endDate = nextEnd;
+            sub.pricePaid = nextPricePaid;
+            sub.discountPercent = nextDiscount;
         }
 
-        const nextDiscount = discountPercent !== undefined
-            ? Number(discountPercent)
-            : (Number(sub.discountPercent) || 0);
-        if (!Number.isFinite(nextDiscount) || nextDiscount < 0 || nextDiscount > 100) {
-            return res.status(400).json({ message: "Discount percent must be between 0 and 100" });
-        }
-
-        sub.packageSnapshot = nextSnapshot;
-        sub.startDate = nextStart;
-        sub.endDate = nextEnd;
-        sub.pricePaid = nextPricePaid;
-        sub.discountPercent = nextDiscount;
         if (typeof member.markModified === "function") member.markModified("subscriptions");
 
         const note = String(reason || "").trim();
+        const packageLabel = nextSnapshot?.name || resolveSubscriptionPackage(sub)?.name || "package";
+        const salesNote = salesPersonId !== undefined
+            ? (salesPersonId === null
+                ? "sales person cleared"
+                : `sales person set to ${salesPersonName || salesPersonId}`)
+            : null;
+        const summaryParts = [
+            termPatchRequested ? `Package edited: ${packageLabel}` : null,
+            salesNote,
+            note || null,
+        ].filter(Boolean);
         member.userlog = member.userlog || [];
         member.userlog.push({
             type: "other",
-            text: note
-                ? `Package edited: ${nextSnapshot.name} — ${note}`
-                : `Package edited: ${nextSnapshot.name}`,
+            text: summaryParts.join(" — "),
             createdBy: req.user.id,
         });
 
@@ -2347,7 +2399,8 @@ const updateSubscription = async (req, res) => {
             targetId: member._id,
             meta: {
                 subscriptionId: sub.subscriptionId ?? String(sub._id),
-                packageName: nextSnapshot.name,
+                packageName: packageLabel,
+                salesPersonId: salesPersonId !== undefined ? salesPersonId : undefined,
                 reason: note || null,
             },
             req,

@@ -20,20 +20,21 @@ const matchAcceptedRequest = (requests, memberId, sub, timeZone = CAIRO_ZONE) =>
     );
 
 const resolveContractMeta = (sub, memberId, acceptedRequests, financeUserIds, timeZone = CAIRO_ZONE) => {
+    const matched = matchAcceptedRequest(acceptedRequests, memberId, sub, timeZone);
+
     if (sub.approvedBy) {
-        let salesManager = sub.salesManager ?? null;
-        if (!salesManager) {
-            const matched = matchAcceptedRequest(acceptedRequests, memberId, sub, timeZone);
-            if (matched) salesManager = matched.proposedBy;
-        }
+        const salesManager = sub.salesManager ?? matched?.proposedBy ?? null;
         return {
             approvedBy: sub.approvedBy,
             salesManager,
-            source: salesManager ? "approved_request" : "direct_assignment",
+            // Keep direct_assignment when no sales person; attributed sales are standard_sale
+            // unless they came from an accepted package request.
+            source: matched
+                ? "approved_request"
+                : (salesManager ? "standard_sale" : "direct_assignment"),
         };
     }
 
-    const matched = matchAcceptedRequest(acceptedRequests, memberId, sub, timeZone);
     if (matched) {
         return {
             approvedBy: matched.reviewedBy,
@@ -43,7 +44,7 @@ const resolveContractMeta = (sub, memberId, acceptedRequests, financeUserIds, ti
     }
 
     const createdById = sub.createdBy?._id?.toString() ?? sub.createdBy?.toString();
-    if (createdById && financeUserIds.has(createdById)) {
+    if (createdById && financeUserIds.has(createdById) && !sub.salesManager) {
         return {
             approvedBy: sub.createdBy,
             salesManager: null,

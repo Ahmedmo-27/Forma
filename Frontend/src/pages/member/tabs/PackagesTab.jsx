@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import toast from 'react-hot-toast';
 import { Card, CardHeader, Badge, Table, EmptyState, Btn, Modal, Input, Textarea, Select, Spinner, ConfirmDialog, Switch, Alert, toLocalDateString } from '../../../components/ui';
-import { getPackages, getMemberPendingException, createPackageException, updatePackageExceptionStatus, assignPackage, updateMemberSubscription, createPackage, addPTSessions, refundMember, refundPTSessions, cancelMemberPackage, transferMemberPackage } from '../../../api/endpoints';
+import { getPackages, getSalesUsers, getMemberPendingException, createPackageException, updatePackageExceptionStatus, assignPackage, updateMemberSubscription, createPackage, addPTSessions, refundMember, refundPTSessions, cancelMemberPackage, transferMemberPackage } from '../../../api/endpoints';
 import CatalogPackageForm, { EMPTY_PACKAGE_FORM, validatePackageForm, packageFormToPayload } from '../../../components/PackageForm';
 import PackageAcceptModal from '../../../components/accounting/PackageAcceptModal';
 import { useTenant } from '../../../context/TenantContext';
@@ -1076,6 +1076,7 @@ function PackageFormFields({ form, set, readOnly, makeException, allEditable, lo
 
 function subscriptionToEditForm(subscription) {
   const pkg = subscription?.packageSnapshot ?? subscription?.package ?? {};
+  const salesId = subscription?.salesManager?._id ?? subscription?.salesManager ?? '';
   return {
     ...EMPTY_FORM,
     name: pkg.name ?? '',
@@ -1090,6 +1091,7 @@ function subscriptionToEditForm(subscription) {
     discountPercent: String(subscription?.discountPercent ?? 0),
     startDate: subscription?.startDate ? toLocalDateString(subscription.startDate) : '',
     endDate: subscription?.endDate ? toLocalDateString(subscription.endDate) : '',
+    salesPersonId: salesId ? String(salesId) : '',
     reason: '',
   };
 }
@@ -1098,10 +1100,24 @@ function EditPackageModal({ open, onClose, member, subscription, onSuccess }) {
   const { t } = useI18n();
   const [form, setForm] = useState(() => subscriptionToEditForm(subscription));
   const [loading, setLoading] = useState(false);
+  const [salesUsers, setSalesUsers] = useState([]);
 
   useEffect(() => {
     if (open) setForm(subscriptionToEditForm(subscription));
   }, [open, subscription]);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    let cancelled = false;
+    getSalesUsers()
+      .then((res) => {
+        if (!cancelled) setSalesUsers(res.data?.salesUsers ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setSalesUsers([]);
+      });
+    return () => { cancelled = true; };
+  }, [open]);
 
   const set = (k, v) => setForm((f) => {
     const updated = { ...f, [k]: v };
@@ -1144,6 +1160,7 @@ function EditPackageModal({ open, onClose, member, subscription, onSuccess }) {
         discountPercent: Number(form.discountPercent) || 0,
         startDate: form.startDate,
         endDate: form.endDate,
+        salesPersonId: form.salesPersonId || null,
         reason: form.reason?.trim() || undefined,
       });
       toast.success(t('Package updated.'));
@@ -1171,6 +1188,21 @@ function EditPackageModal({ open, onClose, member, subscription, onSuccess }) {
       <Alert type="info">
         {t('Changes apply to this membership only. Signed contracts cannot be edited.')}
       </Alert>
+      <div style={{ marginBottom: 14 }}>
+        <Select
+          label={t('Sales person')}
+          value={form.salesPersonId}
+          onChange={(e) => set('salesPersonId', e.target.value)}
+          hint={t('Who should be credited for this contract')}
+        >
+          <option value="">{t('No sales person')}</option>
+          {salesUsers.map((person) => (
+            <option key={person._id} value={person._id}>
+              {person.name}{person.role ? ` (${t(person.role)})` : ''}
+            </option>
+          ))}
+        </Select>
+      </div>
       <PackageFormFields form={form} set={set} allEditable showEndDate showReason />
     </Modal>
   );

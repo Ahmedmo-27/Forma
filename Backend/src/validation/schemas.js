@@ -154,9 +154,12 @@ const updateSubscriptionSchema = z.object({
     discountPercent: z.coerce.number().min(0).max(100).optional(),
     startDate: z.string().max(40).nullable().optional(),
     endDate: z.string().max(40).nullable().optional(),
+    /** Sales / Sales Manager credited on this contract. Empty string clears. */
+    salesPersonId: z.preprocess(emptyToNull, objectId.nullable().optional()),
     reason: z.string().trim().max(1000).nullable().optional(),
 }).refine(
-    (data) => Object.values(data).some((value) => value !== undefined && value !== null && value !== ""),
+    (data) => Object.prototype.hasOwnProperty.call(data, "salesPersonId")
+        || Object.entries(data).some(([key, value]) => key !== "salesPersonId" && value !== undefined && value !== null && value !== ""),
     { message: "At least one field is required" }
 );
 

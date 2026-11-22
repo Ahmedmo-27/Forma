@@ -23,11 +23,11 @@ Targets: **RPO 24 hours** (nightly dumps; better with Atlas continuous backup) a
 
    | Secret | Value |
    | --- | --- |
-   | `BACKUP_MONGO_URI` | `mongodb+srv://<backup-user>:<pw>@<cluster>/forma` |
+   | `MONGO_URI` | `mongodb+srv://<backup-user>:<pw>@<cluster>/forma` |
    | `BACKUP_PASSPHRASE` | Long random string. Store a copy in the team password manager: without it, backups cannot be decrypted. |
    | `BACKUP_BUCKET` | `forma-backups` |
    | `BACKUP_S3_ENDPOINT` | `https://<R2_ACCOUNT_ID>.r2.cloudflarestorage.com` |
-   | `BACKUP_ACCESS_KEY_ID` / `BACKUP_SECRET_ACCESS_KEY` | From step 3 |
+   | `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | From step 3 |
 
 6. Run **Actions → Nightly database backup → Run workflow** once and confirm a `mongo/forma-*.archive.gz.enc` object appears in the bucket.
 7. **Paid Atlas tier (M10+):** also enable *Cloud Backup* with continuous backup or point-in-time restore. That is the fastest restore path. The nightly dump is the off-provider copy.

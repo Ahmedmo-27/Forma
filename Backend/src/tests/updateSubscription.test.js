@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 
 const require = createRequire(import.meta.url);
 const Member = require("../models/Member");
+const User = require("../models/User");
 const ContractSignature = require("../models/ContractSignature");
 const AuditLog = require("../models/AuditLog");
 const { runWithTenant } = require("../context/tenantContext");
@@ -267,5 +268,49 @@ describe("updateSubscription", () => {
         expect(res.status).toHaveBeenCalledWith(200);
         expect(sub.packageSnapshot.duration).toBe("1 month");
         expect(new Date(sub.endDate).toISOString().slice(0, 10)).toBe("2026-02-15");
+    });
+
+    it("assigns a sales person even when the contract is signed", async () => {
+        const salesId = new mongoose.Types.ObjectId();
+        const { sub } = memberWithSub();
+        vi.spyOn(ContractSignature, "exists").mockResolvedValue(true);
+        vi.spyOn(User, "findById").mockReturnValue({
+            select: vi.fn().mockResolvedValue({ _id: salesId, name: "Sara Sales", role: "Sales" }),
+        });
+        const res = mockRes();
+
+        await inTenant(() =>
+            updateSubscription(
+                {
+                    params: { memberId: "1042", subscriptionId: String(sub._id) },
+                    body: { salesPersonId: String(salesId) },
+                    user: owner,
+                },
+                res
+            )
+        );
+
+        expect(res.status).toHaveBeenCalledWith(200);
+        expect(String(sub.salesManager)).toBe(String(salesId));
+    });
+
+    it("rejects term edits on signed contracts but still validates sales role", async () => {
+        const { sub } = memberWithSub();
+        vi.spyOn(ContractSignature, "exists").mockResolvedValue(true);
+        const res = mockRes();
+
+        await inTenant(() =>
+            updateSubscription(
+                {
+                    params: { memberId: "1042", subscriptionId: String(sub._id) },
+                    body: { pricePaid: 2500, salesPersonId: new mongoose.Types.ObjectId().toString() },
+                    user: owner,
+                },
+                res
+            )
+        );
+
+        expect(res.status).toHaveBeenCalledWith(409);
+        expect(res.json.mock.calls[0][0].code).toBe("CONTRACT_ALREADY_SIGNED");
     });
 });

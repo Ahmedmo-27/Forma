@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import { Modal, Btn, Badge, CAIRO_ZONE, Input, Select, Spinner, Alert, toLocalDateString } from '../ui';
 import SalesManagerSection from './SalesManagerSection';
 import PackageTermsGrid from './PackageTermsGrid';
-import { updateMemberSubscription } from '../../api/endpoints';
+import { getSalesUsers, updateMemberSubscription } from '../../api/endpoints';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
 import { useI18n } from '../../i18n/useI18n';
@@ -24,8 +24,15 @@ function DetailRow({ label, value }) {
   );
 }
 
+function sourceLabel(t, source) {
+  if (source === 'direct_assignment') return t('Direct Assignment');
+  if (source === 'approved_request') return t('Approved Request');
+  return t('Sale');
+}
+
 function formFromContract(contract) {
   const pkg = contract?.packageSnapshot ?? contract?.package ?? {};
+  const salesId = contract?.salesManager?._id ?? contract?.salesManager ?? '';
   return {
     name: pkg.name ?? '',
     activityType: pkg.activityType ?? 'gym',
@@ -38,6 +45,7 @@ function formFromContract(contract) {
     discountPercent: String(contract?.discountPercent ?? 0),
     startDate: contract?.startDate ? toLocalDateString(contract.startDate) : '',
     endDate: contract?.endDate ? toLocalDateString(contract.endDate) : '',
+    salesPersonId: salesId ? String(salesId) : '',
     reason: '',
   };
 }
@@ -50,6 +58,7 @@ export default function ContractDetailModal({ contract, open, onClose, onSaved }
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState(() => formFromContract(contract));
   const [saving, setSaving] = useState(false);
+  const [salesUsers, setSalesUsers] = useState([]);
 
   useEffect(() => {
     if (!open) {
@@ -60,12 +69,26 @@ export default function ContractDetailModal({ contract, open, onClose, onSaved }
     setEditing(false);
   }, [open, contract]);
 
+  useEffect(() => {
+    if (!open || !editing) return undefined;
+    let cancelled = false;
+    getSalesUsers()
+      .then((res) => {
+        if (!cancelled) setSalesUsers(res.data?.salesUsers ?? []);
+      })
+      .catch(() => {
+        if (!cancelled) setSalesUsers([]);
+      });
+    return () => { cancelled = true; };
+  }, [open, editing]);
+
   if (!open || !contract) return null;
 
   const memberId = contract.member?.systemId ?? contract.member?._id;
   const isDirect = contract.source === 'direct_assignment';
   const isClosed = Boolean(contract.refunded || contract.cancelled || Number(contract.refundAmount) > 0);
-  const canEdit = EDIT_ROLES.has(user?.role) && !contract.signed && !isClosed;
+  const canEdit = EDIT_ROLES.has(user?.role) && !isClosed;
+  const termsLocked = Boolean(contract.signed);
 
   const set = (key) => (e) => {
     const value = e.target.value;
@@ -81,19 +104,21 @@ export default function ContractDetailModal({ contract, open, onClose, onSaved }
   };
 
   const handleSave = async () => {
-    if (!form.name?.trim()) { toast.error(t('Package name is required.')); return; }
-    if (!form.duration) { toast.error(t('Duration is required.')); return; }
-    if (form.pricePaid === '' || isNaN(Number(form.pricePaid)) || Number(form.pricePaid) < 0) {
-      toast.error(t('Price paid must be a non-negative number.'));
-      return;
-    }
-    if (!form.startDate || !form.endDate) {
-      toast.error(t('Start and end dates are required.'));
-      return;
-    }
-    if (form.endDate <= form.startDate) {
-      toast.error(t('End date must be after start date.'));
-      return;
+    if (!termsLocked) {
+      if (!form.name?.trim()) { toast.error(t('Package name is required.')); return; }
+      if (!form.duration) { toast.error(t('Duration is required.')); return; }
+      if (form.pricePaid === '' || isNaN(Number(form.pricePaid)) || Number(form.pricePaid) < 0) {
+        toast.error(t('Price paid must be a non-negative number.'));
+        return;
+      }
+      if (!form.startDate || !form.endDate) {
+        toast.error(t('Start and end dates are required.'));
+        return;
+      }
+      if (form.endDate <= form.startDate) {
+        toast.error(t('End date must be after start date.'));
+        return;
+      }
     }
 
     const memberKey = contract.member?.systemId ?? contract.member?._id;
@@ -103,9 +128,12 @@ export default function ContractDetailModal({ contract, open, onClose, onSaved }
       return;
     }
 
-    setSaving(true);
-    try {
-      await updateMemberSubscription(memberKey, subscriptionKey, {
+    const payload = {
+      salesPersonId: form.salesPersonId || null,
+      reason: form.reason?.trim() || undefined,
+    };
+    if (!termsLocked) {
+      Object.assign(payload, {
         name: form.name.trim(),
         activityType: form.activityType,
         duration: form.duration,
@@ -117,8 +145,12 @@ export default function ContractDetailModal({ contract, open, onClose, onSaved }
         discountPercent: Number(form.discountPercent) || 0,
         startDate: form.startDate,
         endDate: form.endDate,
-        reason: form.reason?.trim() || undefined,
       });
+    }
+
+    setSaving(true);
+    try {
+      await updateMemberSubscription(memberKey, subscriptionKey, payload);
       toast.success(t('Package updated.'));
       setEditing(false);
       onSaved?.();
@@ -163,7 +195,7 @@ export default function ContractDetailModal({ contract, open, onClose, onSaved }
           background: 'var(--bg)', border: '1px solid var(--border)',
           padding: '2px 8px', borderRadius: 4,
         }}>
-          {isDirect ? t('Direct Assignment') : t('Approved Request')}
+          {sourceLabel(t, contract.source)}
         </span>
         {contract.isRenewal && (
           <span style={{
@@ -212,32 +244,59 @@ export default function ContractDetailModal({ contract, open, onClose, onSaved }
         <DetailRow label={t('Processed By')} value={contract.approvedBy?.name} />
       </div>
 
-      <SalesManagerSection salesManager={contract.salesManager} directAssignment={isDirect} />
+      {editing ? (
+        <div style={{
+          background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8,
+          padding: '14px 16px', marginBottom: 16,
+        }}>
+          <Select
+            label={t('Sales person')}
+            value={form.salesPersonId}
+            onChange={set('salesPersonId')}
+            hint={t('Who should be credited for this contract')}
+          >
+            <option value="">{t('No sales person')}</option>
+            {salesUsers.map((person) => (
+              <option key={person._id} value={person._id}>
+                {person.name}{person.role ? ` (${t(person.role)})` : ''}
+              </option>
+            ))}
+          </Select>
+        </div>
+      ) : (
+        <SalesManagerSection salesManager={contract.salesManager} directAssignment={isDirect && !contract.salesManager} />
+      )}
 
       {editing ? (
         <div>
           <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--t4)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8 }}>
             {t('Package Terms')}
           </p>
-          <Alert type="info">
-            {t('Changes apply to this membership only. Signed contracts cannot be edited.')}
-          </Alert>
+          {termsLocked ? (
+            <Alert type="warning">
+              {t('This contract is signed. You can still change the sales person, but package terms are locked.')}
+            </Alert>
+          ) : (
+            <Alert type="info">
+              {t('Changes apply to this membership only. Signed contracts cannot be edited.')}
+            </Alert>
+          )}
           <div className="grid-2" style={{ marginTop: 4 }}>
-            <Input label={t('Package Name')} value={form.name} onChange={set('name')} />
-            <Select label={t('Activity')} value={form.activityType} onChange={set('activityType')}>
+            <Input label={t('Package Name')} value={form.name} onChange={set('name')} disabled={termsLocked} readOnly={termsLocked} />
+            <Select label={t('Activity')} value={form.activityType} onChange={set('activityType')} disabled={termsLocked} readOnly={termsLocked}>
               {ACTIVITY_TYPES.map((a) => <option key={a} value={a}>{t(a)}</option>)}
             </Select>
-            <Select label={t('Duration')} value={form.duration} onChange={set('duration')}>
+            <Select label={t('Duration')} value={form.duration} onChange={set('duration')} disabled={termsLocked} readOnly={termsLocked}>
               {DURATIONS.map((d) => <option key={d} value={d}>{t(d)}</option>)}
             </Select>
-            <Input label={t('Price ({currency})', { currency })} type="number" value={form.price} onChange={set('price')} />
-            <Input label={t('Price Paid ({currency})', { currency })} type="number" value={form.pricePaid} onChange={set('pricePaid')} />
-            <Input label={t('Discount %')} type="number" min="0" max="100" value={form.discountPercent} onChange={set('discountPercent')} />
-            <Input label={t('Freeze Limit (days)')} type="number" value={form.freezeLimitDays} onChange={set('freezeLimitDays')} />
-            <Input label={t('Invitation Slots')} type="number" value={form.invitationLimit} onChange={set('invitationLimit')} />
-            <Input label={t('Renewal Discount %')} type="number" min="0" max="100" value={form.renewalDiscountPercent} onChange={set('renewalDiscountPercent')} />
-            <Input label={t('Start Date')} type="date" value={form.startDate} onChange={set('startDate')} />
-            <Input label={t('End Date')} type="date" value={form.endDate} onChange={set('endDate')} />
+            <Input label={t('Price ({currency})', { currency })} type="number" value={form.price} onChange={set('price')} disabled={termsLocked} readOnly={termsLocked} />
+            <Input label={t('Price Paid ({currency})', { currency })} type="number" value={form.pricePaid} onChange={set('pricePaid')} disabled={termsLocked} readOnly={termsLocked} />
+            <Input label={t('Discount %')} type="number" min="0" max="100" value={form.discountPercent} onChange={set('discountPercent')} disabled={termsLocked} readOnly={termsLocked} />
+            <Input label={t('Freeze Limit (days)')} type="number" value={form.freezeLimitDays} onChange={set('freezeLimitDays')} disabled={termsLocked} readOnly={termsLocked} />
+            <Input label={t('Invitation Slots')} type="number" value={form.invitationLimit} onChange={set('invitationLimit')} disabled={termsLocked} readOnly={termsLocked} />
+            <Input label={t('Renewal Discount %')} type="number" min="0" max="100" value={form.renewalDiscountPercent} onChange={set('renewalDiscountPercent')} disabled={termsLocked} readOnly={termsLocked} />
+            <Input label={t('Start Date')} type="date" value={form.startDate} onChange={set('startDate')} disabled={termsLocked} readOnly={termsLocked} />
+            <Input label={t('End Date')} type="date" value={form.endDate} onChange={set('endDate')} disabled={termsLocked} readOnly={termsLocked} />
             <div style={{ gridColumn: '1 / -1' }}>
               <Input label={t('Reason')} value={form.reason} onChange={set('reason')} placeholder={t('Optional note for this edit')} />
             </div>
@@ -247,12 +306,7 @@ export default function ContractDetailModal({ contract, open, onClose, onSaved }
         <PackageTermsGrid data={contract} title={t('Package Terms')} showEndDate />
       )}
 
-      {!canEdit && contract.signed && (
-        <p style={{ fontSize: 12, color: 'var(--t3)', marginTop: 12 }}>
-          {t('This contract is signed and cannot be edited.')}
-        </p>
-      )}
-      {!canEdit && isClosed && !contract.signed && (
+      {!canEdit && isClosed && (
         <p style={{ fontSize: 12, color: 'var(--t3)', marginTop: 12 }}>
           {t('Refunded or cancelled packages cannot be edited.')}
         </p>

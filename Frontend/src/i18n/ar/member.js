@@ -391,6 +391,9 @@ const AR = {
   'Optional note for this edit': 'ملاحظة اختيارية لهذا التعديل',
   'Changes apply to this membership only. Signed contracts cannot be edited.': 'تُطبَّق التغييرات على هذا الاشتراك فقط. لا يمكن تعديل العقود الموقَّعة.',
   'End Date': 'تاريخ الانتهاء',
+  'Sales person': 'مندوب المبيعات',
+  'No sales person': 'بدون مندوب مبيعات',
+  'Who should be credited for this contract': 'من يجب احتساب هذا العقد له',
 };
 
 export default AR;
