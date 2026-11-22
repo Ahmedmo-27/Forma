@@ -20,6 +20,7 @@ const auditLogSchema = new mongoose.Schema({
             "pt_refunded",
             "member_frozen",
             "member_created",
+            "member_location_linked",
             "staff_created",
             "sales_abilities_updated",
             "upload_accessed",

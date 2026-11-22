@@ -154,7 +154,6 @@ const AR = {
   'Member linked to this branch.': 'تم ربط العضو بهذا الفرع.',
   'Failed to link member to branch.': 'تعذر ربط العضو بالفرع.',
   'This member is already registered at this branch.': 'هذا العضو مسجّل بالفعل في هذا الفرع.',
-  'this member': 'هذا العضو',
   'another branch': 'فرع آخر',
   'Assign a package for {name} at this branch, or skip for now.': 'عيّن باقة لـ {name} في هذا الفرع، أو تخطَّ الآن.',
   'Skip': 'تخطي',
