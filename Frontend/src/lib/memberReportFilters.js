@@ -121,7 +121,7 @@ export async function fetchAllMembersByParams(getPage, baseParams, {
 } = {}) {
   const members = [];
   let page = 1;
-  let totalPages = 1;
+  let totalPages;
 
   do {
     const res = await getPage({ ...baseParams, page, limit: pageSize });

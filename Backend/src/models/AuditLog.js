@@ -14,6 +14,7 @@ const auditLogSchema = new mongoose.Schema({
             "package_exception_accepted",
             "package_exception_rejected",
             "package_assigned",
+            "subscription_updated",
             "package_refunded",
             "package_cancelled",
             "pt_refunded",
