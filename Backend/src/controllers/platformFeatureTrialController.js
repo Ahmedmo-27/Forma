@@ -8,6 +8,7 @@ const { writePlatformAudit } = require("../utils/audit");
 const { durationToDays, addDays } = require("../utils/featureTrialAccess");
 const { serializeRequest } = require("./featureTrialController");
 const { invalidateTenantCache } = require("../utils/cacheInvalidator");
+const { escapeRegex } = require("../utils/username");
 
 /**
  * GET /api/platform/feature-trials
@@ -22,13 +23,13 @@ async function listFeatureTrials(req, res) {
         if (tenantId) filter.tenantId = tenantId;
         if (featureKey) filter.featureKey = String(featureKey).toLowerCase();
         if (search && String(search).trim()) {
-            const q = String(search).trim();
+            const regex = new RegExp(escapeRegex(String(search).trim()), "i");
             filter.$or = [
-                { tenantName: new RegExp(q, "i") },
-                { tenantSlug: new RegExp(q, "i") },
-                { featureKey: new RegExp(q, "i") },
-                { featureName: new RegExp(q, "i") },
-                { requestedByName: new RegExp(q, "i") },
+                { tenantName: regex },
+                { tenantSlug: regex },
+                { featureKey: regex },
+                { featureName: regex },
+                { requestedByName: regex },
             ];
         }
 

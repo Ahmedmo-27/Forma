@@ -12,6 +12,7 @@ const logger = require("../utils/logger");
 const { BILLING_CURRENCY } = require("../config/currency");
 const { FEATURES, FEATURE_BY_KEY, CATEGORIES, catalogEntry } = require("../config/featureRegistry");
 const featureSync = require("../services/featureSync");
+const { escapeRegex } = require("../utils/username");
 
 const DEFAULT_FEATURES = FEATURES.map(catalogEntry);
 
@@ -608,7 +609,7 @@ async function getCoupons(req, res) {
             filter.isActive = isActive === "true" || isActive === true;
         }
         if (search && search.trim()) {
-            filter.code = new RegExp(search.trim(), "i");
+            filter.code = new RegExp(escapeRegex(search.trim()), "i");
         }
 
         const [coupons, total] = await Promise.all([

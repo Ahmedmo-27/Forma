@@ -3,6 +3,7 @@ const { writePlatformAudit } = require("../utils/audit");
 const { hashPassword, normalizeEmail, validatePasswordStrength } = require("../utils/passwordUtils");
 const { assertEmailAvailable, replyIfConflict } = require("../utils/identityUniqueness");
 const { parsePagination, buildPagination } = require("../utils/pagination");
+const { escapeRegex } = require("../utils/username");
 
 /**
  * List all Platform Users with Server-Side Pagination, Filtering and Search
@@ -17,7 +18,7 @@ async function getPlatformUsers(req, res) {
         if (role) filter.role = role;
         if (status) filter.status = status;
         if (search && search.trim()) {
-            const regex = new RegExp(search.trim(), "i");
+            const regex = new RegExp(escapeRegex(search.trim()), "i");
             filter.$or = [{ name: regex }, { email: regex }];
         }
 

@@ -50,12 +50,13 @@ function sumDays(days) {
 
 async function countExpiringSoon(now) {
     const horizon = new Date(now.getTime() + 7 * DAY_MS);
-    const rows = await Member.aggregate([
+    const { withQueryMaxTime } = require("../config/queryBudgets");
+    const rows = await withQueryMaxTime(Member.aggregate([
         { $match: { status: { $in: ["active", "frozen"] }, "subscriptions.0": { $exists: true } } },
         { $project: { lastEnd: { $arrayElemAt: ["$subscriptions.endDate", -1] } } },
         { $match: { lastEnd: { $gte: now, $lte: horizon } } },
         { $count: "n" },
-    ]);
+    ]));
     return rows[0]?.n || 0;
 }
 

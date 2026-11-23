@@ -10,6 +10,7 @@ const {
     UPLOAD_READ_MAX,
     UPLOAD_READ_WINDOW_MS,
 } = require("./middleware/rateLimitBudgets");
+const { withRateLimitStore } = require("./middleware/rateLimitStore");
 
 const Member = require("./models/Member");
 const userRoutes = require("./routes/userRoutes");
@@ -122,7 +123,7 @@ app.use(sanitizeRequest);
 app.use(requestId);
 app.use(requestLogger);
 
-const globalLimiter = rateLimit({
+const globalLimiter = rateLimit(withRateLimitStore({
     windowMs: GLOBAL_WINDOW_MS,
     max: GLOBAL_API_MAX,
     standardHeaders: true,
@@ -143,7 +144,7 @@ const globalLimiter = rateLimit({
             retryAfter,
         });
     },
-});
+}));
 app.use("/api", globalLimiter);
 app.use(maintenanceGuard);
 
@@ -171,14 +172,15 @@ app.use("/api/tenant", tenantRoutes);
 app.use("/api/feature-trials", featureTrialRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api/platform", platformRoutes);
-app.use("/api/analytics", analyticsRoutes);
-app.use("/api/bi", biRoutes);
+const analyticsLimiter = require("./middleware/analyticsLimiter");
+app.use("/api/analytics", analyticsLimiter, analyticsRoutes);
+app.use("/api/bi", analyticsLimiter, biRoutes);
 app.use("/api/tasks", taskRoutes);
 app.use("/api/locations", locationRoutes);
 app.use("/api/maintenance", maintenanceRoutes);
 app.use("/api/retail", retailRoutes);
 
-const uploadReadLimiter = rateLimit({
+const uploadReadLimiter = rateLimit(withRateLimitStore({
     windowMs: UPLOAD_READ_WINDOW_MS,
     max: UPLOAD_READ_MAX,
     standardHeaders: true,
@@ -199,7 +201,7 @@ const uploadReadLimiter = rateLimit({
             retryAfter,
         });
     },
-});
+}));
 
 function sendBuffer(res, buffer, mime, { filename, download, cache }) {
     const headerName = String(filename || "file").replace(/["\r\n]/g, "");

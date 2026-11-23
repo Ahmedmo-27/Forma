@@ -17,8 +17,13 @@ const BREVO_URL = "https://api.brevo.com/v3/smtp/email";
 const LOGO_NAME = "forma-logo.png";
 const LOGO_CID = `cid:${LOGO_NAME}`;
 const LOGO_PATH = path.resolve(__dirname, "../../../Frontend/public/forma-favicon.png");
+const BREVO_TIMEOUT_MS = Number(process.env.BREVO_TIMEOUT_MS) || 15000;
+const BREVO_FAIL_THRESHOLD = Number(process.env.BREVO_FAIL_THRESHOLD) || 5;
+const BREVO_COOLDOWN_MS = Number(process.env.BREVO_COOLDOWN_MS) || 60000;
 
 let logoContent;
+let consecutiveFailures = 0;
+let degradedUntil = 0;
 
 function logoAttachment() {
     if (!logoContent) {
@@ -83,28 +88,54 @@ async function sendMail({ to, subject, text, html, from }) {
         return { skipped: true, reason: "brevo_unconfigured" };
     }
 
-    const response = await fetch(BREVO_URL, {
-        method: "POST",
-        headers: {
-            "api-key": process.env.BREVO_API_KEY,
-            "content-type": "application/json",
-            accept: "application/json",
-        },
-        body: JSON.stringify({
-            sender,
-            to: [{ email: to }],
-            subject,
-            htmlContent: html,
-            textContent: text,
-            ...(html && html.includes(LOGO_CID) ? { attachment: [logoAttachment()] } : {}),
-        }),
-    });
+    if (Date.now() < degradedUntil) {
+        logger.warn("mail", "Brevo temporarily degraded; email skipped", { to, subject });
+        return { skipped: true, reason: "brevo_degraded" };
+    }
+
+    let response;
+    try {
+        response = await fetch(BREVO_URL, {
+            method: "POST",
+            headers: {
+                "api-key": process.env.BREVO_API_KEY,
+                "content-type": "application/json",
+                accept: "application/json",
+            },
+            body: JSON.stringify({
+                sender,
+                to: [{ email: to }],
+                subject,
+                htmlContent: html,
+                textContent: text,
+                ...(html && html.includes(LOGO_CID) ? { attachment: [logoAttachment()] } : {}),
+            }),
+            signal: AbortSignal.timeout(BREVO_TIMEOUT_MS),
+        });
+    } catch (error) {
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= BREVO_FAIL_THRESHOLD) {
+            degradedUntil = Date.now() + BREVO_COOLDOWN_MS;
+            consecutiveFailures = 0;
+            logger.warn("mail", "Brevo marked degraded after consecutive failures", {
+                cooldownMs: BREVO_COOLDOWN_MS,
+                error: error.message,
+            });
+        }
+        throw error;
+    }
 
     if (!response.ok) {
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= BREVO_FAIL_THRESHOLD) {
+            degradedUntil = Date.now() + BREVO_COOLDOWN_MS;
+            consecutiveFailures = 0;
+        }
         const body = await response.text();
         throw new Error(brevoErrorMessage(response.status, body));
     }
 
+    consecutiveFailures = 0;
     return { skipped: false };
 }
 
@@ -159,8 +190,20 @@ async function sendInvoiceEmail({ to, invoiceNumber, html }) {
     return sendMail({ to, subject, text, html, from: defaultFrom() });
 }
 
+/** Snapshot for platform/system health (non-secret). */
+function getMailHealth() {
+    const degraded = Date.now() < degradedUntil;
+    return {
+        configured: isConfigured(),
+        degraded,
+        degradedUntil: degraded ? new Date(degradedUntil).toISOString() : null,
+        consecutiveFailures,
+    };
+}
+
 module.exports = {
     isConfigured,
+    getMailHealth,
     sendMail,
     sendInvite,
     sendPasswordReset,

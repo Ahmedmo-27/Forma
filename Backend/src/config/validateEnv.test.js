@@ -17,8 +17,15 @@ const good = {
 };
 
 describe("validateEnv", () => {
-    it("passes a complete production environment", () => {
-        expect(validateEnv(good)).toEqual({ errors: [], warnings: [] });
+    it("passes a complete production environment (expects replicas=1 Redis warning)", () => {
+        const res = validateEnv(good);
+        expect(res.errors).toEqual([]);
+        expect(res.warnings.join(" ")).toMatch(/REDIS_URL is unset/);
+    });
+
+    it("refuses LOG_TO_FILE=true in production", () => {
+        const res = validateEnv({ ...good, LOG_TO_FILE: "true" });
+        expect(res.errors.join(" ")).toMatch(/LOG_TO_FILE/);
     });
 
     it("reports missing secrets in every environment", () => {

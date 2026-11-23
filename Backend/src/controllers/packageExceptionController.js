@@ -434,7 +434,8 @@ const getMemberPendingException = async (req, res) => {
             memberId = member._id;
         }
 
-        const [request] = await PackageExceptionRequest.aggregate([
+        const { withQueryMaxTime } = require("../config/queryBudgets");
+        const [request] = await withQueryMaxTime(PackageExceptionRequest.aggregate([
             { $match: { member: new mongoose.Types.ObjectId(String(memberId)), status: "pending" } },
             { $limit: 1 },
             {
@@ -471,7 +472,7 @@ const getMemberPendingException = async (req, res) => {
                     proposedBy: { $ifNull: [{ $arrayElemAt: ["$proposedBy", 0] }, null] },
                 },
             },
-        ]);
+        ]));
 
         res.json({ request: request ?? null });
     } catch (error) {

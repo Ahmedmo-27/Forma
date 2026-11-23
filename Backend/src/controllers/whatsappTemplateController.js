@@ -164,9 +164,10 @@ const getTemplates = async (req, res) => {
             };
         }
 
+        const { withQueryMaxTime } = require("../config/queryBudgets");
         const [count, rows] = await Promise.all([
             WhatsAppTemplate.countDocuments(filter),
-            WhatsAppTemplate.aggregate([
+            withQueryMaxTime(WhatsAppTemplate.aggregate([
                 { $match: filter },
                 { $sort: { isDefault: -1, createdAt: -1 } },
                 { $skip: skip },
@@ -190,7 +191,7 @@ const getTemplates = async (req, res) => {
                     },
                 },
                 { $set: { createdBy: { $arrayElemAt: ["$createdBy", 0] } } },
-            ]),
+            ])),
         ]);
 
         res.status(200).json({

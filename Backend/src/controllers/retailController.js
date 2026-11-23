@@ -15,6 +15,7 @@ const {
     ensureDefaultCategories,
     ensureInHouseVendor,
 } = require("../services/retailService");
+const { escapeRegex } = require("../utils/username");
 
 const oid = (id) => new mongoose.Types.ObjectId(String(id));
 
@@ -282,7 +283,7 @@ const listProducts = async (req, res) => {
             filter.vendorId = oid(req.query.vendorId);
         }
         if (req.query.q) {
-            const q = String(req.query.q).slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const q = escapeRegex(String(req.query.q).slice(0, 80));
             filter.$or = [{ name: { $regex: q, $options: "i" } }, { sku: { $regex: q, $options: "i" } }];
         }
         if (req.query.lowStock === "true") {

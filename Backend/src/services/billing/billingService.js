@@ -37,11 +37,24 @@ async function executeInTransaction(callback) {
         return await callback(null);
     }
 
+    const maxCommitTimeMS = Number(process.env.MONGO_TXN_COMMIT_MS) || 10000;
+    const txnTimeoutMS = Number(process.env.MONGO_TXN_TIMEOUT_MS) || 15000;
     let session = null;
+    let timeoutId = null;
     try {
         session = await mongoose.startSession();
-        session.startTransaction();
-        const result = await callback(session);
+        session.startTransaction({ maxCommitTimeMS });
+        const result = await Promise.race([
+            callback(session),
+            new Promise((_, reject) => {
+                timeoutId = setTimeout(() => {
+                    const error = new Error("Billing transaction timed out");
+                    error.code = "TXN_TIMEOUT";
+                    reject(error);
+                }, txnTimeoutMS);
+                if (typeof timeoutId.unref === "function") timeoutId.unref();
+            }),
+        ]);
         await session.commitTransaction();
         return result;
     } catch (err) {
@@ -56,6 +69,7 @@ async function executeInTransaction(callback) {
         }
         throw err;
     } finally {
+        if (timeoutId) clearTimeout(timeoutId);
         if (session) {
             session.endSession();
         }

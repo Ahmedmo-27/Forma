@@ -219,19 +219,36 @@ function scheduleJob(jobId, rows, context) {
 }
 
 async function startMemberImport({ buffer, fileName, userId, tenantId, tenantSlug }) {
+    const active = await MemberImportJob.findOne({ status: "processing" }).select("_id").lean();
+    if (active) {
+        const error = new Error("An import is already running for this gym. Wait for it to finish, then try again.");
+        error.statusCode = 409;
+        throw error;
+    }
+
     const rows = parseSpreadsheetBuffer(buffer);
     const parts = chunkCountFor(rows.length);
-    const job = await MemberImportJob.create({
-        status: "processing",
-        stage: `Divided into ${parts} ${parts === 1 ? "part" : "parts"}`,
-        fileName: fileName || "members.csv",
-        totalRows: rows.length,
-        processedRows: 0,
-        chunkSize: CHUNK_SIZE,
-        chunkIndex: 0,
-        chunkCount: parts,
-        createdBy: userId,
-    });
+    let job;
+    try {
+        job = await MemberImportJob.create({
+            status: "processing",
+            stage: `Divided into ${parts} ${parts === 1 ? "part" : "parts"}`,
+            fileName: fileName || "members.csv",
+            totalRows: rows.length,
+            processedRows: 0,
+            chunkSize: CHUNK_SIZE,
+            chunkIndex: 0,
+            chunkCount: parts,
+            createdBy: userId,
+        });
+    } catch (error) {
+        if (error?.code === 11000) {
+            const conflict = new Error("An import is already running for this gym. Wait for it to finish, then try again.");
+            conflict.statusCode = 409;
+            throw conflict;
+        }
+        throw error;
+    }
 
     scheduleJob(job._id, rows, { tenantId, tenantSlug, userId });
     return presentJob(job);

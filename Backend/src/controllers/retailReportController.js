@@ -124,7 +124,8 @@ async function vendorShareByDay(vendor, { from = null, to = null } = {}) {
         const { start, end } = cairoDayBounds(from || "1970-01-01", to || dayKey(new Date()));
         match.createdAt = { $gte: start, $lte: end };
     }
-    const rows = await Sale.aggregate([
+    const { withQueryMaxTime } = require("../config/queryBudgets");
+    const rows = await withQueryMaxTime(Sale.aggregate([
         { $match: match },
         { $unwind: "$items" },
         { $match: { "items.vendorId": vendor._id } },
@@ -140,7 +141,7 @@ async function vendorShareByDay(vendor, { from = null, to = null } = {}) {
                 },
             },
         },
-    ]);
+    ]));
     return rows.map((r) => ({ date: r._id, gross: r.gross, gymShare: r.gymShare, vendorShare: r.vendorShare }));
 }
 

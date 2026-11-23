@@ -39,6 +39,12 @@ const mongoose = require("mongoose");
 connectDB();
 
 const PORT = process.env.PORT || 5000;
+// Slowloris / hung-connection defenses. headersTimeout must exceed keepAliveTimeout.
+// requestTimeout covers long uploads; bulk import returns 202 and continues in-process.
+const KEEP_ALIVE_TIMEOUT_MS = Number(process.env.KEEP_ALIVE_TIMEOUT_MS) || 60000;
+const HEADERS_TIMEOUT_MS = Number(process.env.HEADERS_TIMEOUT_MS) || KEEP_ALIVE_TIMEOUT_MS + 5000;
+const REQUEST_TIMEOUT_MS = Number(process.env.REQUEST_TIMEOUT_MS) || 120000;
+
 const server = app.listen(PORT, "0.0.0.0", () => {
     logger.info("server", "Server started", {
         port: PORT,
@@ -49,7 +55,17 @@ const server = app.listen(PORT, "0.0.0.0", () => {
         logLevel: process.env.LOG_LEVEL || "info",
         storageDriver: storageService.getDriverName(),
         storageBucket: storageService.bucketName(),
+        keepAliveTimeoutMs: KEEP_ALIVE_TIMEOUT_MS,
+        headersTimeoutMs: HEADERS_TIMEOUT_MS,
+        requestTimeoutMs: REQUEST_TIMEOUT_MS,
+        sharedRateLimits: Boolean(process.env.REDIS_URL),
     });
+    if (!process.env.REDIS_URL) {
+        logger.info(
+            "server",
+            "Rate limits are in-memory; pin Railway replicas=1 until REDIS_URL is set. WhatsApp Baileys also requires a single API replica."
+        );
+    }
 
     // Start background tasks (freeze auto-unfreeze, etc.)
     startScheduledTasks();
@@ -72,9 +88,15 @@ const server = app.listen(PORT, "0.0.0.0", () => {
     else mongoose.connection.once("connected", onDbReady);
 });
 
+server.keepAliveTimeout = KEEP_ALIVE_TIMEOUT_MS;
+server.headersTimeout = HEADERS_TIMEOUT_MS;
+server.requestTimeout = REQUEST_TIMEOUT_MS;
+server.timeout = REQUEST_TIMEOUT_MS;
+
 // Graceful shutdown. Railway and Render send SIGTERM on every deploy: stop the
 // scheduler, stop accepting new connections, let in-flight requests finish,
 // then close Mongo. A hard timer guarantees the process still exits.
+// Keep SHUTDOWN_GRACE_MS below REQUEST_TIMEOUT_MS; Railway drainingSeconds is 15.
 const SHUTDOWN_GRACE_MS = Number(process.env.SHUTDOWN_GRACE_MS) || 10000;
 let shuttingDown = false;
 

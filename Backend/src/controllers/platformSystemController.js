@@ -7,6 +7,8 @@ const { clearMaintenanceCache } = require("../middleware/maintenanceMode");
 const { writePlatformAudit, getAuditHealth } = require("../utils/audit");
 const { listJobRuns } = require("../utils/jobRuns");
 const monitoring = require("../services/monitoring");
+const mailer = require("../services/mailer");
+const storageService = require("../services/storageService");
 
 /**
  * Get Comprehensive System Health & Status
@@ -31,16 +33,22 @@ async function getSystemHealth(_req, res) {
         const dunningSetting = await PlatformSetting.findOne({ key: "dunning_schedule" });
         const sellerSetting = await PlatformSetting.findOne({ key: "seller_details" });
         const publicSite = await publicSiteService.getPublicSiteSetting();
-        const [jobs, audit] = await Promise.all([
+        const [jobs, audit, storage] = await Promise.all([
             listJobRuns().catch((error) => {
                 logger.warn("platform", "Could not load job runs", { error: error.message });
                 return [];
             }),
             getAuditHealth(),
+            storageService.probeHealth().catch((error) => ({
+                ok: false,
+                error: error.message,
+            })),
         ]);
 
+        const mail = mailer.getMailHealth();
+        const depsOk = dbState === 1 && storage.ok !== false && !mail.degraded;
         res.json({
-            status: dbState === 1 ? "healthy" : "degraded",
+            status: depsOk ? "healthy" : "degraded",
             timestamp: new Date().toISOString(),
             uptimeSeconds: Math.floor(uptime),
             database: {
@@ -53,6 +61,12 @@ async function getSystemHealth(_req, res) {
                 heapTotalMb: Math.round(memory.heapTotal / (1024 * 1024)),
             },
             cache: cacheService.getStats(),
+            dependencies: {
+                mail,
+                storage,
+                redisRateLimits: Boolean(process.env.REDIS_URL),
+                singleReplicaRequired: !process.env.REDIS_URL,
+            },
             maintenance,
             publicSite,
             jobs,

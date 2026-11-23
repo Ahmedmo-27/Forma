@@ -56,6 +56,17 @@ function validateEnv(env = process.env) {
         warnings.push("FRONTEND_ORIGIN contains localhost while BASE_DOMAIN is set.");
     }
 
+    // Ephemeral disks: never write log files in production (Railway/Render).
+    if (String(env.LOG_TO_FILE || "").toLowerCase() === "true") {
+        errors.push("LOG_TO_FILE=true is not allowed in production. Use stdout (Railway/Render log drain).");
+    }
+
+    if (env.REDIS_URL) {
+        warnings.push("REDIS_URL is set but multi-replica scale is not enabled yet. WhatsApp still requires a single API replica.");
+    } else {
+        warnings.push("REDIS_URL is unset: rate limits are in-memory. Keep Railway replicas=1 (WhatsApp + rate limits).");
+    }
+
     return { errors, warnings };
 }
 

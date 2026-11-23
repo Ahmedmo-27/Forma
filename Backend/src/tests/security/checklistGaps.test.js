@@ -237,6 +237,16 @@ describe("Checklist gaps: ReDoS-safe search (§8.4)", () => {
         expect(read("utils/memberFilters.js")).toMatch(/escapeRegex\(q\)/);
         expect(read("controllers/accessController.js")).toMatch(/escapeRegex\(q\)/);
     });
+
+    it("platform and retail search build RegExp from escapeRegex", () => {
+        expect(read("controllers/platformTenantController.js")).toMatch(/escapeRegex\(search\.trim\(\)\)/);
+        expect(read("controllers/platformUserController.js")).toMatch(/escapeRegex\(search\.trim\(\)\)/);
+        expect(read("controllers/platformBillingController.js")).toMatch(/escapeRegex\(search\.trim\(\)\)/);
+        expect(read("controllers/platformSupportController.js")).toMatch(/escapeRegex\(search\.trim\(\)\)/);
+        expect(read("controllers/platformFeatureTrialController.js")).toMatch(/escapeRegex\(/);
+        expect(read("controllers/platformPlanController.js")).toMatch(/escapeRegex\(search\.trim\(\)\)/);
+        expect(read("controllers/retailController.js")).toMatch(/escapeRegex\(/);
+    });
 });
 
 describe("Checklist gaps: header injection resisted (§8.8)", () => {

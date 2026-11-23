@@ -69,10 +69,11 @@ function canUseMaintenance(user, tenant) {
 
 async function latestCompletionByItem(itemIds) {
     if (!itemIds.length) return new Map();
-    const rows = await MaintenanceLog.aggregate([
+    const { withQueryMaxTime } = require("../config/queryBudgets");
+    const rows = await withQueryMaxTime(MaintenanceLog.aggregate([
         { $match: { itemId: { $in: itemIds.map((id) => new mongoose.Types.ObjectId(String(id))) } } },
         { $group: { _id: "$itemId", completedAt: { $max: "$completedAt" } } },
-    ]);
+    ]));
     return new Map(rows.map((row) => [String(row._id), row.completedAt]));
 }
 

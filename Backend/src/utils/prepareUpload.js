@@ -26,6 +26,42 @@ const DOCUMENT_MAX_BYTES = 5 * MB;
 const SPREADSHEET_MAX_BYTES = 5 * MB;
 const MAX_PDF_PAGES = 40;
 const MAX_IMAGE_PIXELS = 40_000_000;
+/** Cap concurrent sharp/PDF transforms so uploads cannot peg the event loop. */
+const MAX_CONCURRENT_TRANSFORMS = Math.max(1, Number(process.env.UPLOAD_TRANSFORM_CONCURRENCY) || 3);
+let activeTransforms = 0;
+const transformWaiters = [];
+
+function acquireTransformSlot() {
+    if (activeTransforms < MAX_CONCURRENT_TRANSFORMS) {
+        activeTransforms += 1;
+        return Promise.resolve();
+    }
+    return new Promise((resolve, reject) => {
+        const waitMs = Number(process.env.UPLOAD_TRANSFORM_WAIT_MS) || 15000;
+        const entry = { resolve: null };
+        const timer = setTimeout(() => {
+            const idx = transformWaiters.indexOf(entry);
+            if (idx >= 0) transformWaiters.splice(idx, 1);
+            const err = new Error("Server is busy processing uploads. Try again shortly.");
+            err.statusCode = 503;
+            err.code = "UPLOAD_BUSY";
+            reject(err);
+        }, waitMs);
+        if (typeof timer.unref === "function") timer.unref();
+        entry.resolve = () => {
+            clearTimeout(timer);
+            activeTransforms += 1;
+            resolve();
+        };
+        transformWaiters.push(entry);
+    });
+}
+
+function releaseTransformSlot() {
+    activeTransforms = Math.max(0, activeTransforms - 1);
+    const next = transformWaiters.shift();
+    if (next) next.resolve();
+}
 
 const CODE_EXTENSIONS = new Set([
     "js", "mjs", "cjs", "jsx", "ts", "tsx",
@@ -479,10 +515,17 @@ async function prepareUpload(file, profileName) {
     if (mime === "image/svg+xml") {
         assertSafeSvg(buffer);
         if (buffer.length > profile.maxBytes) throw tooLarge(profile.maxBytes, { compressed: true });
-    } else if (mime === "application/pdf") {
-        output = await sanitizePdf(buffer, profile.maxBytes);
     } else {
-        output = await reencodeImage(buffer, mime, profile.maxBytes);
+        await acquireTransformSlot();
+        try {
+            if (mime === "application/pdf") {
+                output = await sanitizePdf(buffer, profile.maxBytes);
+            } else {
+                output = await reencodeImage(buffer, mime, profile.maxBytes);
+            }
+        } finally {
+            releaseTransformSlot();
+        }
     }
 
     if (output.length > profile.maxBytes) throw tooLarge(profile.maxBytes, { compressed: true });

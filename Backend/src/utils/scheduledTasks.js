@@ -18,7 +18,8 @@ async function processExpiryCycles() {
             // Find all active/frozen members where last subscription endDate <= now
             // We can't use updateMany directly on nested array last element,
             // so we aggregate to get IDs then bulk update.
-            const overdueIds = await Member.aggregate([
+            const { withQueryMaxTime } = require("../config/queryBudgets");
+            const overdueIds = await withQueryMaxTime(Member.aggregate([
                 {
                     $match: {
                         status: { $in: ["active", "frozen"] },
@@ -35,7 +36,7 @@ async function processExpiryCycles() {
                     $match: { lastSubEnd: { $lt: now } },
                 },
                 { $project: { _id: 1 } },
-            ]);
+            ]));
 
             if (overdueIds.length === 0) return;
 

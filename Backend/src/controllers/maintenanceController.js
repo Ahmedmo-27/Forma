@@ -107,7 +107,8 @@ function requireSingleLocation(req) {
 
 async function latestLogsByItem(itemIds) {
     if (!itemIds.length) return new Map();
-    const logs = await MaintenanceLog.aggregate([
+    const { withQueryMaxTime } = require("../config/queryBudgets");
+    const logs = await withQueryMaxTime(MaintenanceLog.aggregate([
         { $match: { itemId: { $in: itemIds.map((id) => new mongoose.Types.ObjectId(String(id))) } } },
         { $sort: { completedAt: -1 } },
         {
@@ -119,7 +120,7 @@ async function latestLogsByItem(itemIds) {
                 logId: { $first: "$_id" },
             },
         },
-    ]);
+    ]));
     const userIds = [...new Set(logs.map((row) => String(row.completedBy)).filter(Boolean))];
     const User = require("../models/User");
     const users = userIds.length

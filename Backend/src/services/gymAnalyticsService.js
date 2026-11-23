@@ -551,7 +551,8 @@ async function countCheckIns(from, to, locationFilter = {}) {
         ...checkInLocationMatchStages(locationFilter),
         { $count: "total" },
     ];
-    const rows = await memberModel().aggregate(pipeline);
+    const { withQueryMaxTime } = require("../config/queryBudgets");
+    const rows = await withQueryMaxTime(memberModel().aggregate(pipeline));
     return rows[0]?.total || 0;
 }
 
@@ -631,7 +632,8 @@ async function loadAttendanceBuckets(from, to, timeZone, locationFilter = {}, ty
             },
         },
     );
-    const rows = await memberModel().aggregate(pipeline);
+    const { withQueryMaxTime } = require("../config/queryBudgets");
+    const rows = await withQueryMaxTime(memberModel().aggregate(pipeline));
     return rows[0] || { cells: [], days: [], byType: [] };
 }
 

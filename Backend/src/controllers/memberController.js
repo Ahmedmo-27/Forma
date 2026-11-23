@@ -627,7 +627,8 @@ const getMemberProfile = async (req, res) => {
         // Aggregate $match does not cast strings the way findOne does.
         const match = { ...query };
         if (typeof match._id === "string") match._id = new mongoose.Types.ObjectId(match._id);
-        const [member] = await Member.aggregate([
+        const { withQueryMaxTime } = require("../config/queryBudgets");
+        const [member] = await withQueryMaxTime(Member.aggregate([
             { $match: match },
             {
                 $addFields: {
@@ -666,7 +667,7 @@ const getMemberProfile = async (req, res) => {
                     userlog: { $slice: [{ $ifNull: ["$userlog", []] }, -100] },
                 },
             },
-        ]);
+        ]));
 
         if (!member) {
             return res.status(404).json({ message: "Member not found" });
@@ -1832,7 +1833,8 @@ const getTodayCheckIns = async (req, res) => {
 
         // Project log entries in the selected window only. Populating userlog.createdBy
         // loaded every historical author for each member who checked in.
-        const members = await Member.aggregate([
+        const { withQueryMaxTime: withQueryMaxTimeCheckins } = require("../config/queryBudgets");
+        const members = await withQueryMaxTimeCheckins(Member.aggregate([
             { $match: Object.keys(match).length ? match : { userlog: { $elemMatch: elem } } },
             {
                 $project: {
@@ -1894,7 +1896,7 @@ const getTodayCheckIns = async (req, res) => {
                     as: "packageDoc",
                 },
             },
-        ]);
+        ]));
 
         const checkIns = [];
         for (const member of members) {
@@ -2083,7 +2085,8 @@ const getAllNotes = async (req, res) => {
             },
         ];
 
-        const result = await Member.aggregate(pipeline);
+        const { withQueryMaxTime: withQueryMaxTimeNotes } = require("../config/queryBudgets");
+        const result = await withQueryMaxTimeNotes(Member.aggregate(pipeline));
         const notes = result[0]?.data ?? [];
         const total = result[0]?.total[0]?.count ?? 0;
 

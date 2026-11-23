@@ -1,4 +1,5 @@
 const rateLimit = require("express-rate-limit");
+const { withRateLimitStore } = require("./rateLimitStore");
 
 /**
  * Strict rate limiter for platform authentication endpoints.
@@ -7,7 +8,7 @@ const rateLimit = require("express-rate-limit");
 const PLATFORM_AUTH_WINDOW_MS = 15 * 60 * 1000;
 const PLATFORM_AUTH_LIMIT = 15;
 
-const platformAuthLimiter = rateLimit({
+const platformAuthLimiter = rateLimit(withRateLimitStore({
     windowMs: PLATFORM_AUTH_WINDOW_MS,
     limit: PLATFORM_AUTH_LIMIT,
     standardHeaders: true,
@@ -28,7 +29,7 @@ const platformAuthLimiter = rateLimit({
             retryAfter,
         });
     },
-});
+}));
 
 module.exports = {
     platformAuthLimiter,

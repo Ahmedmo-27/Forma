@@ -11,7 +11,7 @@ const { getEffectiveFeatures, getEffectiveLimits, getEffectiveRoles } = require(
 const { runAsPlatform, runWithTenant } = require("../context/tenantContext");
 const storageService = require("../services/storageService");
 const { normalizeEmail, hashPassword } = require("../utils/passwordUtils");
-const { resolveUsername } = require("../utils/username");
+const { resolveUsername, escapeRegex } = require("../utils/username");
 const { assertEmailAvailable, replyIfConflict } = require("../utils/identityUniqueness");
 const passwordSetup = require("../services/passwordSetupService");
 const mailer = require("../services/mailer");
@@ -115,7 +115,7 @@ async function getTenants(req, res) {
         }
 
         if (search && search.trim()) {
-            const regex = new RegExp(search.trim(), "i");
+            const regex = new RegExp(escapeRegex(search.trim()), "i");
             filter.$or = [{ name: regex }, { slug: regex }];
         }
 

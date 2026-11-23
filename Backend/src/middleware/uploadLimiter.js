@@ -1,8 +1,9 @@
 const rateLimit = require("express-rate-limit");
 const { UPLOAD_WRITE_MAX, UPLOAD_WRITE_WINDOW_MS } = require("./rateLimitBudgets");
+const { withRateLimitStore } = require("./rateLimitStore");
 
 /** Limits multipart upload endpoints (photos, national IDs, invitation files). */
-const uploadLimiter = rateLimit({
+const uploadLimiter = rateLimit(withRateLimitStore({
     windowMs: UPLOAD_WRITE_WINDOW_MS,
     max: UPLOAD_WRITE_MAX,
     standardHeaders: true,
@@ -23,6 +24,6 @@ const uploadLimiter = rateLimit({
             retryAfter,
         });
     },
-});
+}));
 
 module.exports = uploadLimiter;

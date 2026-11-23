@@ -34,6 +34,15 @@ class StorageService {
      */
     buildClientOptions() {
         const accountId = process.env.R2_ACCOUNT_ID;
+        const connectionTimeout = Number(process.env.R2_CONNECTION_TIMEOUT_MS) || 5000;
+        const requestTimeout = Number(process.env.R2_REQUEST_TIMEOUT_MS) || 30000;
+        let requestHandler;
+        try {
+            const { NodeHttpHandler } = require("@smithy/node-http-handler");
+            requestHandler = new NodeHttpHandler({ connectionTimeout, requestTimeout });
+        } catch {
+            requestHandler = undefined;
+        }
         return {
             region: "auto",
             endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
@@ -43,6 +52,7 @@ class StorageService {
             },
             requestChecksumCalculation: "WHEN_REQUIRED",
             responseChecksumValidation: "WHEN_REQUIRED",
+            ...(requestHandler ? { requestHandler } : {}),
         };
     }
 
@@ -217,6 +227,29 @@ class StorageService {
             }
             continuationToken = out.IsTruncated ? out.NextContinuationToken : undefined;
         } while (continuationToken);
+    }
+
+    /**
+     * Non-fatal readiness probe for platform health (ListObjects with max 1 key).
+     */
+    async probeHealth() {
+        const started = Date.now();
+        try {
+            this.assertConfigured();
+            const { ListObjectsV2Command } = loadS3();
+            await this.getClient().send(new ListObjectsV2Command({
+                Bucket: this.bucketName(),
+                MaxKeys: 1,
+            }));
+            return { ok: true, latencyMs: Date.now() - started, bucket: this.bucketName() };
+        } catch (error) {
+            return {
+                ok: false,
+                latencyMs: Date.now() - started,
+                bucket: this.bucketName() || null,
+                error: error.message,
+            };
+        }
     }
 }
 

@@ -60,10 +60,13 @@ function daysBetween(from, to) {
 
 async function countByTenant(Model, tenantIds, match = {}) {
     const rows = await Model.collection
-        .aggregate([
-            { $match: { tenantId: { $in: tenantIds }, ...match } },
-            { $group: { _id: "$tenantId", n: { $sum: 1 } } },
-        ])
+        .aggregate(
+            [
+                { $match: { tenantId: { $in: tenantIds }, ...match } },
+                { $group: { _id: "$tenantId", n: { $sum: 1 } } },
+            ],
+            { maxTimeMS: require("../config/queryBudgets").queryMaxTimeMS() }
+        )
         .toArray();
     return new Map(rows.map((row) => [String(row._id), row.n]));
 }
@@ -73,35 +76,38 @@ async function activityByTenant(tenantIds, now) {
     const recentFrom = dateKey(new Date(now.getTime() - 7 * DAY_MS));
     const priorFrom = dateKey(new Date(now.getTime() - 14 * DAY_MS));
     const rows = await TenantMetricSnapshot.collection
-        .aggregate([
-            {
-                $match: {
-                    tenantId: { $in: tenantIds },
-                    grain: "day",
-                    locationId: null,
-                    localDate: { $gte: priorFrom, $lt: dateKey(now) },
+        .aggregate(
+            [
+                {
+                    $match: {
+                        tenantId: { $in: tenantIds },
+                        grain: "day",
+                        locationId: null,
+                        localDate: { $gte: priorFrom, $lt: dateKey(now) },
+                    },
                 },
-            },
-            {
-                $project: {
-                    tenantId: 1,
-                    recent: { $gte: ["$localDate", recentFrom] },
-                    checkIns: { $ifNull: ["$metrics.checkIns", 0] },
-                    termsEnded: { $ifNull: ["$metrics.termsEnded", 0] },
-                    termsRenewed: { $ifNull: ["$metrics.termsRenewed", 0] },
+                {
+                    $project: {
+                        tenantId: 1,
+                        recent: { $gte: ["$localDate", recentFrom] },
+                        checkIns: { $ifNull: ["$metrics.checkIns", 0] },
+                        termsEnded: { $ifNull: ["$metrics.termsEnded", 0] },
+                        termsRenewed: { $ifNull: ["$metrics.termsRenewed", 0] },
+                    },
                 },
-            },
-            {
-                $group: {
-                    _id: "$tenantId",
-                    recentCheckIns: { $sum: { $cond: ["$recent", "$checkIns", 0] } },
-                    priorCheckIns: { $sum: { $cond: ["$recent", 0, "$checkIns"] } },
-                    termsEnded: { $sum: "$termsEnded" },
-                    termsRenewed: { $sum: "$termsRenewed" },
-                    days: { $sum: 1 },
+                {
+                    $group: {
+                        _id: "$tenantId",
+                        recentCheckIns: { $sum: { $cond: ["$recent", "$checkIns", 0] } },
+                        priorCheckIns: { $sum: { $cond: ["$recent", 0, "$checkIns"] } },
+                        termsEnded: { $sum: "$termsEnded" },
+                        termsRenewed: { $sum: "$termsRenewed" },
+                        days: { $sum: 1 },
+                    },
                 },
-            },
-        ])
+            ],
+            { maxTimeMS: require("../config/queryBudgets").queryMaxTimeMS() }
+        )
         .toArray();
     return new Map(rows.map((row) => [String(row._id), row]));
 }

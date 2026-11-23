@@ -31,4 +31,10 @@ const memberImportJobSchema = new mongoose.Schema({
 
 memberImportJobSchema.plugin(tenantPlugin);
 
+// One in-flight import per tenant (defense in depth with startMemberImport check).
+memberImportJobSchema.index(
+    { tenantId: 1 },
+    { unique: true, partialFilterExpression: { status: "processing" }, name: "one_processing_import_per_tenant" }
+);
+
 module.exports = mongoose.model("MemberImportJob", memberImportJobSchema);

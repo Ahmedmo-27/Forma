@@ -1,5 +1,8 @@
 const cacheService = require("../services/cacheService");
 
+/** @type {Map<string, { promise: Promise<any>, resolve: (v: any) => void }>} */
+const inflight = new Map();
+
 /**
  * Normalizes query string for deterministic cache key generation.
  * @param {Object} query
@@ -68,8 +71,26 @@ function resolveTags(rawTags, req) {
     });
 }
 
+function sendCached(req, res, cached, cacheControl, cacheStatus) {
+    const clientEtag = req.headers?.["if-none-match"];
+    if (clientEtag && clientEtag === cached.etag) {
+        res.setHeader("ETag", cached.etag);
+        res.setHeader("Cache-Control", cacheControl);
+        res.setHeader("X-Cache", cacheStatus);
+        return res.status(304).end();
+    }
+
+    res.setHeader("ETag", cached.etag);
+    res.setHeader("Cache-Control", cacheControl);
+    res.setHeader("X-Cache", cacheStatus);
+    res.setHeader("Content-Type", cached.contentType || "application/json");
+    return res.status(200).send(cached.value);
+}
+
 /**
  * API Caching Middleware for Express routes.
+ *
+ * Concurrent MISS for the same key coalesce onto one handler (singleflight).
  *
  * @param {Object} [options]
  * @param {number} [options.ttlSeconds=60] Time-to-live in seconds
@@ -115,34 +136,49 @@ function cacheResponse(options = {}) {
         const cached = cacheService.get(cacheKey);
 
         if (cached) {
-            // Check client ETag for conditional request (HTTP 304 Not Modified)
-            const clientEtag = req.headers["if-none-match"];
-            if (clientEtag && clientEtag === cached.etag) {
-                res.setHeader("ETag", cached.etag);
-                res.setHeader("Cache-Control", cacheControl);
-                res.setHeader("X-Cache", "HIT");
-                return res.status(304).end();
-            }
-
-            res.setHeader("ETag", cached.etag);
-            res.setHeader("Cache-Control", cacheControl);
-            res.setHeader("X-Cache", "HIT");
-            res.setHeader("Content-Type", cached.contentType || "application/json");
-
-            // Express send handles buffers/strings
-            return res.status(200).send(cached.value);
+            return sendCached(req, res, cached, cacheControl, "HIT");
         }
+
+        const pending = inflight.get(cacheKey);
+        if (pending) {
+            return pending.promise.then((shared) => {
+                if (res.headersSent) return undefined;
+                if (shared) {
+                    return sendCached(req, res, shared, cacheControl, "HIT");
+                }
+                // Leader failed to populate cache — run our own handler.
+                res.setHeader("X-Cache", "MISS");
+                return next();
+            }).catch(() => {
+                if (!res.headersSent) {
+                    res.setHeader("X-Cache", "MISS");
+                    next();
+                }
+            });
+        }
+
+        let settled = false;
+        let resolveInflight;
+        const promise = new Promise((resolve) => {
+            resolveInflight = resolve;
+        });
+        inflight.set(cacheKey, { promise, resolve: resolveInflight });
+
+        const settle = (value) => {
+            if (settled) return;
+            settled = true;
+            resolveInflight(value);
+            inflight.delete(cacheKey);
+        };
 
         res.setHeader("X-Cache", "MISS");
 
-        // Intercept response to store successful responses
         const originalSend = res.send.bind(res);
 
         res.send = (body) => {
-            // Restore original send to avoid duplicate interception
             res.send = originalSend;
 
-            // Only cache successful responses (200 OK)
+            let shared = null;
             if (res.statusCode >= 200 && res.statusCode < 300 && body !== undefined && body !== null) {
                 try {
                     const scopedTags = resolveTags(rawTags, req);
@@ -156,13 +192,23 @@ function cacheResponse(options = {}) {
 
                     res.setHeader("ETag", etag);
                     res.setHeader("Cache-Control", cacheControl);
+                    shared = cacheService.get(cacheKey);
                 } catch {
                     // Caching errors should never fail the HTTP response
                 }
             }
 
+            settle(shared);
             return originalSend(body);
         };
+
+        const onDone = () => {
+            settle(cacheService.get(cacheKey));
+        };
+        if (typeof res.on === "function") {
+            res.on("finish", onDone);
+            res.on("close", onDone);
+        }
 
         next();
     };
@@ -172,4 +218,6 @@ module.exports = {
     cacheResponse,
     buildCacheKey,
     resolveTags,
+    /** @internal test helper */
+    _inflight: inflight,
 };

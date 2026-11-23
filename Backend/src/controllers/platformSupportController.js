@@ -18,6 +18,7 @@ const { runAsPlatform } = require("../context/tenantContext");
 const { parsePagination, buildPagination } = require("../utils/pagination");
 const logger = require("../utils/logger");
 const { writePlatformAudit } = require("../utils/audit");
+const { escapeRegex } = require("../utils/username");
 
 // ==========================================
 // 1. Secure Audited Impersonation
@@ -275,7 +276,7 @@ async function getAnnouncements(req, res) {
             filter.isActive = isActive === "true" || isActive === true;
         }
         if (search && search.trim()) {
-            const regex = new RegExp(search.trim(), "i");
+            const regex = new RegExp(escapeRegex(search.trim()), "i");
             filter.$or = [{ title: regex }, { message: regex }];
         }
 

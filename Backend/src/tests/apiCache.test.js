@@ -147,6 +147,7 @@ describe("API Caching Architecture", () => {
             let statusCode = 200;
             return {
                 statusCode,
+                headersSent: false,
                 setHeader(k, v) {
                     headers[k.toLowerCase()] = v;
                 },
@@ -157,9 +158,15 @@ describe("API Caching Architecture", () => {
                     this.statusCode = code;
                     return this;
                 },
-                end: function () {},
+                end: function () {
+                    this.headersSent = true;
+                },
                 send: function (body) {
                     this.body = body;
+                    this.headersSent = true;
+                    return this;
+                },
+                on() {
                     return this;
                 },
             };
@@ -231,6 +238,45 @@ describe("API Caching Architecture", () => {
             expect(res2.statusCode).toBe(304);
             expect(res2.getHeader("x-cache")).toBe("HIT");
             expect(res2.getHeader("etag")).toBe(etag);
+        });
+
+        it("coalesces concurrent MISS onto one handler (singleflight)", async () => {
+            const middleware = cacheResponse({ ttlSeconds: 60, tags: ["members"] });
+            const req = {
+                method: "GET",
+                baseUrl: "/api/members",
+                path: "/hot",
+                query: {},
+                headers: {},
+                user: { tenantId: "t_sf", role: "Owner" },
+            };
+
+            let handlerRuns = 0;
+            const resLeader = createMockRes();
+            middleware(req, resLeader, () => {
+                handlerRuns += 1;
+            });
+
+            const waiterPromises = [];
+            for (let i = 0; i < 4; i += 1) {
+                const resW = createMockRes();
+                waiterPromises.push(
+                    Promise.resolve(middleware(req, resW, () => {
+                        handlerRuns += 1;
+                    })).then(() => resW)
+                );
+            }
+
+            expect(handlerRuns).toBe(1);
+
+            resLeader.send(JSON.stringify({ ok: true }));
+
+            const waiters = await Promise.all(waiterPromises);
+            for (const resW of waiters) {
+                expect(resW.getHeader("x-cache")).toBe("HIT");
+                expect(resW.body).toBe(JSON.stringify({ ok: true }));
+            }
+            expect(handlerRuns).toBe(1);
         });
 
         it("bypasses cache when X-Cache-Bypass is present", () => {

@@ -13,6 +13,7 @@ const User = require("../models/User");
 const mailer = require("../services/mailer");
 const { BILLING_CURRENCY } = require("../config/currency");
 const { assessLimitChange, overLimitResponse } = require("../services/planLimitService");
+const { escapeRegex } = require("../utils/username");
 
 // ==========================================
 // 1. Manual Payments Inbox
@@ -27,9 +28,10 @@ async function getPendingPayments(req, res) {
         if (status) filter.status = status;
         if (tenantId) filter.tenantId = tenantId;
         if (search && search.trim()) {
+            const regex = new RegExp(escapeRegex(search.trim()), "i");
             filter.$or = [
-                { paymentRef: new RegExp(search.trim(), "i") },
-                { notes: new RegExp(search.trim(), "i") },
+                { paymentRef: regex },
+                { notes: regex },
             ];
         }
 
@@ -190,10 +192,11 @@ async function getInvoices(req, res) {
         if (tenantId) filter.tenantId = tenantId;
         if (status) filter.status = status;
         if (search) {
+            const regex = new RegExp(escapeRegex(search.trim()), "i");
             filter.$or = [
-                { invoiceNumber: new RegExp(search.trim(), "i") },
-                { "buyerDetails.tenantName": new RegExp(search.trim(), "i") },
-                { "buyerDetails.tenantSlug": new RegExp(search.trim(), "i") },
+                { invoiceNumber: regex },
+                { "buyerDetails.tenantName": regex },
+                { "buyerDetails.tenantSlug": regex },
             ];
         }
 

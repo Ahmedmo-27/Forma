@@ -1,4 +1,5 @@
 const rateLimit = require("express-rate-limit");
+const { withRateLimitStore } = require("./rateLimitStore");
 
 const WINDOW_MS = 15 * 60 * 1000;
 const LIMITS = {
@@ -8,7 +9,7 @@ const LIMITS = {
 };
 
 function buildLimiter({ max, message }) {
-    return rateLimit({
+    return rateLimit(withRateLimitStore({
         windowMs: WINDOW_MS,
         max,
         standardHeaders: true,
@@ -28,7 +29,7 @@ function buildLimiter({ max, message }) {
                 retryAfter,
             });
         },
-    });
+    }));
 }
 
 /** Strict limiter for POST /api/users/login — blocks credential stuffing. */
