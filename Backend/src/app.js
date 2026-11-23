@@ -107,6 +107,9 @@ app.use(cors({
         "Accept",
         "Origin",
         "X-Requested-With",
+        // Distributed tracing: browser SDK → API (app/www/platform → api)
+        "sentry-trace",
+        "baggage",
     ],
     exposedHeaders: ["X-Request-Id"],
     credentials: true,
@@ -353,6 +356,9 @@ app.use((req, res, next) => {
     next(new AppError("ROUTE_NOT_FOUND", `Route ${req.method} ${req.originalUrl} not found`, 404));
 });
 
+// Sentry first so request errors stay on the active trace; then our envelope handler.
+const monitoring = require("./services/monitoring");
+monitoring.setupExpressErrorHandler(app);
 app.use(errorHandler);
 
 module.exports = app;

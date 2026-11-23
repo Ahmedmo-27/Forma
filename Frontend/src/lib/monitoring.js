@@ -1,6 +1,9 @@
 /**
  * Browser error monitoring. Sentry is fetched as a separate chunk and only when
  * VITE_SENTRY_DSN is set; without it every call here is a no-op.
+ *
+ * Tracing + logs cover the Forma hosts (app / www / platform → api) via
+ * browserTracingIntegration and tracePropagationTargets.
  */
 const DSN = import.meta.env.VITE_SENTRY_DSN;
 
@@ -18,17 +21,56 @@ function withSentry(fn) {
   initMonitoring();
 }
 
+function resolveTracesSampleRate() {
+  const raw = import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE;
+  if (raw !== undefined && raw !== "") {
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : 0;
+  }
+  // Local/dev: every trace for verification. Production builds: 10%.
+  return import.meta.env.PROD ? 0.1 : 1.0;
+}
+
+function resolveTracePropagationTargets() {
+  const targets = [
+    "localhost",
+    /^\//,
+    /^https:\/\/([a-z0-9-]+\.)?forma-official\.com/i,
+    /^https:\/\/[a-z0-9-]+\.onrender\.com/i,
+    /^https:\/\/[a-z0-9-]+\.vercel\.app/i,
+  ];
+  const apiOrigin = String(import.meta.env.BACKEND_ORIGIN || import.meta.env.VITE_API_URL || "")
+    .trim()
+    .replace(/\/+$/, "");
+  if (apiOrigin && /^https?:\/\//i.test(apiOrigin)) {
+    targets.push(apiOrigin);
+  }
+  return targets;
+}
+
 export function initMonitoring() {
   if (!DSN || loading) return loading;
+  const tracesSampleRate = resolveTracesSampleRate();
   loading = import("@sentry/react")
     .then((mod) => {
+      const integrations = [mod.browserTracingIntegration()];
+      if (typeof mod.consoleLoggingIntegration === "function") {
+        // High-signal console only — avoid mirroring every log line.
+        integrations.push(mod.consoleLoggingIntegration({ levels: ["warn", "error"] }));
+      }
       mod.init({
         dsn: DSN,
         environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE,
         release: import.meta.env.VITE_SENTRY_RELEASE || undefined,
         sendDefaultPii: false,
-        tracesSampleRate: 0,
-        ignoreErrors: ["ResizeObserver loop limit exceeded", "ResizeObserver loop completed with undelivered notifications"],
+        enableLogs: true,
+        tracesSampleRate,
+        tracePropagationTargets: resolveTracePropagationTargets(),
+        integrations,
+        ignoreErrors: [
+          "ResizeObserver loop limit exceeded",
+          "ResizeObserver loop completed with undelivered notifications",
+        ],
         beforeSend(event) {
           if (event.request?.headers) {
             delete event.request.headers.Authorization;
@@ -81,5 +123,14 @@ export function captureException(error, { tags, extra } = {}) {
       if (extra) scope.setExtras(extra);
       s.captureException(error);
     });
+  });
+}
+
+/** Structured browser log → Sentry Logs (linked to the active trace when present). */
+export function captureLog(level, message, attributes = {}) {
+  withSentry((s) => {
+    if (!s.logger) return;
+    const method = ["trace", "debug", "info", "warn", "error", "fatal"].includes(level) ? level : "info";
+    s.logger[method](String(message), attributes);
   });
 }

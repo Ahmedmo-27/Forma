@@ -44,6 +44,18 @@ function writeToFile(filePath, line) {
     }
 }
 
+function emitToSentry(level, category, message, meta = {}) {
+    // warn/error only — keep Sentry Logs high-signal, not a console mirror.
+    if (level !== "warn" && level !== "error") return;
+    try {
+        // Lazy require avoids a circular dependency with monitoring.js.
+        const monitoring = require("../services/monitoring");
+        monitoring.log(level, message, { category, ...meta });
+    } catch {
+        // Monitoring must never break logging.
+    }
+}
+
 function log(level, category, message, meta = {}, options = {}) {
     if (LEVELS[level] < MIN_LEVEL) return;
 
@@ -69,6 +81,8 @@ function log(level, category, message, meta = {}, options = {}) {
     if (level === "error") {
         writeToFile(ERRORS_LOG_FILE, line);
     }
+
+    emitToSentry(level, category, message, meta);
 }
 
 const logger = {

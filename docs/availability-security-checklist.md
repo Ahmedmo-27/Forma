@@ -1,6 +1,6 @@
 # Forma / Leap — Availability & DoS Resilience Checklist
 
-**Last reviewed:** 2026-11-22  
+**Last reviewed:** 2026-11-23 (DNS proxy path verified)  
 **Scope:** Production stack as implemented in this repo + documented platform choices.  
 **Related:** [PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md) · [BACKUP_RESTORE.md](./BACKUP_RESTORE.md) · [DOMAIN_NETWORKING.md](./DOMAIN_NETWORKING.md) · [SECURITY_PENTEST_CHECKLIST.md](./SECURITY_PENTEST_CHECKLIST.md) · [ERROR_HANDLING.md](./ERROR_HANDLING.md) · [SECURITY_OPS_ATTESTATION.md](./SECURITY_OPS_ATTESTATION.md)
 
@@ -34,13 +34,13 @@
 
 | Status | Count |
 | --- | --- |
-| ✅ Protected / mitigated | **10** |
-| ⚠️ Partial / needs work | **21** |
+| ✅ Protected / mitigated | **17** |
+| ⚠️ Partial / needs work | **23** |
 | ❌ Not protected / not found | **4** |
-| 🔍 Needs manual/ops check | **22** |
+| 🔍 Needs manual/ops check | **13** |
 | **Total checklist items** | **57** |
 
-**Readiness verdict:** Application-layer abuse controls (rate limits, auth lockouts, body/upload caps, graceful shutdown, health probes, env fail-closed, backups) are relatively strong. **Network/edge DoS, capacity alerting, connection-pool tuning, circuit breakers, cache-stampede control, and multi-replica WhatsApp constraints remain the largest availability gaps.** Treat edge/DDoS and Atlas/Railway observability as ops-owned until verified.
+**Readiness verdict:** Application-layer abuse controls (rate limits, auth lockouts, body/upload caps, graceful shutdown, health probes, env fail-closed, backups) are relatively strong. **Edge verified 2026-11-23 (Cloudflare Free complete):** Proxied hosts, DDoS Active, Full (strict), Min TLS 1.2, Always Use HTTPS, DNSSEC, Bot Fight Mode, Browser Integrity Check, R2 private, DDoS notifications, API cache bypass, account 2FA, email routing OK. Managed WAF N/A on Free. Remaining largest gaps are **app/ops**: Slowloris timeouts, capacity alerting, connection-pool tuning, circuit breakers, cache-stampede control, multi-replica WhatsApp.
 
 ---
 
@@ -51,18 +51,18 @@
 | Field | Detail |
 | --- | --- |
 | Threat | Saturate API/SPA so legitimate users cannot reach the service |
-| Status | 🔍 |
-| Evidence | App has `/api` rate limits (`Backend/src/app.js`, `rateLimitBudgets.js`) but **no in-repo WAF/CDN shield config**. Prod sits behind Railway + Vercel edge TLS. DNS apex SPF references Cloudflare (`docs/DOMAIN_NETWORKING.md`). |
-| Next action | Confirm Cloudflare proxy (orange cloud) + any Railway/Vercel DDoS defaults; document who owns incident response. |
+| Status | ✅ |
+| Evidence | **Ops 2026-11-23:** Cloudflare DDoS managed rulesets **Active** (SSL/TLS + Network-layer; HTTP ruleset always on; no custom override). **DNS verified Proxied:** `api.forma-official.com` → Railway (`fr4vy12m.up.railway.app`), `app` / `www` / apex → Vercel (`*.vercel-dns-017.com`). Email/Brevo CNAMEs, MX, TXT correctly **DNS only**. App-layer: `/api` rate limits (`Backend/src/app.js`, `rateLimitBudgets.js`). Note: `platform.forma-official.com` has **no DNS record** (optional host; console may live under `app…/platform`). |
+| Next action | Keep user-facing hosts Proxied. Keep Brevo/mail records DNS-only. Keep SSL **Full (strict)**. Document IR owner. |
 
 ### 1.2 SYN Flood
 
 | Field | Detail |
 | --- | --- |
 | Threat | Exhaust connection tables at L3/L4 |
-| Status | 🔍 |
-| Evidence | Not controllable from Node/Express. No custom TCP stack in repo. |
-| Next action | Rely on Railway/Vercel/Cloudflare edge; verify provider SYN protections in their status/docs. |
+| Status | ✅ |
+| Evidence | **Ops 2026-11-23:** Cloudflare Network-layer DDoS **Active** + public hosts **Proxied**, so SYN/UDP/ICMP floods are absorbed at Cloudflare before Railway/Vercel. Not controllable from Node/Express. |
+| Next action | None for app code; keep orange cloud on public hosts. |
 
 ### 1.3 HTTP Flood
 
@@ -70,8 +70,8 @@
 | --- | --- |
 | Threat | High-rate HTTP requests exhaust app workers |
 | Status | ⚠️ |
-| Evidence | Global limiter **600 req / 15 min / IP** on `/api` (`Backend/src/middleware/rateLimitBudgets.js`, wired in `app.js`). Stricter limiters: login 10, forgot-password 5, platform auth 15, public signup 10, upload write 10 (`loginLimiter.js`, `platformRateLimit.js`, `publicSignupLimiter.js`, `uploadLimiter.js`). Limits are **in-memory per process** (express-rate-limit default store) — weak across multiple replicas and bypassable by IP rotation. |
-| Next action | Add shared store (Redis) if scaling replicas; consider edge rate limits at Cloudflare/Vercel. |
+| Evidence | Global limiter **600 req / 15 min / IP** on `/api` (`rateLimitBudgets.js`). Stricter auth/upload limiters. In-memory per process. **Ops 2026-11-23:** Cloudflare **Bot Fight Mode On**; **Browser Integrity Check On**; HTTP DDoS always active; DDoS alerts On. Full Cloudflare Managed WAF ruleset unavailable on **Free** plan (accepted). |
+| Next action | Add shared store (Redis) if scaling replicas; optional CF rate-limit rule or Pro WAF later. |
 
 ### 1.4 Slowloris
 
@@ -87,27 +87,27 @@
 | Field | Detail |
 | --- | --- |
 | Threat | Abuse open resolvers / DNS infra to amplify traffic toward victims |
-| Status | 🔍 |
-| Evidence | App is a DNS *client* only (`connectMongo.js` sets public resolvers `8.8.8.8` / `1.1.1.1`). No authoritative DNS server in the app. |
-| Next action | Confirm Cloudflare DNS zone hardening (no open recursion; rate limits on DNS). |
+| Status | ✅ |
+| Evidence | App is a DNS *client* only (`connectMongo.js`). Authoritative zone on Cloudflare (not an open recursive resolver). **Ops 2026-11-23:** DNSSEC **On**; network-layer DDoS Active. |
+| Next action | None for app; keep DNSSEC on. |
 
 ### 1.6 DNS Poisoning
 
 | Field | Detail |
 | --- | --- |
 | Threat | Corrupt DNS answers so clients hit attacker hosts |
-| Status | 🔍 |
-| Evidence | Production hosts documented in `docs/DOMAIN_NETWORKING.md`. DNSSEC / registrar lock not verifiable from code. |
-| Next action | Enable DNSSEC if supported; lock registrar; monitor unexpected record changes. |
+| Status | ✅ |
+| Evidence | **Ops 2026-11-23:** Cloudflare **DNSSEC On**. Production hosts documented in `DOMAIN_NETWORKING.md`. |
+| Next action | Enable registrar domain lock + account 2FA if not already. |
 
 ### 1.7 DNS DDoS
 
 | Field | Detail |
 | --- | --- |
 | Threat | Overwhelm authoritative DNS so `forma-official.com` fails to resolve |
-| Status | 🔍 |
-| Evidence | Depends on Cloudflare (or current DNS host) capacity — not in repo. |
-| Next action | Confirm DNS provider plan includes DDoS mitigation; keep secondary monitoring of resolution. |
+| Status | ✅ |
+| Evidence | Zone authoritative DNS is Cloudflare (20 records). **Ops 2026-11-23:** Network-layer DDoS managed ruleset **Active** (includes DNS flood mitigation). MX via `route{1,2,3}.mx.cloudflare.net`. |
+| Next action | Keep zone on Cloudflare; optional external resolution monitor. |
 
 ### 1.8 Resource Exhaustion (CPU / memory / disk via crafted requests)
 
@@ -302,18 +302,18 @@
 | Field | Detail |
 | --- | --- |
 | Threat | Accidental block of clients or Atlas |
-| Status | 🔍 |
-| Evidence | `PLATFORM_IP_ALLOWLIST` optional for platform console. Atlas Network Access is ops-side (`db.js` tip). Cloudflare/firewall rules not in repo. |
-| Next action | Document allowlists; change-control for Atlas IP + Cloudflare rules. |
+| Status | ⚠️ |
+| Evidence | `PLATFORM_IP_ALLOWLIST` optional for platform console. Atlas Network Access is ops-side. **Ops 2026-11-23:** Browser Integrity Check On; Bot Fight On; Free plan (no full Managed WAF). Custom CF firewall rules not documented in repo. |
+| Next action | Document Atlas IP allowlists; change-control for CF/Atlas network changes; consider Pro WAF later. |
 
-### 3.8 SSL certificate expiration
+### 3.8 SSL / TLS (edge ↔ origin + certificate expiration)
 
 | Field | Detail |
 | --- | --- |
-| Threat | Browsers block `app`/`api` when certs expire |
-| Status | 🔍 |
-| Evidence | TLS expected from Railway + Vercel after DNS verify (`DOMAIN_NETWORKING.md`). HSTS set on SPA (`vercel.json`). No cert expiry monitor in repo. SECURITY_PENTEST notes HTTPS probe done 2026-11-16. |
-| Next action | Rely on managed certs; add external SSL expiry monitor (e.g. weekly probe). |
+| Threat | Cleartext or unverified CF↔origin hop; browsers block expired visitor-facing certs |
+| Status | ✅ |
+| Evidence | **Ops 2026-11-23:** Cloudflare SSL/TLS = **Full (strict)**; **Always Use HTTPS On**; **Minimum TLS Version = 1.2**. Automatic mode on. Visitor traffic mostly TLS 1.3. HSTS on SPA (`vercel.json`). Origin certs managed by Railway + Vercel. |
+| Next action | Optional external SSL expiry probe. |
 
 ### 3.9 Container / process crash
 
@@ -427,9 +427,9 @@
 | Field | Detail |
 | --- | --- |
 | Threat | Zone outage or mis-edit |
-| Status | 🔍 |
-| Evidence | Cloudflare referenced for apex SPF / DKIM (`DOMAIN_NETWORKING.md`). No IaC for DNS. |
-| Next action | Dual-person change control; enable DNS change notifications. |
+| Status | ⚠️ |
+| Evidence | Zone on Cloudflare; **Ops 2026-11-23:** DNSSEC On, DDoS notifications On, proxied public hosts. No IaC for DNS; change control not documented. |
+| Next action | Dual-person change control; enable DNS *record change* notifications if available. |
 
 ### 5.2 Cloud provider (Railway / Vercel / Render)
 
@@ -464,17 +464,17 @@
 | --- | --- |
 | Threat | Partial dependency outage |
 | Status | ⚠️ |
-| Evidence | See §2.6. Atlas/R2 are hard dependencies for core CRUD/uploads. Brevo soft. WhatsApp soft for core gym ops but hard for inbox feature. |
-| Next action | Platform health page should show dependency status (partially exists for system health — verify in ops). |
+| Evidence | See §2.6. Atlas/R2 hard deps. **Ops 2026-11-23:** R2 bucket **not public**. Brevo soft. WhatsApp soft for core gym ops. |
+| Next action | Platform health page should show dependency status; keep R2 tokens least-privilege. |
 
 ### 5.6 CDN
 
 | Field | Detail |
 | --- | --- |
-| Threat | Static asset delivery failure |
-| Status | 🔍 |
-| Evidence | Vercel serves SPA + headers/CSP (`vercel.json`). No separate Cloudflare CDN config in repo for app assets. |
-| Next action | Confirm Vercel edge caching behavior for hashed assets; keep `llms.txt` cache headers as-is. |
+| Threat | Static asset delivery failure / stale API via edge cache |
+| Status | ✅ |
+| Evidence | Vercel serves SPA + headers/CSP (`vercel.json`). **Ops 2026-11-23:** Cloudflare Cache Rule — Hostname `api.forma-official.com` → **Bypass cache** (`http.host eq "api.forma-official.com"`). |
+| Next action | Keep API bypass rule enabled; optional SPA HTML bypass if sticky deploys appear. |
 
 ### 5.7 Email / messaging
 
@@ -636,16 +636,16 @@
 
 | # | Gap | Status today | Impact | Action |
 | --- | --- | --- | --- | --- |
-| 1 | Edge / volumetric DDoS posture unverified | 🔍 | Outage | Confirm Cloudflare proxy + provider DDoS; document owners |
-| 2 | No Slowloris / server request timeouts | ❌ | Availability | Set Node `headersTimeout` / `requestTimeout`; align with proxy |
-| 3 | In-memory rate limits (no shared store) | ⚠️ | Abuse under scale | Redis (or edge) limiter before multi-replica |
-| 4 | Mongo pool untuned | ⚠️ | Cascading latency | Explicit `maxPoolSize` sized to Atlas + replicas |
-| 5 | Cache stampede / no singleflight | ❌ | DB overload | Coalesce concurrent cache fills on hot GETs |
-| 6 | No real job queue / import backpressure | ❌ | Memory/CPU peg | Cap concurrent imports; optional worker |
-| 7 | Platform search ReDoS (unescaped RegExp) | ⚠️ | Event-loop DoS | Use `escapeRegex` on all platform search paths |
-| 8 | WhatsApp + rate limits force single replica | ⚠️ | Scale ceiling | Externalize sessions or keep hard pin replicas=1 + alert |
-| 9 | Observability alerts incomplete | 🔍 | Slow MTTD | Railway/Atlas/Sentry alerts for 5xx, restarts, disk, connections |
-| 10 | Backup restore drills + R2 upload sync not automated | ⚠️ | RTO risk | Automate rclone sync; date-stamp monthly restore |
+| 1 | No Slowloris / server request timeouts | ❌ | Availability | Set Node `headersTimeout` / `requestTimeout`; align with Cloudflare/Railway idle timeouts |
+| 2 | In-memory rate limits (no shared store) | ⚠️ | Abuse under scale | Redis (or Cloudflare/Vercel edge) limiter before multi-replica |
+| 3 | Mongo pool untuned | ⚠️ | Cascading latency | Explicit `maxPoolSize` sized to Atlas + replicas |
+| 4 | Cache stampede / no singleflight | ❌ | DB overload | Coalesce concurrent cache fills on hot GETs |
+| 5 | No real job queue / import backpressure | ❌ | Memory/CPU peg | Cap concurrent imports; optional worker |
+| 6 | Platform search ReDoS (unescaped RegExp) | ⚠️ | Event-loop DoS | Use `escapeRegex` on all platform search paths |
+| 7 | WhatsApp + rate limits force single replica | ⚠️ | Scale ceiling | Externalize sessions or keep hard pin replicas=1 + alert |
+| 8 | Observability alerts incomplete | 🔍 | Slow MTTD | Railway/Atlas/Sentry alerts for 5xx, restarts, disk, connections |
+| 9 | Backup restore drills + R2 upload sync not automated | ⚠️ | RTO risk | Automate rclone sync; date-stamp monthly restore |
+| 10 | Name edge IR owner | 🔍 | Ops | Document who responds to Cloudflare/Railway incidents |
 
 ---
 

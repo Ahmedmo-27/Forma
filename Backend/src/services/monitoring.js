@@ -8,6 +8,16 @@ const { sanitizeForLog } = require("../utils/sanitizeLog");
 let sentry = null;
 let initialized = false;
 
+/** Local/dev: sample every trace for verification. Production: 10% unless overridden. */
+function resolveTracesSampleRate() {
+    const raw = process.env.SENTRY_TRACES_SAMPLE_RATE;
+    if (raw !== undefined && raw !== "") {
+        const n = Number(raw);
+        return Number.isFinite(n) ? n : 0;
+    }
+    return process.env.NODE_ENV === "production" ? 0.1 : 1.0;
+}
+
 function init() {
     if (initialized) return sentry;
     initialized = true;
@@ -15,11 +25,13 @@ function init() {
     if (!dsn || process.env.NODE_ENV === "test") return null;
     try {
         sentry = require("@sentry/node");
+        const tracesSampleRate = resolveTracesSampleRate();
         sentry.init({
             dsn,
             environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV || "development",
             release: process.env.SENTRY_RELEASE || process.env.RAILWAY_GIT_COMMIT_SHA || process.env.RENDER_GIT_COMMIT || undefined,
-            tracesSampleRate: Number(process.env.SENTRY_TRACES_SAMPLE_RATE) || 0,
+            tracesSampleRate,
+            enableLogs: true,
             sendDefaultPii: false,
             beforeSend(event) {
                 if (event.request) {
@@ -33,7 +45,11 @@ function init() {
                 return event;
             },
         });
-        logger.info("monitoring", "Sentry enabled", { environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV });
+        logger.info("monitoring", "Sentry enabled", {
+            environment: process.env.SENTRY_ENVIRONMENT || process.env.NODE_ENV,
+            tracesSampleRate,
+            logs: true,
+        });
     } catch (error) {
         logger.warn("monitoring", "Sentry could not be initialised", { error: error.message });
         sentry = null;
@@ -97,6 +113,35 @@ function captureMessage(message, level = "warning", context = {}) {
     }
 }
 
+const SENTRY_LOG_LEVELS = new Set(["trace", "debug", "info", "warn", "error", "fatal"]);
+
+/**
+ * High-signal structured logs → Sentry Logs (linked to the active trace when present).
+ * Used by the app logger for warn/error only to avoid a firehose.
+ */
+function log(level, message, attributes = {}) {
+    const client = init();
+    if (!client?.logger) return;
+    const method = SENTRY_LOG_LEVELS.has(level) ? level : "info";
+    try {
+        const attrs = sanitizeForLog(attributes) || {};
+        client.logger[method](String(message), attrs);
+    } catch {
+        // Never log via logger here — that would recurse into this function.
+    }
+}
+
+/** Wire Sentry's Express error handler before the app's own (keeps request spans tied to errors). */
+function setupExpressErrorHandler(app) {
+    const client = init();
+    if (!client?.setupExpressErrorHandler) return;
+    try {
+        client.setupExpressErrorHandler(app);
+    } catch (err) {
+        logger.warn("monitoring", "Sentry Express error handler failed", { error: err.message });
+    }
+}
+
 async function flush(timeoutMs = 2000) {
     if (!sentry) return;
     try {
@@ -106,4 +151,13 @@ async function flush(timeoutMs = 2000) {
     }
 }
 
-module.exports = { init, isEnabled, captureException, captureMessage, contextFromRequest, flush };
+module.exports = {
+    init,
+    isEnabled,
+    captureException,
+    captureMessage,
+    contextFromRequest,
+    log,
+    setupExpressErrorHandler,
+    flush,
+};
