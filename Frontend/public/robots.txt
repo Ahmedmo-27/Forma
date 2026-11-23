@@ -1,32 +1,18 @@
+# Forma
+# Marketing: https://www.forma-official.com
+# Staff app: https://app.forma-official.com
 # Product brief for AI assistants: https://www.forma-official.com/llms.txt
 # Full brief: https://www.forma-official.com/llms-full.txt
 
-# Marketing lives on www; staff app is on app.forma-official.com
+# Public marketing may be crawled. Auth and platform consoles stay private.
+# AI crawlers (GPTBot, ClaudeBot, PerplexityBot, Google-Extended, etc.) follow the same rules.
 User-agent: *
 Allow: /
-
-User-agent: GPTBot
-Allow: /
-
-User-agent: ChatGPT-User
-Allow: /
-
-User-agent: OAI-SearchBot
-Allow: /
-
-User-agent: ClaudeBot
-Allow: /
-
-User-agent: Claude-User
-Allow: /
-
-User-agent: Claude-SearchBot
-Allow: /
-
-User-agent: Google-Extended
-Allow: /
-
-User-agent: PerplexityBot
-Allow: /
+Disallow: /login
+Disallow: /auth/
+Disallow: /platform
+Disallow: /platform/
+Disallow: /platform-next
+Disallow: /platform-next/
 
 Sitemap: https://www.forma-official.com/sitemap.xml

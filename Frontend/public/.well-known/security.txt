@@ -1,0 +1,8 @@
+# Forma security contact (RFC 9116)
+# Canonical: https://www.forma-official.com/.well-known/security.txt
+
+Contact: mailto:security@forma-official.com
+Preferred-Languages: en, ar
+Canonical: https://www.forma-official.com/.well-known/security.txt
+Policy: https://www.forma-official.com/privacy
+Expires: 2027-11-23T00:00:00.000Z

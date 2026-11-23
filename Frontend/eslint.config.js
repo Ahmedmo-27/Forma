@@ -8,7 +8,7 @@ import { defineConfig, globalIgnores } from 'eslint/config'
 const PHYSICAL_CLASS = '/(^|[\\s:])(-?(ml|mr|pl|pr|left|right)-|text-(left|right)([\\s]|$)|border-[lr]([-\\s]|$)|rounded-([tb]?[lr])([-\\s]|$))/';
 
 export default defineConfig([
-  globalIgnores(['dist', '**/*.test.js']),
+  globalIgnores(['dist', '**/*.test.js', 'prod-index*.js']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [
