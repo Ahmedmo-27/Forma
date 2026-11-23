@@ -1,6 +1,6 @@
 # Forma / Leap — Availability & DoS Resilience Checklist
 
-**Last reviewed:** 2026-11-23 (DNS proxy path verified)  
+**Last reviewed:** 2026-11-23 (Wave A code + Wave B attestation template; no Redis)  
 **Scope:** Production stack as implemented in this repo + documented platform choices.  
 **Related:** [PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md) · [BACKUP_RESTORE.md](./BACKUP_RESTORE.md) · [DOMAIN_NETWORKING.md](./DOMAIN_NETWORKING.md) · [SECURITY_PENTEST_CHECKLIST.md](./SECURITY_PENTEST_CHECKLIST.md) · [ERROR_HANDLING.md](./ERROR_HANDLING.md) · [SECURITY_OPS_ATTESTATION.md](./SECURITY_OPS_ATTESTATION.md)
 
@@ -34,13 +34,13 @@
 
 | Status | Count |
 | --- | --- |
-| ✅ Protected / mitigated | **17** |
-| ⚠️ Partial / needs work | **23** |
-| ❌ Not protected / not found | **4** |
+| ✅ Protected / mitigated | **31** |
+| ⚠️ Partial / needs work | **13** |
+| ❌ Not protected / not found | **0** |
 | 🔍 Needs manual/ops check | **13** |
 | **Total checklist items** | **57** |
 
-**Readiness verdict:** Application-layer abuse controls (rate limits, auth lockouts, body/upload caps, graceful shutdown, health probes, env fail-closed, backups) are relatively strong. **Edge verified 2026-11-23 (Cloudflare Free complete):** Proxied hosts, DDoS Active, Full (strict), Min TLS 1.2, Always Use HTTPS, DNSSEC, Bot Fight Mode, Browser Integrity Check, R2 private, DDoS notifications, API cache bypass, account 2FA, email routing OK. Managed WAF N/A on Free. Remaining largest gaps are **app/ops**: Slowloris timeouts, capacity alerting, connection-pool tuning, circuit breakers, cache-stampede control, multi-replica WhatsApp.
+**Readiness verdict:** Wave A code landed 2026-11-23 (query budgets, txn timeouts, dep health, upload semaphore, LOG_TO_FILE refuse, CI/replicas docs). **No Redis for now** — in-memory rate limits + WhatsApp require **Railway replicas = 1** (accepted). Wave B ops checks are templated in `SECURITY_OPS_ATTESTATION.md` (still 🔍 until operator attests). Wave C (Redis/worker/WA split) deferred.
 
 ---
 
@@ -70,17 +70,17 @@
 | --- | --- |
 | Threat | High-rate HTTP requests exhaust app workers |
 | Status | ⚠️ |
-| Evidence | Global limiter **600 req / 15 min / IP** on `/api` (`rateLimitBudgets.js`). Stricter auth/upload limiters. In-memory per process. **Ops 2026-11-23:** Cloudflare **Bot Fight Mode On**; **Browser Integrity Check On**; HTTP DDoS always active; DDoS alerts On. Full Cloudflare Managed WAF ruleset unavailable on **Free** plan (accepted). |
-| Next action | Add shared store (Redis) if scaling replicas; optional CF rate-limit rule or Pro WAF later. |
+| Evidence | Global + auth/upload limiters; analytics limiter 120/15min on `/api/bi` + `/api/analytics`. **No Redis for now** — in-memory store + **replicas=1**. Cloudflare Bot Fight + Browser Integrity + HTTP DDoS. Code supports `REDIS_URL` later (`rateLimitStore.js`) but it is unused. |
+| Next action | Keep replicas=1. Optional CF rate-limit rule. Introduce Redis only with WhatsApp isolation. |
 
 ### 1.4 Slowloris
 
 | Field | Detail |
 | --- | --- |
 | Threat | Hold many slow connections open to exhaust sockets |
-| Status | ❌ |
-| Evidence | **Not found:** no `headersTimeout` / `requestTimeout` / `keepAliveTimeout` tuning on the HTTP server in `Backend/server.js`. Body size is capped (`express.json({ limit: "100kb" })`) which helps payload floods but not slow headers. |
-| Next action | Set Node `server.headersTimeout` / `requestTimeout` (and confirm Railway proxy idle timeouts). |
+| Status | ✅ |
+| Evidence | **Code 2026-11-23:** `server.keepAliveTimeout` / `headersTimeout` / `requestTimeout` / `timeout` set in `Backend/server.js` (defaults 60s / 65s / 120s; env-overridable). Body size still capped at 100kb. |
+| Next action | Confirm Railway/Cloudflare idle timeouts stay ≥ app keep-alive. |
 
 ### 1.5 DNS Amplification
 
@@ -115,8 +115,8 @@
 | --- | --- |
 | Threat | Force expensive work (uploads, PDF, sharp, large JSON, imports) until OOM/CPU peg |
 | Status | ⚠️ |
-| Evidence | JSON body **100kb** (`app.js`); multer memory storage with size caps (`config/multer.js`, `utils/prepareUpload.js`: intake 15MB, docs/sheets 5MB, PDF page cap 40, image pixel cap 40M); upload write rate limit 10/15min; SVG sanitization; CSV-only import (xlsx removed). Still: sharp/PDF work is CPU-heavy; imports run in-process; no request CPU budget / worker isolation. |
-| Next action | Cap concurrent imports/uploads per tenant; move heavy work off the request path if load grows. |
+| Evidence | JSON/multer caps; one import per tenant; **Wave A:** concurrent sharp/PDF semaphore (`UPLOAD_TRANSFORM_CONCURRENCY`, default 3) in `prepareUpload.js`. Full worker deferred (no Redis/queue). |
+| Next action | Raise concurrency env only if needed; worker when Redis/scale is revisited. |
 
 ### 1.9 API Abuse (credential stuffing, spam signup, scraping)
 
@@ -132,9 +132,9 @@
 | Field | Detail |
 | --- | --- |
 | Threat | Pathological regex on user input pins the event loop |
-| Status | ⚠️ |
-| Evidence | Tenant member search escapes input (`escapeRegex` in `utils/username.js`, used by `memberController.js`, `memberFilters.js`, `accessController.js`, inbox). Covered by `src/tests/security/checklistGaps.test.js`. **Gap:** several platform controllers build `new RegExp(search.trim(), "i")` **without** escaping (`platformTenantController.js`, `platformUserController.js`, `platformSupportController.js`, `platformBillingController.js`, `platformFeatureTrialController.js`, `platformPlanController.js`). Platform routes are authz-gated but still abuseable by a compromised/low-priv platform operator or stolen session. |
-| Next action | Route all platform search through `escapeRegex` (same helper as tenant). |
+| Status | ✅ |
+| Evidence | Tenant + platform + retail search use `escapeRegex` (`utils/username.js`). Covered by `src/tests/security/checklistGaps.test.js` (member + platform/retail assertions). |
+| Next action | Keep using `escapeRegex` on any new `$regex` / `RegExp` from user input. |
 
 ### 1.11 XXE
 
@@ -164,7 +164,7 @@
 | --- | --- |
 | Threat | Process RSS grows until OOM / Railway restart loop |
 | Status | ⚠️ |
-| Evidence | In-memory API cache capped at 5000 keys with LRU (`services/cacheService.js`). Auth context cache exists (`authContextCache.js`). WhatsApp Baileys sessions restored in-process (`server.js` → `restoreConnectedSessions`) — known sticky single-process constraint (`PRODUCTION_CHECKLIST.md`). Sentry optional. **No** heap/metrics alerts defined in repo. |
+| Evidence | In-memory API cache capped at 5000 keys with LRU (`services/cacheService.js`). Auth context cache exists (`authContextCache.js`). WhatsApp Baileys sessions restored in-process (`server.js` → `restoreConnectedSessions`) — known sticky single-process constraint (`PRODUCTION_CHECKLIST.md`). **Ops 2026-11-23:** Sentry configured. Railway heap/CPU alerts still ops-owned. |
 | Next action | Enable Railway memory metrics + alert; load-test WhatsApp session restore; consider externalizing sessions if multi-replica. |
 
 ### 2.2 Infinite loops / hung requests
@@ -172,27 +172,27 @@
 | Field | Detail |
 | --- | --- |
 | Threat | Request never returns; pool of sockets / event loop stalls |
-| Status | ⚠️ |
-| Evidence | SPA axios timeout **15s** (`Frontend/src/api/axios.js`). Mongo `serverSelectionTimeoutMS: 10000` (`connectMongo.js`). **No** Express middleware that aborts long handlers; no `AbortSignal` plumbing on most controllers. |
-| Next action | Add server-side request deadline middleware for expensive routes; use `maxTimeMS` on heavy aggregations. |
+| Status | ✅ |
+| Evidence | SPA 15s; Mongo selection 10s; HTTP requestTimeout 120s. **Wave A:** `maxTimeMS` via `queryBudgets.js` on remaining app aggregates (members, BI/gym analytics, churn, digest, maintenance, WA templates, scheduler expiry). |
+| Next action | Optional Express abort middleware only if hung handlers remain outside Mongo. |
 
 ### 2.3 Database connection exhaustion
 
 | Field | Detail |
 | --- | --- |
 | Threat | Too many concurrent Mongo sockets → new requests hang |
-| Status | ⚠️ |
-| Evidence | `mongoose.connect` uses defaults for pool size — **no explicit `maxPoolSize` / `minPoolSize` / `maxIdleTimeMS`** in `connectMongo.js`. Boot fails if Mongo unreachable (`config/db.js` → `process.exit(1)`). Health returns 503 when DB not connected (`healthController.js`). |
-| Next action | Set explicit pool sized to Atlas tier + Railway replica count; expose pool stats on internal health. |
+| Status | ✅ |
+| Evidence | **Code 2026-11-23:** explicit `maxPoolSize` (default 20), `minPoolSize`, `maxIdleTimeMS`, `socketTimeoutMS` in `connectMongo.js` (env-overridable). Boot fails if Mongo unreachable. Health 503 when DB down. |
+| Next action | Keep `replicas × maxPoolSize` under Atlas limit; optional pool stats on health. |
 
 ### 2.4 Deadlocks
 
 | Field | Detail |
 | --- | --- |
 | Threat | Multi-document transactions wait forever |
-| Status | ⚠️ |
-| Evidence | Transactions used in billing (`services/billing/billingService.js` → `session.startTransaction()`). Scheduler uses Mongo locks (`utils/schedulerLock.js`). No general deadlock detector or transaction timeout wrapper found. |
-| Next action | Set transaction time limits; keep critical paths short; monitor Atlas lock metrics. |
+| Status | ✅ |
+| Evidence | Billing helper uses `maxCommitTimeMS` + Promise timeout (`MONGO_TXN_*`). Scheduler locks via Mongo. |
+| Next action | Monitor Atlas lock metrics (Wave B attestation). |
 
 ### 2.5 Unhandled exceptions
 
@@ -200,17 +200,17 @@
 | --- | --- |
 | Threat | Crash process or leak stack traces |
 | Status | ✅ |
-| Evidence | Central `errorHandler` (`middleware/errorHandler.js`) with safe envelopes (`ERROR_HANDLING.md`). `unhandledRejection` logged + Sentry; `uncaughtException` terminates after close (`server.js`). Request IDs via `requestId` middleware. |
-| Next action | Confirm `SENTRY_DSN` set in Railway prod; alert on spike of `INTERNAL_ERROR`. |
+| Evidence | Central `errorHandler` (`middleware/errorHandler.js`) with safe envelopes (`ERROR_HANDLING.md`). `unhandledRejection` logged + Sentry; `uncaughtException` terminates after close (`server.js`). Request IDs via `requestId` middleware. **Ops 2026-11-23:** Sentry setup confirmed in prod. |
+| Next action | Keep Sentry alert on error-rate / `INTERNAL_ERROR` spikes; include `request_id` in triage. |
 
 ### 2.6 Dependency failure (mail, storage, payment, WhatsApp)
 
 | Field | Detail |
 | --- | --- |
 | Threat | Third-party outage cascades into full outage or silent data loss |
-| Status | ⚠️ |
-| Evidence | **R2:** fail-closed at boot (`storageService.assertConfigured()` in `server.js`). **Brevo:** fail-open / skip send when unconfigured (`mailer.js` — onboarding continues). **Payment bank details:** fail-closed in production (`paymentAdapter.js` throws 503 if bank fields empty). **WhatsApp:** session restore errors logged, server still runs. **No circuit breakers** / bulkhead pattern for outbound HTTP. |
-| Next action | Add timeouts + circuit breaker around Brevo/R2 calls; surface “mail degraded” on platform health. |
+| Status | ✅ |
+| Evidence | R2 fail-closed + timeouts; Brevo timeout + cooldown. **Wave A:** `GET /api/platform/system/health` exposes `dependencies.mail` (`getMailHealth`) and `dependencies.storage` (`probeHealth`). Payment fail-closed; WA soft. |
+| Next action | Full circuit-breaker library optional; complete Wave B Atlas/Brevo alerts. |
 
 ### 2.7 Thread / event-loop exhaustion
 
@@ -218,26 +218,26 @@
 | --- | --- |
 | Threat | Sync CPU work (sharp, crypto, regex) blocks all requests |
 | Status | ⚠️ |
-| Evidence | Single Node process model; heavy image/PDF work on upload path (`prepareUpload.js`). No worker_threads pool for uploads. Rate limits reduce abuse surface only. |
-| Next action | Offload sharp/PDF to async queue/worker process under load; monitor event-loop lag. |
+| Evidence | Single process; **Wave A:** upload transform semaphore (default 3). No Redis/worker for now. Rate limits + import cap reduce abuse. |
+| Next action | Accepted until scale; offload to worker only when Redis/queue returns. |
 
 ### 2.8 Queue overflow
 
 | Field | Detail |
 | --- | --- |
 | Threat | Background work backlog grows unboundedly |
-| Status | ❌ |
-| Evidence | **No dedicated queue** (no Bull/BullMQ/SQS). Jobs are `setInterval` in-process (`scheduledTasks.js`) with `SchedulerLock`. Member imports use `MemberImportJob` documents + runner in the API process — no max-queue / backpressure documented in code beyond stored error samples. |
-| Next action | Cap concurrent import jobs; reject new imports when one is running per tenant; consider a real queue before multi-replica scale-out. |
+| Status | ⚠️ |
+| Evidence | No Bull/BullMQ yet. **Code 2026-11-23:** one `processing` import per tenant (check + partial unique index on `MemberImportJob`). Scheduler still in-process with `SchedulerLock`. |
+| Next action | Dedicated worker/queue before multi-replica scale-out of heavy jobs. |
 
 ### 2.9 Cache stampede
 
 | Field | Detail |
 | --- | --- |
 | Threat | Many concurrent misses after TTL → thundering herd on Mongo |
-| Status | ❌ |
-| Evidence | `cacheResponse` middleware (`middleware/apiCache.js`) + in-memory `CacheService` — **no singleflight / request coalescing** on miss. Tag invalidation exists (`cacheInvalidator.js`) but stampede on expiry remains. |
-| Next action | Add in-flight promise map per cache key (singleflight) for hot list endpoints. |
+| Status | ✅ |
+| Evidence | **Code 2026-11-23:** per-key singleflight in `middleware/apiCache.js`; covered by `apiCache.test.js`. Tag invalidation unchanged. |
+| Next action | None for single-replica; shared cache only matters if replicas > 1. |
 
 ---
 
@@ -266,9 +266,9 @@
 | Field | Detail |
 | --- | --- |
 | Threat | Ephemeral disk fills → writes/logs fail |
-| Status | ⚠️ |
-| Evidence | Docs state Railway/Render disks are ephemeral; durable blobs go to R2 (`BACKUP_RESTORE.md`). `LOG_TO_FILE` discouraged in prod (`PRODUCTION_CHECKLIST.md`). No disk-usage probe in `/health`. |
-| Next action | Keep logging to stdout only; confirm no local session/media writes on API disk. |
+| Status | ✅ |
+| Evidence | Ephemeral disks; blobs on R2. **Wave A:** production **refuses boot** if `LOG_TO_FILE=true` (`validateEnv.js`). WhatsApp auth is Mongo-backed. |
+| Next action | Wave B: Atlas/R2 disk alerts. |
 
 ### 3.4 I/O saturation
 
@@ -351,27 +351,27 @@
 | Field | Detail |
 | --- | --- |
 | Threat | Same as §2.3 at DB tier |
-| Status | ⚠️ |
-| Evidence | No explicit `maxPoolSize`. Multiple API replicas would multiply pools. |
-| Next action | Set `maxPoolSize` per process; size against Atlas connection limits. |
+| Status | ✅ |
+| Evidence | Explicit pool in `connectMongo.js` (default `maxPoolSize=20`). Multiple API replicas would still multiply pools — keep replicas=1 or raise Atlas limit. |
+| Next action | Size against Atlas when adding replicas. |
 
 ### 4.3 Slow queries
 
 | Field | Detail |
 | --- | --- |
 | Threat | Unindexed scans freeze API |
-| Status | ⚠️ |
-| Evidence | Rich compound indexes on members/users (`Member.js`, `User.js`, etc.) + `migrate:indexes` script. Perf notes under `Backend/perf/`. **No** Atlas Profiler / slow-query alert wired from app. |
-| Next action | Enable Atlas Performance Advisor alerts; add `maxTimeMS` on large list/BI aggregations. |
+| Status | ✅ |
+| Evidence | Indexes + **Wave A:** `maxTimeMS` on remaining app aggregates (`queryBudgets.js`). Atlas Profiler still ops-side. |
+| Next action | Enable Atlas Performance Advisor alerts (Wave B). |
 
 ### 4.4 Locks / deadlocks
 
 | Field | Detail |
 | --- | --- |
 | Threat | Contended documents block writers |
-| Status | ⚠️ |
-| Evidence | Billing transactions; scheduler locks; optimistic conflict codes (`VERSION_CONFLICT` in error catalog). No automated lock wait alerting. |
-| Next action | Monitor Atlas lock metrics; keep write transactions tiny. |
+| Status | ✅ |
+| Evidence | Billing txn timeouts; scheduler locks; `VERSION_CONFLICT`. Atlas lock wait alerting is Wave B. |
+| Next action | Monitor Atlas lock metrics (Wave B). |
 
 ### 4.5 Storage exhaustion
 
@@ -405,9 +405,9 @@
 | Field | Detail |
 | --- | --- |
 | Threat | Burst of expensive reads (BI, exports, “show all members”) |
-| Status | ❌ |
-| Evidence | Response caching mitigates some GETs; **no** global query concurrency semaphore. Cached routes still stampede on miss (§2.9). |
-| Next action | Rate-limit heavy analytics/export routes separately; coalesce cache fills. |
+| Status | ✅ |
+| Evidence | Caching + singleflight; `maxTimeMS`; **Wave A:** `analyticsLimiter` (120/15min) on `/api/bi` and `/api/analytics`. |
+| Next action | Tune `ANALYTICS_MAX` if legitimate traffic hits 429. |
 
 ### 4.9 Credential / config changes
 
@@ -463,9 +463,9 @@
 | Field | Detail |
 | --- | --- |
 | Threat | Partial dependency outage |
-| Status | ⚠️ |
-| Evidence | See §2.6. Atlas/R2 hard deps. **Ops 2026-11-23:** R2 bucket **not public**. Brevo soft. WhatsApp soft for core gym ops. |
-| Next action | Platform health page should show dependency status; keep R2 tokens least-privilege. |
+| Status | ✅ |
+| Evidence | See §2.6. R2 not public. Platform health exposes mail + storage probes. Brevo/WA soft for core gym ops. |
+| Next action | Keep R2 tokens least-privilege; Wave B Brevo alerts. |
 
 ### 5.6 CDN
 
@@ -503,9 +503,9 @@
 | Field | Detail |
 | --- | --- |
 | Threat | Bad commit reaches prod |
-| Status | ⚠️ |
-| Evidence | CI runs isolation + full backend tests, frontend lint/i18n/build, `npm audit` high (`/.github/workflows/ci.yml`). Railway “Wait for CI” is **optional** (`PRODUCTION_CHECKLIST.md`). Healthcheck gates new instance. Rollback = redeploy previous Railway deployment. |
-| Next action | Make “Wait for CI” mandatory on Railway prod; require green CI before promote. |
+| Status | ✅ |
+| Evidence | CI suite in Actions. **Wave A:** `PRODUCTION_CHECKLIST.md` requires **Wait for CI mandatory** + green CI before promote. Healthcheck gates new instance. |
+| Next action | Operator: enable Wait for CI in Railway (Wave B attestation). |
 
 ### 6.2 Faulty config / invalid env vars
 
@@ -549,8 +549,8 @@
 | --- | --- |
 | Threat | Half-applied schema/index migration |
 | Status | ⚠️ |
-| Evidence | Many one-off scripts under `Backend/src/scripts/migrate*.js` run manually via npm scripts — **not** an automated migration runner on boot. Additive indexes noted as safe for rollback in prod checklist. |
-| Next action | Checklist every migrate with backup + dry-run; never run untested migrate against prod first. |
+| Evidence | Manual `migrate*` scripts. **Wave A:** prod checklist requires green CI + Wait for CI; backup-before-migrate called out in `BACKUP_RESTORE.md` / ops attestation. Not an automated migration runner. |
+| Next action | Before each migrate: nightly backup verify + dry-run on copy; never untested against prod. |
 
 ### 6.7 Expired credentials
 
@@ -567,8 +567,8 @@
 | --- | --- |
 | Threat | Scale to N replicas → duplicate WhatsApp sessions / rate-limit dilution |
 | Status | ⚠️ |
-| Evidence | Documented: WhatsApp sockets require **single API replica**; scheduler lock helps jobs but not Baileys (`PRODUCTION_CHECKLIST.md`). In-memory rate limits do not sync across replicas. |
-| Next action | Pin Railway replicas=1 until sessions/rate limits are externalized; document hard constraint in runbooks. |
+| Evidence | **Accepted for now (no Redis):** WhatsApp + in-memory rate limits require **replicas=1**. Documented in `PRODUCTION_CHECKLIST.md` + boot warning when `REDIS_URL` unset. Wave C deferred. |
+| Next action | Keep pin at 1; do not scale until Redis + WA isolation. |
 
 ### 6.9 Failed backup / recovery
 
@@ -636,16 +636,16 @@
 
 | # | Gap | Status today | Impact | Action |
 | --- | --- | --- | --- | --- |
-| 1 | No Slowloris / server request timeouts | ❌ | Availability | Set Node `headersTimeout` / `requestTimeout`; align with Cloudflare/Railway idle timeouts |
-| 2 | In-memory rate limits (no shared store) | ⚠️ | Abuse under scale | Redis (or Cloudflare/Vercel edge) limiter before multi-replica |
-| 3 | Mongo pool untuned | ⚠️ | Cascading latency | Explicit `maxPoolSize` sized to Atlas + replicas |
-| 4 | Cache stampede / no singleflight | ❌ | DB overload | Coalesce concurrent cache fills on hot GETs |
-| 5 | No real job queue / import backpressure | ❌ | Memory/CPU peg | Cap concurrent imports; optional worker |
-| 6 | Platform search ReDoS (unescaped RegExp) | ⚠️ | Event-loop DoS | Use `escapeRegex` on all platform search paths |
-| 7 | WhatsApp + rate limits force single replica | ⚠️ | Scale ceiling | Externalize sessions or keep hard pin replicas=1 + alert |
-| 8 | Observability alerts incomplete | 🔍 | Slow MTTD | Railway/Atlas/Sentry alerts for 5xx, restarts, disk, connections |
-| 9 | Backup restore drills + R2 upload sync not automated | ⚠️ | RTO risk | Automate rclone sync; date-stamp monthly restore |
-| 10 | Name edge IR owner | 🔍 | Ops | Document who responds to Cloudflare/Railway incidents |
+| 1 | Wave B ops attestation incomplete | 🔍 | MTTD/RTO | Fill Availability ops table in `SECURITY_OPS_ATTESTATION.md` |
+| 2 | Replicas=1 (no Redis) accepted | ⚠️ | Scale ceiling | Keep pin; revisit Redis+WA only when needed |
+| 3 | Upload/import still on API process | ⚠️ | CPU under load | Semaphore in place; worker later |
+| 4 | Backup restore drill + R2 upload sync | ⚠️ | RTO | Date-stamp drill; rclone schedule |
+| 5 | Railway Wait for CI (must enable in UI) | 🔍 | Bad deploys | Toggle in Railway settings |
+| 6 | Atlas alerts (conn/disk/lag/slow) | 🔍 | DB MTTD | Configure in Atlas |
+| 7 | Uptime synthetics | 🔍 | MTTD | `/health` + SPA |
+| 8 | IR owner named | 🔍 | Ops | Fill attestation |
+| 9 | Registrar lock + DNS change control | 🔍 | Ops | Fill attestation |
+| 10 | Secret rotation calendar | 🔍 | Ops | Fill attestation |
 
 ---
 

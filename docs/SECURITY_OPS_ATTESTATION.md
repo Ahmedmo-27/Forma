@@ -52,3 +52,35 @@ node scripts/ops/checkEnvHygiene.js
 ```
 
 This validates local placeholder hygiene and distinct JWT names only — it does **not** replace the prod diffs above.
+
+---
+
+## Availability ops (Wave B) — attest before marking checklist 🔍 → ✅
+
+Related: [availability-security-checklist.md](./availability-security-checklist.md) · [PRODUCTION_CHECKLIST.md](./PRODUCTION_CHECKLIST.md) · [BACKUP_RESTORE.md](./BACKUP_RESTORE.md)
+
+**Constraint:** Redis is **not** in use. Keep Railway API **replicas = 1**.
+
+| Check | Done | Notes |
+|-------|------|-------|
+| Railway: CPU alert configured | ☐ | |
+| Railway: memory / OOM alert configured | ☐ | |
+| Railway: replicas pinned to **1** | ☐ | |
+| Railway: **Wait for CI** enabled | ☐ | |
+| Atlas: connection count alert | ☐ | |
+| Atlas: disk / storage alert | ☐ | |
+| Atlas: replication lag / member health alert | ☐ | |
+| Atlas: slow query / Performance Advisor watched | ☐ | |
+| Atlas Network Access IPs documented | ☐ | |
+| Uptime check: `https://api.forma-official.com/health` | ☐ | |
+| Uptime check: SPA (`app` / `www`) | ☐ | |
+| Status page subscriptions (Railway, Vercel, Atlas, Cloudflare, Brevo) | ☐ | |
+| IR owner named for CF / Railway / Atlas incidents | ☐ | Name: ________ |
+| Registrar domain lock | ☐ | |
+| Deletion protection / who can destroy Atlas, Railway, R2 | ☐ | |
+| Secret rotation calendar (R2, Brevo, Atlas backup, Actions) | ☐ | |
+| DNS change notification / dual-control for zone edits | ☐ | |
+| Restore drill: one tenant restored + date stamped | ☐ | Date: ________ |
+| R2 upload backup sync (rclone) scheduled or run | ☐ | |
+
+Attested by: ________ Date: ________

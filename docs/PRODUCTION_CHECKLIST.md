@@ -5,7 +5,9 @@ Production API runs on **Railway** (`api.forma-official.com`). **Render** is the
 ## 1. Railway service settings
 
 - Root directory: `Backend`. The service reads `Backend/railway.json` (start command `npm start`, health check `/health`, restart on failure, 15 s draining). If your root directory is not `Backend`, set the config-as-code path to `Backend/railway.json`.
-- Optional: set watch paths to `Backend/**` and enable Wait for CI.
+- Set watch paths to `Backend/**`.
+- **Wait for CI: mandatory** — do not promote a commit until GitHub Actions is green.
+- **Replicas = 1 (hard requirement for now)** — WhatsApp Baileys sessions and in-memory rate limits live in one process. Do **not** scale out until Redis + WhatsApp isolation ship (not planned while Redis is unavailable).
 - Node 20 or newer (`engines.node`).
 
 ## 2. Environment variables (Railway, production values)
@@ -31,12 +33,15 @@ Recommended or optional:
 | `PAYMENT_PROVIDER_NAME`, `PAYMENT_GATEWAY_URL`, `PAYMENT_*` | `manual_transfer` | Production bank details. |
 | `PLATFORM_IP_ALLOWLIST`, `PLATFORM_SESSION_TIMEOUT_MINUTES` | open, 60 | Restrict the platform console. |
 | `LOG_LEVEL` | `info` | |
-| `LOG_TO_FILE` | off in production | Railway collects stdout. |
+| `LOG_TO_FILE` | must be unset/`false` | Production **refuses to boot** if `true` (ephemeral disk). |
 | `MAINTENANCE_REMINDER_REPEAT_HOURS` | `24` | Minimum gap between reminders per branch. |
 | `SHUTDOWN_GRACE_MS` | `10000` | In-flight request drain time on deploy. |
 | `WHATSAPP_REPLY_GAP_MS` | `3000` | Minimum gap between inbox replies. |
+| `REDIS_URL` | **leave unset** | Not used for now. Rate limits stay in-memory; replicas must remain 1. |
+| `MONGO_MAX_POOL_SIZE` | `20` | Keep `replicas × pool` under Atlas connection limit. |
+| `UPLOAD_TRANSFORM_CONCURRENCY` | `3` | Max concurrent sharp/PDF transforms. |
 
-Soft warnings at boot (the server still starts): secrets shorter than 32 characters, identical tenant and platform JWT secrets, missing `FRONTEND_ORIGIN`. Fix any warning you see in the Railway logs.
+Soft warnings at boot (the server still starts): secrets shorter than 32 characters, identical tenant and platform JWT secrets, missing `FRONTEND_ORIGIN`, missing `REDIS_URL` (expected — keep replicas=1). Fix unexpected warnings in Railway logs.
 
 ## 3. Scheduled jobs
 
@@ -75,5 +80,7 @@ The server must stay awake for jobs to run. Railway keeps it running. On Render 
 
 ## 7. Known limits
 
-- The scheduler lock only deduplicates within one MongoDB. It does not replace running a single API replica for WhatsApp sessions (Baileys sockets live in one process).
+- **No Redis for now** — shared rate limits and a job queue are deferred. Pin **replicas = 1**.
+- The scheduler lock only deduplicates within one MongoDB. It does not replace a single API replica for WhatsApp sessions (Baileys sockets live in one process).
 - A reminder is created at most once per window. An item that becomes due later in the same window is reminded in the next window.
+- Platform health (`GET /api/platform/system/health`) includes mail degraded state and an R2 probe under `dependencies`.
