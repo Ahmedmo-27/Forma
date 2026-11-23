@@ -61,6 +61,7 @@ export function initMonitoring() {
       mod.init({
         dsn: DSN,
         environment: import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE,
+        // Must match the release name used when uploading source maps (Vite plugin / Vercel SHA).
         release: import.meta.env.VITE_SENTRY_RELEASE || undefined,
         sendDefaultPii: false,
         enableLogs: true,
