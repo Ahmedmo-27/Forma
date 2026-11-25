@@ -1,5 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-const { buildMemberListFilter, statsFilterFromListFilter, getMemberStatusStats, numericId, buildDateRange } = require("./memberFilters");
+const {
+    buildMemberListFilter,
+    statsFilterFromListFilter,
+    getMemberStatusStats,
+    numericId,
+    buildDateRange,
+    isPhoneLikeQuery,
+    phoneSearchVariants,
+} = require("./memberFilters");
 const { cairoDayBounds } = require("./revenueUtils");
 
 describe("member list filters", () => {
@@ -24,6 +32,35 @@ describe("member list filters", () => {
         expect(filter.$or).not.toEqual(expect.arrayContaining([
             { systemId: 42 },
         ]));
+    });
+
+    it("treats spaced and +20 phone queries as the same number", () => {
+        expect(isPhoneLikeQuery("+20 122 900 4551")).toBe(true);
+        expect(isPhoneLikeQuery("Ahmed")).toBe(false);
+        expect(phoneSearchVariants("+20 122 900 4551")).toEqual(expect.arrayContaining([
+            "201229004551",
+            "01229004551",
+            "1229004551",
+        ]));
+        expect(phoneSearchVariants("+201229004551")).toEqual(expect.arrayContaining([
+            "201229004551",
+            "01229004551",
+        ]));
+
+        const filter = buildMemberListFilter({ search: "+20 122 900 4551" });
+        const phoneClauses = filter.$or.filter((clause) => clause.phones || clause.phoneKey);
+        const serialized = JSON.stringify(phoneClauses);
+        expect(serialized).toMatch(/01229004551/);
+        expect(serialized).toMatch(/201229004551/);
+        expect(filter.$or.some((clause) => clause.phoneKey === "201229004551")).toBe(true);
+    });
+
+    it("does not expand name searches into phone variants", () => {
+        const filter = buildMemberListFilter({ search: "Ahmed" });
+        expect(filter.$or).toEqual([
+            { name: { $regex: "Ahmed", $options: "i" } },
+            { phones: { $regex: "Ahmed", $options: "i" } },
+        ]);
     });
 
     it("keeps status cards on the full book when extra filters are on", () => {

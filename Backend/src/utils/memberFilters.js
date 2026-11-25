@@ -1,10 +1,37 @@
 const { escapeRegex } = require("./username");
 const { cairoDayBounds } = require("./revenueUtils");
+const { normalizePhone, phoneCandidates } = require("./identityUniqueness");
 
 function numericId(value) {
     const raw = String(value ?? "").trim().replace(/^[sS]/, "");
     if (!/^\d+$/.test(raw)) return null;
     return Number(raw);
+}
+
+/** Digits / + / spaces / dashes — not a name query. */
+function isPhoneLikeQuery(q) {
+    const trimmed = String(q || "").trim();
+    if (!trimmed) return false;
+    const digits = trimmed.replace(/\D/g, "");
+    if (digits.length < 3) return false;
+    return /^[\d\s+\-()./]+$/.test(trimmed);
+}
+
+/**
+ * Local / +20 / spaced forms of the same Egyptian (or intl) number so
+ * "+20 122 900 4551" still hits phones stored as "01229004551".
+ */
+function phoneSearchVariants(q) {
+    const variants = new Set();
+    const digits = String(q || "").replace(/\D/g, "");
+    if (digits.length >= 3) variants.add(digits);
+
+    for (const candidate of phoneCandidates(q)) {
+        const d = String(candidate).replace(/\D/g, "");
+        if (d.length >= 3) variants.add(d);
+    }
+
+    return [...variants];
 }
 
 function pushAnd(filter, clause) {
@@ -283,6 +310,25 @@ function buildMemberListFilter({
             { name: { $regex: safe, $options: "i" } },
             { phones: { $regex: safe, $options: "i" } },
         ];
+
+        // Expand +20 / spaced / local variants so the phone search bar matches
+        // whatever format was stored on the member.
+        if (isPhoneLikeQuery(q)) {
+            const variants = phoneSearchVariants(q);
+            const alt = variants
+                .map((v) => escapeRegex(v))
+                .filter((v) => v && v !== safe);
+            if (alt.length) {
+                const pattern = alt.join("|");
+                or.push({ phones: { $regex: pattern, $options: "i" } });
+                or.push({ phoneKey: { $regex: pattern } });
+            }
+            const canonical = normalizePhone(q);
+            if (canonical) {
+                or.push({ phoneKey: canonical });
+            }
+        }
+
         const mMatch = /^m(\d+)$/i.exec(q);
         if (mMatch) {
             or.push({ memberId: Number(mMatch[1]) });
@@ -357,6 +403,8 @@ async function getMemberStatusStats(Member, baseFilter = {}) {
 
 module.exports = {
     numericId,
+    isPhoneLikeQuery,
+    phoneSearchVariants,
     buildDateRange,
     buildMemberListFilter,
     statsFilterFromListFilter,

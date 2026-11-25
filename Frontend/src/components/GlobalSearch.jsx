@@ -212,20 +212,61 @@ export default function GlobalSearch() {
     idRef.current?.blur();
   };
 
+  const highlightMark = (before, match, after) => (
+    <>
+      {before}
+      <mark style={{ background: 'color-mix(in srgb, var(--navy) 12%, transparent)', color: 'var(--navy)', borderRadius: 2, padding: '0 1px' }}>
+        {match}
+      </mark>
+      {after}
+    </>
+  );
+
   const highlight = (text, q) => {
     if (!q || !text) return text;
     const idx = text.toLowerCase().indexOf(q.toLowerCase());
-    if (idx === -1) return text;
-    return (
-      <>
-        {text.slice(0, idx)}
-        <mark style={{ background: 'color-mix(in srgb, var(--navy) 12%, transparent)', color: 'var(--navy)', borderRadius: 2, padding: '0 1px' }}>
-          {text.slice(idx, idx + q.length)}
-        </mark>
-        {text.slice(idx + q.length)}
-      </>
-    );
+    if (idx !== -1) {
+      return highlightMark(text.slice(0, idx), text.slice(idx, idx + q.length), text.slice(idx + q.length));
+    }
+
+    // Phone search: match by digits so "+20 122…" still highlights "0122…"
+    const qDigits = q.replace(/\D/g, '');
+    if (qDigits.length < 3) return text;
+    const textDigits = String(text).replace(/\D/g, '');
+    if (!textDigits.includes(qDigits) && !qDigits.includes(textDigits)) {
+      // Local ↔ country-code: 0122… vs 20122…
+      const local = qDigits.startsWith('20') ? `0${qDigits.slice(2)}` : (qDigits.startsWith('0') ? qDigits : `0${qDigits}`);
+      const intl = qDigits.startsWith('20') ? qDigits : (qDigits.startsWith('0') ? `20${qDigits.slice(1)}` : `20${qDigits}`);
+      const needle = [qDigits, local, intl].find(n => n && textDigits.includes(n));
+      if (!needle) return text;
+      return highlightDigitSpan(text, needle);
+    }
+    const needle = textDigits.includes(qDigits) ? qDigits : textDigits;
+    return highlightDigitSpan(text, needle);
   };
+
+  function highlightDigitSpan(text, digitNeedle) {
+    const chars = String(text);
+    let digitIdx = 0;
+    let start = -1;
+    let end = -1;
+    for (let i = 0; i < chars.length; i++) {
+      if (!/\d/.test(chars[i])) continue;
+      if (chars[i] === digitNeedle[digitIdx]) {
+        if (digitIdx === 0) start = i;
+        digitIdx += 1;
+        if (digitIdx === digitNeedle.length) {
+          end = i + 1;
+          break;
+        }
+      } else {
+        digitIdx = chars[i] === digitNeedle[0] ? 1 : 0;
+        start = digitIdx ? i : -1;
+      }
+    }
+    if (start < 0 || end < 0) return text;
+    return highlightMark(chars.slice(0, start), chars.slice(start, end), chars.slice(end));
+  }
 
   const displayQuery = rawQuery;
   const showDropdown = open && shouldSearch(rawQuery, activeField);
