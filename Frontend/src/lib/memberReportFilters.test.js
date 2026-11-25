@@ -5,6 +5,8 @@ import {
   buildMemberFindApiParams,
   applyExpiredReportExtraFilters,
   fetchAllMembersByParams,
+  latestSubscriptionForReport,
+  subscriptionActivityTypeForReport,
   REPORT_PAGE_SIZE,
 } from './memberReportFilters';
 
@@ -32,6 +34,21 @@ describe('member report API params', () => {
     });
   });
 
+  it('omits guest optional filters when set to All', () => {
+    const params = buildGuestReportApiParams({
+      salesMan: 'All',
+      fromDate: '2026-05-01',
+      toDate: '2026-05-31',
+      trainerName: 'All',
+      source: 'All',
+    });
+    expect(params.assignedSales).toBeUndefined();
+    expect(params.currentCouch).toBeUndefined();
+    expect(params.source).toBeUndefined();
+    expect(params.status).toBe('guest');
+    expect(params.dateField).toBe('createdAt');
+  });
+
   it('combines all expired report filters in one params object', () => {
     const params = buildExpiredReportApiParams({
       status: 'frozen',
@@ -41,6 +58,7 @@ describe('member report API params', () => {
       trainerName: 'coach2',
       packageId: 'pkg1',
       gender: 'male',
+      type: 'gym',
     });
     expect(params).toMatchObject({
       status: 'frozen',
@@ -49,8 +67,27 @@ describe('member report API params', () => {
       currentCouch: 'coach2',
       packageId: 'pkg1',
       gender: 'male',
+      activityType: 'gym',
       limit: REPORT_PAGE_SIZE,
     });
+  });
+
+  it('does not force status=expired when Status is All', () => {
+    const params = buildExpiredReportApiParams({
+      status: 'All',
+      fromDate: '2026-04-01',
+      toDate: '2026-04-30',
+    });
+    expect(params.status).toBeUndefined();
+    expect(params.dateField).toBe('endDate');
+  });
+
+  it('keeps an explicit expired status', () => {
+    expect(buildExpiredReportApiParams({
+      status: 'expired',
+      fromDate: '2026-04-01',
+      toDate: '2026-04-30',
+    }).status).toBe('expired');
   });
 });
 
@@ -86,6 +123,7 @@ describe('buildMemberFindApiParams', () => {
       dateTo: '2026-04-30',
       dateField: 'endDate',
       transferType: 'bulk',
+      activityType: 'mma',
     })).toMatchObject({
       status: 'expired',
       assignedSales: 'rep2',
@@ -93,6 +131,7 @@ describe('buildMemberFindApiParams', () => {
       gender: 'female',
       dateField: 'endDate',
       transferType: 'bulk',
+      activityType: 'mma',
     });
   });
 });
@@ -124,6 +163,32 @@ describe('fetchAllMembersByParams', () => {
   });
 });
 
+describe('subscription activity + latest row helpers', () => {
+  it('falls back from empty snapshot to populated package activityType', () => {
+    expect(subscriptionActivityTypeForReport({
+      packageSnapshot: {},
+      package: { activityType: 'crossfit' },
+    })).toBe('crossfit');
+  });
+
+  it('defaults missing activity metadata to gym', () => {
+    expect(subscriptionActivityTypeForReport({ packageSnapshot: null, package: 'oid' })).toBe('gym');
+  });
+
+  it('prefers the latest open subscription of the requested activity', () => {
+    const member = {
+      subscriptions: [
+        { endDate: '2026-05-01', packageSnapshot: { activityType: 'gym' }, refunded: false },
+        { endDate: '2026-06-01', packageSnapshot: { activityType: 'mma' }, cancelled: true },
+        { endDate: '2026-07-01', packageSnapshot: { activityType: 'crossfit' }, refunded: false },
+      ],
+    };
+    expect(latestSubscriptionForReport(member, { preferActivityType: 'gym' }).packageSnapshot.activityType)
+      .toBe('gym');
+    expect(latestSubscriptionForReport(member).packageSnapshot.activityType).toBe('crossfit');
+  });
+});
+
 describe('applyExpiredReportExtraFilters', () => {
   const base = [
     {
@@ -139,24 +204,46 @@ describe('applyExpiredReportExtraFilters', () => {
     {
       _id: '3',
       PT_sessions: 0,
-      // Older gym row would previously satisfy dotted package+date; last row is MMA.
+      // Concurrent packages: gym is older, MMA is last. Type=gym must still match.
       subscriptions: [
         { endDate: '2026-05-01', package: { activityType: 'gym' } },
         { endDate: '2026-06-01', package: { activityType: 'mma' } },
       ],
     },
+    {
+      _id: '4',
+      PT_sessions: undefined, // list select used to omit this → treated as 0
+      subscriptions: [{ endDate: '2026-05-01', packageSnapshot: { activityType: 'gym' } }],
+    },
+    {
+      _id: '5',
+      PT_sessions: 3,
+      subscriptions: [
+        { endDate: '2026-05-01', packageSnapshot: {}, package: { activityType: 'gym' } },
+      ],
+    },
   ];
 
-  it('ANDs activity type and category filters against the last subscription', () => {
+  it('ANDs activity type and category filters', () => {
     const out = applyExpiredReportExtraFilters(base, {
       type: 'gym',
       categories: 'PT',
     });
-    expect(out.map((m) => m._id)).toEqual(['1']);
+    expect(out.map((m) => m._id)).toEqual(['1', '5']);
   });
 
-  it('does not treat an older subscription activity type as a match', () => {
+  it('matches Type against any subscription, not only the last array row', () => {
     const out = applyExpiredReportExtraFilters(base, { type: 'gym' });
-    expect(out.map((m) => m._id)).toEqual(['1']);
+    expect(out.map((m) => m._id)).toEqual(['1', '3', '4', '5']);
+  });
+
+  it('drops Categories=PT when PT_sessions is missing or zero', () => {
+    const out = applyExpiredReportExtraFilters(base, { categories: 'PT' });
+    expect(out.map((m) => m._id)).toEqual(['1', '5']);
+  });
+
+  it('resolves activityType from populated package when snapshot omits it', () => {
+    const out = applyExpiredReportExtraFilters([base[4]], { type: 'gym' });
+    expect(out.map((m) => m._id)).toEqual(['5']);
   });
 });

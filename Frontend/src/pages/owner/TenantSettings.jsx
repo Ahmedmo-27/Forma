@@ -252,7 +252,9 @@ export default function TenantSettings() {
       return undefined;
     }
     let cancelled = false;
-    QRCode.toDataURL(waSession.qr, { width: 220, margin: 1, errorCorrectionLevel: 'M' })
+    // Baileys pairing payloads are long (wa.me/settings/linked_devices#…).
+    // Low error correction + larger canvas keeps the modules scannable.
+    QRCode.toDataURL(waSession.qr, { width: 560, margin: 2, errorCorrectionLevel: 'L' })
       .then(url => {
         if (!cancelled) setWaQrUrl(url);
       })
@@ -1200,10 +1202,10 @@ export default function TenantSettings() {
                             border: '1px solid #E5E7EB', display: 'inline-block',
                             boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
                           }}>
-                            <img src={waQrUrl} alt={t('WhatsApp QR Code')} width={220} height={220} style={{ display: 'block' }} />
+                            <img src={waQrUrl} alt={t('WhatsApp QR Code')} width={560} height={560} style={{ display: 'block', maxWidth: 'min(100%, 560px)', height: 'auto' }} />
                           </div>
                         ) : (
-                          <div style={{ width: 220, height: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', borderRadius: 12 }}>
+                          <div style={{ width: 280, height: 280, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FFFFFF', borderRadius: 12 }}>
                             <Spinner size="md" />
                           </div>
                         )}

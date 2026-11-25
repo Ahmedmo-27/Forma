@@ -45,7 +45,7 @@ export const TENANT_GUARDS = [
   { path: '/sales/import', roles: ['Sales Manager', 'Owner', 'General Manager'], feature: 'excel_import', access: 'import_members', page: 'ImportMembers' },
   { path: '/accounting/dashboard', roles: ['Accountant', 'Owner', 'General Manager'], feature: 'accounting', access: 'accounting_dashboard', page: 'AccountantDashboard' },
   { path: '/accounting/package-requests', roles: ['Accountant', 'Owner', 'General Manager'], feature: 'exception_approvals', access: 'package_approvals', page: 'PackageRequests' },
-  { path: '/accounting/contract-history', roles: ['Accountant', 'Owner', 'General Manager', 'Sales Manager'], feature: 'accounting', access: 'contracts', page: 'ContractHistory' },
+  { path: '/accounting/contract-history', roles: ['Accountant', 'Owner', 'General Manager', 'Sales Manager', 'Sales'], feature: 'accounting', access: 'contracts', page: 'ContractHistory' },
   { path: '/coach/dashboard', roles: ['Coach', 'Head Coach'], feature: 'coaching', access: 'coach_dashboard', page: 'CoachDashboard' },
   { path: '/coach/members', roles: ['Coach', 'Head Coach'], feature: 'coaching', access: 'coach_members', page: 'CoachMembers' },
   { path: '/coach/checkin', roles: ['Coach', 'Head Coach'], feature: 'pt_tracking', access: 'coach_checkin', page: 'CoachCheckin' },

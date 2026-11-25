@@ -91,12 +91,11 @@ describe("member list filters", () => {
         expect(periodFilter.current_couch).toBe("507f1f77bcf86cd799439012");
         expect(periodFilter.$and).toEqual(expect.arrayContaining([
             expect.objectContaining({
-                $expr: expect.objectContaining({
-                    $and: expect.arrayContaining([
-                        { $gte: expect.arrayContaining([expect.any(Object), start]) },
-                        { $lte: expect.arrayContaining([expect.any(Object), end]) },
-                    ]),
-                }),
+                subscriptions: {
+                    $elemMatch: {
+                        endDate: { $gte: start, $lte: end },
+                    },
+                },
             }),
         ]));
 
@@ -149,7 +148,8 @@ describe("member list filters", () => {
         ]));
     });
 
-    it("ANDs expiringSoon with last-subscription end-date period filters", () => {
+    it("ANDs expiringSoon with end-date period filters", () => {
+        const { start, end } = cairoDayBounds("2026-05-01", "2026-05-31");
         const filter = buildMemberListFilter({
             expiringSoon: "true",
             dateFrom: "2026-05-01",
@@ -157,8 +157,16 @@ describe("member list filters", () => {
             dateField: "endDate",
         });
         expect(filter.status).toBe("active");
-        const exprs = (filter.$and || []).filter((c) => c.$expr);
-        expect(exprs.length).toBeGreaterThanOrEqual(2);
+        expect(filter.$and).toEqual(expect.arrayContaining([
+            expect.objectContaining({ $expr: expect.any(Object) }),
+            expect.objectContaining({
+                subscriptions: {
+                    $elemMatch: {
+                        endDate: { $gte: start, $lte: end },
+                    },
+                },
+            }),
+        ]));
     });
 
     it("combines guest-report style filters (status, sales, coach, dates, source)", () => {
@@ -179,8 +187,9 @@ describe("member list filters", () => {
         expect(filter.source).toBe("Walk in");
     });
 
-    it("matches package + endDate on the SAME last subscription (not any array element)", () => {
+    it("matches package + endDate on the SAME subscription via $elemMatch", () => {
         const packageId = "507f1f77bcf86cd799439099";
+        const { start, end } = cairoDayBounds("2026-05-01", "2026-05-31");
         const filter = buildMemberListFilter({
             status: "expired",
             packageId,
@@ -190,18 +199,38 @@ describe("member list filters", () => {
             assignedSales: "507f1f77bcf86cd799439011",
             currentCouch: "507f1f77bcf86cd799439012",
             gender: "male",
+            activityType: "gym",
         });
 
         expect(filter["subscriptions.package"]).toBeUndefined();
         expect(filter["subscriptions.endDate"]).toBeUndefined();
         expect(filter.gender).toBe("male");
 
-        const exprClause = (filter.$and || []).find((c) => c.$expr);
-        expect(exprClause).toBeDefined();
-        const parts = exprClause.$expr.$and;
-        expect(parts.some((p) => p.$eq && String(p.$eq[1]) === packageId)).toBe(true);
-        expect(parts.some((p) => p.$gte)).toBe(true);
-        expect(parts.some((p) => p.$lte)).toBe(true);
+        const elemClause = (filter.$and || []).find((c) => c.subscriptions?.$elemMatch);
+        expect(elemClause).toBeDefined();
+        expect(elemClause.subscriptions.$elemMatch.package).toBe(packageId);
+        expect(elemClause.subscriptions.$elemMatch.endDate).toEqual({ $gte: start, $lte: end });
+        // gym allows missing snapshot type (legacy default)
+        expect(elemClause.subscriptions.$elemMatch.$or).toEqual(expect.arrayContaining([
+            { "packageSnapshot.activityType": "gym" },
+            { "packageSnapshot.activityType": { $exists: false } },
+        ]));
+
+        const mmaFilter = buildMemberListFilter({
+            activityType: "mma",
+            dateFrom: "2026-05-01",
+            dateTo: "2026-05-31",
+            dateField: "endDate",
+        });
+        const mmaElem = (mmaFilter.$and || []).find((c) => c.subscriptions?.$elemMatch);
+        expect(mmaElem.subscriptions.$elemMatch["packageSnapshot.activityType"]).toBe("mma");
+    });
+
+    it("treats status All like no status filter", () => {
+        const filter = buildMemberListFilter({ status: "All", gender: "female" });
+        expect(filter.status).toBeUndefined();
+        expect(filter.isBlocked).toBeUndefined();
+        expect(filter.gender).toBe("female");
     });
 
     it("keeps prior $and clauses when search is combined with other filters", () => {
@@ -214,7 +243,9 @@ describe("member list filters", () => {
         });
         expect(filter.$or).toBeUndefined();
         expect(filter.$and).toEqual(expect.arrayContaining([
-            expect.objectContaining({ $expr: expect.any(Object) }),
+            expect.objectContaining({
+                subscriptions: expect.objectContaining({ $elemMatch: expect.any(Object) }),
+            }),
             expect.objectContaining({
                 $or: expect.arrayContaining([
                     { name: expect.any(Object) },

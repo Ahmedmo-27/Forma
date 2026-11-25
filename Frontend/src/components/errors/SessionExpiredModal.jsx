@@ -99,8 +99,30 @@ export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess, error }) 
           },
           { withCredentials: true }
         );
-        const user = res.data?.user || res.data;
-        if (!user || typeof user !== "object") {
+
+        let sessionPayload = res.data;
+        if (sessionPayload?.requiresTenantSelection) {
+          const memberships = sessionPayload.memberships || [];
+          const preferred =
+            memberships.find((m) => m.slug && m.slug === tenantSlug)
+            || memberships[0];
+          if (!preferred?.tenantId || !sessionPayload.selectionToken) {
+            setErrorMsg(t("Choose a gym from the sign-in page, then try again."));
+            return;
+          }
+          const selected = await axios.post(
+            `${apiOrigin}/api/users/select-tenant`,
+            {
+              selectionToken: sessionPayload.selectionToken,
+              tenantId: preferred.tenantId,
+            },
+            { withCredentials: true }
+          );
+          sessionPayload = selected.data;
+        }
+
+        const user = sessionPayload?.user || sessionPayload;
+        if (!user || typeof user !== "object" || !user.role) {
           setErrorMsg(t("Invalid password. Please check your credentials."));
           return;
         }
@@ -112,9 +134,9 @@ export function SessionExpiredModal({ isOpen, onClose, onLoginSuccess, error }) 
         const { adoptTenantAuthTokens } = await import("../../lib/sessionBearer");
         const { suppressAuthErrorModals } = await import("../../lib/authErrorGate");
         suppressAuthErrorModals(5000);
-        adoptTenantAuthTokens(res.data || {});
+        adoptTenantAuthTokens(sessionPayload || {});
         // Re-hydrate Auth + Tenant (palette, plan features, nav) after cookie refresh.
-        emitSessionResume({ surface: "tenant", user, tokens: res.data || {} });
+        emitSessionResume({ surface: "tenant", user, tokens: sessionPayload || {} });
       }
 
       onClose();

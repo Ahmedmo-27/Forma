@@ -6,7 +6,8 @@
  * 2. CREATE new compound indexes `{ tenantId: 1, ... }` FIRST while legacy indexes remain in place.
  * 3. Verify that all new compound indexes have built successfully.
  * 4. DROP legacy global unique indexes (`systemId_1`, `memberId_1`, `barcode_1`).
- * Staff email, username, and phoneKey are globally unique again (not per gym).
+ * Staff email, username, and phoneKey are globally unique (not per gym).
+ * Member phoneKey is unique per tenant (same guest phone allowed across gyms).
  *
  * Usage:
  *   node src/scripts/migrateIndexes.js [--dry-run]
@@ -78,15 +79,15 @@ const INDEX_OPERATIONS = [
             { keys: { tenantId: 1, name: 1 }, options: { name: "tenantId_1_name_1" } },
             { keys: { tenantId: 1, phones: 1 }, options: { name: "tenantId_1_phones_1" } },
             {
-                keys: { phoneKey: 1 },
+                keys: { tenantId: 1, phoneKey: 1 },
                 options: {
                     unique: true,
                     partialFilterExpression: { phoneKey: { $gt: "" } },
-                    name: "phoneKey_1",
+                    name: "tenantId_1_phoneKey_1",
                 },
             },
         ],
-        legacyIndexesToDrop: ["systemId_1", "memberId_1", "barcode_1"],
+        legacyIndexesToDrop: ["systemId_1", "memberId_1", "barcode_1", "phoneKey_1"],
     },
     {
         collection: "counters",

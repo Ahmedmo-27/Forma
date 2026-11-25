@@ -20,10 +20,11 @@ function harness() {
     });
     const persistStatus = vi.fn(async () => {});
     const macOS = vi.fn((name) => ["Mac OS", name, "14.4.1"]);
+    const makeWASocket = vi.fn(() => sock);
     let authLoads = 0;
     const manager = createSessionManager({
         loadBaileys: async () => ({
-            makeWASocket: () => sock,
+            makeWASocket,
             DisconnectReason: {
                 loggedOut: 401,
                 badSession: 500,
@@ -66,6 +67,7 @@ function harness() {
         clearAuth,
         persistStatus,
         macOS,
+        makeWASocket,
         authLoads: () => authLoads,
         markStored: () => { stored = true; },
     };
@@ -124,10 +126,42 @@ describe("WhatsApp session manager", () => {
         expect(sock.sendMessage).not.toHaveBeenCalled();
     });
 
+    it("sends an image with explicit mimetype and caption", async () => {
+        const { manager, sock, handlers } = harness();
+        sock.sendMessage.mockResolvedValue({ key: { id: "IMG1" } });
+        await manager.start({ tenantId: "t1", userId: "u1" });
+        await connect(handlers);
+
+        const image = Buffer.from([0xff, 0xd8, 0xff, 0xd9]);
+        const result = await manager.sendImage({
+            tenantId: "t1",
+            userId: "u1",
+            phone: "01001234567",
+            image,
+            mimetype: "image/jpeg",
+            caption: "Check-in QR",
+        });
+
+        expect(result).toMatchObject({ status: "sent", messageId: "IMG1" });
+        expect(sock.sendMessage).toHaveBeenCalledWith(
+            "201001234567@s.whatsapp.net",
+            {
+                image,
+                mimetype: "image/jpeg",
+                caption: "Check-in QR",
+            }
+        );
+    });
+
     it("identifies the linked device as Chrome and reuses that login after a scan", async () => {
-        const { manager, handlers, macOS, authLoads } = harness();
+        const { manager, handlers, macOS, makeWASocket, authLoads } = harness();
         await manager.start({ tenantId: "t1", userId: "u1" });
         expect(macOS).toHaveBeenCalledWith("Chrome");
+        expect(makeWASocket).toHaveBeenCalledWith(expect.objectContaining({
+            syncFullHistory: false,
+            shouldSyncHistoryMessage: expect.any(Function),
+        }));
+        expect(makeWASocket.mock.calls[0][0].shouldSyncHistoryMessage()).toBe(false);
 
         await handlers["connection.update"]({
             connection: "close",

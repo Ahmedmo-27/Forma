@@ -58,7 +58,9 @@ export default function ConnectWhatsApp() {
       return undefined;
     }
     let cancelled = false;
-    QRCode.toDataURL(session.qr, { width: 280, margin: 1, errorCorrectionLevel: 'M' })
+    // Baileys pairing payloads are long (wa.me/settings/linked_devices#…).
+    // Low error correction + larger canvas keeps the modules scannable.
+    QRCode.toDataURL(session.qr, { width: 560, margin: 2, errorCorrectionLevel: 'L' })
       .then((url) => {
         if (!cancelled) setQrUrl(url);
       })
@@ -129,7 +131,7 @@ export default function ConnectWhatsApp() {
                     {t('Open WhatsApp on your phone, go to Linked devices, and scan this code. It can change once just after it appears. Scan the code that is on the screen.')}
                   </p>
                   {qrUrl ? (
-                    <img src={qrUrl} alt={t('WhatsApp QR code')} width={280} height={280} style={{ borderRadius: 12, background: '#fff', maxWidth: '100%', height: 'auto' }} />
+                    <img src={qrUrl} alt={t('WhatsApp QR code')} width={560} height={560} style={{ borderRadius: 12, background: '#fff', maxWidth: '100%', height: 'auto' }} />
                   ) : (
                     <Spinner />
                   )}

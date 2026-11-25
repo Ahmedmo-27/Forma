@@ -433,6 +433,7 @@ async function onboardTenant(req, res) {
                     email: normalizedEmail,
                     username: ownerUsername,
                 });
+                const { membershipShape } = require("../utils/staffMembership");
                 return User.create({
                     tenantId: tenant._id,
                     name: ownerName.trim(),
@@ -442,6 +443,14 @@ async function onboardTenant(req, res) {
                     role: "Owner",
                     canAccessAllLocations: true,
                     allowedLocationIds: [],
+                    memberships: [
+                        membershipShape({
+                            tenantId: tenant._id,
+                            role: "Owner",
+                            canAccessAllLocations: true,
+                            allowedLocationIds: [],
+                        }),
+                    ],
                 });
             }
         );

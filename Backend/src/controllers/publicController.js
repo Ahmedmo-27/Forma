@@ -253,6 +253,7 @@ async function publicSignup(req, res) {
                         name: ownerName,
                         email: normalizedEmail,
                     });
+                    const { membershipShape } = require("../utils/staffMembership");
                     return User.create({
                         tenantId: tenant._id,
                         name: String(ownerName).trim(),
@@ -262,6 +263,14 @@ async function publicSignup(req, res) {
                         role: "Owner",
                         canAccessAllLocations: true,
                         allowedLocationIds: [],
+                        memberships: [
+                            membershipShape({
+                                tenantId: tenant._id,
+                                role: "Owner",
+                                canAccessAllLocations: true,
+                                allowedLocationIds: [],
+                            }),
+                        ],
                     });
                 }
             );

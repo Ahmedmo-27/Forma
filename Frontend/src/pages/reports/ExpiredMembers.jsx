@@ -66,7 +66,9 @@ export default function ExpiredMembers() {
   const [trainerName, setTrainerName] = useState('All');
   const [packageId,   setPackageId]   = useState('All');
   const [type,        setType]        = useState('All');
-  const [status,      setStatus]      = useState('All');
+  // Default to expired so the first Search matches the historic "expired members"
+  // report. Status "All" intentionally means every status (not silently expired).
+  const [status,      setStatus]      = useState('expired');
   const [categories,  setCategories]  = useState('All');
   const [gender,      setGender]      = useState('All');
 
@@ -144,6 +146,7 @@ export default function ExpiredMembers() {
         trainerName,
         packageId,
         gender,
+        type,
       });
 
       let members = await fetchAllMembersByParams(getAllMembers, params);
@@ -292,7 +295,9 @@ export default function ExpiredMembers() {
                   </thead>
                   <tbody>
                     {paginatedResults.map(m => {
-                      const lastSub = latestSubscriptionForReport(m);
+                      const lastSub = latestSubscriptionForReport(m, {
+                        preferActivityType: type !== 'All' ? type : undefined,
+                      });
                       const pkg = lastSub?.packageSnapshot ?? lastSub?.package;
                       const genderKey = String(m.gender ?? '').toLowerCase();
                       const memberCode = `M${m.memberId}`;

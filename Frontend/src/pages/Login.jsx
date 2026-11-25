@@ -21,12 +21,19 @@ function roleHomePath(role) {
 export default function Login() {
   const { t } = useI18n();
   usePageTitle(t('Sign In'));
-  const { signIn, user } = useAuth();
+  const {
+    signIn,
+    user,
+    tenantSelection,
+    completeTenantSelection,
+    cancelTenantSelection,
+  } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPwd, setShowPwd]   = useState(false);
   const [loading, setLoading]   = useState(false);
+  const [selectingGym, setSelectingGym] = useState(false);
   const [errors, setErrors]     = useState({});
 
   if (user) {
@@ -46,14 +53,21 @@ export default function Login() {
     return !Object.keys(e).length;
   };
 
+  const finishLogin = (loggedIn) => {
+    toast.success(t('Welcome back, {name}!', { name: loggedIn.name }));
+    goToStaffHome(roleHomePath(loggedIn.role), navigate);
+  };
+
   const handleSubmit = async (ev) => {
     ev.preventDefault();
     if (!validate()) return;
     setLoading(true);
     try {
-      const user = await signIn(username.trim(), password);
-      toast.success(t('Welcome back, {name}!', { name: user.name }));
-      goToStaffHome(roleHomePath(user.role), navigate);
+      const result = await signIn(username.trim(), password);
+      if (result?.requiresTenantSelection) {
+        return;
+      }
+      finishLogin(result);
     } catch (err) {
       let msg;
       if (!err.response) {
@@ -77,6 +91,22 @@ export default function Login() {
       setErrors({ form: msg });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSelectGym = async (tenantId) => {
+    setSelectingGym(true);
+    setErrors({});
+    try {
+      const loggedIn = await completeTenantSelection(tenantId);
+      finishLogin(loggedIn);
+    } catch (err) {
+      setErrors({
+        form: err.response?.data?.message || t('Could not open that gym. Please try signing in again.'),
+      });
+      cancelTenantSelection();
+    } finally {
+      setSelectingGym(false);
     }
   };
 
@@ -148,14 +178,67 @@ export default function Login() {
             fontSize: 20, fontWeight: 700, color: '#111827',
             letterSpacing: '-0.2px', marginBottom: 4,
           }}>
-            {t('Welcome back')}
+            {tenantSelection ? t('Choose a gym') : t('Welcome back')}
           </h2>
           <p style={{ fontSize: 14, color: '#6B7280' }}>
-            {t('Sign in to access your dashboard')}
+            {tenantSelection
+              ? t('You work at more than one gym. Which one do you want to open?')
+              : t('Sign in to access your dashboard')}
           </p>
         </div>
 
-        {/* Form */}
+        {tenantSelection ? (
+          <div>
+            {errors.form && (
+              <div style={{
+                padding: '11px 14px', borderRadius: 8, marginBottom: 18,
+                background: '#FEF2F2', border: '1px solid #FECACA',
+                color: '#DC2626', fontSize: 13,
+              }}>
+                {errors.form}
+              </div>
+            )}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {(tenantSelection.memberships || []).map((gym) => (
+                <button
+                  key={gym.tenantId}
+                  type="button"
+                  disabled={selectingGym}
+                  onClick={() => handleSelectGym(gym.tenantId)}
+                  style={{
+                    width: '100%', textAlign: 'start',
+                    padding: '14px 16px', borderRadius: 12,
+                    border: '1.5px solid #E6DCC8', background: '#FFFFFF',
+                    cursor: selectingGym ? 'wait' : 'pointer',
+                    color: '#142843',
+                  }}
+                >
+                  <div style={{ fontWeight: 700, fontSize: 15 }}>{gym.name}</div>
+                  <div style={{ fontSize: 12, color: '#6B7280', marginTop: 2 }}>
+                    {gym.role}{gym.slug ? ` · ${gym.slug}` : ''}
+                  </div>
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              disabled={selectingGym}
+              onClick={() => { cancelTenantSelection(); setErrors({}); }}
+              style={{
+                marginTop: 16, background: 'transparent', border: 'none',
+                color: '#6B7280', fontSize: 13, cursor: 'pointer', textDecoration: 'underline',
+              }}
+            >
+              {t('Back to sign in')}
+            </button>
+            {selectingGym && (
+              <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+                <Spinner />
+              </div>
+            )}
+          </div>
+        ) : (
+        /* Form */
         <form onSubmit={handleSubmit} noValidate>
 
           {/* Global error */}
@@ -340,6 +423,7 @@ export default function Login() {
             }
           </button>
         </form>
+        )}
 
         {/* Footer */}
         <div style={{

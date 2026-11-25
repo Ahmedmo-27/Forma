@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
-import { login as loginApi } from '../api/endpoints';
+import { login as loginApi, selectTenant as selectTenantApi } from '../api/endpoints';
 import api from '../api/axios';
 import WorkspaceBoot from '../components/WorkspaceBoot';
 import { setMonitoringUser } from '../lib/monitoring';
@@ -18,9 +18,25 @@ function _parseUser() {
   }
 }
 
+function adoptSession(resData, setUser, setChecked, sessionEpoch) {
+  const { user: u } = resData;
+  sessionEpoch.current += 1;
+  suppressAuthErrorModals(5000);
+  adoptTenantAuthTokens(resData);
+  localStorage.setItem('ff_user', JSON.stringify(u));
+  localStorage.removeItem('ff_token');
+  if (u.tenantSlug) {
+    localStorage.setItem('ff_tenant_slug', u.tenantSlug);
+  }
+  setUser(u);
+  setChecked(true);
+  return u;
+}
+
 export function AuthProvider({ children }) {
   const [user,    setUser]    = useState(null);
   const [checked, setChecked] = useState(false); // true once session is verified
+  const [tenantSelection, setTenantSelection] = useState(null); // { selectionToken, memberships }
   // Bumped on login so an in-flight boot /users/me 401 cannot wipe a fresh session.
   const sessionEpoch = useRef(0);
 
@@ -57,7 +73,7 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  const signIn = useCallback(async (username, password) => {
+  const signIn = useCallback(async (username, password, extras = {}) => {
     const apiUrl = import.meta.env.BACKEND_ORIGIN || import.meta.env.VITE_API_URL;
     console.info('[auth] Login attempt', {
       apiUrl: apiUrl || '(missing BACKEND_ORIGIN)',
@@ -66,18 +82,16 @@ export function AuthProvider({ children }) {
     });
 
     try {
-      const res = await loginApi(username, password);
-      const { user: u } = res.data;
-      sessionEpoch.current += 1;
-      suppressAuthErrorModals(5000);
-      adoptTenantAuthTokens(res.data);
-      localStorage.setItem('ff_user', JSON.stringify(u));
-      localStorage.removeItem('ff_token');
-      if (u.tenantSlug) {
-        localStorage.setItem('ff_tenant_slug', u.tenantSlug);
+      const res = await loginApi(username, password, extras);
+      if (res.data?.requiresTenantSelection) {
+        setTenantSelection({
+          selectionToken: res.data.selectionToken,
+          memberships: res.data.memberships || [],
+        });
+        return { requiresTenantSelection: true, memberships: res.data.memberships || [] };
       }
-      setUser(u);
-      setChecked(true);
+      setTenantSelection(null);
+      const u = adoptSession(res.data, setUser, setChecked, sessionEpoch);
       console.info('[auth] Login success', { role: u.role, email: u.email, tenantSlug: u.tenantSlug });
       return u;
     } catch (err) {
@@ -94,6 +108,20 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
+  const completeTenantSelection = useCallback(async (tenantId) => {
+    if (!tenantSelection?.selectionToken) {
+      throw new Error('No gym selection in progress');
+    }
+    const res = await selectTenantApi(tenantSelection.selectionToken, tenantId);
+    setTenantSelection(null);
+    const u = adoptSession(res.data, setUser, setChecked, sessionEpoch);
+    return u;
+  }, [tenantSelection]);
+
+  const cancelTenantSelection = useCallback(() => {
+    setTenantSelection(null);
+  }, []);
+
   const signOut = useCallback(async () => {
     try {
       await api.post('/users/logout', {}, { skipGlobalError: true });
@@ -103,6 +131,7 @@ export function AuthProvider({ children }) {
     localStorage.removeItem('ff_user');
     localStorage.removeItem('ff_tenant_slug');
     clearTenantBearer();
+    setTenantSelection(null);
     setUser(null);
   }, []);
 
@@ -142,7 +171,15 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, signIn, signOut, refreshUser }}>
+    <AuthContext.Provider value={{
+      user,
+      signIn,
+      signOut,
+      refreshUser,
+      tenantSelection,
+      completeTenantSelection,
+      cancelTenantSelection,
+    }}>
       {children}
     </AuthContext.Provider>
   );

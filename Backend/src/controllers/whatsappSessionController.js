@@ -146,6 +146,7 @@ const sendImageMessage = async (req, res, next) => {
             ...actor(req),
             phone,
             image: req.file.buffer,
+            mimetype: mime,
             caption,
         });
         incrementCachedAllowance(req.user?.tenantId);

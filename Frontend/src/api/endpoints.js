@@ -1,14 +1,16 @@
 import api from './axios';
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-export const login = (username, password) => {
+export const login = (username, password, extras = {}) => {
   const id = String(username || '').trim();
-  const body = { username: id, password };
+  const body = { username: id, password, ...extras };
   // The deployed API still requires a valid email. Include it when the
   // person typed an address so sign-in works before and after that deploy.
   if (id.includes('@')) body.email = id;
   return api.post('/users/login', body);
 };
+export const selectTenant = (selectionToken, tenantId) =>
+  api.post('/users/select-tenant', { selectionToken, tenantId }, { skipGlobalError: true });
 export const setupPassword = (token, password) =>
   api.post('/users/setup-password', { token, password }, { skipGlobalError: true });
 export const forgotPassword = (email) =>
@@ -86,7 +88,12 @@ export const updateRoleAccess = (role, areas, locationIds) =>
     areas,
     ...(Array.isArray(locationIds) ? { locationIds } : {}),
   });
-export const createStaffUser = (data) => api.post('/users/staff', data);
+export const createStaffUser = (data) =>
+  api.post('/users/staff', data, { skipGlobalError: true });
+export const createStaffIdentityRequest = (data) =>
+  api.post('/staff-identity-requests', data, { skipGlobalError: true });
+export const listMyStaffIdentityRequests = () =>
+  api.get('/staff-identity-requests/mine');
 
 // ── Notifications ─────────────────────────────────────────────────────────────
 export const getNotifications    = (params) => api.get('/notifications', { params, skipGlobalError: true });

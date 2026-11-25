@@ -90,6 +90,13 @@ const {
 } = require("../controllers/platformFeatureTrialController");
 
 const {
+    listStaffIdentityRequests,
+    approveDual,
+    approveTransfer,
+    rejectStaffIdentity,
+} = require("../controllers/platformStaffIdentityController");
+
+const {
     getOverview,
     getSnapshots,
     getUpsellAndChurnLists,
@@ -238,6 +245,31 @@ router.post(
     requirePlatformPermission(PERMISSIONS.TENANTS_FEATURE_TRIALS),
     autoInvalidate(["tenants"], "platform"),
     rejectFeatureTrial
+);
+
+// Cross-tenant staff identity requests inbox
+router.get(
+    "/staff-identity-requests",
+    requirePlatformPermission(PERMISSIONS.TENANTS_STAFF_IDENTITY),
+    listStaffIdentityRequests
+);
+router.post(
+    "/staff-identity-requests/:id/dual",
+    requirePlatformPermission(PERMISSIONS.TENANTS_STAFF_IDENTITY),
+    autoInvalidate(["tenants", "users"], "platform"),
+    approveDual
+);
+router.post(
+    "/staff-identity-requests/:id/transfer",
+    requirePlatformPermission(PERMISSIONS.TENANTS_STAFF_IDENTITY),
+    autoInvalidate(["tenants", "users"], "platform"),
+    approveTransfer
+);
+router.post(
+    "/staff-identity-requests/:id/reject",
+    requirePlatformPermission(PERMISSIONS.TENANTS_STAFF_IDENTITY),
+    autoInvalidate(["tenants", "users"], "platform"),
+    rejectStaffIdentity
 );
 
 router.get("/billing/invoices", requirePlatformPermission(PERMISSIONS.BILLING_INVOICES), getInvoices);

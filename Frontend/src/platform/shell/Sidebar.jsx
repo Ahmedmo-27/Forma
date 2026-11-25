@@ -46,6 +46,7 @@ function SidebarFrame({ collapsed, showMobileClose, onToggleCollapse, onCloseMob
   const canManagePricing = usePermission("pricing.manage");
   const canManagePayments = usePermission("billing.payments");
   const canFeatureTrials = usePermission("tenants.feature_trials");
+  const canStaffIdentity = usePermission("tenants.staff_identity");
   const canViewLedger = usePermission("billing.ledger");
   const canSupport = usePermission("support.impersonate_read");
   const canAnnounce = usePermission("announcements.manage");
@@ -76,6 +77,7 @@ function SidebarFrame({ collapsed, showMobileClose, onToggleCollapse, onCloseMob
       items: [
         { label: "Payments Inbox", path: "/platform/payments-invoices", icon: CreditCard, permitted: canManagePayments },
         { label: "Feature trials", path: "/platform/feature-trials", icon: Sparkles, permitted: canFeatureTrials },
+        { label: "Staff identity", path: "/platform/staff-identity", icon: Users, permitted: canStaffIdentity },
         { label: "Billing Ledger", path: "/platform/ledger", icon: BookOpen, permitted: canViewLedger },
         { label: "Usage & Telemetry", path: "/platform/usage", icon: Activity, permitted: canReadTenants },
       ],

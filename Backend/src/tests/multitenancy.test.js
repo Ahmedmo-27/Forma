@@ -35,7 +35,14 @@ describe("Phase 9: Multi-Tenancy System Tests", () => {
             expect(globalUnique(indexes, "email")).toBeTruthy();
             expect(globalUnique(indexes, "username")).toBeTruthy();
             expect(globalUnique(indexes, "phoneKey")).toBeTruthy();
-            expect(globalUnique(Member.schema.indexes(), "phoneKey")).toBeTruthy();
+        });
+
+        it("keeps member phones unique per gym only", () => {
+            const memberPhone = Member.schema.indexes().find(
+                ([keys, options]) => keys.tenantId === 1 && keys.phoneKey === 1 && options.unique
+            );
+            expect(memberPhone).toBeTruthy();
+            expect(globalUnique(Member.schema.indexes(), "phoneKey")).toBeFalsy();
         });
 
         it("keeps member barcodes unique per gym", () => {
@@ -328,6 +335,11 @@ describe("Phase 9: Multi-Tenancy System Tests", () => {
 
             vi.spyOn(User, "find").mockResolvedValue([mockUser]);
             vi.spyOn(Tenant, "findById").mockResolvedValue(mockTenant);
+            vi.spyOn(Tenant, "find").mockReturnValue({
+                select: vi.fn().mockReturnValue({
+                    lean: vi.fn().mockResolvedValue([mockTenant]),
+                }),
+            });
 
             const req = {
                 body: {

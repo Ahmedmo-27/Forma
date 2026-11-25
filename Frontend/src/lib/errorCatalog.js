@@ -255,6 +255,12 @@ export const ERROR_MESSAGES = {
     severity: "warning",
     presentation: "silent",
   },
+  STAFF_EXISTS_OTHER_TENANT: {
+    title: tr("Staff already exists at another gym"),
+    message: tr("This phone or email belongs to staff at another gym. You can request Super Admin to grant access here."),
+    severity: "warning",
+    presentation: "silent",
+  },
   WHATSAPP_NOT_CONNECTED: {
     title: tr("WhatsApp Not Connected"),
     message: tr("Connect WhatsApp before sending. Open Connect WhatsApp from your profile menu."),

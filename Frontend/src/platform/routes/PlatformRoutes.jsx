@@ -24,6 +24,7 @@ import HealthSettingsPage from "../features/system/HealthSettingsPage";
 import LogsPage from "../features/system/LogsPage";
 import DesignSystemPage from "../features/design-system/DesignSystemPage";
 import FeatureTrialsPage from "../features/trials/FeatureTrialsPage";
+import StaffIdentityPage from "../features/staffIdentity/StaffIdentityPage";
 
 function ProtectedShellRoute() {
   const { isAuthenticated, loading } = usePlatformAuth();
@@ -66,6 +67,7 @@ export default function PlatformConsoleApp() {
                 <Route path="pricing-coupons" element={<PricingCouponsPage />} />
                 <Route path="payments-invoices" element={<PaymentsInvoicesPage />} />
                 <Route path="feature-trials" element={<FeatureTrialsPage />} />
+                <Route path="staff-identity" element={<StaffIdentityPage />} />
                 <Route path="ledger" element={<LedgerPage />} />
                 <Route path="usage" element={<UsagePage />} />
                 <Route path="at-risk" element={<AtRiskPage />} />

@@ -198,6 +198,8 @@ function createSessionManager(deps = {}) {
             browser: baileys.Browsers.macOS("Chrome"),
             markOnlineOnConnect: false,
             syncFullHistory: false,
+            // GHSA-qvv5-jq5g-4cgg: do not auto-apply history sync payloads.
+            shouldSyncHistoryMessage: () => false,
         });
         if (entry.generation !== generation || entry.userStopped) {
             try { sock.ev?.removeAllListeners?.(); } catch { /* superseded */ }
@@ -533,7 +535,7 @@ function createSessionManager(deps = {}) {
         }, replyGapMs);
     }
 
-    async function sendImage({ tenantId, userId, phone, image, caption }) {
+    async function sendImage({ tenantId, userId, phone, image, caption, mimetype }) {
         const entry = await ensureConnected({ tenantId, userId });
         return enqueueSend(entry, async () => {
             const jid = await resolveRecipient(entry, phone);
@@ -542,6 +544,7 @@ function createSessionManager(deps = {}) {
                 const result = await Promise.race([
                     entry.sock.sendMessage(jid, {
                         image,
+                        ...(mimetype ? { mimetype } : {}),
                         ...(caption ? { caption } : {}),
                     }),
                     new Promise((_, reject) => {

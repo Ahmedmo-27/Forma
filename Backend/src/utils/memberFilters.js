@@ -79,42 +79,50 @@ function lastSubPath(field) {
 }
 
 /**
- * Match package / start / end against the LAST subscription only.
- * Dotted paths like subscriptions.endDate match ANY array element, so
- * combining package + dates (or Type on the client) dropped or mis-matched
- * people whose older rows happened to satisfy part of the filter.
+ * Match package / start / end / activity on the SAME subscription element.
+ *
+ * Separate dotted paths (subscriptions.package + subscriptions.endDate) match
+ * ANY array elements independently — false positives across renewals.
+ * Last-element-only $expr false-negatives concurrent activity packages
+ * (gym + crossfit) when the matching row is not the final array entry.
+ * $elemMatch keeps AND semantics on one row and still finds that row anywhere
+ * in the array.
  */
-function pushLastSubscriptionConstraints(filter, { packageId, startDateRange, endDateRange } = {}) {
-    const exprs = [];
+function pushSubscriptionConstraints(filter, {
+    packageId,
+    startDateRange,
+    endDateRange,
+    activityType,
+} = {}) {
+    const elem = {};
 
     if (packageId) {
-        exprs.push({
-            $eq: [
-                { $toString: { $ifNull: [lastSubPath("package"), ""] } },
-                String(packageId),
-            ],
-        });
+        elem.package = packageId;
+    }
+    if (startDateRange) {
+        elem.startDate = { ...startDateRange };
+    }
+    if (endDateRange) {
+        elem.endDate = { ...endDateRange };
+    }
+    if (activityType) {
+        // Backend defaults missing snapshot activityType to "gym".
+        if (activityType === "gym") {
+            elem.$or = [
+                { "packageSnapshot.activityType": "gym" },
+                { "packageSnapshot.activityType": { $exists: false } },
+                { packageSnapshot: null },
+                { packageSnapshot: { $exists: false } },
+            ];
+        } else {
+            elem["packageSnapshot.activityType"] = activityType;
+        }
     }
 
-    if (startDateRange?.$gte) {
-        exprs.push({ $gte: [lastSubPath("startDate"), startDateRange.$gte] });
-    }
-    if (startDateRange?.$lte) {
-        exprs.push({ $lte: [lastSubPath("startDate"), startDateRange.$lte] });
-    }
-    if (endDateRange?.$gte) {
-        exprs.push({ $gte: [lastSubPath("endDate"), endDateRange.$gte] });
-    }
-    if (endDateRange?.$lte) {
-        exprs.push({ $lte: [lastSubPath("endDate"), endDateRange.$lte] });
-    }
-
-    if (!exprs.length) return;
+    if (!Object.keys(elem).length) return;
 
     pushAnd(filter, { "subscriptions.0": { $exists: true } });
-    pushAnd(filter, {
-        $expr: exprs.length === 1 ? exprs[0] : { $and: exprs },
-    });
+    pushAnd(filter, { subscriptions: { $elemMatch: elem } });
 }
 
 function buildMemberListFilter({
@@ -133,6 +141,7 @@ function buildMemberListFilter({
     gender,
     transferType,
     source,
+    activityType,
     locationId,
     locationFilter,
 }) {
@@ -151,7 +160,7 @@ function buildMemberListFilter({
 
     if (status === "blocked") {
         filter.isBlocked = true;
-    } else if (status && status !== "all") {
+    } else if (status && status !== "all" && status !== "All") {
         filter.status = status;
         filter.isBlocked = { $ne: true };
     }
@@ -210,17 +219,24 @@ function buildMemberListFilter({
         } else if (normalizedDateField === "startDate") {
             startDateRange = periodRange;
         } else {
-            // default / endDate — last subscription end date
+            // default / endDate — any subscription ending in range (same row as package/type)
             endDateRange = periodRange;
         }
     }
 
-    if (hasPackage || startDateRange || endDateRange) {
+    const normalizedActivityType = activityType
+        && activityType !== "all"
+        && activityType !== "All"
+        ? String(activityType).toLowerCase()
+        : null;
+
+    if (hasPackage || startDateRange || endDateRange || normalizedActivityType) {
         stashSubscriptionPeriodKeys(filter);
-        pushLastSubscriptionConstraints(filter, {
+        pushSubscriptionConstraints(filter, {
             packageId: hasPackage ? packageId : null,
             startDateRange,
             endDateRange,
+            activityType: normalizedActivityType,
         });
     }
 

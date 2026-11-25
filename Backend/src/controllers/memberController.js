@@ -336,7 +336,10 @@ const createMember = async (req, res) => {
             return res.status(loc.status || 400).json({ message: loc.error });
         }
 
-        const conflict = await findPhoneConflict(phones);
+        const conflict = await findPhoneConflict(phones, {
+            for: "member",
+            tenantId: req.user.tenantId,
+        });
         if (conflict.kind === "user") {
             return res.status(409).json({
                 code: "CONFLICT_DUPLICATE",
@@ -345,14 +348,7 @@ const createMember = async (req, res) => {
             });
         }
         if (conflict.kind === "member") {
-            const sameTenant = String(conflict.tenantId || "") === String(req.user.tenantId || "");
-            if (!sameTenant) {
-                return res.status(409).json({
-                    code: "CONFLICT_DUPLICATE",
-                    message: "This phone number is already in use.",
-                    field: "phone",
-                });
-            }
+            // Same-tenant only — cross-tenant member phones are allowed as independent records.
             const existing = await existingMemberConflictPayload(conflict.doc);
             if (memberHasLocation(conflict.doc, loc.locationId)) {
                 return res.status(409).json({
@@ -497,7 +493,9 @@ async function createMemberRecord(personData, maxAttempts = 5) {
 }
 
 // ─── 2. Get All Members ───────────────────────────────────────────────────────
-const MEMBER_LIST_SELECT = "systemId memberId barcode name phones photo status isMember gender source assignedSales createdBy current_couch couch_subscription_status subscriptions freezeDaysUsed invitationsUsed isBlocked createdAt userlog";
+// PT_sessions must be on the normal list select — Members report Categories=PT
+// filters client-side and previously saw every row as 0 when the field was omitted.
+const MEMBER_LIST_SELECT = "systemId memberId barcode name phones photo status isMember gender source assignedSales createdBy current_couch couch_subscription_status subscriptions freezeDaysUsed invitationsUsed isBlocked createdAt userlog PT_sessions";
 // Large list / report fetches (limit >= 1000) use this lean select. Include
 // coach + report filter fields so Guest/Members reports can show trainers.
 const MEMBER_SEARCH_SELECT = "systemId memberId name phones photo status gender source PT_sessions subscriptions assignedSales current_couch createdAt";
@@ -549,6 +547,7 @@ const getAllMembers = async (req, res) => {
             gender:          req.query.gender,
             transferType:    req.query.transferType,
             source:          req.query.source,
+            activityType:    req.query.activityType || req.query.type,
             locationFilter:  req.locationFilter,
         });
 
@@ -1382,6 +1381,7 @@ const getMembers = async (req, res) => {
             gender: req.query.gender,
             transferType: req.query.transferType,
             source: req.query.source,
+            activityType: req.query.activityType || req.query.type,
             locationFilter: req.locationFilter,
         });
 
@@ -3564,7 +3564,10 @@ const transferPackage = async (req, res) => {
                     requestId: req.requestId,
                 }));
             }
-            const phoneKey = await assertPhoneAvailable(newPhones);
+            const phoneKey = await assertPhoneAvailable(newPhones, {
+                for: "member",
+                tenantId: req.user.tenantId,
+            });
             const salesAssignee = await resolveSalesAssignee(null);
             const personData = {
                 systemId: await generateSystemId(),
@@ -3889,7 +3892,11 @@ const updateMember = async (req, res) => {
 
         member.name = name;
         if (canEditPhone && phones !== undefined) {
-            const phoneKey = await assertPhoneAvailable(phones, { excludeMemberId: member._id });
+            const phoneKey = await assertPhoneAvailable(phones, {
+                excludeMemberId: member._id,
+                for: "member",
+                tenantId: req.user.tenantId,
+            });
             member.phones = String(phones).trim();
             member.phoneKey = phoneKey;
         }

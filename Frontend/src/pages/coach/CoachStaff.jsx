@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Input, Btn, Spinner } from '../../components/ui';
+import { PageHeader, Card, Input, Btn, Spinner, ConfirmDialog } from '../../components/ui';
 import LocationAccessEditor from '../../components/LocationAccessEditor';
-import { createStaffUser, listLocations } from '../../api/endpoints';
+import { createStaffUser, createStaffIdentityRequest, listLocations } from '../../api/endpoints';
 import { isValidEmail, isValidPhone, getPasswordStrengthError } from '../../lib/validation';
 import { useAuth } from '../../context/AuthContext';
 import { useTenant } from '../../context/TenantContext';
@@ -44,6 +44,8 @@ export default function CoachStaff() {
   const [loading, setLoading] = useState(false);
   const [locations, setLocations] = useState([]);
   const [usernameStatus, setUsernameStatus] = useState('idle');
+  const [crossTenant, setCrossTenant] = useState(null);
+  const [requesting, setRequesting] = useState(false);
 
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
 
@@ -125,21 +127,21 @@ export default function CoachStaff() {
     e.preventDefault();
     if (!validate()) return;
     setLoading(true);
+    const payload = {
+      name: form.name.trim(),
+      email: form.email.trim(),
+      mobile_number: form.mobile_number.trim(),
+      password: form.password,
+      role: 'Coach',
+    };
+    if (form.username.trim()) payload.username = form.username.trim().toLowerCase();
+    if (canSetLocations) {
+      payload.canAccessAllLocations = Boolean(form.canAccessAllLocations);
+      payload.allowedLocationIds = form.canAccessAllLocations
+        ? []
+        : (form.allowedLocationIds || []);
+    }
     try {
-      const payload = {
-        name: form.name.trim(),
-        email: form.email.trim(),
-        mobile_number: form.mobile_number.trim(),
-        password: form.password,
-        role: 'Coach',
-      };
-      if (form.username.trim()) payload.username = form.username.trim().toLowerCase();
-      if (canSetLocations) {
-        payload.canAccessAllLocations = Boolean(form.canAccessAllLocations);
-        payload.allowedLocationIds = form.canAccessAllLocations
-          ? []
-          : (form.allowedLocationIds || []);
-      }
       const res = await createStaffUser(payload);
       const username = res?.data?.user?.username;
       toast.success(
@@ -151,15 +153,69 @@ export default function CoachStaff() {
       });
       setErrors({});
     } catch (err) {
+      const code = err.response?.data?.code || err.normalized?.code;
+      if (code === 'STAFF_EXISTS_OTHER_TENANT' && err.response?.data?.existing?.userId) {
+        setCrossTenant({
+          existing: err.response.data.existing,
+          payload,
+        });
+        return;
+      }
       toast.error(err.response?.data?.message || t('Failed to create account.'));
     } finally {
       setLoading(false);
     }
   };
 
+  const handleRequestAccess = async () => {
+    if (!crossTenant?.existing?.userId) return;
+    setRequesting(true);
+    try {
+      await createStaffIdentityRequest({
+        sourceUserId: crossTenant.existing.userId,
+        name: crossTenant.payload.name,
+        email: crossTenant.payload.email,
+        mobile_number: crossTenant.payload.mobile_number,
+        role: crossTenant.payload.role || 'Coach',
+        canAccessAllLocations: crossTenant.payload.canAccessAllLocations,
+        allowedLocationIds: crossTenant.payload.allowedLocationIds,
+      });
+      toast.success(t('Request sent to Super Admin'));
+      setCrossTenant(null);
+      setForm({
+        ...INIT,
+        allowedLocationIds: deskBranch ? [deskBranch] : [],
+      });
+    } catch (err) {
+      toast.error(err.response?.data?.message || t('Failed to send request.'));
+    } finally {
+      setRequesting(false);
+    }
+  };
+
   return (
     <Layout>
       <PageHeader walkthrough="coach-staff-header" title={t('Create Coach Account')} />
+
+      <ConfirmDialog
+        open={Boolean(crossTenant)}
+        onClose={() => !requesting && setCrossTenant(null)}
+        onConfirm={handleRequestAccess}
+        loading={requesting}
+        title={t('Staff already exists at another gym')}
+        message={
+          crossTenant
+            ? t(
+              '{name} already works at {gym}. Request Super Admin to allow them here (keep both gyms, transfer, or reject).',
+              {
+                name: crossTenant.existing.name || t('This person'),
+                gym: crossTenant.existing.tenantName || t('another gym'),
+              }
+            )
+            : ''
+        }
+        confirmLabel={t('Request Super Admin')}
+      />
 
       <div className="page-wrap" data-walkthrough="coach-staff-board" style={{ paddingTop: 20, paddingBottom: 32, maxWidth: 480 }}>
         <Card>

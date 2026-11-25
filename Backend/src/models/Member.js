@@ -468,7 +468,7 @@ memberSchema.index({ tenantId: 1, isBlocked: 1 });
 memberSchema.index({ tenantId: 1, name: 1 });
 memberSchema.index({ tenantId: 1, phones: 1 });
 memberSchema.index(
-    { phoneKey: 1 },
+    { tenantId: 1, phoneKey: 1 },
     { unique: true, partialFilterExpression: { phoneKey: { $gt: "" } } }
 );
 memberSchema.index({ tenantId: 1, locationId: 1 });

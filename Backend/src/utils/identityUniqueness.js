@@ -66,6 +66,11 @@ function models() {
     };
 }
 
+function sameTenantId(a, b) {
+    if (a == null || b == null) return false;
+    return String(a) === String(b);
+}
+
 async function assertUsernameAvailable(username, { excludeUserId } = {}) {
     const { normalizeUsername, validateUsernameFormat } = require("./username");
     const parsed = validateUsernameFormat(username);
@@ -110,10 +115,17 @@ async function assertEmailAvailable(email, { excludeUserId, excludePlatformUserI
 }
 
 /**
- * Look up who holds a phone globally (staff user or member).
+ * Look up who holds a phone.
+ * Staff (User) phones are always checked globally.
+ * Member phones: when `for: "member"` and `tenantId` are set, only that tenant's members count.
  * Returns { kind: null| "user"|"member", phoneKey, doc?, tenantId? }.
  */
-async function findPhoneConflict(phone, { excludeUserId, excludeMemberId } = {}) {
+async function findPhoneConflict(phone, {
+    excludeUserId,
+    excludeMemberId,
+    tenantId = null,
+    for: purpose = "user",
+} = {}) {
     const phoneKey = normalizePhone(phone);
     if (!phoneKey) {
         const error = new Error("A valid phone number is required");
@@ -133,7 +145,7 @@ async function findPhoneConflict(phone, { excludeUserId, excludeMemberId } = {})
         };
         if (excludeUserId) userQuery._id = { $ne: excludeUserId };
         const user = await User.findOne(userQuery)
-            .select("_id tenantId phoneKey mobile_number name");
+            .select("_id tenantId phoneKey mobile_number name email memberships");
         if (user) {
             return { kind: "user", phoneKey, doc: user, tenantId: user.tenantId || null };
         }
@@ -145,6 +157,10 @@ async function findPhoneConflict(phone, { excludeUserId, excludeMemberId } = {})
             ],
         };
         if (excludeMemberId) memberQuery._id = { $ne: excludeMemberId };
+        // Member phones are unique per gym; cross-tenant member dupes are allowed.
+        if (purpose === "member" && tenantId) {
+            memberQuery.tenantId = tenantId;
+        }
         const member = await Member.findOne(memberQuery)
             .select("_id tenantId systemId name locationId locationIds phones phoneKey");
         if (member) {
@@ -155,25 +171,57 @@ async function findPhoneConflict(phone, { excludeUserId, excludeMemberId } = {})
     });
 }
 
-async function assertPhoneAvailable(phone, { excludeUserId, excludeMemberId } = {}) {
-    const conflict = await findPhoneConflict(phone, { excludeUserId, excludeMemberId });
+/**
+ * @param {string} phone
+ * @param {{ excludeUserId?, excludeMemberId?, tenantId?, for?: "user"|"member" }} [options]
+ *   - for: "user" (default) — any User or Member anywhere conflicts (staff identity)
+ *   - for: "member" — User anywhere conflicts; Member only conflicts in the same tenantId
+ */
+async function assertPhoneAvailable(phone, {
+    excludeUserId,
+    excludeMemberId,
+    tenantId = null,
+    for: purpose = "user",
+} = {}) {
+    const conflict = await findPhoneConflict(phone, {
+        excludeUserId,
+        excludeMemberId,
+        tenantId,
+        for: purpose,
+    });
+
+    if (purpose === "member") {
+        if (conflict.kind === "user") throw duplicateError("phone");
+        if (conflict.kind === "member" && sameTenantId(conflict.tenantId, tenantId)) {
+            throw duplicateError("phone");
+        }
+        return conflict.phoneKey;
+    }
+
     if (conflict.kind) throw duplicateError("phone");
     return conflict.phoneKey;
 }
 
-async function takenPhoneSet(phones) {
+/**
+ * Build a set of phone candidate strings already taken.
+ * When tenantId is set, only that tenant's members are included (plus all staff phones).
+ */
+async function takenPhoneSet(phones, { tenantId = null } = {}) {
     const candidates = [...new Set(phones.flatMap((phone) => phoneCandidates(phone)))];
     if (!candidates.length) return new Set();
 
     const { User, Member } = models();
     return unscoped(async () => {
+        const memberFilter = {
+            $or: [
+                { phoneKey: { $in: candidates } },
+                { phones: { $in: candidates } },
+            ],
+        };
+        if (tenantId) memberFilter.tenantId = tenantId;
+
         const [members, users] = await Promise.all([
-            Member.find({
-                $or: [
-                    { phoneKey: { $in: candidates } },
-                    { phones: { $in: candidates } },
-                ],
-            }).select("phones phoneKey").lean(),
+            Member.find(memberFilter).select("phones phoneKey").lean(),
             User.find({
                 $or: [
                     { phoneKey: { $in: candidates } },
@@ -237,4 +285,5 @@ module.exports = {
     takenPhoneSet,
     phoneAlreadyUsed,
     replyIfConflict,
+    sameTenantId,
 };

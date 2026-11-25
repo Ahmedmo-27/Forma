@@ -352,7 +352,7 @@ const ACCESS_CATALOG = [
         icon: "ScrollText",
         group: "Accountant",
         domain: "accounting",
-        defaultRoles: ["Accountant", "Owner", "Sales Manager"],
+        defaultRoles: ["Accountant", "Owner", "Sales Manager", "Sales"],
         planFeature: "accounting",
         path: "/accounting/contract-history",
         nav: { to: "/accounting/contract-history", label: "Contracts" },

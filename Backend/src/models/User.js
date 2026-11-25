@@ -1,6 +1,51 @@
 const mongoose = require("mongoose");
 const tenantPlugin = require("../plugins/tenantPlugin");
 
+const STAFF_ROLE_ENUM = [
+    "Owner",
+    "General Manager",
+    "Receptionist",
+    "Coach",
+    "Head Coach",
+    "Accountant",
+    "Sales",
+    "Sales Manager",
+    "Retail",
+];
+
+const staffMembershipSchema = new mongoose.Schema(
+    {
+        tenantId: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Tenant",
+            required: true,
+        },
+        role: {
+            type: String,
+            enum: STAFF_ROLE_ENUM,
+            required: true,
+        },
+        allowedLocationIds: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Location",
+        }],
+        canAccessAllLocations: {
+            type: Boolean,
+            default: false,
+        },
+        status: {
+            type: String,
+            enum: ["active", "disabled"],
+            default: "active",
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now,
+        },
+    },
+    { _id: false }
+);
+
 const userSchema = new mongoose.Schema({
     name: String,
 
@@ -36,7 +81,7 @@ const userSchema = new mongoose.Schema({
 
     role: {
         type: String,
-        enum: ["Owner", "General Manager", "Receptionist", "Coach", "Head Coach", "Accountant", "Sales", "Sales Manager", "Retail"],
+        enum: STAFF_ROLE_ENUM,
         default: "Receptionist"
     },
 
@@ -73,6 +118,13 @@ const userSchema = new mongoose.Schema({
     canAccessAllLocations: {
         type: Boolean,
         default: false,
+    },
+
+    // Per-gym roles for staff who work at more than one tenant (shared login).
+    // Empty means legacy single-tenant: use top-level tenantId + role.
+    memberships: {
+        type: [staffMembershipSchema],
+        default: [],
     },
 
     // Platform announcements the user has dismissed ("Got it" / mark read).
@@ -121,5 +173,6 @@ userSchema.index(
     { phoneKey: 1 },
     { unique: true, partialFilterExpression: { phoneKey: { $gt: "" } } }
 );
+userSchema.index({ "memberships.tenantId": 1, "memberships.status": 1 });
 
 module.exports = mongoose.models.User || mongoose.model("User", userSchema);

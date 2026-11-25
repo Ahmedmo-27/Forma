@@ -217,6 +217,12 @@ export const ERROR_CODES = {
     category: "data",
     retryable: true,
   },
+  STAFF_EXISTS_OTHER_TENANT: {
+    code: "STAFF_EXISTS_OTHER_TENANT",
+    status: 409,
+    category: "data",
+    retryable: true,
+  },
   WHATSAPP_NOT_CONNECTED: {
     code: "WHATSAPP_NOT_CONNECTED",
     status: 409,

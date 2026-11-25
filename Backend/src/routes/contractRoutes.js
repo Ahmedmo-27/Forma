@@ -14,6 +14,6 @@ router.use(requireFeature("accounting"));
 router.use(requireAccess("accounting"));
 router.use(locationScopeOptional);
 
-router.get("/contracts", allowRoles("contracts", "Accountant", "Owner", "Sales Manager"), cacheResponse({ ttlSeconds: 120, tags: ["contracts"] }), getContracts);
+router.get("/contracts", allowRoles("contracts", "Accountant", "Owner", "Sales Manager", "Sales"), cacheResponse({ ttlSeconds: 120, tags: ["contracts"] }), getContracts);
 
 module.exports = router;

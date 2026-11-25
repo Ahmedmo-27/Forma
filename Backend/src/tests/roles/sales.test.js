@@ -28,8 +28,9 @@ describe("Sales", () => {
             "inbox_reply",
             "view_phones",
             "reports",
+            "contracts",
         ]);
-        expectAreas("Sales", ["checkin", "members", "sales", "whatsapp", "reports"]);
+        expectAreas("Sales", ["checkin", "members", "sales", "whatsapp", "accounting", "reports"]);
         expectList("Sales", "scoped");
     });
 
@@ -40,6 +41,7 @@ describe("Sales", () => {
         expectAllowed("comments", ["Owner", "Sales", "Sales Manager", "Coach", "Head Coach"], user);
         expectAllowed("check_in", ["Receptionist", "Owner", "Sales Manager", "Sales"], user);
         expectAllowed("sales_members", ["Sales", "Sales Manager", "Owner"], user);
+        expectAllowed("contracts", ["Accountant", "Owner", "Sales Manager", "Sales"], user);
         expectAllowed(
             "member_profile",
             ["Receptionist", "Owner", "Sales", "Sales Manager", "Coach", "Head Coach", "Accountant", "General Manager"],

@@ -42,18 +42,22 @@ function platformActor(req) {
     return { role: "Owner", id: `platform:${req.platformUser.id}` };
 }
 
-function serializeStaff(user, ownerId) {
-    const canAccessAll = userHasAllLocations(user);
+function serializeStaff(user, ownerId, tenantId = null) {
+    const { withMembershipContext } = require("../utils/staffMembership");
+    const view = tenantId
+        ? (withMembershipContext(user, tenantId) || user)
+        : user;
+    const canAccessAll = userHasAllLocations(view);
     return {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        username: user.username || "",
-        mobile_number: user.mobile_number || "",
-        role: user.role,
-        isPrimaryOwner: ownerId ? String(user._id) === String(ownerId) : false,
+        _id: view._id,
+        name: view.name,
+        email: view.email,
+        username: view.username || "",
+        mobile_number: view.mobile_number || "",
+        role: view.role,
+        isPrimaryOwner: ownerId ? String(view._id) === String(ownerId) : false,
         canAccessAllLocations: canAccessAll,
-        allowedLocationIds: canAccessAll ? [] : toIdStrings(user.allowedLocationIds),
+        allowedLocationIds: canAccessAll ? [] : toIdStrings(view.allowedLocationIds),
     };
 }
 
@@ -78,8 +82,13 @@ function accessContextFor(tenant) {
 
 async function findStaff(tenantId, userId) {
     if (!isObjectId(userId)) return null;
-    return User.findOne({ _id: userId, tenantId }).select(
-        "name email username mobile_number role abilities canViewPhones featureAccess accessOverrides password tokenVersion allowedLocationIds canAccessAllLocations phoneKey"
+    const { staffScopeFilter } = require("../utils/staffMembership");
+    const { runAsPlatform } = require("../context/tenantContext");
+    return runAsPlatform(
+        () => User.findOne(staffScopeFilter(tenantId, { _id: userId })).select(
+            "name email username mobile_number role abilities canViewPhones featureAccess accessOverrides password tokenVersion allowedLocationIds canAccessAllLocations phoneKey tenantId memberships"
+        ),
+        { reason: "platform find dual-aware staff" }
     );
 }
 
@@ -108,13 +117,22 @@ const listTenantStaff = async (req, res) => {
         if (!tenant) return res.status(404).json({ message: "Tenant not found" });
 
         const ownerId = tenant.ownerUserId ? String(tenant.ownerUserId) : "";
-        const users = await User.find({ tenantId: tenant._id })
-            .select("name email username mobile_number role allowedLocationIds canAccessAllLocations")
-            .sort({ name: 1 });
+        const {
+            findStaffInTenant,
+            withMembershipContext,
+        } = require("../utils/staffMembership");
+        const usersRaw = await findStaffInTenant(tenant._id, {}, {
+            select: "name email username mobile_number role allowedLocationIds canAccessAllLocations tenantId memberships",
+            sort: { name: 1 },
+            lean: true,
+        });
+        const users = usersRaw
+            .map((u) => withMembershipContext(u, tenant._id))
+            .filter(Boolean);
 
         const quota = staffQuotaSnapshot(tenant, users.length);
         res.json({
-            users: users.map((user) => serializeStaff(user, ownerId)),
+            users: users.map((user) => serializeStaff(user, ownerId, tenant._id)),
             overStaffQuota: quota.overStaffQuota,
             staffQuotaWarning: quota.staffQuotaWarning,
             staffQuota: { current: quota.current, max: quota.max },
@@ -246,6 +264,10 @@ const createTenantStaff = async (req, res) => {
                     username: rawUsername,
                 });
 
+                const { membershipShape } = require("../utils/staffMembership");
+                const locationIds = locationPayload.canAccessAllLocations
+                    ? []
+                    : (locationPayload.allowedLocationIds || []);
                 return User.create({
                     tenantId: tenant._id,
                     name: nextName,
@@ -256,9 +278,15 @@ const createTenantStaff = async (req, res) => {
                     mobile_number: nextMobile,
                     phoneKey,
                     canAccessAllLocations: Boolean(locationPayload.canAccessAllLocations),
-                    allowedLocationIds: locationPayload.canAccessAllLocations
-                        ? []
-                        : (locationPayload.allowedLocationIds || []),
+                    allowedLocationIds: locationIds,
+                    memberships: [
+                        membershipShape({
+                            tenantId: tenant._id,
+                            role,
+                            canAccessAllLocations: Boolean(locationPayload.canAccessAllLocations),
+                            allowedLocationIds: locationIds,
+                        }),
+                    ],
                 });
             }
         );

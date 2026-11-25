@@ -52,6 +52,11 @@ const loginSchema = z.object({
     message: "Username and password are required",
 });
 
+const selectTenantSchema = z.object({
+    selectionToken: z.string().trim().min(20).max(2000),
+    tenantId: z.string().trim().min(1).max(64),
+});
+
 const setupPasswordSchema = z.object({
     token: z.string().trim().min(20).max(200),
     password: strongPassword,
@@ -705,6 +710,7 @@ module.exports = {
     inboxReplySchema,
     inboxConversationPatchSchema,
     loginSchema,
+    selectTenantSchema,
     setupPasswordSchema,
     forgotPasswordSchema,
     createMemberSchema,

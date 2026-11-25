@@ -206,6 +206,7 @@ export const EXPECTED_KEYS = {
         "inbox_reply",
         "view_phones",
         "reports",
+        "contracts",
     ],
     "Head Coach": [
         "members",

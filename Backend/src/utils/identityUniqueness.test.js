@@ -47,7 +47,7 @@ describe("global identity uniqueness", () => {
         });
     }
 
-    it("rejects a phone already used by a member in any gym", async () => {
+    it("rejects a phone already used by a member when checking staff identity", async () => {
         mockFindOne(User, null);
         mockFindOne(Member, { _id: new mongoose.Types.ObjectId() });
         await expect(assertPhoneAvailable("01012345678")).rejects.toMatchObject({
@@ -57,6 +57,44 @@ describe("global identity uniqueness", () => {
         expect(Member.findOne).toHaveBeenCalledWith(expect.objectContaining({
             $or: expect.any(Array),
         }));
+    });
+
+    it("allows the same member phone in another tenant", async () => {
+        const tenantId = new mongoose.Types.ObjectId();
+        mockFindOne(User, null);
+        mockFindOne(Member, null);
+        await expect(assertPhoneAvailable("01012345678", {
+            for: "member",
+            tenantId,
+        })).resolves.toBe("201012345678");
+        expect(Member.findOne).toHaveBeenCalledWith(expect.objectContaining({
+            tenantId,
+        }));
+    });
+
+    it("rejects a member phone already used in the same tenant", async () => {
+        const tenantId = new mongoose.Types.ObjectId();
+        mockFindOne(User, null);
+        mockFindOne(Member, { _id: new mongoose.Types.ObjectId(), tenantId });
+        await expect(assertPhoneAvailable("01012345678", {
+            for: "member",
+            tenantId,
+        })).rejects.toMatchObject({
+            statusCode: 409,
+            field: "phone",
+        });
+    });
+
+    it("rejects a member phone that belongs to staff anywhere", async () => {
+        const tenantId = new mongoose.Types.ObjectId();
+        mockFindOne(User, { _id: new mongoose.Types.ObjectId(), tenantId });
+        await expect(assertPhoneAvailable("01012345678", {
+            for: "member",
+            tenantId,
+        })).rejects.toMatchObject({
+            statusCode: 409,
+            field: "phone",
+        });
     });
 
     it("accepts a phone that belongs to the user being edited", async () => {

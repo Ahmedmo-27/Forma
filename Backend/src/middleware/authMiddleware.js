@@ -145,20 +145,14 @@ const protect = async (req, res, next) => {
             }
         }
 
+        // Always load via platform so dual-membership staff (home tenant ≠ JWT tenant) resolve.
         let user = null;
-        if (tenantId) {
-            await runWithTenant({ tenantId, tenantSlug }, async () => {
-                user = await User.findById(decoded.id).select("-password");
-            });
-        } else {
-            // Legacy / migration fallback: look up user across platform
-            await runAsPlatform(async () => {
-                user = await User.findById(decoded.id).select("-password");
-                if (user?.tenantId) {
-                    tenantId = user.tenantId.toString();
-                }
-            }, { reason: "auth_token_legacy_tenant_lookup" });
-        }
+        await runAsPlatform(async () => {
+            user = await User.findById(decoded.id).select("-password");
+            if (user && !tenantId && user.tenantId) {
+                tenantId = user.tenantId.toString();
+            }
+        }, { reason: "auth_token_user_lookup" });
 
         if (!user) {
             logger.auth("warn", "Auth middleware: user not found for token", {
@@ -171,6 +165,24 @@ const protect = async (req, res, next) => {
         if (sessionIsStale(decoded, user.tokenVersion)) {
             return res.status(401).json({ message: "Session revoked. Please sign in again." });
         }
+
+        const {
+            hasActiveMembership,
+            withMembershipContext,
+        } = require("../utils/staffMembership");
+
+        if (tenantId && !hasActiveMembership(user, tenantId)) {
+            logger.auth("warn", "Auth middleware: no membership for JWT tenant", {
+                path: req.originalUrl,
+                userId: decoded.id,
+                tenantId,
+            });
+            return res.status(401).json({ message: "Not authorized for this gym" });
+        }
+
+        const contextualUser = tenantId
+            ? (withMembershipContext(user, tenantId) || user)
+            : user;
 
         await maybeClearExpiredSuspension(user);
         if (rejectIfStaffRestricted(res, user)) return;
@@ -202,24 +214,24 @@ const protect = async (req, res, next) => {
         }
 
         const authUser = {
-            id: user._id.toString(),
-            role: user.role,
-            name: user.name,
-            email: user.email,
-            canViewPhones: user.canViewPhones,
-            abilities: user.abilities || {},
+            id: contextualUser._id.toString(),
+            role: contextualUser.role,
+            name: contextualUser.name,
+            email: contextualUser.email,
+            canViewPhones: contextualUser.canViewPhones,
+            abilities: contextualUser.abilities || {},
             featureAccess: {
-                grants: user.featureAccess?.grants || [],
-                revokes: user.featureAccess?.revokes || [],
+                grants: contextualUser.featureAccess?.grants || [],
+                revokes: contextualUser.featureAccess?.revokes || [],
             },
             accessOverrides: {
-                add: user.accessOverrides?.add || [],
-                remove: user.accessOverrides?.remove || [],
+                add: contextualUser.accessOverrides?.add || [],
+                remove: contextualUser.accessOverrides?.remove || [],
             },
             tokenVersion: Number(user.tokenVersion) || 0,
-            canAccessAllLocations: user.canAccessAllLocations === true,
-            allowedLocationIds: Array.isArray(user.allowedLocationIds)
-                ? user.allowedLocationIds.map((id) => String(id?._id || id)).filter(Boolean)
+            canAccessAllLocations: contextualUser.canAccessAllLocations === true,
+            allowedLocationIds: Array.isArray(contextualUser.allowedLocationIds)
+                ? contextualUser.allowedLocationIds.map((id) => String(id?._id || id)).filter(Boolean)
                 : [],
             ...staffRestrictionSnapshot(user),
         };

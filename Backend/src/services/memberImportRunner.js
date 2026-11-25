@@ -74,7 +74,9 @@ async function importChunk(slice, { userId, salesAssignee, coachAssignee, seenPh
 
     if (!candidates.length) return outcome;
 
-    const taken = await takenPhoneSet(candidates.map((row) => row.phoneKey));
+    const taken = await takenPhoneSet(candidates.map((row) => row.phoneKey), {
+        tenantId: getTenantId(),
+    });
     const fresh = [];
     for (const row of candidates) {
         if (phoneAlreadyUsed(taken, row.phoneKey)) {

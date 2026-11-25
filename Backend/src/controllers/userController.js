@@ -27,6 +27,7 @@ const {
     assertEmailAvailable,
     assertUsernameAvailable,
     assertPhoneAvailable,
+    findPhoneConflict,
     replyIfConflict,
 } = require("../utils/identityUniqueness");
 const { runWithTenant, runAsPlatform } = require("../context/tenantContext");
@@ -320,29 +321,6 @@ const loginUser = async (req, res) => {
             });
         }
 
-        const tenant = await runAsPlatform(async () => {
-            return await Tenant.findById(user.tenantId);
-        });
-
-        if (!tenant) {
-            logger.auth("warn", "Login rejected: tenant not found", {
-                requestId,
-                userId: user._id.toString(),
-                tenantId: user.tenantId.toString(),
-            });
-            return res.status(401).json({
-                code: "AUTH_NO_TENANT",
-                message: "This account's gym was not found.",
-            });
-        }
-
-        if (tenant.status === "suspended" || tenant.status === "cancelled") {
-            return res.status(403).json({
-                code: "TENANT_SUSPENDED",
-                message: "This gym's subscription is suspended or cancelled. Please contact your administrator.",
-            });
-        }
-
         await maybeClearExpiredSuspension(user);
         const staffDenied = loginDeniedPayload(user);
         if (staffDenied) {
@@ -358,57 +336,156 @@ const loginUser = async (req, res) => {
             });
         }
 
-        const effectiveTenantId = tenant._id.toString();
-        const effectiveTenantSlug = tenant.slug || null;
+        const {
+            loadLoginMemberships,
+            signSelectionToken,
+            buildLoginResponse,
+        } = require("../utils/loginSession");
 
-        const token = jwt.sign(
-            {
-                id: user.id,
-                role: user.role,
-                tenantId: effectiveTenantId,
-                tenantSlug: effectiveTenantSlug,
-                version: user.tokenVersion || 0,
-            },
-            process.env.JWT_SECRET,
-            { expiresIn: "8h" }
-        );
+        let memberships = await loadLoginMemberships(user);
+
+        // Optional gym hint collapses multi-membership to one when it matches.
+        if (gymHint && memberships.length > 1) {
+            const hinted = memberships.filter(
+                (m) => String(m.slug).toLowerCase() === String(gymHint).toLowerCase().trim()
+            );
+            if (hinted.length === 1) memberships = hinted;
+        }
+
+        if (!memberships.length) {
+            logger.auth("warn", "Login rejected: no active gym memberships", {
+                requestId,
+                userId: user._id.toString(),
+            });
+            return res.status(401).json({
+                code: "AUTH_NO_TENANT",
+                message: "This account is not associated with an active gym.",
+            });
+        }
+
+        if (memberships.length > 1) {
+            const selectionToken = signSelectionToken(user);
+            logger.auth("info", "Login requires gym selection", {
+                requestId,
+                userId: user._id.toString(),
+                membershipCount: memberships.length,
+            });
+            return res.json({
+                requiresTenantSelection: true,
+                selectionToken,
+                memberships,
+            });
+        }
+
+        const chosen = memberships[0];
+        const tenant = await runAsPlatform(() => Tenant.findById(chosen.tenantId));
+        if (!tenant) {
+            return res.status(401).json({
+                code: "AUTH_NO_TENANT",
+                message: "This account's gym was not found.",
+            });
+        }
 
         logger.auth("info", "Login success", {
             requestId,
             userId: user._id.toString(),
-            role: user.role,
-            tenantSlug: effectiveTenantSlug,
+            role: chosen.role,
+            tenantSlug: tenant.slug,
         });
 
-        const formattedUser = formatUserResponse(user, {
-            includeAccess: true,
-            accessContext: accessContextFor(tenant),
-        });
-        if (effectiveTenantSlug) {
-            formattedUser.tenantSlug = effectiveTenantSlug;
-        }
-        if (effectiveTenantId) {
-            formattedUser.tenantId = effectiveTenantId;
-        }
-
-        const { isCrossSiteAuthRequest } = require("../utils/crossSiteAuth");
-        const crossSite = isCrossSiteAuthRequest(req);
-        const { setTenantAuthCookie } = require("../utils/authCookies");
-        setTenantAuthCookie(res, token, { crossSite });
-
-        // Cross-site SPAs (Vercel preview + Safari) cannot rely on third-party
-        // cookies — include the JWT so the client can send Authorization: Bearer.
-        const body = {
-            message: "Login successful",
-            user: formattedUser,
-        };
-        if (crossSite) {
-            body.token = token;
-        }
-
-        res.json(body);
+        return res.json(buildLoginResponse(req, res, user, tenant));
     } catch (error) {
         logger.auth("error", "Login error", { requestId, error: error.message });
+        res.status(500).json({ message: "Server error", error: error.message });
+    }
+};
+
+const selectTenant = async (req, res) => {
+    const requestId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    try {
+        if (!process.env.JWT_SECRET) {
+            return res.status(500).json({ message: "Server misconfigured: JWT_SECRET is missing" });
+        }
+
+        const { selectionToken, tenantId } = req.body || {};
+        if (!selectionToken || !tenantId) {
+            return res.status(400).json({ message: "selectionToken and tenantId are required" });
+        }
+
+        const {
+            verifySelectionToken,
+            buildLoginResponse,
+            loadLoginMemberships,
+        } = require("../utils/loginSession");
+        const { hasActiveMembership } = require("../utils/staffMembership");
+
+        let decoded;
+        try {
+            decoded = verifySelectionToken(selectionToken);
+        } catch (error) {
+            return res.status(401).json({
+                code: "AUTH_SELECTION_EXPIRED",
+                message: "Gym selection expired. Please sign in again.",
+            });
+        }
+
+        const user = await runAsPlatform(() => User.findById(decoded.id));
+        if (!user) {
+            return res.status(401).json({ message: "Not authorized, user not found" });
+        }
+        if ((Number(user.tokenVersion) || 0) !== (Number(decoded.version) || 0)) {
+            return res.status(401).json({ message: "Session revoked. Please sign in again." });
+        }
+
+        await maybeClearExpiredSuspension(user);
+        const staffDenied = loginDeniedPayload(user);
+        if (staffDenied) {
+            return res.status(staffDenied.status).json({
+                code: staffDenied.code,
+                message: staffDenied.message,
+                details: staffDenied.details,
+            });
+        }
+
+        if (!hasActiveMembership(user, tenantId)) {
+            return res.status(403).json({
+                code: "AUTH_NO_MEMBERSHIP",
+                message: "You do not have access to that gym.",
+            });
+        }
+
+        const tenant = await runAsPlatform(() => Tenant.findById(tenantId));
+        if (!tenant) {
+            return res.status(401).json({
+                code: "AUTH_NO_TENANT",
+                message: "This account's gym was not found.",
+            });
+        }
+        if (tenant.status === "suspended" || tenant.status === "cancelled") {
+            return res.status(403).json({
+                code: "TENANT_SUSPENDED",
+                message: "This gym's subscription is suspended or cancelled. Please contact your administrator.",
+            });
+        }
+
+        // Confirm still listed (membership not disabled between steps)
+        const memberships = await loadLoginMemberships(user);
+        if (!memberships.some((m) => String(m.tenantId) === String(tenantId))) {
+            return res.status(403).json({
+                code: "AUTH_NO_MEMBERSHIP",
+                message: "You do not have access to that gym.",
+            });
+        }
+
+        logger.auth("info", "Login gym selected", {
+            requestId,
+            userId: user._id.toString(),
+            tenantSlug: tenant.slug,
+        });
+
+        return res.json(buildLoginResponse(req, res, user, tenant));
+    } catch (error) {
+        logger.auth("error", "Select tenant error", { requestId, error: error.message });
         res.status(500).json({ message: "Server error", error: error.message });
     }
 };
@@ -630,10 +707,18 @@ const getSalesReps = async (req, res) => {
 
 const getMyProfile = async (req, res) => {
     try {
-        const user = await User.findById(req.user.id);
+        const { withMembershipContext } = require("../utils/staffMembership");
+        const user = await runAsPlatform(
+            () => User.findById(req.user.id),
+            { reason: "getMyProfile dual-aware lookup" }
+        );
         if (!user) {
             return res.status(404).json({ message: "User not found" });
         }
+
+        const contextual = req.user?.tenantId
+            ? (withMembershipContext(user, req.user.tenantId) || user)
+            : user;
 
         let accessContext = null;
         if (req.user?.tenantId) {
@@ -645,7 +730,7 @@ const getMyProfile = async (req, res) => {
         const tenantForLoc = accessContext
             ? (req.tenant || null)
             : null;
-        const formatted = formatUserResponse(user, {
+        const formatted = formatUserResponse(contextual, {
             includeAccess: true,
             accessContext,
             tenant: tenantForLoc || req.tenant || null,
@@ -841,8 +926,76 @@ const createStaffUser = async (req, res) => {
         }
 
         const normalizedEmail = normalizeEmail(email);
+
+        // Cross-tenant staff conflicts → Super Admin request instead of a hard duplicate error.
+        const phoneConflict = await findPhoneConflict(mobile_number);
+        if (phoneConflict.kind === "user") {
+            const sameTenant = String(phoneConflict.tenantId || "") === String(req.user.tenantId || "");
+            if (!sameTenant) {
+                const sourceTenant = await runAsPlatform(
+                    () => Tenant.findById(phoneConflict.tenantId).select("name slug"),
+                    { reason: "staff create other-tenant phone conflict" }
+                );
+                return res.status(409).json({
+                    code: "STAFF_EXISTS_OTHER_TENANT",
+                    message: "This phone belongs to staff at another gym. You can request Super Admin to grant access.",
+                    field: "phone",
+                    existing: {
+                        userId: String(phoneConflict.doc._id),
+                        name: phoneConflict.doc.name || "",
+                        tenantId: phoneConflict.tenantId ? String(phoneConflict.tenantId) : null,
+                        tenantName: sourceTenant?.name || "",
+                        tenantSlug: sourceTenant?.slug || "",
+                    },
+                });
+            }
+            return res.status(409).json({
+                code: "CONFLICT_DUPLICATE",
+                message: "This phone number is already in use.",
+                field: "phone",
+            });
+        }
+        if (phoneConflict.kind === "member") {
+            return res.status(409).json({
+                code: "CONFLICT_DUPLICATE",
+                message: "This phone number is already in use.",
+                field: "phone",
+            });
+        }
+
+        const emailOwner = await runAsPlatform(
+            () => User.findOne({ email: normalizedEmail }).select("_id name tenantId"),
+            { reason: "staff create email conflict check" }
+        );
+        if (emailOwner) {
+            const sameTenant = String(emailOwner.tenantId || "") === String(req.user.tenantId || "");
+            if (!sameTenant) {
+                const sourceTenant = await runAsPlatform(
+                    () => Tenant.findById(emailOwner.tenantId).select("name slug"),
+                    { reason: "staff create other-tenant email conflict" }
+                );
+                return res.status(409).json({
+                    code: "STAFF_EXISTS_OTHER_TENANT",
+                    message: "This email belongs to staff at another gym. You can request Super Admin to grant access.",
+                    field: "email",
+                    existing: {
+                        userId: String(emailOwner._id),
+                        name: emailOwner.name || "",
+                        tenantId: emailOwner.tenantId ? String(emailOwner.tenantId) : null,
+                        tenantName: sourceTenant?.name || "",
+                        tenantSlug: sourceTenant?.slug || "",
+                    },
+                });
+            }
+            return res.status(409).json({
+                code: "CONFLICT_DUPLICATE",
+                message: "This email is already in use.",
+                field: "email",
+            });
+        }
+
+        const phoneKey = phoneConflict.phoneKey;
         await assertEmailAvailable(normalizedEmail);
-        const phoneKey = await assertPhoneAvailable(mobile_number);
 
         const hashedPassword = await hashPassword(password);
         const staffTenant = req.tenant?.slug
@@ -912,6 +1065,16 @@ const createStaffUser = async (req, res) => {
             locationPayload.allowedLocationIds = probe.allowedLocationIds;
         }
 
+        const { membershipShape } = require("../utils/staffMembership");
+        const homeMembership = membershipShape({
+            tenantId: req.user.tenantId,
+            role,
+            canAccessAllLocations: Boolean(locationPayload.canAccessAllLocations),
+            allowedLocationIds: locationPayload.canAccessAllLocations
+                ? []
+                : (locationPayload.allowedLocationIds || []),
+        });
+
         const user = await User.create({
             name,
             email: normalizedEmail,
@@ -924,6 +1087,7 @@ const createStaffUser = async (req, res) => {
             allowedLocationIds: locationPayload.canAccessAllLocations
                 ? []
                 : (locationPayload.allowedLocationIds || []),
+            memberships: [homeMembership],
         });
 
         logger.auth("info", "Staff user created", {
@@ -1489,10 +1653,15 @@ const getTeamsPage = async (req, res) => {
             });
         }
 
-        const users = await User.find()
-            .select("name email role mobile_number canViewPhones abilities createdAt allowedLocationIds canAccessAllLocations")
-            .sort({ name: 1 })
-            .lean();
+        const { findStaffInTenant, withMembershipContext } = require("../utils/staffMembership");
+        const usersRaw = await findStaffInTenant(req.user.tenantId, {}, {
+            select: "name email role mobile_number canViewPhones abilities createdAt allowedLocationIds canAccessAllLocations tenantId memberships",
+            sort: { name: 1 },
+            lean: true,
+        });
+        const users = usersRaw
+            .map((u) => withMembershipContext(u, req.user.tenantId))
+            .filter(Boolean);
 
         const formatted = filterUsersByLocationScope(users, req.tenant, req.locationScope)
             .map((u) => formatUserResponse(u));
@@ -1828,6 +1997,7 @@ const logoutUser = async (req, res) => {
 module.exports = {
     registerUser,
     loginUser,
+    selectTenant,
     logoutUser,
     getSalesUsers,
     getReceptionists,

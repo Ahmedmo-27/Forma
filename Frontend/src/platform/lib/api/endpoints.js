@@ -187,6 +187,21 @@ export const apiApproveFeatureTrial = (id, data, signal) =>
 export const apiRejectFeatureTrial = (id, data, signal) =>
   platformClient.post(`/feature-trials/${id}/reject`, data, { signal });
 
+// ==========================================
+// 6c. Cross-tenant staff identity requests
+// ==========================================
+export const apiGetStaffIdentityRequests = (params, signal) =>
+  platformClient.get("/staff-identity-requests", { params, signal });
+
+export const apiApproveStaffIdentityDual = (id, data, signal) =>
+  platformClient.post(`/staff-identity-requests/${id}/dual`, data || {}, { signal });
+
+export const apiApproveStaffIdentityTransfer = (id, data, signal) =>
+  platformClient.post(`/staff-identity-requests/${id}/transfer`, data || {}, { signal });
+
+export const apiRejectStaffIdentity = (id, data, signal) =>
+  platformClient.post(`/staff-identity-requests/${id}/reject`, data || {}, { signal });
+
 export const apiGetInvoices = (params, signal) =>
   platformClient.get("/billing/invoices", { params, signal });
 
