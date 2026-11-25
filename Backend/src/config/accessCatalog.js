@@ -355,7 +355,7 @@ const ACCESS_CATALOG = [
         defaultRoles: ["Accountant", "Owner", "Sales Manager", "Sales"],
         planFeature: "accounting",
         path: "/accounting/contract-history",
-        nav: { to: "/accounting/contract-history", label: "Contracts" },
+        // No sidebar nav entry — opened from Reports (and Management / Accountant hub).
     },
     {
         key: "package_approvals",

@@ -79,10 +79,7 @@ const inDateRange = (date, dateFrom, dateTo, timeZone = CAIRO_ZONE) => {
 
 const getContracts = async (req, res) => {
     try {
-        if (!FINANCE_ROLES.includes(req.user.role)) {
-            return res.status(403).json({ message: "Not authorized" });
-        }
-
+        // Auth is enforced by allowRoles("contracts", ...) on the route.
         const timeZone = req.tenant?.settings?.locale?.timezone || CAIRO_ZONE;
         const { page, limit, skip } = parsePagination(req.query);
         const { dateFrom, dateTo } = req.query;

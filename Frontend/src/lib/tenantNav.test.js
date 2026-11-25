@@ -9,7 +9,7 @@ const NAV_PATHS = {
     Owner: ["/owner/dashboard", "/members", "/tasks", "/checkin", "/inbox", "/maintenance", "/retail/pos", "/reports", "/management", "/sales/callcenter", "/owner/access", "/analytics", "/contacts", "/owner/settings"],
     "General Manager": ["/owner/dashboard", "/members", "/tasks", "/checkin", "/inbox", "/maintenance", "/retail/pos", "/reports", "/management", "/sales/callcenter", "/owner/access", "/analytics", "/contacts"],
     "Sales Manager": ["/sales/dashboard", "/members", "/tasks", "/checkin", "/inbox", "/reports", "/management", "/sales/callcenter", "/analytics", "/owner/access", "/contacts"],
-    Sales: ["/sales/dashboard", "/sales/members", "/tasks", "/checkin", "/inbox", "/reports", "/accounting/contract-history", "/sales/my-callcenter", "/contacts"],
+    Sales: ["/sales/dashboard", "/sales/members", "/tasks", "/checkin", "/inbox", "/reports", "/sales/my-callcenter", "/contacts"],
     "Head Coach": ["/coach/dashboard", "/coach/members", "/tasks", "/coach/checkin", "/coach/attendance", "/reports", "/management", "/contacts"],
     Coach: ["/coach/dashboard", "/coach/members", "/tasks", "/coach/checkin", "/coach/my-transfers", "/contacts"],
     Receptionist: ["/checkin", "/members", "/maintenance", "/retail/pos", "/contacts"],

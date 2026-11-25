@@ -5,6 +5,7 @@ import {
   Download,
   Flame,
   Magnet,
+  ScrollText,
   Target,
   TrendingDown,
   TrendingUp,
@@ -79,6 +80,8 @@ export default function Reports() {
   const can = (to) => routeFeatureAllowed(hasFeature, to);
   const showMembers = hasAccess(user, 'reports') && (can('/reports/guests') || can('/reports/expired'));
   const showData = isDataManager && hasAccess(user, 'import_members') && (can('/sales/import') || can('/reports/imported'));
+  const showContracts = hasAccess(user, 'contracts') && can('/accounting/contract-history');
+  const showRevenue = (hasAccess(user, 'targets') && can('/sales/targets')) || showContracts;
 
   return (
     <Layout>
@@ -115,9 +118,14 @@ export default function Reports() {
         )}
 
         {/* ── Revenue & Performance ───────────────────────────── */}
-        {hasAccess(user, 'targets') && can('/sales/targets') && (
+        {showRevenue && (
           <ReportSection title={t('Revenue & Performance')} sub={t('Targets and financial reports')}>
-            <ReportCard icon={Target} title={t('Targets')}       sub={t('Revenue targets & performance')} to="/sales/targets"   iconBg="#F0FFF4" />
+            {hasAccess(user, 'targets') && can('/sales/targets') && (
+              <ReportCard icon={Target} title={t('Targets')} sub={t('Revenue targets & performance')} to="/sales/targets" iconBg="#F0FFF4" />
+            )}
+            {showContracts && (
+              <ReportCard icon={ScrollText} title={t('Contracts')} sub={t('All member contracts')} to="/accounting/contract-history" iconBg="#FFF7ED" />
+            )}
           </ReportSection>
         )}
 

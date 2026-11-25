@@ -168,9 +168,13 @@ export function isNavItemActive(item, pathname, visibleItems = []) {
     return cleanPath === '/coach/members' || cleanPath.startsWith('/coach/members/');
   }
 
-  // 6. Reports tab: matches /reports and /reports/*
+  // 6. Reports tab: matches /reports and contract history when Management is not in the nav
   if (itemTo === '/reports') {
-    return cleanPath === '/reports' || cleanPath.startsWith('/reports/');
+    if (cleanPath === '/reports' || cleanPath.startsWith('/reports/')) return true;
+    if (cleanPath === '/accounting/contract-history' || cleanPath.startsWith('/accounting/contract-history/')) {
+      return !visibleItems.some((v) => v.to.split('?')[0] === '/management');
+    }
+    return false;
   }
 
   // 7. Check In: matches /checkin or /coach/checkin
