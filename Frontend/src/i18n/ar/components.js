@@ -268,7 +268,6 @@ const AR = {
   // Cross-tenant staff identity request modal
   'Staff member already registered': 'الموظف مسجّل بالفعل',
   'Request sent': 'تم إرسال الطلب',
-  'Got it': 'حسناً',
   'Send request': 'إرسال الطلب',
   "A request has been sent to Forma's support team. They'll review it and you'll get a response soon.":
     'تم إرسال طلب إلى فريق دعم Forma. سيراجعونه وستصلك الإجابة قريباً.',
