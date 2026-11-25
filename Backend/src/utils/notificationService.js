@@ -157,6 +157,70 @@ async function notifyPackageExceptionResolved({ recipientId, member, actorId, st
     });
 }
 
+/**
+ * Notify the gym staff who asked Forma to resolve a cross-tenant staff conflict.
+ * Must run under the requesting tenant context (or pass tenantId for runWithTenant).
+ */
+async function notifyStaffIdentityResolved({
+    recipientId,
+    tenantId,
+    tenantSlug,
+    status,
+    staffName,
+    sourceTenantName,
+    requestingTenantName,
+    requestId,
+    adminNote,
+}) {
+    if (!recipientId || !tenantId || !status) return null;
+
+    const name = staffName || "This staff member";
+    const sourceGym = sourceTenantName || "another gym";
+    const thisGym = requestingTenantName || "your gym";
+
+    let title = "Staff access request update";
+    let message = "";
+    if (status === "approved_dual") {
+        title = "Staff access approved for both gyms";
+        message = `Forma support approved ${name} to work at both ${sourceGym} and ${thisGym}. They can pick a gym when signing in.`;
+    } else if (status === "approved_transfer") {
+        title = "Staff transferred to your gym";
+        message = `Forma support transferred ${name} to ${thisGym}. Their previous gym access was removed.`;
+    } else if (status === "rejected") {
+        title = "Staff access request rejected";
+        message = `Forma support rejected the request to add ${name} from ${sourceGym} to ${thisGym}.`;
+    } else {
+        message = `Forma support updated your staff access request for ${name}.`;
+    }
+    if (adminNote) {
+        message = `${message} Note: ${adminNote}`;
+    }
+
+    const { runWithTenant, isPlatformContext, getTenantId } = require("../context/tenantContext");
+    const create = () => Notification.create({
+        recipient: recipientId,
+        type: "staff_identity_resolved",
+        title,
+        message,
+        createdBy: null,
+        metadata: {
+            requestId: requestId ? String(requestId) : null,
+            status,
+            sourceTenantName: sourceGym,
+            requestingTenantName: thisGym,
+        },
+        dedupeKey: requestId ? `staff_identity_resolved:${requestId}` : undefined,
+    });
+
+    if (!isPlatformContext() && String(getTenantId() || "") === String(tenantId)) {
+        return create();
+    }
+    return runWithTenant(
+        { tenantId: String(tenantId), tenantSlug: tenantSlug || null },
+        create
+    );
+}
+
 module.exports = {
     notifyMemberAssigned,
     notifyTaskAssigned,
@@ -164,5 +228,6 @@ module.exports = {
     notifyPackageExceptionResolved,
     notifySalesRepRequestPending,
     notifyCoachRepRequestPending,
+    notifyStaffIdentityResolved,
     revokeStaleMemberAssignedNotifications,
 };

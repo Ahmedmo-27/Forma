@@ -12,6 +12,30 @@ const {
 } = require("../utils/staffMembership");
 const { bumpTokenVersion } = require("../utils/passwordUtils");
 const { invalidateAuthContext } = require("../middleware/authContextCache");
+const { notifyStaffIdentityResolved } = require("../utils/notificationService");
+const logger = require("../utils/logger");
+
+async function notifyRequester(doc) {
+    if (!doc?.requestedByUserId || !doc?.requestingTenantId) return;
+    try {
+        await notifyStaffIdentityResolved({
+            recipientId: doc.requestedByUserId,
+            tenantId: doc.requestingTenantId,
+            tenantSlug: doc.requestingTenantSlug || null,
+            status: doc.status,
+            staffName: doc.sourceUserName || doc.proposedName,
+            sourceTenantName: doc.sourceTenantName,
+            requestingTenantName: doc.requestingTenantName,
+            requestId: doc._id,
+            adminNote: doc.adminNote || "",
+        });
+    } catch (error) {
+        logger.warn("platform", "staff identity requester notification failed", {
+            requestId: String(doc._id),
+            error: error.message,
+        });
+    }
+}
 
 async function listStaffIdentityRequests(req, res) {
     try {
@@ -117,6 +141,7 @@ async function approveDual(req, res) {
             await doc.save();
 
             invalidateAuthContext({ userId: String(user._id) });
+            await notifyRequester(doc);
 
             await writePlatformAudit({
                 tenantId: doc.requestingTenantId,
@@ -180,6 +205,7 @@ async function approveTransfer(req, res) {
             await doc.save();
 
             invalidateAuthContext({ userId: String(user._id) });
+            await notifyRequester(doc);
 
             await writePlatformAudit({
                 tenantId: doc.requestingTenantId,
@@ -218,6 +244,7 @@ async function rejectStaffIdentity(req, res) {
             const doc = loaded.doc;
             applyDecisionMeta(doc, req, "rejected");
             await doc.save();
+            await notifyRequester(doc);
 
             await writePlatformAudit({
                 tenantId: doc.requestingTenantId,

@@ -264,6 +264,28 @@ const AR = {
   'Items per page': 'عدد العناصر في الصفحة',
   '← Prev': '→ السابق',
   'Next →': 'التالي ←',
+
+  // Cross-tenant staff identity request modal
+  'Staff member already registered': 'الموظف مسجّل بالفعل',
+  'Request sent': 'تم إرسال الطلب',
+  'Got it': 'حسناً',
+  'Send request': 'إرسال الطلب',
+  "A request has been sent to Forma's support team. They'll review it and you'll get a response soon.":
+    'تم إرسال طلب إلى فريق دعم Forma. سيراجعونه وستصلك الإجابة قريباً.',
+  'You will also receive an in-app notification when Forma responds.':
+    'ستصلك أيضاً إشعار داخل التطبيق عندما يرد فريق Forma.',
+  '{name} is already registered as staff at {gym}. How should we treat them at {thisGym}?':
+    '{name} مسجّل بالفعل كموظف في {gym}. كيف تريد التعامل معه في {thisGym}؟',
+  'Working at both places': 'يعمل في المكانين',
+  'Keep them at {gym} and also add them here. They will choose a gym when signing in.':
+    'أبقِ حسابه في {gym} وأضفه هنا أيضاً. سيختار الجيم عند تسجيل الدخول.',
+  'Left {gym} and works at {thisGym} now': 'غادر {gym} ويعمل الآن في {thisGym}',
+  'Move their login (name, phone, email, password) here and remove access at {gym}.':
+    'انقل بيانات الدخول (الاسم والهاتف والبريد وكلمة المرور) إلى هنا وأزل صلاحياته في {gym}.',
+  'This staff member': 'هذا الموظف',
+  'another gym': 'جيم آخر',
+  'this gym': 'هذا الجيم',
+  'Failed to send request.': 'تعذر إرسال الطلب.',
 };
 
 export default AR;

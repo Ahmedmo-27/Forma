@@ -2,8 +2,9 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Input, Btn, Spinner, ConfirmDialog } from '../../components/ui';
+import { PageHeader, Card, Input, Btn, Spinner } from '../../components/ui';
 import LocationAccessEditor from '../../components/LocationAccessEditor';
+import StaffIdentityRequestModal from '../../components/StaffIdentityRequestModal';
 import { createStaffUser, createStaffIdentityRequest, listLocations } from '../../api/endpoints';
 import { isValidEmail, isValidPhone, getPasswordStrengthError } from '../../lib/validation';
 import { useAuth } from '../../context/AuthContext';
@@ -27,7 +28,7 @@ export default function CoachStaff() {
   const { t } = useI18n();
   usePageTitle(t('Manage Coaches'));
   const { user } = useAuth();
-  const { hasFeature } = useTenant() || {};
+  const { hasFeature, tenant } = useTenant() || {};
   const { selectedLocationId } = useLocationScope();
   const canSetLocations = ['Owner', 'General Manager'].includes(user?.role)
     && Boolean(hasFeature?.('multi_branches'));
@@ -167,8 +168,8 @@ export default function CoachStaff() {
     }
   };
 
-  const handleRequestAccess = async () => {
-    if (!crossTenant?.existing?.userId) return;
+  const handleRequestAccess = async (preferredDecision) => {
+    if (!crossTenant?.existing?.userId) return false;
     setRequesting(true);
     try {
       await createStaffIdentityRequest({
@@ -179,15 +180,16 @@ export default function CoachStaff() {
         role: crossTenant.payload.role || 'Coach',
         canAccessAllLocations: crossTenant.payload.canAccessAllLocations,
         allowedLocationIds: crossTenant.payload.allowedLocationIds,
+        preferredDecision,
       });
-      toast.success(t('Request sent to Super Admin'));
-      setCrossTenant(null);
       setForm({
         ...INIT,
         allowedLocationIds: deskBranch ? [deskBranch] : [],
       });
+      return true;
     } catch (err) {
       toast.error(err.response?.data?.message || t('Failed to send request.'));
+      return false;
     } finally {
       setRequesting(false);
     }
@@ -197,24 +199,13 @@ export default function CoachStaff() {
     <Layout>
       <PageHeader walkthrough="coach-staff-header" title={t('Create Coach Account')} />
 
-      <ConfirmDialog
+      <StaffIdentityRequestModal
         open={Boolean(crossTenant)}
         onClose={() => !requesting && setCrossTenant(null)}
-        onConfirm={handleRequestAccess}
         loading={requesting}
-        title={t('Staff already exists at another gym')}
-        message={
-          crossTenant
-            ? t(
-              '{name} already works at {gym}. Request Super Admin to allow them here (keep both gyms, transfer, or reject).',
-              {
-                name: crossTenant.existing.name || t('This person'),
-                gym: crossTenant.existing.tenantName || t('another gym'),
-              }
-            )
-            : ''
-        }
-        confirmLabel={t('Request Super Admin')}
+        existing={crossTenant?.existing}
+        requestingGymName={tenant?.name || tenant?.slug}
+        onSubmit={handleRequestAccess}
       />
 
       <div className="page-wrap" data-walkthrough="coach-staff-board" style={{ paddingTop: 20, paddingBottom: 32, maxWidth: 480 }}>

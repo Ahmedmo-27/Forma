@@ -59,6 +59,13 @@ const crossTenantStaffRequestSchema = new mongoose.Schema(
             default: "phone",
         },
 
+        // What the requesting gym asked Forma support to do.
+        preferredDecision: {
+            type: String,
+            enum: ["dual", "transfer"],
+            required: true,
+        },
+
         status: {
             type: String,
             enum: ["pending", "approved_dual", "approved_transfer", "rejected"],

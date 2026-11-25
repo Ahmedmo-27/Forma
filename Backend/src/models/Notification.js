@@ -9,7 +9,16 @@ const notificationSchema = new mongoose.Schema({
     },
     type: {
         type: String,
-        enum: ["member_assigned", "task_assigned", "package_exception_pending", "package_exception_resolved", "sales_rep_request_pending", "coach_rep_request_pending", "maintenance_due"],
+        enum: [
+            "member_assigned",
+            "task_assigned",
+            "package_exception_pending",
+            "package_exception_resolved",
+            "sales_rep_request_pending",
+            "coach_rep_request_pending",
+            "maintenance_due",
+            "staff_identity_resolved",
+        ],
         required: true,
     },
     title: {

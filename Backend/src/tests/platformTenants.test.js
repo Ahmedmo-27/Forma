@@ -554,12 +554,39 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
             const query = {
                 select() { return query; },
                 populate() { return query; },
-                sort() { return promise; },
+                sort() { return query; },
+                lean() { return promise; },
                 then: promise.then.bind(promise),
                 catch: promise.catch.bind(promise),
                 finally: promise.finally.bind(promise),
             };
             return query;
+        }
+
+        function staffQueryId(query) {
+            if (query?._id) return String(query._id);
+            if (Array.isArray(query?.$and)) {
+                const part = query.$and.find((entry) => entry?._id);
+                if (part?._id) return String(part._id);
+            }
+            return null;
+        }
+
+        function staffQueryTenantId(query) {
+            const scope = query?.$or
+                || (Array.isArray(query?.$and) ? query.$and.find((entry) => entry?.$or)?.$or : null);
+            if (!Array.isArray(scope)) return null;
+            const direct = scope.find((entry) => entry?.tenantId)?.tenantId;
+            return direct != null ? String(direct) : null;
+        }
+
+        function matchesStaffScope(user, query) {
+            const tid = staffQueryTenantId(query);
+            if (!tid) return false;
+            if (String(user.tenantId) === tid) return true;
+            return (user.memberships || []).some(
+                (m) => String(m.tenantId) === tid && m.status === "active"
+            );
         }
 
         function mockRes() {
@@ -613,7 +640,7 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
                     : null)
             ));
             vi.spyOn(User, "find").mockImplementation((query) => queryResult(
-                [owner, coach, stranger].filter((user) => String(user.tenantId) === String(query.tenantId))
+                [owner, coach, stranger].filter((user) => matchesStaffScope(user, query))
             ));
 
             const res = mockRes();
@@ -644,7 +671,7 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
                 queryResult({ _id: tenantId, ownerUserId: null })
             ));
             vi.spyOn(User, "findOne").mockImplementation((query) => {
-                if (query?._id && query?.tenantId) return queryResult(coach);
+                if (staffQueryId(query) === String(coach._id)) return queryResult(coach);
                 return queryResult(null);
             });
             vi.spyOn(PlatformUser, "findOne").mockImplementation(() => queryResult(null));
@@ -730,9 +757,7 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
                 queryResult({ _id: tenantId, ownerUserId: owner._id })
             ));
             vi.spyOn(User, "findOne").mockImplementation((query) => queryResult(
-                String(query._id) === String(owner._id) && String(query.tenantId) === String(tenantId)
-                    ? owner
-                    : null
+                staffQueryId(query) === String(owner._id) ? owner : null
             ));
             const audit = vi.spyOn(AuditLog, "create").mockResolvedValue({});
 
@@ -799,8 +824,22 @@ describe("Phase 2: Platform Subscriber (Tenant) Management", () => {
             }, res);
 
             expect(User.findOne).toHaveBeenCalledWith({
-                _id: otherUserId.toString(),
-                tenantId,
+                $and: [
+                    { _id: otherUserId.toString() },
+                    {
+                        $or: [
+                            { tenantId },
+                            {
+                                memberships: {
+                                    $elemMatch: {
+                                        tenantId,
+                                        status: "active",
+                                    },
+                                },
+                            },
+                        ],
+                    },
+                ],
             });
             expect(res.status).toHaveBeenCalledWith(404);
             expect(res.json).toHaveBeenCalledWith({ message: "User not found" });

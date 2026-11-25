@@ -94,6 +94,25 @@ function resolveEffectiveKeys(user, context, options = {}) {
     return keys;
 }
 
+/** True when the role only dips into the area via a shared feature (e.g. Sales + contracts). */
+function isIncidentalAreaDefault(role, area) {
+    const features = ACCESS_CATALOG.filter(
+        (feature) => featureArea(feature.key) === area && feature.key !== "settings"
+    );
+    if (!features.length) return false;
+    const owned = features.filter((feature) => feature.defaultRoles.includes(role)).length;
+    return owned > 0 && owned * 2 < features.length;
+}
+
+function shouldExpandArea(user, area, defaults, explicitAdd, savedSet) {
+    if (user.role === "General Manager") return true;
+    if (!defaults.has(area)) return true;
+    if (explicitAdd.has(area)) return true;
+    // Saved checklist listing an incidental default area means "grant the whole area"
+    // (Sales + accounting), without elevating home areas (Sales + sales → no manager keys).
+    return Boolean(savedSet?.has(area) && isIncidentalAreaDefault(user.role, area));
+}
+
 function applyAreaFilter(keys, user, context, revokeSet) {
     const ctx = areaContext(user, context);
     if (isLegacyAccess(ctx)) return;
@@ -101,6 +120,11 @@ function applyAreaFilter(keys, user, context, revokeSet) {
     const defaults = new Set(ctx.defaultAreas);
     const { grants } = storedLists(user);
     const grantSet = new Set(grants);
+    const explicitAdd = new Set(
+        Array.isArray(ctx.accessOverrides?.add) ? ctx.accessOverrides.add : []
+    );
+    const saved = savedAreasFor(ctx.roleAccess, user?.role);
+    const savedSet = saved ? new Set(saved) : null;
     for (const feature of ACCESS_CATALOG) {
         const area = featureArea(feature.key);
         if (!area) continue;
@@ -110,7 +134,7 @@ function applyAreaFilter(keys, user, context, revokeSet) {
             }
             continue;
         }
-        const expand = user.role === "General Manager" || !defaults.has(area);
+        const expand = shouldExpandArea(user, area, defaults, explicitAdd, savedSet);
         if (expand && feature.key !== "settings" && !revokeSet.has(feature.key)) {
             keys.add(feature.key);
         }
@@ -127,12 +151,17 @@ function areaGrantKeys(user, context) {
     if (isLegacyAccess(ctx)) return [];
     const areas = new Set(resolveEffectiveAreas(ctx));
     const defaults = new Set(ctx.defaultAreas);
+    const explicitAdd = new Set(
+        Array.isArray(ctx.accessOverrides?.add) ? ctx.accessOverrides.add : []
+    );
+    const saved = savedAreasFor(ctx.roleAccess, user?.role);
+    const savedSet = saved ? new Set(saved) : null;
     const keys = [];
     for (const feature of ACCESS_CATALOG) {
         if (feature.key === "settings") continue;
         const area = featureArea(feature.key);
         if (!area || !areas.has(area)) continue;
-        if (user.role === "General Manager" || !defaults.has(area)) keys.push(feature.key);
+        if (shouldExpandArea(user, area, defaults, explicitAdd, savedSet)) keys.push(feature.key);
     }
     return keys;
 }

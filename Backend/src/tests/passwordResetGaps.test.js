@@ -52,6 +52,7 @@ describe("password reset gaps", () => {
                     name: "Owner",
                     email: "owner@gym.com",
                     tokenVersion,
+                    tenantId,
                 }),
             });
             vi.spyOn(Tenant, "findById").mockResolvedValue({ status: "active", slug: "gym", planId: null });
@@ -96,6 +97,7 @@ describe("password reset gaps", () => {
                     name: "Rep",
                     email: "rep@gym.com",
                     tokenVersion: 0,
+                    tenantId,
                 }),
             });
 

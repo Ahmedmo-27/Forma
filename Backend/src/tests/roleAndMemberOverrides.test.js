@@ -32,11 +32,11 @@ describe("Role and Member Overrides (Dynamic Additions & Revocations)", () => {
             expect(keys.has("targets")).toBe(true);
             expect(keys.has("refunds")).toBe(true);
 
-            // navExtras should include accounting_dashboard and contracts because they have nav
+            // navExtras only lists non-default keys; contracts is already a Sales default
             const extras = navExtrasFor(user, context);
             const extraKeys = extras.map((item) => item.key);
             expect(extraKeys).toContain("accounting_dashboard");
-            expect(extraKeys).toContain("contracts");
+            expect(extraKeys).not.toContain("contracts");
         });
 
         it("allows revoking an individual feature from a granted area", () => {

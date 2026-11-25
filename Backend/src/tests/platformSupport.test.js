@@ -158,7 +158,13 @@ describe("Phase 6: Support, Impersonation & Operations Tools", () => {
                 process.env.JWT_SECRET
             );
 
-            const mockUser = { _id: "user-1", role: "Owner", name: "Gym Owner", email: "owner@gym.com" };
+            const mockUser = {
+                _id: "user-1",
+                role: "Owner",
+                name: "Gym Owner",
+                email: "owner@gym.com",
+                tenantId: "t-1",
+            };
             vi.spyOn(User, "findById").mockReturnValue({
                 select: vi.fn().mockResolvedValue(mockUser),
             });

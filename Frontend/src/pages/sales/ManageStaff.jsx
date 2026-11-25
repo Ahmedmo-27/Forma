@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import usePageTitle from '../../hooks/usePageTitle';
 import Layout from '../../components/Layout';
-import { PageHeader, Card, Input, Select, Btn, Spinner, ConfirmDialog } from '../../components/ui';
+import { PageHeader, Card, Input, Select, Btn, Spinner } from '../../components/ui';
 import LocationAccessEditor from '../../components/LocationAccessEditor';
+import StaffIdentityRequestModal from '../../components/StaffIdentityRequestModal';
 import { createStaffUser, createStaffIdentityRequest, listLocations } from '../../api/endpoints';
 import { isValidEmail, isValidPhone, getPasswordStrengthError } from '../../lib/validation';
 import { useAuth } from '../../context/AuthContext';
@@ -194,8 +195,8 @@ export default function ManageStaff() {
     }
   };
 
-  const handleRequestAccess = async () => {
-    if (!crossTenant?.existing?.userId) return;
+  const handleRequestAccess = async (preferredDecision) => {
+    if (!crossTenant?.existing?.userId) return false;
     setRequesting(true);
     try {
       await createStaffIdentityRequest({
@@ -206,17 +207,18 @@ export default function ManageStaff() {
         role: crossTenant.payload.role,
         canAccessAllLocations: crossTenant.payload.canAccessAllLocations,
         allowedLocationIds: crossTenant.payload.allowedLocationIds,
+        preferredDecision,
       });
-      toast.success(t('Request sent to Super Admin'));
-      setCrossTenant(null);
       setForm({
         ...INIT,
         role: roleOptions[0] || 'Sales',
         canAccessAllLocations: roleOptions[0] === 'General Manager',
         allowedLocationIds: deskBranch ? [deskBranch] : [],
       });
+      return true;
     } catch (err) {
       toast.error(err.response?.data?.message || t('Failed to send request.'));
+      return false;
     } finally {
       setRequesting(false);
     }
@@ -226,24 +228,13 @@ export default function ManageStaff() {
     <Layout>
       <PageHeader walkthrough="staff-header" title={t('Manage Staff')} subtitle={t('Create a staff account for any role on the platform')} />
 
-      <ConfirmDialog
+      <StaffIdentityRequestModal
         open={Boolean(crossTenant)}
         onClose={() => !requesting && setCrossTenant(null)}
-        onConfirm={handleRequestAccess}
         loading={requesting}
-        title={t('Staff already exists at another gym')}
-        message={
-          crossTenant
-            ? t(
-              '{name} already works at {gym}. Request Super Admin to allow them here (keep both gyms, transfer, or reject).',
-              {
-                name: crossTenant.existing.name || t('This person'),
-                gym: crossTenant.existing.tenantName || t('another gym'),
-              }
-            )
-            : ''
-        }
-        confirmLabel={t('Request Super Admin')}
+        existing={crossTenant?.existing}
+        requestingGymName={tenant?.name || tenant?.slug}
+        onSubmit={handleRequestAccess}
       />
 
       <div className="page-wrap" data-walkthrough="staff-board" style={{ paddingTop: 20, paddingBottom: 32, maxWidth: 480 }}>

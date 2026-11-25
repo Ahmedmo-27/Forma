@@ -570,10 +570,11 @@ describe("Tenant-Side Audit Fixes", () => {
 
     describe("userController.getTeamsPage role alignment", () => {
         it("allows General Manager to view teams page and categorizes team members", async () => {
+            const tenantId = new mongoose.Types.ObjectId();
             const mockUsers = [
-                { _id: new mongoose.Types.ObjectId(), name: "Alice GM", role: "General Manager" },
-                { _id: new mongoose.Types.ObjectId(), name: "Bob Coach", role: "Coach" },
-                { _id: new mongoose.Types.ObjectId(), name: "Charlie Sales", role: "Sales" },
+                { _id: new mongoose.Types.ObjectId(), name: "Alice GM", role: "General Manager", tenantId },
+                { _id: new mongoose.Types.ObjectId(), name: "Bob Coach", role: "Coach", tenantId },
+                { _id: new mongoose.Types.ObjectId(), name: "Charlie Sales", role: "Sales", tenantId },
             ];
 
             vi.spyOn(User, "find").mockReturnValue({
@@ -585,7 +586,7 @@ describe("Tenant-Side Audit Fixes", () => {
             });
 
             const req = {
-                user: { id: "gm1", role: "General Manager" },
+                user: { id: "gm1", role: "General Manager", tenantId },
             };
             const res = {
                 status: vi.fn().mockReturnThis(),

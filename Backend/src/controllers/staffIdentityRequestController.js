@@ -24,6 +24,7 @@ function serialize(doc) {
         proposedPhone: plain.proposedPhone || "",
         proposedRole: plain.proposedRole || "",
         conflictField: plain.conflictField || "phone",
+        preferredDecision: plain.preferredDecision || null,
         status: plain.status,
         adminNote: plain.adminNote || "",
         decidedAt: plain.decidedAt,
@@ -51,10 +52,18 @@ async function createStaffIdentityRequest(req, res) {
             role,
             canAccessAllLocations,
             allowedLocationIds,
+            preferredDecision: rawPreferred,
         } = req.body || {};
 
         if (!sourceUserId || !role) {
             return res.status(400).json({ message: "sourceUserId and role are required" });
+        }
+        const preferredDecision = rawPreferred === "transfer" ? "transfer" : rawPreferred === "dual" ? "dual" : null;
+        if (!preferredDecision) {
+            return res.status(400).json({
+                message: "preferredDecision must be dual or transfer",
+                field: "preferredDecision",
+            });
         }
         if (!creatable.includes(role)) {
             return res.status(400).json({ message: "You cannot request that role" });
@@ -138,6 +147,7 @@ async function createStaffIdentityRequest(req, res) {
                 proposedCanAccessAllLocations: Boolean(canAccessAllLocations),
                 proposedAllowedLocationIds: Array.isArray(allowedLocationIds) ? allowedLocationIds : [],
                 conflictField,
+                preferredDecision,
                 status: "pending",
             }),
             { reason: "create staff identity request" }
@@ -153,12 +163,13 @@ async function createStaffIdentityRequest(req, res) {
                 requestId: String(doc._id),
                 sourceTenantId: String(sourceUser.tenantId),
                 proposedRole: role,
+                preferredDecision,
             },
             req,
         });
 
         return res.status(201).json({
-            message: "Request sent to Super Admin",
+            message: "A request has been sent to Forma's support team. You will get a response soon.",
             request: serialize(doc),
         });
     } catch (error) {

@@ -383,8 +383,10 @@ describe("Platform locations and staff management", () => {
                 })
             ));
             vi.spyOn(User, "findOne").mockImplementation((query) => {
-                if (String(query._id) === String(owner._id)) return queryResult(owner);
-                if (String(query._id) === String(coach._id)) return queryResult(coach);
+                const idPart = query?._id
+                    || (Array.isArray(query?.$and) ? query.$and.find((part) => part?._id)?._id : null);
+                if (String(idPart) === String(owner._id)) return queryResult(owner);
+                if (String(idPart) === String(coach._id)) return queryResult(coach);
                 return queryResult(null);
             });
             vi.spyOn(User, "deleteOne").mockResolvedValue({ deletedCount: 1 });

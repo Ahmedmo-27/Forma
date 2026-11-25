@@ -190,6 +190,7 @@ export default function StaffIdentityPage() {
                   <th className="px-4 py-3 font-semibold">Source gym</th>
                   <th className="px-4 py-3 font-semibold">Staff</th>
                   <th className="px-4 py-3 font-semibold">Proposed role</th>
+                  <th className="px-4 py-3 font-semibold">Requested</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
                   <th className="px-4 py-3 font-semibold">Submitted</th>
                   <th className="px-4 py-3 font-semibold text-right">Actions</th>
@@ -225,6 +226,13 @@ export default function StaffIdentityPage() {
                         <div className="text-[var(--platform-text-muted)]">{row.proposedPhone}</div>
                       </td>
                       <td className="px-4 py-3 text-xs">{row.proposedRole}</td>
+                      <td className="px-4 py-3 text-xs">
+                        {row.preferredDecision === "transfer"
+                          ? "Transfer here"
+                          : row.preferredDecision === "dual"
+                            ? "Both gyms"
+                            : "—"}
+                      </td>
                       <td className="px-4 py-3">
                         <Badge variant={statusVariant(row.status)} size="sm">
                           {statusLabel(row.status)}
@@ -237,13 +245,21 @@ export default function StaffIdentityPage() {
                       <td className="px-4 py-3">
                         {isPending ? (
                           <div className="flex flex-wrap justify-end gap-2">
-                            <Button size="sm" variant="primary" onClick={() => setDualTarget(row)}>
+                            <Button
+                              size="sm"
+                              variant={row.preferredDecision === "dual" ? "primary" : "outline"}
+                              onClick={() => setDualTarget(row)}
+                            >
                               <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-                              Both
+                              Both{row.preferredDecision === "dual" ? " (asked)" : ""}
                             </Button>
-                            <Button size="sm" variant="outline" onClick={() => setTransferTarget(row)}>
+                            <Button
+                              size="sm"
+                              variant={row.preferredDecision === "transfer" ? "primary" : "outline"}
+                              onClick={() => setTransferTarget(row)}
+                            >
                               <ArrowRightLeft className="w-3.5 h-3.5 mr-1" />
-                              Transfer
+                              Transfer{row.preferredDecision === "transfer" ? " (asked)" : ""}
                             </Button>
                             <Button size="sm" variant="outline" onClick={() => setRejectTarget(row)}>
                               <XCircle className="w-3.5 h-3.5 mr-1" />

@@ -26,6 +26,7 @@ const EXPECTED = {
         "tenants.read",
         "tenants.notes",
         "tenants.feature_trials",
+        "tenants.staff_identity",
         "support.impersonate_read",
         "support.export_data",
         "audit.view",
