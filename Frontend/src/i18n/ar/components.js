@@ -284,7 +284,6 @@ const AR = {
   'This staff member': 'هذا الموظف',
   'another gym': 'جيم آخر',
   'this gym': 'هذا الجيم',
-  'Failed to send request.': 'تعذر إرسال الطلب.',
 };
 
 export default AR;
