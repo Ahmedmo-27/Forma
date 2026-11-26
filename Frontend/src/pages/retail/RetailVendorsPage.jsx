@@ -217,14 +217,14 @@ export default function RetailVendorsPage() {
       {branchId && loading && <div style={{ display: 'flex', justifyContent: 'center', padding: 40 }}><Spinner size="lg" /></div>}
 
       {branchId && !loading && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div data-walkthrough="retail-vendors-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           {canMoney && (
             <p style={{ margin: 0, fontSize: 13, color: 'var(--t3)' }}>
               {t('Month to date, all vendors:')} <strong style={{ color: 'var(--t1)' }}>{money(totals)}</strong>
             </p>
           )}
 
-          <div style={{ ...cardStyle, padding: 0, overflowX: 'auto' }}>
+          <div data-walkthrough="retail-vendors-list" style={{ ...cardStyle, padding: 0, overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 820 }}>
               <thead>
                 <tr>

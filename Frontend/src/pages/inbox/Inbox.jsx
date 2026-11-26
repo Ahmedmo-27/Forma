@@ -269,7 +269,7 @@ function Thread({ conversation, canReply, currentUserId, onBack }) {
       </div>
 
       {canReply ? (
-        <div style={{ borderTop: '1px solid var(--border)', padding: 10 }}>
+        <div data-walkthrough="inbox-reply" style={{ borderTop: '1px solid var(--border)', padding: 10 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
             <textarea
               value={draft}
@@ -338,7 +338,7 @@ export default function Inbox() {
   return (
     <Layout>
       <div style={{ maxWidth: 1200, margin: '0 auto', padding: '16px 12px' }}>
-        <PageHeader title={t('Inbox')}>
+        <PageHeader walkthrough="inbox-header" title={t('Inbox')}>
           <Link to="/account/channels" style={{ fontSize: 13, fontWeight: 600 }}>{t('Connected channels')}</Link>
         </PageHeader>
 
@@ -352,7 +352,7 @@ export default function Inbox() {
         </div>
 
         <Card noPad>
-          <div className="inbox-grid" style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 340px) 1fr', height: 'calc(100vh - 290px)', minHeight: 420 }}>
+          <div className="inbox-grid" data-walkthrough="inbox-board" style={{ display: 'grid', gridTemplateColumns: 'minmax(260px, 340px) 1fr', height: 'calc(100vh - 290px)', minHeight: 420 }}>
             <div
               className={selected ? 'inbox-list inbox-hide-mobile' : 'inbox-list'}
               style={{ borderInlineEnd: '1px solid var(--border)', overflowY: 'auto', minHeight: 0 }}

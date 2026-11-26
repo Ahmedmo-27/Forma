@@ -21,9 +21,10 @@ import misc from './ar/misc.js';
 import modals from './ar/modals.js';
 import sales2 from './ar/sales2.js';
 import lib from './ar/lib.js';
+import tutorials from './ar/tutorials.js';
 
 export const AR_MODULES = {
-  common, components, core, member, sales, coach, owner, accounting, retail, reports, tasks, misc, modals, sales2, lib,
+  common, components, core, member, sales, coach, owner, accounting, retail, reports, tasks, misc, modals, sales2, lib, tutorials,
 };
 
 const AR = Object.assign({}, ...Object.values(AR_MODULES));

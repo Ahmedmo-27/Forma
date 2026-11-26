@@ -23,7 +23,11 @@ const COACH_ROLES = ['Coach', 'Head Coach'];
 const ASSIGN_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Head Coach'];
 const ASSIGNED_ROLES = ['Sales', 'Coach', 'Head Coach'];
 const ACCOUNTING_ROLES = ['Accountant', 'Owner', 'General Manager'];
-const CONTRACT_ROLES = ['Accountant', 'Owner', 'General Manager', 'Sales Manager'];
+const CONTRACT_ROLES = ['Accountant', 'Owner', 'General Manager', 'Sales Manager', 'Sales'];
+const NOTIFICATION_ROLES = ['Sales', 'Sales Manager', 'Accountant', 'Owner', 'General Manager', 'Head Coach'];
+const INBOX_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Head Coach'];
+const RETAIL_SALES_ROLES = ['Receptionist', 'Owner', 'General Manager', 'Retail', 'Accountant'];
+const RETAIL_VENDOR_ROLES = ['Owner', 'General Manager', 'Accountant'];
 const TARGET_ROLES = ['Sales Manager', 'Owner', 'General Manager', 'Accountant'];
 const REPORT_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Head Coach', 'Accountant'];
 const ANALYTICS_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Accountant'];
@@ -99,8 +103,9 @@ const ALERT_ROLES = ['Receptionist', 'Sales', 'Sales Manager'];
 const SALES_NOTE_ROLES = ['Sales', 'Sales Manager', 'Owner'];
 const STAFF_ROLES = ['Sales Manager', 'Owner', 'General Manager'];
 const TEAM_ROLES = ['Sales Manager', 'Owner', 'General Manager', 'Accountant'];
-const GUEST_REPORT_ROLES = ['Owner', 'Sales Manager', 'Sales', 'Head Coach'];
-const IMPORTED_ROLES = ['Owner', 'Sales Manager'];
+const GUEST_REPORT_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Head Coach'];
+const IMPORTED_ROLES = ['Owner', 'General Manager', 'Sales Manager', 'Sales', 'Head Coach'];
+const SALES_REQUEST_ROLES = ['Sales', 'Sales Manager', 'Owner', 'General Manager', 'Coach'];
 
 export const tutorialSections = [
   {
@@ -191,7 +196,7 @@ export const tutorialSections = [
         title: 'Notifications',
         subtitle: 'See new requests and updates without leaving the page',
         badge: 'Core',
-        roles: ['Sales', 'Sales Manager', 'Accountant'],
+        roles: NOTIFICATION_ROLES,
         feature: 'notifications',
         keywords: ['notifications', 'bell', 'alerts'],
         steps: [
@@ -201,6 +206,69 @@ export const tutorialSections = [
             'notif-bell',
             '',
             'header',
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    title: 'Inbox',
+    scenarios: [
+      {
+        id: 'inbox',
+        title: 'Unified inbox',
+        subtitle: 'Read and reply to WhatsApp messages in one shared queue',
+        badge: 'Inbox',
+        roles: INBOX_ROLES,
+        access: 'inbox_view',
+        feature: 'inbox',
+        keywords: ['inbox', 'whatsapp', 'messages', 'conversations', 'reply'],
+        steps: [
+          step(
+            'Shared inbox',
+            'Every connected channel feeds this list. Filter by status, channel, or assignee, then search by name or message text.',
+            'inbox-header',
+            '/inbox',
+          ),
+          step(
+            'Pick a conversation',
+            'The list is on the left; the thread opens on the right. On a phone, tap a row to open the thread and use Back to return to the list.',
+            'inbox-board',
+            '/inbox',
+            '[data-walkthrough="inbox-header"]',
+          ),
+          {
+            title: 'Reply when allowed',
+            description: 'When your role can reply, type at the bottom and send. Otherwise you can still read threads and follow up in person.',
+            target: 'inbox-reply',
+            route: '/inbox',
+            fallback: '[data-walkthrough="inbox-board"]',
+            access: 'inbox_reply',
+          },
+        ],
+      },
+      {
+        id: 'connect-channels',
+        title: 'Connect channels',
+        subtitle: 'See which WhatsApp accounts feed the gym inbox',
+        badge: 'Inbox',
+        roles: INBOX_ROLES,
+        access: 'inbox_view',
+        feature: 'inbox',
+        keywords: ['channels', 'whatsapp', 'connect', 'inbox'],
+        steps: [
+          step(
+            'Connected channels',
+            'This page lists every channel linked to the gym. Use Open inbox to jump back to the message queue.',
+            'channels-header',
+            '/account/channels',
+          ),
+          step(
+            'Status and manage',
+            'Each row shows the display name and whether it is connected, waiting for a scan, or disconnected. Manage opens the WhatsApp link flow for that account.',
+            'channels-board',
+            '/account/channels',
+            '[data-walkthrough="channels-header"]',
           ),
         ],
       },
@@ -431,6 +499,63 @@ export const tutorialSections = [
           ),
         ],
       },
+      {
+        id: 'retail-sales',
+        title: 'Retail sales history',
+        subtitle: 'Look up past bar and shop receipts for a date range',
+        badge: 'Retail',
+        roles: RETAIL_SALES_ROLES,
+        access: ['retail_pos', 'retail_manage', 'retail_reports'],
+        feature: 'retail',
+        keywords: ['retail', 'sales', 'receipts', 'history', 'refund'],
+        steps: [
+          step(
+            'Retail pages',
+            'Sales history sits with the other bar and shop tabs. Open a row to see line items or process a refund when your role allows it.',
+            'retail-tabs',
+            '/retail/sales',
+          ),
+          step(
+            'Date and receipt',
+            'Set From and To, or search by receipt number. The table shows items, total, payment type, member, and status.',
+            'retail-sales-filters',
+            '/retail/sales',
+            '[data-walkthrough="retail-sales-body"]',
+          ),
+          step(
+            'Receipt detail',
+            'Tap a row to open the receipt. Managers can refund chosen units or everything still refundable on that sale.',
+            'retail-sales-body',
+            '/retail/sales',
+            '[data-walkthrough="retail-sales-body"]',
+          ),
+        ],
+      },
+      {
+        id: 'retail-vendors',
+        title: 'Retail vendors',
+        subtitle: 'Track vendor share, payouts, and commission',
+        badge: 'Retail',
+        roles: RETAIL_VENDOR_ROLES,
+        access: ['retail_manage', 'retail_reports'],
+        feature: 'retail',
+        keywords: ['vendors', 'commission', 'payout', 'supplier'],
+        steps: [
+          step(
+            'Retail pages',
+            'Vendors is where you maintain suppliers and, when your role can see money columns, month-to-date sales and payouts.',
+            'retail-tabs',
+            '/retail/vendors',
+          ),
+          step(
+            'Vendor list',
+            'Each row shows gym and vendor shares for the month, unbilled balance, and payout status. Owners and managers can add or edit vendors.',
+            'retail-vendors-list',
+            '/retail/vendors',
+            '[data-walkthrough="retail-vendors-body"]',
+          ),
+        ],
+      },
     ],
   },
   {
@@ -551,7 +676,7 @@ export const tutorialSections = [
         title: 'Assignment requests',
         subtitle: 'Ask to be assigned a member, or approve that request',
         badge: 'Sales',
-        roles: SALES_ROLES,
+        roles: SALES_REQUEST_ROLES,
         access: ['approve_requests', 'request_assignment', 'request_takeover'],
         feature: 'sales_crm',
         keywords: ['requests', 'approval', 'assignment', 'takeover'],
@@ -793,7 +918,7 @@ export const tutorialSections = [
         title: 'Peak attendance',
         subtitle: 'When members usually arrive, so you can staff the floor',
         badge: 'Coaching',
-        roles: ['Head Coach'],
+        roles: ['Head Coach', 'Owner'],
         access: 'coach_attendance',
         feature: 'coaching',
         keywords: ['attendance', 'heatmap', 'busy hours', 'shifts', 'check-ins'],
@@ -833,6 +958,31 @@ export const tutorialSections = [
             'Totals show how many members and sessions sit with the team. Open a coach to see their people.',
             'coach-team-board',
             '/coach/team',
+          ),
+        ],
+      },
+      {
+        id: 'coach-targets',
+        title: 'Coach targets',
+        subtitle: 'See how each coach is loaded with members and sessions',
+        badge: 'Coaching',
+        roles: ['Head Coach'],
+        access: 'coach_targets',
+        feature: 'coaching',
+        keywords: ['coach targets', 'team', 'members', 'sessions'],
+        steps: [
+          step(
+            'Coach team overview',
+            'Head Coaches open this to see every coach’s load. Summary cards show total coaches, members, and who is still active.',
+            'coach-team-header',
+            '/coach/targets',
+          ),
+          step(
+            'Open a coach',
+            'Each card lists that coach’s members and PT usage. Tap a coach to open their profile and member list.',
+            'coach-team-board',
+            '/coach/targets',
+            '[data-walkthrough="coach-team-board"]',
           ),
         ],
       },
@@ -879,26 +1029,26 @@ export const tutorialSections = [
             'Task tools',
             'Filter members for a bulk handoff, review tasks you already created, and export the sheet.',
             'assign-tasks-header',
-            '/tasks',
+            '/tasks/assign',
           ),
           step(
             'Open work',
             'The counts show tasks created, still pending, and how many members have been assigned. The schedule below is where you give the work out.',
             'assign-tasks-board',
-            '/tasks',
+            '/tasks/assign',
           ),
           step(
             'Select members',
             'Tick the people who should move. Select all filtered grabs everyone currently in the list.',
             'assign-select',
-            '/tasks',
+            '/tasks/assign',
             '[data-walkthrough="assign-tasks-board"]',
           ),
           step(
             'Assign sales or a coach',
             'Assign Sales Rep or Assign Coach opens the destination. Confirming notifies that person and puts the members on their task list.',
             'assign-actions',
-            '/tasks',
+            '/tasks/assign',
             '[data-walkthrough="assign-select"]',
           ),
         ],

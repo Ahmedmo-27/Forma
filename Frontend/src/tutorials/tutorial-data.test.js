@@ -90,4 +90,26 @@ describe('tutorial guide plan gating', () => {
     const ids = scenarioIds(sectionsForUser(user, hasFeature));
     expect(ids).toEqual(expect.arrayContaining(['retail-pos', 'retail-products', 'retail-reports', 'maintenance']));
   });
+
+  it('shows inbox guides when the inbox plan feature is on', () => {
+    const user = { role: 'Owner', access: EXPECTED_KEYS.Owner };
+    const ids = scenarioIds(sectionsForUser(user, () => true));
+    expect(ids).toEqual(expect.arrayContaining(['inbox', 'connect-channels']));
+    const blocked = scenarioIds(sectionsForUser(user, (key) => key !== 'inbox'));
+    expect(blocked.includes('inbox')).toBe(false);
+    expect(blocked.includes('connect-channels')).toBe(false);
+  });
+
+  it('includes fixed scenarios for roles that can open the matching routes', () => {
+    const hasFeature = () => true;
+    const expectId = (role, id) => {
+      const ids = scenarioIds(sectionsForUser({ role, access: EXPECTED_KEYS[role] }, hasFeature));
+      expect(ids, `${role}:${id}`).toContain(id);
+    };
+    expectId('General Manager', 'report-guests');
+    expectId('Sales', 'contracts');
+    expectId('Coach', 'sales-requests');
+    expectId('Owner', 'coach-attendance');
+    expectId('Sales Manager', 'report-imported');
+  });
 });

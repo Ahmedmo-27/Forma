@@ -1055,7 +1055,7 @@ export default function Layout({ children }) {
           .app-topbar { max-width: 100%; }
           .topbar-inner {
             height: 56px !important;
-            padding: 0 8px !important;
+            padding: 0 12px !important;
             gap: 6px !important;
             min-width: 0;
             max-width: 100%;

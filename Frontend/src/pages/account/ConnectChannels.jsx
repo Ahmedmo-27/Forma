@@ -35,12 +35,12 @@ export default function ConnectChannels() {
   return (
     <Layout>
       <div style={{ maxWidth: 720, margin: '0 auto', padding: '24px 16px' }}>
-        <PageHeader title={t('Connected channels')}>
+        <PageHeader walkthrough="channels-header" title={t('Connected channels')}>
           <Link to="/inbox" style={{ fontSize: 13, fontWeight: 600 }}>{t('Open inbox')}</Link>
         </PageHeader>
 
         <Card>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div data-walkthrough="channels-board" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <p style={{ margin: 0, fontSize: 14, color: 'var(--t3)' }}>
               {t('Messages sent to these accounts land in one shared inbox for the whole gym.')}
             </p>

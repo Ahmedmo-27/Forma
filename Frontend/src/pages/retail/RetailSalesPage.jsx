@@ -103,8 +103,8 @@ export default function RetailSalesPage() {
     <RetailLayout title={t('Sales')} branch={branch}>
       {!branchId && <EmptyState icon={Receipt} message={t('Select a branch')} sub={t('Sales are recorded per branch.')} />}
       {branchId && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+        <div data-walkthrough="retail-sales-body" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div data-walkthrough="retail-sales-filters" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ width: 160 }}><Input label={t('From')} type="date" value={dateFrom} max={dateTo} onChange={(e) => { setDateFrom(e.target.value); setPage(1); }} /></div>
             <div style={{ width: 160 }}><Input label={t('To')} type="date" value={dateTo} min={dateFrom} onChange={(e) => { setDateTo(e.target.value); setPage(1); }} /></div>
             <div style={{ width: 160 }}><Input label={t('Receipt #')} inputMode="numeric" value={receiptQuery} onChange={(e) => { setReceiptQuery(e.target.value); setPage(1); }} /></div>
