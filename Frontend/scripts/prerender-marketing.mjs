@@ -1,7 +1,8 @@
 /**
  * After `vite build`, write static HTML shells for marketing routes so crawlers
  * see titles, descriptions, canonical, hreflang, OG, JSON-LD, and an article
- * of the same copy without executing JS. The app hides #seo-prerender after paint.
+ * of the same copy without executing JS. #seo-prerender is hidden in HTML so
+ * users never see the shell on refresh; App.jsx keeps a hide fallback.
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -270,7 +271,7 @@ function injectIntoTemplate(template, { locale, barePath, pathname }) {
   html = html.replace("</head>", `${headExtras}</head>`);
 
   const seoBlock = `
-    <article id="seo-prerender" lang="${lang}" dir="${dir}" style="font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#142843">
+    <article id="seo-prerender" hidden lang="${lang}" dir="${dir}" style="font-family:system-ui,sans-serif;max-width:720px;margin:2rem auto;padding:0 1rem;color:#142843">
       <p><strong>Forma</strong></p>
       <h1>${h1}</h1>
       <p>${intro}</p>
