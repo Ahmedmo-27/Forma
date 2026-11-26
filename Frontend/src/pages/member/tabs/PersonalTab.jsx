@@ -7,6 +7,7 @@ import WhatsAppTemplateSendModal from '../../../components/WhatsAppTemplateSendM
 import { mapFieldErrors, focusFirstInvalidField } from '../../../lib/formErrors';
 import { isValidPhone, isDateInFuture } from '../../../lib/validation';
 import { useLocationScope } from '../../../context/LocationContext';
+import { hasAccess } from '../../../lib/access';
 import { useI18n } from '../../../i18n/useI18n';
 import { tr } from '../../../i18n/translate';
 import { useMemberDates } from '../useMemberDates';
@@ -14,8 +15,8 @@ import { useMemberDates } from '../useMemberDates';
 // Raw values are sent to the API as-is; only the displayed label is translated.
 const SOURCES = [tr('Social media'), tr('Walk in'), tr('Word of mouth'), tr('referral'), tr('sales call'), tr('data entry'), tr('others')];
 const GENDER_LABEL = { male: tr('Male'), female: tr('Female') };
-const EDIT_ROLES = ['Owner', 'Sales Manager', 'Receptionist', 'Sales', 'Accountant', 'General Manager'];
 const ASSIGN_COACH_ROLES = ['Owner', 'Head Coach', 'Sales Manager', 'General Manager'];
+export const EDIT_MEMBER_PROFILE_ACCESS = 'edit_member_profile';
 
 function toDateInput(value) {
   if (!value) return '';
@@ -54,7 +55,9 @@ export default function PersonalTab({ member, user, onRefresh }) {
   const canAssign = user?.role === 'Sales Manager' || user?.role === 'Owner' ||
     (user?.role === 'Receptionist' && !member.assignedSales);
   const canAssignCoach = ASSIGN_COACH_ROLES.includes(user?.role);
-  const canEdit = EDIT_ROLES.includes(user?.role);
+  const canFullEdit = hasAccess(user, EDIT_MEMBER_PROFILE_ACCESS);
+  const canEditLocationOnly = user?.role === 'Sales' && !canFullEdit && multiEnabled;
+  const canEdit = canFullEdit || canEditLocationOnly;
   const canEditPhone = Boolean(member.phones && member.phones !== 'hidden');
 
   // Phone visibility
@@ -116,14 +119,18 @@ export default function PersonalTab({ member, user, onRefresh }) {
 
   const openEdit = () => {
     const locId = member.locationId?._id || member.locationId || '';
-    setEditForm({
-      name: member.name || '',
-      phones: canEditPhone ? member.phones : '',
-      gender: member.gender || '',
-      birthdate: toDateInput(member.birthdate),
-      source: member.source || '',
-      locationId: locId ? String(locId) : '',
-    });
+    if (canEditLocationOnly) {
+      setEditForm({ locationId: locId ? String(locId) : '' });
+    } else {
+      setEditForm({
+        name: member.name || '',
+        phones: canEditPhone ? member.phones : '',
+        gender: member.gender || '',
+        birthdate: toDateInput(member.birthdate),
+        source: member.source || '',
+        locationId: locId ? String(locId) : '',
+      });
+    }
     setEditErrors({});
     setShowEdit(true);
   };
@@ -133,33 +140,42 @@ export default function PersonalTab({ member, user, onRefresh }) {
   const handleSave = async () => {
     if (!editForm) return;
     const errors = {};
-    const name = editForm.name.trim();
-    if (!name) errors.name = t('Name is required');
-    else if (name.length > 120) errors.name = t('Name must not exceed 120 characters');
-    if (canEditPhone) {
-      const phone = editForm.phones.trim();
-      if (!phone) errors.phones = t('Phone is required');
-      else if (!isValidPhone(phone)) errors.phones = t('Phone must be 5–40 characters and contain valid phone digits');
-    }
-    if (editForm.birthdate && isDateInFuture(editForm.birthdate)) {
-      errors.birthdate = t('Birthdate cannot be in the future');
-    }
-    setEditErrors(errors);
-    if (Object.keys(errors).length) return;
+    let payload;
 
-    const payload = {
-      name,
-      gender: editForm.gender || null,
-      birthdate: editForm.birthdate || null,
-      source: editForm.source || null,
-    };
-    if (canEditPhone) payload.phones = editForm.phones.trim();
-    if (multiEnabled && editForm.locationId) payload.locationId = editForm.locationId;
+    if (canEditLocationOnly) {
+      if (!editForm.locationId) errors.locationId = t('Location is required');
+      setEditErrors(errors);
+      if (Object.keys(errors).length) return;
+      payload = { locationId: editForm.locationId };
+    } else {
+      const name = editForm.name.trim();
+      if (!name) errors.name = t('Name is required');
+      else if (name.length > 120) errors.name = t('Name must not exceed 120 characters');
+      if (canEditPhone) {
+        const phone = editForm.phones.trim();
+        if (!phone) errors.phones = t('Phone is required');
+        else if (!isValidPhone(phone)) errors.phones = t('Phone must be 5–40 characters and contain valid phone digits');
+      }
+      if (editForm.birthdate && isDateInFuture(editForm.birthdate)) {
+        errors.birthdate = t('Birthdate cannot be in the future');
+      }
+      setEditErrors(errors);
+      if (Object.keys(errors).length) return;
+
+      payload = {
+        name,
+        gender: editForm.gender || null,
+        birthdate: editForm.birthdate || null,
+        source: editForm.source || null,
+      };
+      if (canEditPhone) payload.phones = editForm.phones.trim();
+      if (multiEnabled && editForm.locationId) payload.locationId = editForm.locationId;
+    }
 
     setSaving(true);
     try {
       await updateMember(member.systemId, payload);
-      toast.success(t('Member details saved.'));
+      toast.success(canEditLocationOnly ? t('Member location saved.') : t('Member details saved.'));
       setShowEdit(false);
       onRefresh();
     } catch (e) {
@@ -254,7 +270,7 @@ export default function PersonalTab({ member, user, onRefresh }) {
       <Modal
         open={showEdit}
         onClose={() => setShowEdit(false)}
-        title={t('Edit personal information')}
+        title={canEditLocationOnly ? t('Edit location') : t('Edit personal information')}
         footer={(
           <>
             <Btn variant="ghost" size="sm" onClick={() => setShowEdit(false)}>{t('Cancel')}</Btn>
@@ -263,31 +279,45 @@ export default function PersonalTab({ member, user, onRefresh }) {
         )}
       >
         {editForm && (
-          <div className="grid-2-form">
-            <Input label={t('Full Name *')} value={editForm.name} onChange={(e) => setEdit('name', e.target.value)} error={editErrors.name} />
-            {canEditPhone ? (
-              <Input label={t('Phone *')} value={editForm.phones} onChange={(e) => setEdit('phones', e.target.value)} error={editErrors.phones} />
-            ) : (
-              <Input label={t('Phone')} value={t('Hidden')} disabled />
-            )}
-            <Select label={t('Gender')} value={editForm.gender} onChange={(e) => setEdit('gender', e.target.value)}>
+          canEditLocationOnly ? (
+            <Select
+              label={t('Location')}
+              value={editForm.locationId || ''}
+              onChange={(e) => setEdit('locationId', e.target.value)}
+              error={editErrors.locationId}
+            >
               <option value="">{t('— Select —')}</option>
-              <option value="male">{t('Male')}</option>
-              <option value="female">{t('Female')}</option>
+              {locations.map((loc) => (
+                <option key={loc._id} value={loc._id}>{loc.name}</option>
+              ))}
             </Select>
-            <Input label={t('Birthdate')} type="date" value={editForm.birthdate} onChange={(e) => setEdit('birthdate', e.target.value)} error={editErrors.birthdate} />
-            <Select label={t('Source')} value={editForm.source} onChange={(e) => setEdit('source', e.target.value)}>
-              <option value="">{t('— Select —')}</option>
-              {SOURCES.map((source) => <option key={source} value={source}>{t(source)}</option>)}
-            </Select>
-            {multiEnabled && locations.length > 0 && (
-              <Select label={t('Location')} value={editForm.locationId || ''} onChange={(e) => setEdit('locationId', e.target.value)}>
-                {locations.map((loc) => (
-                  <option key={loc._id} value={loc._id}>{loc.name}</option>
-                ))}
+          ) : (
+            <div className="grid-2-form">
+              <Input label={t('Full Name *')} value={editForm.name} onChange={(e) => setEdit('name', e.target.value)} error={editErrors.name} />
+              {canEditPhone ? (
+                <Input label={t('Phone *')} value={editForm.phones} onChange={(e) => setEdit('phones', e.target.value)} error={editErrors.phones} />
+              ) : (
+                <Input label={t('Phone')} value={t('Hidden')} disabled />
+              )}
+              <Select label={t('Gender')} value={editForm.gender} onChange={(e) => setEdit('gender', e.target.value)}>
+                <option value="">{t('— Select —')}</option>
+                <option value="male">{t('Male')}</option>
+                <option value="female">{t('Female')}</option>
               </Select>
-            )}
-          </div>
+              <Input label={t('Birthdate')} type="date" value={editForm.birthdate} onChange={(e) => setEdit('birthdate', e.target.value)} error={editErrors.birthdate} />
+              <Select label={t('Source')} value={editForm.source} onChange={(e) => setEdit('source', e.target.value)}>
+                <option value="">{t('— Select —')}</option>
+                {SOURCES.map((source) => <option key={source} value={source}>{t(source)}</option>)}
+              </Select>
+              {multiEnabled && locations.length > 0 && (
+                <Select label={t('Location')} value={editForm.locationId || ''} onChange={(e) => setEdit('locationId', e.target.value)}>
+                  {locations.map((loc) => (
+                    <option key={loc._id} value={loc._id}>{loc.name}</option>
+                  ))}
+                </Select>
+              )}
+            </div>
+          )
         )}
       </Modal>
 

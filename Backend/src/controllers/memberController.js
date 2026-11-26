@@ -3886,11 +3886,42 @@ const updateMember = async (req, res) => {
         if (memberForbidden) return sendMemberScopeError(res, memberForbidden);
         const member = memberDoc;
 
+        const { name, phones, gender, birthdate, source, locationId } = req.body;
+        const canFullEdit = hasAccess(req.user, "edit_member_profile");
+        const hasLocationUpdate = locationId !== undefined && locationId !== null && locationId !== "";
+        const hasPersonalUpdate =
+            name !== undefined
+            || phones !== undefined
+            || gender !== undefined
+            || birthdate !== undefined
+            || source !== undefined;
+
+        if (!canFullEdit) {
+            if (req.user.role !== "Sales" || hasPersonalUpdate || !hasLocationUpdate) {
+                return res.status(403).json({ message: "Not allowed to edit member profile" });
+            }
+            const loc = await resolveMemberLocationId(req, locationId);
+            if (loc.error) {
+                return res.status(loc.status || 400).json({ message: loc.error });
+            }
+            applyMemberLocations(member, { primaryLocationId: loc.locationId });
+            member.userlog.push({
+                type: "other",
+                text: "Member home branch updated",
+                createdBy: req.user.id,
+            });
+            await member.save();
+            return res.json({ message: "Member updated" });
+        }
+
+        if (!name || !String(name).trim()) {
+            return res.status(400).json({ message: "Name is required" });
+        }
+
         const visible = redactMemberForViewer(member.toObject(), req.user);
         const canEditPhone = Boolean(visible.phones && visible.phones !== "hidden");
-        const { name, phones, gender, birthdate, source, locationId } = req.body;
 
-        member.name = name;
+        member.name = String(name).trim();
         if (canEditPhone && phones !== undefined) {
             const phoneKey = await assertPhoneAvailable(phones, {
                 excludeMemberId: member._id,
@@ -3904,7 +3935,7 @@ const updateMember = async (req, res) => {
         member.birthdate = birthdate || null;
         member.source = source || null;
 
-        if (locationId !== undefined && locationId !== null && locationId !== "") {
+        if (hasLocationUpdate) {
             const loc = await resolveMemberLocationId(req, locationId);
             if (loc.error) {
                 return res.status(loc.status || 400).json({ message: loc.error });

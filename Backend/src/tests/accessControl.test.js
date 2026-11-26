@@ -26,6 +26,21 @@ describe("access control resolver", () => {
         expect(keys.has("view_phones")).toBe(true);
         expect(keys.has("accounting_dashboard")).toBe(false);
         expect(keys.has("settings")).toBe(false);
+        expect(keys.has("edit_member_profile")).toBe(false);
+    });
+
+    it("defaults edit_member_profile to managers and unlocks it for sales via grant", () => {
+        expect(hasAccess({ role: "Sales Manager", featureAccess: { grants: [], revokes: [] } }, "edit_member_profile")).toBe(true);
+        expect(hasAccess({ role: "Owner", featureAccess: { grants: [], revokes: [] } }, "edit_member_profile")).toBe(true);
+        expect(hasAccess({ role: "General Manager", featureAccess: { grants: [], revokes: [] } }, "edit_member_profile")).toBe(true);
+        expect(hasAccess({ role: "Receptionist", featureAccess: { grants: [], revokes: [] } }, "edit_member_profile")).toBe(false);
+        expect(hasAccess({ role: "Accountant", featureAccess: { grants: [], revokes: [] } }, "edit_member_profile")).toBe(false);
+        const grantedSales = {
+            role: "Sales",
+            featureAccess: { grants: ["edit_member_profile"], revokes: [] },
+        };
+        expect(hasAccess(grantedSales, "edit_member_profile")).toBe(true);
+        expect(hasExplicitGrant(grantedSales, "edit_member_profile")).toBe(true);
     });
 
     it("treats a legacy ability turned off as a revoke when no overrides are stored", () => {

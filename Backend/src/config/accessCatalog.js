@@ -264,6 +264,16 @@ const ACCESS_CATALOG = [
         // Ability-only — Owner / General Manager can grant this on the access page.
     },
     {
+        key: "edit_member_profile",
+        label: "Edit member profile",
+        description: "Edit a member’s personal details (name, phone, gender, birthdate, source, home branch). Sales without this can only change home branch.",
+        icon: "UserPen",
+        group: "Sales Manager",
+        domain: "sales",
+        defaultRoles: ["Sales Manager", "Owner"],
+        // Ability-only — unlocks full personal edit on the member profile (no separate page).
+    },
+    {
         key: "manager_call_center",
         label: "Call Center",
         description: "Manager call center across the sales team",

@@ -25,6 +25,7 @@ describe("Sales Manager", () => {
             "transfer",
             "packages",
             "request_package",
+            "edit_member_profile",
             "manager_call_center",
             "import_members",
             "targets",

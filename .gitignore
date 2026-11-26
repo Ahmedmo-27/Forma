@@ -24,3 +24,5 @@ docs/MULTITENANCY.md
 docs/PLATFORM_CONSOLE.md
 Backend/scripts/ops/sync-test-to-prod.js
 prod.env
+docs/migration/Forma_Tenant_Data_Migration_Template.xlsx
+docs/migration/generate_migration_template.py

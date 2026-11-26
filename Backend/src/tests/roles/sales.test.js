@@ -61,6 +61,15 @@ describe("Sales", () => {
         expectDenied("transfer", ["Sales Manager", "Owner"], user);
     });
 
+    it("cannot edit member profiles until a manager grants the ability", () => {
+        const user = rep();
+        expectDenied("edit_member_profile", ["Sales Manager", "Owner", "General Manager"], user);
+        const granted = staff("Sales", {
+            featureAccess: { grants: ["edit_member_profile"], revokes: [] },
+        });
+        expectAllowed("edit_member_profile", ["Sales Manager", "Owner", "General Manager"], granted);
+    });
+
     it("cannot open the call center after the owner removes sales", () => {
         expectDenied(
             "my_call_center",

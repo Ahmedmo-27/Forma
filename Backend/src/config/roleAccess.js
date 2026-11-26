@@ -30,6 +30,7 @@ const FEATURE_AREA = {
     member_detail_columns: "checkin",
     members: "members",
     member_profile: "members",
+    edit_member_profile: "members",
     sales_dashboard: "sales",
     sales_members: "sales",
     my_call_center: "sales",

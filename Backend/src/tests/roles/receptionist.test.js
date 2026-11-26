@@ -14,6 +14,16 @@ const desk = () => staff("Receptionist");
 describe("Receptionist", () => {
     it("defaults to check-in, the member directory, profiles, and phone numbers", () => {
         expectKeys("Receptionist", ["check_in", "members", "member_profile", "maintenance_checklist", "retail_pos", "view_phones"]);
+        expectDenied(
+            "edit_member_profile",
+            ["Sales Manager", "Owner", "General Manager"],
+            staff("Receptionist")
+        );
+        expectAllowed(
+            "edit_member_profile",
+            ["Sales Manager", "Owner", "General Manager"],
+            staff("Receptionist", { featureAccess: { grants: ["edit_member_profile"], revokes: [] } })
+        );
         expectAreas("Receptionist", ["checkin", "members", "sales", "maintenance", "retail"]);
         expectList("Receptionist", "all");
     });

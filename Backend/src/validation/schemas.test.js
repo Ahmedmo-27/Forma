@@ -92,6 +92,18 @@ describe("updateMemberSchema", () => {
         const result = updateMemberSchema.safeParse({ name: "  ", phones: "01000000000" });
         expect(result.success).toBe(false);
     });
+
+    it("accepts location-only updates without a name", () => {
+        const result = updateMemberSchema.safeParse({ locationId: "507f1f77bcf86cd799439011" });
+        expect(result.success).toBe(true);
+        expect(result.data.locationId).toBe("507f1f77bcf86cd799439011");
+        expect(result.data.name).toBeUndefined();
+    });
+
+    it("requires a name when personal fields are sent", () => {
+        const result = updateMemberSchema.safeParse({ gender: "male" });
+        expect(result.success).toBe(false);
+    });
 });
 
 

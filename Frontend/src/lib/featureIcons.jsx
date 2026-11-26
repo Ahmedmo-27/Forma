@@ -39,6 +39,7 @@ import {
   TrendingUp,
   Users,
   User,
+  UserPen,
   UserRound,
   Dumbbell,
 } from 'lucide-react';
@@ -50,6 +51,7 @@ export const FEATURE_ICONS = {
   IdCard,
   LayoutDashboard,
   User,
+  UserPen,
   Phone,
   MessageCircle,
   ClipboardList,

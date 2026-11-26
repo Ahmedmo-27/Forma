@@ -81,12 +81,27 @@ const createMemberSchema = z.object({
 });
 
 const updateMemberSchema = z.object({
-    name: z.string().trim().min(1).max(120),
+    name: z.string().trim().min(1).max(120).optional(),
     phones: z.string().trim().min(5).max(40).optional(),
     gender: z.preprocess(emptyToNull, z.enum(["male", "female"]).nullable().optional()),
     birthdate: z.preprocess(emptyToNull, z.string().max(40).nullable().optional()),
     source: z.preprocess(emptyToNull, memberSource.nullable().optional()),
     locationId: nullableObjectId,
+}).superRefine((data, ctx) => {
+    const hasLocation = data.locationId !== undefined && data.locationId !== null && data.locationId !== "";
+    const hasPersonal =
+        data.name !== undefined
+        || data.phones !== undefined
+        || data.gender !== undefined
+        || data.birthdate !== undefined
+        || data.source !== undefined;
+    if (!hasLocation && !hasPersonal) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "At least one field is required", path: ["name"] });
+        return;
+    }
+    if (hasPersonal && (data.name === undefined || data.name === null || String(data.name).trim() === "")) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Name is required", path: ["name"] });
+    }
 });
 
 const assignMemberLocationSchema = z.object({
