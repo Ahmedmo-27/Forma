@@ -117,6 +117,8 @@ const AR = {
   'Failed to load coaches.': 'تعذر تحميل المدربين.',
   'Failed to assign coach.': 'تعذر تعيين المدرب.',
   'Member details saved.': 'تم حفظ بيانات العضو.',
+  'Member location saved.': 'تم حفظ فرع العضو.',
+  'Location is required': 'الفرع مطلوب',
   'Could not save member details.': 'تعذر حفظ بيانات العضو.',
   'Name is required.': 'الاسم مطلوب.',
   'Name must not exceed 120 characters.': 'يجب ألا يتجاوز الاسم 120 حرفًا.',
