@@ -178,6 +178,7 @@ const BADGE_LABELS = {
   pending: tr('pending'),
   accepted: tr('accepted'),
   completed: tr('completed'),
+  cancelled: tr('cancelled'),
   in_progress: tr('in_progress'),
   rejected: tr('rejected'),
 };
@@ -191,6 +192,7 @@ const BADGE_MAP = {
   pending:  { bg: 'var(--amber-bg)', color: 'var(--amber)',  border: 'var(--amber-bd)', dot: '#f59e0b' },
   accepted: { bg: 'var(--green-bg)',  color: 'var(--green)',  border: 'var(--green-bd)',  dot: '#22c55e' },
   completed: { bg: 'var(--green-bg)',  color: 'var(--green)',  border: 'var(--green-bd)',  dot: '#22c55e' },
+  cancelled: { bg: 'var(--red-bg)',    color: 'var(--red)',    border: 'var(--red-bd)',    dot: '#ef4444' },
   in_progress: { bg: 'var(--sky-bg)',  color: 'var(--sky)',  border: 'var(--sky-bd)',  dot: '#38bdf8' },
   rejected: { bg: 'var(--red-bg)',    color: 'var(--red)',    border: 'var(--red-bd)',    dot: '#ef4444' },
 };

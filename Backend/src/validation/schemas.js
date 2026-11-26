@@ -40,6 +40,21 @@ const activityType = z.enum([
     "gym", "crossfit", "box", "mma", "kickboxing", "calisthenics",
 ]);
 const duration = z.enum(["1 month", "3 months", "6 months", "1 year"]);
+const accessType = z.enum(["unlimited", "sessions"]);
+
+function refinePackageAccessType(data, ctx) {
+    if (data.accessType === "sessions") {
+        const limit = Number(data.sessionLimit);
+        if (!Number.isFinite(limit) || limit < 1) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: "Session limit must be at least 1 for session packages",
+                path: ["sessionLimit"],
+            });
+        }
+    }
+}
+
 const memberSource = z.enum([
     "Social media", "Walk in", "Word of mouth", "referral", "sales call", "data entry", "others",
 ]);
@@ -151,6 +166,8 @@ const assignPackageSchema = z.object({
     name: z.string().trim().min(1).max(120),
     activityType: activityType.optional(),
     duration,
+    accessType: accessType.optional(),
+    sessionLimit: z.coerce.number().int().nonnegative().optional(),
     price: z.coerce.number().nonnegative().optional(),
     freezeLimitDays: z.coerce.number().int().nonnegative().optional(),
     invitationLimit: z.coerce.number().int().nonnegative().optional(),
@@ -158,18 +175,21 @@ const assignPackageSchema = z.object({
     pricePaid: z.coerce.number().positive("Price paid must be greater than zero"),
     discountPercent: z.coerce.number().min(0).max(100).optional(),
     startDate: z.string().max(40).nullable().optional(),
+    endDate: z.string().max(40).nullable().optional(),
     locationId: nullableObjectId,
     upgrade: z.preprocess(
         (v) => v === true || v === "true" || v === 1 || v === "1",
         z.boolean()
     ).optional(),
-});
+}).superRefine(refinePackageAccessType);
 
 /** Partial update of an already-assigned subscription (Owner / GM / Sales Manager). */
 const updateSubscriptionSchema = z.object({
     name: z.string().trim().min(1).max(120).optional(),
     activityType: activityType.optional(),
     duration: duration.optional(),
+    accessType: accessType.optional(),
+    sessionLimit: z.coerce.number().int().nonnegative().optional(),
     price: z.coerce.number().nonnegative().optional(),
     freezeLimitDays: z.coerce.number().int().nonnegative().optional(),
     invitationLimit: z.coerce.number().int().nonnegative().optional(),
@@ -186,7 +206,11 @@ const updateSubscriptionSchema = z.object({
     (data) => Object.prototype.hasOwnProperty.call(data, "salesPersonId")
         || Object.entries(data).some(([key, value]) => key !== "salesPersonId" && value !== undefined && value !== null && value !== ""),
     { message: "At least one field is required" }
-);
+).superRefine((data, ctx) => {
+    if (data.accessType === "sessions") {
+        refinePackageAccessType(data, ctx);
+    }
+});
 
 const createExceptionSchema = z.object({
     memberId: memberIdInput,
@@ -198,6 +222,8 @@ const createExceptionSchema = z.object({
     name: z.string().trim().min(1).max(120).optional(),
     activityType: activityType.optional(),
     duration: duration.optional(),
+    accessType: accessType.optional(),
+    sessionLimit: z.coerce.number().int().nonnegative().optional(),
     price: z.coerce.number().nonnegative().optional(),
     freezeLimitDays: z.coerce.number().int().nonnegative().optional(),
     invitationLimit: z.coerce.number().int().nonnegative().optional(),
@@ -206,11 +232,16 @@ const createExceptionSchema = z.object({
     pricePaid: z.coerce.number().nonnegative().optional(),
     discountPercent: z.coerce.number().min(0).max(100).optional(),
     startDate: z.string().max(40).nullable().optional(),
+    endDate: z.string().max(40).nullable().optional(),
     reason: z.string().trim().max(1000).nullable().optional(),
     upgrade: z.preprocess(
         (v) => v === true || v === "true" || v === 1 || v === "1",
         z.boolean()
     ).optional(),
+}).superRefine((data, ctx) => {
+    if (data.accessType === "sessions") {
+        refinePackageAccessType(data, ctx);
+    }
 });
 
 const exceptionStatusSchema = z.object({
@@ -260,6 +291,8 @@ const packageFieldsSchema = z.object({
     name: z.string().trim().min(1).max(120),
     activityType,
     duration,
+    accessType: accessType.optional(),
+    sessionLimit: z.coerce.number().int().nonnegative().optional(),
     price: z.coerce.number().nonnegative(),
     freezeLimitDays: z.coerce.number().int().nonnegative().optional(),
     invitationLimit: z.coerce.number().int().nonnegative().optional(),
@@ -279,11 +312,20 @@ function refinePackageLocationScope(data, ctx) {
     }
 }
 
-const createPackageSchema = packageFieldsSchema.superRefine(refinePackageLocationScope);
+const createPackageSchema = packageFieldsSchema
+    .superRefine(refinePackageLocationScope)
+    .superRefine(refinePackageAccessType);
 
 const updatePackageSchema = packageFieldsSchema.partial().extend({
     isActive: z.boolean().optional(),
-}).superRefine(refinePackageLocationScope);
+}).superRefine(refinePackageLocationScope).superRefine((data, ctx) => {
+    if (data.accessType === "sessions" || (data.sessionLimit !== undefined && data.accessType !== "unlimited")) {
+        refinePackageAccessType(
+            { accessType: data.accessType ?? "sessions", sessionLimit: data.sessionLimit },
+            ctx,
+        );
+    }
+});
 
 const optionalText = (maxLen) =>
     z.preprocess(

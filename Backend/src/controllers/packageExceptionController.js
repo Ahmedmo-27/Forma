@@ -35,10 +35,13 @@ const generateSubscriptionId = async () => {
 };
 
 const buildExceptionPackage = async (request, memberId, userId, freePtSessions = 0) => {
+    const accessType = request.accessType === "sessions" ? "sessions" : "unlimited";
     return Package.create({
         name: request.name,
         activityType: request.activityType,
         duration: request.duration,
+        accessType,
+        sessionLimit: accessType === "sessions" ? Math.max(0, Number(request.sessionLimit) || 0) : 0,
         price: request.price,
         freezeLimitDays: request.freezeLimitDays,
         invitationLimit: request.invitationLimit,
@@ -78,10 +81,17 @@ const applyApprovedException = async (request, reviewerId) => {
         packageId = request.basePackage;
         packageName = basePkg?.name ?? request.name;
         // Snapshot approved request terms (not live catalog) so later catalog edits are ignored
+        const accessType = request.accessType === "sessions"
+            ? "sessions"
+            : (basePkg?.accessType === "sessions" ? "sessions" : "unlimited");
         snapshotSource = {
             name: request.name,
             activityType: request.activityType,
             duration: request.duration,
+            accessType,
+            sessionLimit: accessType === "sessions"
+                ? Math.max(0, Number(request.sessionLimit ?? basePkg?.sessionLimit) || 0)
+                : 0,
             price: request.price,
             freezeLimitDays: request.freezeLimitDays,
             invitationLimit: request.invitationLimit,
@@ -116,7 +126,13 @@ const applyApprovedException = async (request, reviewerId) => {
         throw error;
     }
     const startDate = resolvedStart.start;
-    const endDate = calcEndDate(startDate, request.duration);
+    let endDate = calcEndDate(startDate, request.duration);
+    if (request.endDate) {
+        const customEnd = new Date(request.endDate);
+        if (!Number.isNaN(customEnd.getTime()) && customEnd > startDate) {
+            endDate = customEnd;
+        }
+    }
     const subscriptionId = await generateSubscriptionId();
     const hadSubscription = member.subscriptions?.length > 0;
     const startsNowOrPast = startDate <= new Date();
@@ -129,6 +145,8 @@ const applyApprovedException = async (request, reviewerId) => {
         endDate,
         pricePaid: request.pricePaid,
         discountPercent: request.discountPercent ?? 0,
+        sessionsUsed: 0,
+        subscriptionStatus: "active",
         isRenewal: hadSubscription,
         isUpgrade: upgrading,
         createdBy: request.proposedBy,
@@ -174,6 +192,8 @@ const createException = async (req, res) => {
             name,
             activityType,
             duration,
+            accessType,
+            sessionLimit,
             price,
             freezeLimitDays,
             invitationLimit,
@@ -182,6 +202,7 @@ const createException = async (req, res) => {
             pricePaid,
             discountPercent,
             startDate,
+            endDate,
             reason,
             upgrade,
         } = req.body;
@@ -237,6 +258,25 @@ const createException = async (req, res) => {
                 ? `${proposerLabel} added package ${packageName} with exception to member ${member.name}`
                 : `${proposerLabel} requested package ${packageName} for member ${member.name}`;
 
+        const resolvedAccessType = (accessType ?? basePkg.accessType) === "sessions"
+            ? "sessions"
+            : "unlimited";
+        const resolvedSessionLimit = resolvedAccessType === "sessions"
+            ? Math.max(0, Number(sessionLimit ?? basePkg.sessionLimit) || 0)
+            : 0;
+        if (resolvedAccessType === "sessions" && resolvedSessionLimit < 1) {
+            return res.status(400).json({ message: "Session limit must be at least 1 for session packages" });
+        }
+
+        let resolvedEndDate = null;
+        if (endDate != null && endDate !== "") {
+            const customEnd = new Date(endDate);
+            if (Number.isNaN(customEnd.getTime()) || !(customEnd > resolvedStart.start)) {
+                return res.status(400).json({ message: "End date must be after start date" });
+            }
+            resolvedEndDate = customEnd;
+        }
+
         const request = await PackageExceptionRequest.create({
             member: member._id,
             basePackage: basePkg._id,
@@ -245,6 +285,8 @@ const createException = async (req, res) => {
             name: name ?? basePkg.name,
             activityType: activityType ?? basePkg.activityType,
             duration: duration ?? basePkg.duration,
+            accessType: resolvedAccessType,
+            sessionLimit: resolvedSessionLimit,
             price: price ?? basePkg.price,
             freezeLimitDays: freezeLimitDays ?? basePkg.freezeLimitDays,
             invitationLimit: invitationLimit ?? basePkg.invitationLimit,
@@ -253,6 +295,7 @@ const createException = async (req, res) => {
             pricePaid: pricePaid ?? price ?? basePkg.price,
             discountPercent: discountPercent ?? 0,
             startDate: resolvedStart.start,
+            endDate: resolvedEndDate,
             isUpgrade: upgrading,
             reason: reason ?? null,
             notificationMessage,

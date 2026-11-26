@@ -1,6 +1,9 @@
 const {
     findActiveSubscriptions,
     subscriptionActivityType,
+    isSessionPackage,
+    subscriptionSessionLimit,
+    subscriptionSessionsLeft,
 } = require("./subscriptionUtils");
 const { isMemberRestricted } = require("./memberRestriction");
 
@@ -42,10 +45,18 @@ function activePackageOptions(member, now = new Date()) {
     for (const sub of findActiveSubscriptions(member.subscriptions, now)) {
         const activityType = subscriptionActivityType(sub);
         if (byType.has(activityType)) continue;
+        const sessionBased = isSessionPackage(sub);
+        const sessionLimit = sessionBased ? subscriptionSessionLimit(sub) : 0;
+        const sessionsUsed = sessionBased ? (Number(sub.sessionsUsed) || 0) : 0;
+        const sessionsLeft = sessionBased ? subscriptionSessionsLeft(sub) : null;
         byType.set(activityType, {
             activityType,
             packageName: sub.packageSnapshot?.name || (sub.package && typeof sub.package === "object" ? sub.package.name : null) || null,
             endsAt: sub.endDate || null,
+            accessType: sessionBased ? "sessions" : "unlimited",
+            sessionLimit,
+            sessionsUsed,
+            sessionsLeft,
         });
     }
     return [...byType.values()];

@@ -115,6 +115,50 @@ describe("checkInOptions", () => {
         expect(checkInOptions(member({ isMember: false, subscriptions: [] }), { now: NOW, dayStart: DAY_START }).gym).toBe(false);
     });
 
+    it("includes session progress for session-based membership packages", () => {
+        const options = checkInOptions(member({
+            subscriptions: [sub(new Date(2026, 9, 1), new Date(2026, 11, 1), {
+                sessionsUsed: 4,
+                packageSnapshot: {
+                    activityType: "gym",
+                    name: "10 Pack",
+                    duration: "1 month",
+                    price: 500,
+                    accessType: "sessions",
+                    sessionLimit: 10,
+                },
+            })],
+        }), { now: NOW, dayStart: DAY_START });
+
+        expect(options.packages[0]).toMatchObject({
+            activityType: "gym",
+            packageName: "10 Pack",
+            accessType: "sessions",
+            sessionLimit: 10,
+            sessionsUsed: 4,
+            sessionsLeft: 6,
+        });
+    });
+
+    it("hides exhausted session packages from check-in choices", () => {
+        const options = checkInOptions(member({
+            subscriptions: [sub(new Date(2026, 9, 1), new Date(2026, 11, 1), {
+                sessionsUsed: 10,
+                packageSnapshot: {
+                    activityType: "gym",
+                    name: "10 Pack",
+                    duration: "1 month",
+                    price: 500,
+                    accessType: "sessions",
+                    sessionLimit: 10,
+                },
+            })],
+        }), { now: NOW, dayStart: DAY_START });
+
+        expect(options.gym).toBe(false);
+        expect(options.packages).toEqual([]);
+    });
+
     it("counts remaining sessions without going negative", () => {
         expect(ptSessionsLeft({ PT_sessions: 3, used_PT_sessions: 5 })).toBe(0);
         expect(ptSessionsLeft({})).toBe(0);

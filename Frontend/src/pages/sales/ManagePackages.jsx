@@ -158,11 +158,11 @@ export default function ManagePackages() {
         <Card noPad>
           <CardHeader title={t('Active Packages ({count})', { count: pagination.total })} />
           <Table
-            headers={[t('Name'), t('Activity'), t('Duration'), t('Price'), t('Branches'), t('Freeze'), t('Invites'), t('Discount'), t('Created'), '']}
+            headers={[t('Name'), t('Activity'), t('Duration'), t('Access Type'), t('Price'), t('Branches'), t('Freeze'), t('Invites'), t('Discount'), t('Created'), '']}
             loading={loading} skeletonRows={4}
           >
             {!loading && packages.length === 0 && (
-              <tr><td colSpan={10}><EmptyState icon={Package} message={t('No packages yet')} sub={t('Create your first package above')} /></td></tr>
+              <tr><td colSpan={11}><EmptyState icon={Package} message={t('No packages yet')} sub={t('Create your first package above')} /></td></tr>
             )}
             {packages.map(pkg => (
               <tr key={pkg._id} style={{ borderBottom: '1px solid var(--border)' }}
@@ -178,7 +178,12 @@ export default function ManagePackages() {
                   )}
                 </td>
                 <td style={{ padding: '11px 14px' }}><ActivityBadge type={pkg.activityType} /></td>
-                <td style={{ padding: '11px 14px', color: 'var(--t2)', fontSize: 13 }}>{pkg.duration}</td>
+                <td style={{ padding: '11px 14px', color: 'var(--t2)', fontSize: 13 }}>{pkg.duration ? t(pkg.duration) : pkg.duration}</td>
+                <td style={{ padding: '11px 14px', color: 'var(--t2)', fontSize: 13 }}>
+                  {pkg.accessType === 'sessions'
+                    ? t('{count} sessions', { count: pkg.sessionLimit || 0 })
+                    : t('Unlimited')}
+                </td>
                 <td style={{ padding: '11px 14px', fontWeight: 700, color: 'var(--t1)', fontSize: 13 }}>
                   {fmtNumber(pkg.price)} EGP
                 </td>

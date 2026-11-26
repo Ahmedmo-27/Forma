@@ -121,12 +121,20 @@ export default function CheckInTypeModal({ prompt, busy = false, onChoose, onClo
     const pkg = packageByType[key];
     const endsAt = pkg?.endsAt || (key === 'gym' ? member.gymEndsAt : null);
     const packageName = pkg?.packageName || (key === 'gym' ? member.gymPackage : null);
+    const sessionBased = pkg?.accessType === 'sessions';
+    const pkgSessionsLeft = sessionBased
+      ? Math.max(0, Number(pkg.sessionsLeft ?? ((pkg.sessionLimit || 0) - (pkg.sessionsUsed || 0))))
+      : null;
+    const sessionLimit = sessionBased ? Math.max(0, Number(pkg.sessionLimit) || 0) : null;
     return {
       key,
       icon: ACTIVITY_ICONS[key] || DoorOpen,
       title: activityTitle(t, key),
       lines: [
         packageName || null,
+        sessionBased && sessionLimit != null
+          ? t('{left} out of {total} sessions', { left: pkgSessionsLeft, total: sessionLimit })
+          : null,
         endsAt
           ? t('Active until {date}', {
             date: fmtDate(endsAt, {

@@ -86,7 +86,21 @@ const { remainingCapacity, planLimitPayload } = require("../services/planLimitSe
 const { resolveSalesAssignee, ensureSalesManagerAssignments } = require("../utils/salesAssignment");
 const { resolveCoachAssignee, ensureHeadCoachAssignments } = require("../utils/coachAssignment");
 const { sanitizePlainText } = require("../utils/sanitizeText");
-const { validateNoOverlappingSubscription, resolveNextPackageStart, closeRefundedSubscription, findActiveSubscription, currentPackageSubscription, latestOpenSubscription, isClosedSubscription, isForfeitedCancellation, isTransferredAway } = require("../utils/subscriptionUtils");
+const {
+    validateNoOverlappingSubscription,
+    resolveNextPackageStart,
+    closeRefundedSubscription,
+    findActiveSubscription,
+    currentPackageSubscription,
+    latestOpenSubscription,
+    isClosedSubscription,
+    isForfeitedCancellation,
+    isTransferredAway,
+    isSessionPackage,
+    subscriptionSessionLimit,
+    subscriptionSessionsLeft,
+    lazyExpireSubscription,
+} = require("../utils/subscriptionUtils");
 const {
     normalizeCheckInType,
     isMembershipCheckInType,
@@ -863,7 +877,8 @@ async function recordFrontDeskPtSession(req, res, { query, deskLoc, now }) {
     return res.status(409).json({ message: "Could not record the PT check-in. Please try again." });
 }
 
-// Mongo cond for an open subscription covering `now`, optionally limited to one activity category.
+// Mongo cond for an open unlimited subscription covering `now`.
+// Session packages are excluded so the fast path never burns visits — they use the slow path.
 function activeSubscriptionMongoCond(now, activityType = null) {
     const parts = [
         { $lte: ["$$sub.startDate", now] },
@@ -871,7 +886,10 @@ function activeSubscriptionMongoCond(now, activityType = null) {
         { $ne: ["$$sub.refunded", true] },
         { $ne: ["$$sub.cancelled", true] },
         { $ne: ["$$sub.subscriptionStatus", "cancelled"] },
+        { $ne: ["$$sub.subscriptionStatus", "completed"] },
         { $lte: [{ $ifNull: ["$$sub.refundAmount", 0] }, 0] },
+        // Fast path is unlimited-only; session packages fall through to burn on save
+        { $ne: [{ $ifNull: ["$$sub.packageSnapshot.accessType", "unlimited"] }, "sessions"] },
     ];
     if (activityType) {
         parts.push({
@@ -879,6 +897,22 @@ function activeSubscriptionMongoCond(now, activityType = null) {
         });
     }
     return { $and: parts };
+}
+
+/** Consume one session on a session package; mark completed when the quota is used up. */
+function burnSubscriptionSession(sub) {
+    if (!isSessionPackage(sub)) return { ok: true, completed: false };
+    const left = subscriptionSessionsLeft(sub);
+    if (left <= 0) {
+        return { ok: false, message: "Cannot check in — this package has no sessions left" };
+    }
+    sub.sessionsUsed = (Number(sub.sessionsUsed) || 0) + 1;
+    const limit = subscriptionSessionLimit(sub);
+    if (sub.sessionsUsed >= limit) {
+        sub.subscriptionStatus = "completed";
+        return { ok: true, completed: true };
+    }
+    return { ok: true, completed: false };
 }
 
 function checkInTypeRequiredPayload(member, options, coachName = null) {
@@ -1063,6 +1097,11 @@ const checkInMember = async (req, res) => {
             }
         }
 
+        // Lazily mark past-window subscriptions as expired before resolving access
+        for (const sub of member.subscriptions || []) {
+            lazyExpireSubscription(sub, now);
+        }
+
         if (membershipType) {
             const typedSub = findActiveSubscription(member.subscriptions, now, membershipType);
             if (!typedSub) {
@@ -1092,6 +1131,10 @@ const checkInMember = async (req, res) => {
                 await member.save();
             }
             return res.status(400).json({ message: "Cannot check in — this member has an expired package" });
+        }
+
+        if (isSessionPackage(currentSub) && subscriptionSessionsLeft(currentSub) <= 0) {
+            return res.status(400).json({ message: "Cannot check in — this package has no sessions left" });
         }
 
         const today = new Date();
@@ -1152,11 +1195,18 @@ const checkInMember = async (req, res) => {
             entry.text = `Member checked in · ${resolvedType}`;
         }
 
+        const burn = burnSubscriptionSession(currentSub);
+        if (!burn.ok) {
+            return res.status(400).json({ message: burn.message });
+        }
+
         member.userlog.push(entry);
+        if (typeof member.markModified === "function") member.markModified("subscriptions");
         await member.save();
 
         const savedEntry = member.userlog[member.userlog.length - 1];
         const pkgName = currentSub?.packageSnapshot?.name || currentSub?.package?.name || null;
+        const sessionsLeft = isSessionPackage(currentSub) ? subscriptionSessionsLeft(currentSub) : null;
         publishLive(req.user.tenantId, {
             type: "check-in",
             message: `${member.name} checked in${pkgName ? ` · ${pkgName}` : ""}`,
@@ -1171,6 +1221,11 @@ const checkInMember = async (req, res) => {
             checkInType: resolvedType,
             checkIn: savedEntry,
             status: member.status,
+            ...(sessionsLeft != null ? {
+                sessionsLeft,
+                sessionLimit: subscriptionSessionLimit(currentSub),
+                subscriptionStatus: currentSub.subscriptionStatus,
+            } : {}),
         });
     } catch (error) {
         res.status(500).json({ message: error.message });
@@ -2102,10 +2157,13 @@ const getAllNotes = async (req, res) => {
 
 const packageTermsDiffer = (basePkg, terms) => {
     const num = (v, def = 0) => (v != null && v !== "" ? Number(v) : def);
+    const accessType = (v) => (v === "sessions" ? "sessions" : "unlimited");
     return (
         terms.name !== basePkg.name ||
         terms.activityType !== basePkg.activityType ||
         terms.duration !== basePkg.duration ||
+        accessType(terms.accessType) !== accessType(basePkg.accessType) ||
+        num(terms.sessionLimit) !== num(basePkg.sessionLimit) ||
         num(terms.price) !== basePkg.price ||
         num(terms.freezeLimitDays) !== (basePkg.freezeLimitDays ?? 0) ||
         num(terms.invitationLimit) !== (basePkg.invitationLimit ?? 0) ||
@@ -2121,6 +2179,8 @@ const assignPackage = async (req, res) => {
             name,
             activityType,
             duration,
+            accessType,
+            sessionLimit,
             price,
             freezeLimitDays,
             invitationLimit,
@@ -2128,6 +2188,7 @@ const assignPackage = async (req, res) => {
             pricePaid,
             discountPercent,
             startDate,
+            endDate: endDateOverride,
             ptSessionsExpDate,
             upgrade,
         } = req.body;
@@ -2186,10 +2247,22 @@ const assignPackage = async (req, res) => {
             });
         }
 
+        const resolvedAccessType = (accessType ?? basePkg.accessType) === "sessions"
+            ? "sessions"
+            : "unlimited";
+        const resolvedSessionLimit = resolvedAccessType === "sessions"
+            ? Math.max(0, Number(sessionLimit ?? basePkg.sessionLimit) || 0)
+            : 0;
+        if (resolvedAccessType === "sessions" && resolvedSessionLimit < 1) {
+            return res.status(400).json({ message: "Session limit must be at least 1 for session packages" });
+        }
+
         const terms = {
             name: name.trim(),
             activityType: activityType ?? basePkg.activityType,
             duration,
+            accessType: resolvedAccessType,
+            sessionLimit: resolvedSessionLimit,
             price: price != null && price !== "" ? Number(price) : basePkg.price,
             freezeLimitDays: Number(freezeLimitDays) || 0,
             invitationLimit: Number(invitationLimit) || 0,
@@ -2212,6 +2285,8 @@ const assignPackage = async (req, res) => {
                 name: terms.name,
                 activityType: terms.activityType,
                 duration: terms.duration,
+                accessType: terms.accessType,
+                sessionLimit: terms.sessionLimit,
                 price: terms.price,
                 freezeLimitDays: terms.freezeLimitDays,
                 invitationLimit: terms.invitationLimit,
@@ -2252,7 +2327,17 @@ const assignPackage = async (req, res) => {
             return res.status(400).json({ message: overlapError });
         }
 
-        const endDate = calcEndDate(start, terms.duration);
+        let endDate = calcEndDate(start, terms.duration);
+        if (endDateOverride != null && endDateOverride !== "") {
+            const customEnd = new Date(endDateOverride);
+            if (Number.isNaN(customEnd.getTime())) {
+                return res.status(400).json({ message: "Invalid end date" });
+            }
+            if (!(customEnd > start)) {
+                return res.status(400).json({ message: "End date must be after start date" });
+            }
+            endDate = customEnd;
+        }
         const subscriptionId = await generateSubscriptionId();
         const hadSubscription = member.subscriptions?.length > 0;
 
@@ -2277,6 +2362,8 @@ const assignPackage = async (req, res) => {
             endDate,
             pricePaid: Number(pricePaid),
             discountPercent: Number(discountPercent) || 0,
+            sessionsUsed: 0,
+            subscriptionStatus: "active",
             isRenewal: hadSubscription,
             isUpgrade: upgrading,
             createdBy: req.user.id,
@@ -2355,6 +2442,8 @@ const updateSubscription = async (req, res) => {
             name,
             activityType,
             duration,
+            accessType,
+            sessionLimit,
             price,
             freezeLimitDays,
             invitationLimit,
@@ -2388,7 +2477,7 @@ const updateSubscription = async (req, res) => {
         }
 
         const termPatchRequested = [
-            name, activityType, duration, price, freezeLimitDays, invitationLimit,
+            name, activityType, duration, accessType, sessionLimit, price, freezeLimitDays, invitationLimit,
             renewalDiscountPercent, description, pricePaid, discountPercent, startDate, endDate,
         ].some((value) => value !== undefined);
 
@@ -2423,10 +2512,30 @@ const updateSubscription = async (req, res) => {
 
         if (termPatchRequested) {
             const currentTerms = resolveSubscriptionPackage(sub) || {};
+            const nextAccessType = accessType !== undefined
+                ? (accessType === "sessions" ? "sessions" : "unlimited")
+                : (currentTerms.accessType === "sessions" ? "sessions" : "unlimited");
+            const nextSessionLimit = nextAccessType === "sessions"
+                ? Math.max(0, Number(
+                    sessionLimit !== undefined ? sessionLimit : currentTerms.sessionLimit
+                ) || 0)
+                : 0;
+            if (nextAccessType === "sessions" && nextSessionLimit < 1) {
+                return res.status(400).json({ message: "Session limit must be at least 1 for session packages" });
+            }
+            const usedSessions = Number(sub.sessionsUsed) || 0;
+            if (nextAccessType === "sessions" && nextSessionLimit < usedSessions) {
+                return res.status(400).json({
+                    message: `Session limit cannot be below sessions already used (${usedSessions})`,
+                });
+            }
+
             const termsChanged = packageTermsDiffer(currentTerms, {
                 name: name !== undefined ? String(name).trim() : currentTerms.name,
                 activityType: activityType !== undefined ? activityType : (currentTerms.activityType || "gym"),
                 duration: duration !== undefined ? duration : currentTerms.duration,
+                accessType: nextAccessType,
+                sessionLimit: nextSessionLimit,
                 price: price !== undefined ? Number(price) : (Number(currentTerms.price) || 0),
                 freezeLimitDays: freezeLimitDays !== undefined
                     ? Number(freezeLimitDays)
@@ -2444,6 +2553,8 @@ const updateSubscription = async (req, res) => {
                 name: name !== undefined ? String(name).trim() : currentTerms.name,
                 activityType: activityType !== undefined ? activityType : (currentTerms.activityType || "gym"),
                 duration: duration !== undefined ? duration : currentTerms.duration,
+                accessType: nextAccessType,
+                sessionLimit: nextSessionLimit,
                 price: price !== undefined ? Number(price) : (Number(currentTerms.price) || 0),
                 freezeLimitDays: freezeLimitDays !== undefined
                     ? Number(freezeLimitDays)
@@ -3637,6 +3748,8 @@ const transferPackage = async (req, res) => {
             endDate,
             pricePaid: 0,
             discountPercent: Number(target.discountPercent) || 0,
+            sessionsUsed: Number(target.sessionsUsed) || 0,
+            subscriptionStatus: target.subscriptionStatus === "completed" ? "completed" : "active",
             isRenewal: false,
             isUpgrade: false,
             createdBy: req.user.id,

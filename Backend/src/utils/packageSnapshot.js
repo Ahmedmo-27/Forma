@@ -7,6 +7,8 @@ const SNAPSHOT_FIELDS = [
     "name",
     "activityType",
     "duration",
+    "accessType",
+    "sessionLimit",
     "price",
     "freezeLimitDays",
     "invitationLimit",
@@ -30,10 +32,17 @@ function buildPackageSnapshot(source) {
         ? plain.eligibleLocationIds.map((id) => id?._id || id).filter(Boolean)
         : [];
 
+    const accessType = plain.accessType === "sessions" ? "sessions" : "unlimited";
+    const sessionLimit = accessType === "sessions"
+        ? Math.max(0, Number(plain.sessionLimit) || 0)
+        : 0;
+
     return {
         name: plain.name,
         activityType: plain.activityType ?? "gym",
         duration: plain.duration,
+        accessType,
+        sessionLimit,
         price: Number(plain.price) || 0,
         freezeLimitDays: Number(plain.freezeLimitDays) || 0,
         invitationLimit: Number(plain.invitationLimit) || 0,

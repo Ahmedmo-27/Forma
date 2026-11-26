@@ -1,11 +1,62 @@
 /**
- * A refund, of any amount, voids the whole package. Cancelled rows are void too.
+ * A refund, of any amount, voids the whole package. Cancelled and completed rows are void too.
  * Those rows do not grant access and do not hold the calendar.
  */
 function isClosedSubscription(sub) {
     if (!sub) return true;
     if (Number(sub.refundAmount) > 0) return true;
-    return Boolean(sub.refunded || sub.cancelled || sub.subscriptionStatus === "cancelled");
+    return Boolean(
+        sub.refunded
+        || sub.cancelled
+        || sub.subscriptionStatus === "cancelled"
+        || sub.subscriptionStatus === "completed"
+    );
+}
+
+/** Resolve purchase-time package terms from snapshot or populated package. */
+function subscriptionPackageTerms(sub) {
+    if (!sub) return null;
+    if (sub.packageSnapshot && typeof sub.packageSnapshot === "object") {
+        return sub.packageSnapshot;
+    }
+    const pkg = sub.package;
+    if (pkg && typeof pkg === "object") return pkg;
+    return null;
+}
+
+/** True when the subscription is a session-limited membership package. */
+function isSessionPackage(sub) {
+    return subscriptionPackageTerms(sub)?.accessType === "sessions";
+}
+
+function subscriptionSessionLimit(sub) {
+    if (!isSessionPackage(sub)) return 0;
+    return Math.max(0, Number(subscriptionPackageTerms(sub)?.sessionLimit) || 0);
+}
+
+/** Sessions remaining on a session package (0 for exhausted / non-session). */
+function subscriptionSessionsLeft(sub) {
+    if (!isSessionPackage(sub)) return 0;
+    return Math.max(0, subscriptionSessionLimit(sub) - (Number(sub.sessionsUsed) || 0));
+}
+
+/** Unlimited packages always have access; session packages need remaining visits. */
+function hasCheckInQuota(sub) {
+    if (!isSessionPackage(sub)) return true;
+    return subscriptionSessionsLeft(sub) > 0;
+}
+
+/**
+ * Mark a still-active subscription expired when its window has passed.
+ * Returns true when the document was mutated.
+ */
+function lazyExpireSubscription(sub, now = new Date()) {
+    if (!sub || isClosedSubscription(sub)) return false;
+    if (sub.subscriptionStatus && sub.subscriptionStatus !== "active") return false;
+    if (!sub.endDate) return false;
+    if (new Date(sub.endDate) > now) return false;
+    sub.subscriptionStatus = "expired";
+    return true;
 }
 
 /** Cancelled for cause: the sale stays, and the member is not entitled to a refund. */
@@ -58,7 +109,8 @@ function latestOpenSubscription(subscriptions, activityType = null) {
 
 /**
  * Find the latest subscription that is currently active (start <= now < end).
- * Refunded and cancelled rows are skipped, even when their end date is still in the future.
+ * Refunded, cancelled, and completed rows are skipped, even when their end date is still in the future.
+ * Session packages also require remaining sessions.
  * When activityType is set, only that category is considered — members may hold one active
  * package per category at a time.
  */
@@ -66,8 +118,10 @@ function findActiveSubscription(subscriptions, now = new Date(), activityType = 
     const list = subscriptions || [];
     for (let i = list.length - 1; i >= 0; i -= 1) {
         const sub = list[i];
+        lazyExpireSubscription(sub, now);
         if (!sub?.startDate || !sub?.endDate || isClosedSubscription(sub)) continue;
         if (!matchesActivityType(sub, activityType)) continue;
+        if (!hasCheckInQuota(sub)) continue;
         const start = new Date(sub.startDate);
         const end = new Date(sub.endDate);
         if (start <= now && end > now) return sub;
@@ -81,7 +135,9 @@ function findActiveSubscriptions(subscriptions, now = new Date()) {
     const active = [];
     for (let i = 0; i < list.length; i += 1) {
         const sub = list[i];
+        lazyExpireSubscription(sub, now);
         if (!sub?.startDate || !sub?.endDate || isClosedSubscription(sub)) continue;
+        if (!hasCheckInQuota(sub)) continue;
         const start = new Date(sub.startDate);
         const end = new Date(sub.endDate);
         if (start <= now && end > now) active.push(sub);
@@ -174,4 +230,10 @@ module.exports = {
     resolveNextPackageStart,
     closeRefundedSubscription,
     subscriptionActivityType,
+    subscriptionPackageTerms,
+    isSessionPackage,
+    subscriptionSessionLimit,
+    subscriptionSessionsLeft,
+    hasCheckInQuota,
+    lazyExpireSubscription,
 };

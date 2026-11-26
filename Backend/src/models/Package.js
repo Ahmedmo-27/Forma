@@ -19,6 +19,20 @@ const packageSchema = new mongoose.Schema({
         required: true
     },
 
+    // unlimited = check-ins until endDate; sessions = burn one visit per check-in
+    accessType: {
+        type: String,
+        enum: ["unlimited", "sessions"],
+        default: "unlimited",
+    },
+
+    // Max check-ins when accessType is sessions (ignored for unlimited)
+    sessionLimit: {
+        type: Number,
+        default: 0,
+        min: 0,
+    },
+
     price: {
         type: Number,
         required: true

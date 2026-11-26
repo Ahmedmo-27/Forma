@@ -38,6 +38,12 @@ const packageExceptionRequestSchema = new mongoose.Schema({
         enum: ["1 month", "3 months", "6 months", "1 year"],
         required: true
     },
+    accessType: {
+        type: String,
+        enum: ["unlimited", "sessions"],
+        default: "unlimited",
+    },
+    sessionLimit: { type: Number, default: 0, min: 0 },
     price: { type: Number, required: true },
     freezeLimitDays: { type: Number, default: 0 },
     invitationLimit: { type: Number, default: 0 },
@@ -48,6 +54,7 @@ const packageExceptionRequestSchema = new mongoose.Schema({
     pricePaid: { type: Number, required: true },
     discountPercent: { type: Number, default: 0, min: 0, max: 100 },
     startDate: { type: Date, default: () => new Date() },
+    endDate: { type: Date, default: null },
     isUpgrade: { type: Boolean, default: false },
 
     reason: { type: String, default: null },

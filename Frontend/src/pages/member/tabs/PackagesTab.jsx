@@ -26,14 +26,48 @@ function monthsLabel(t, count) {
 
 const EMPTY_FORM = {
   basePackageId: '', name: '', activityType: 'gym', duration: '1 month',
+  accessType: 'unlimited', sessionLimit: '',
   price: '', freezeLimitDays: '0', invitationLimit: '0', renewalDiscountPercent: '0',
-  description: '', pricePaid: '', discountPercent: '0', startDate: '', reason: '',
+  description: '', pricePaid: '', discountPercent: '0', startDate: '', endDate: '', reason: '',
 };
 
 function isClosedSubscription(sub) {
   if (!sub) return true;
   if (Number(sub.refundAmount) > 0) return true;
-  return Boolean(sub.refunded || sub.cancelled || sub.subscriptionStatus === 'cancelled');
+  return Boolean(
+    sub.refunded
+    || sub.cancelled
+    || sub.subscriptionStatus === 'cancelled'
+    || sub.subscriptionStatus === 'completed'
+  );
+}
+
+function isSessionPackage(pkgOrSub) {
+  const pkg = pkgOrSub?.packageSnapshot || pkgOrSub?.package || pkgOrSub;
+  return pkg?.accessType === 'sessions';
+}
+
+function sessionProgress(sub) {
+  const pkg = sub?.packageSnapshot ?? sub?.package ?? {};
+  if (pkg.accessType !== 'sessions') return null;
+  const total = Math.max(0, Number(pkg.sessionLimit) || 0);
+  const used = Math.max(0, Number(sub.sessionsUsed) || 0);
+  const left = Math.max(0, total - used);
+  return { total, used, left };
+}
+
+function subscriptionDisplayStatus(sub, now = new Date()) {
+  if (!sub) return 'expired';
+  if (Number(sub.refundAmount) > 0 || sub.refunded) return 'expired';
+  if (sub.cancelled || sub.subscriptionStatus === 'cancelled') return 'cancelled';
+  if (sub.subscriptionStatus === 'completed') return 'completed';
+  if (sub.subscriptionStatus === 'expired') return 'expired';
+  if (sub.endDate && new Date(sub.endDate) <= now) return 'expired';
+  if (isSessionPackage(sub)) {
+    const progress = sessionProgress(sub);
+    if (progress && progress.left <= 0) return 'completed';
+  }
+  return sub.subscriptionStatus || 'active';
 }
 
 function isForfeitedCancellation(sub) {
@@ -577,10 +611,12 @@ function PackagesContent({ member, user, onRefresh }) {
   const packageDetails = (sub) => {
     const pkg = purchasedPkg(sub);
     if (!pkg || !sub) return [];
-    return [
+    const progress = sessionProgress(sub);
+    const rows = [
       { label: t('Package'),          value: pkg.name },
       { label: t('Activity'),         value: pkg.activityType ? t(pkg.activityType) : pkg.activityType },
       { label: t('Duration'),         value: pkg.duration ? t(pkg.duration) : pkg.duration },
+      { label: t('Access Type'),      value: pkg.accessType === 'sessions' ? t('Session-based') : t('Unlimited check-ins') },
       { label: t('Created At'),       value: fmtDateTime(sub.createdAt) },
       { label: t('Start'),            value: fmtDate(sub.startDate) },
       { label: t('Expiry'),           value: fmtDate(sub.endDate) },
@@ -592,8 +628,15 @@ function PackagesContent({ member, user, onRefresh }) {
       { label: t('Exception'),        value: pkg.hasException ? t('Yes') : t('No') },
       { label: t('Type'),             value: sub.transferredFrom ? t('Received by transfer from {name}', { name: sub.transferredFromName || t('another member') }) : sub.isUpgrade ? t('Upgrade') : sub.isRenewal ? t('Renewal') : t('New subscription') },
       { label: t('Sold By'),          value: sub.createdBy?.name },
-      { label: t('Status'),           value: <Badge status={member.status} /> },
+      { label: t('Status'),           value: <Badge status={subscriptionDisplayStatus(sub)} /> },
     ];
+    if (progress) {
+      rows.splice(4, 0, {
+        label: t('Sessions'),
+        value: t('{left} out of {total} sessions', { left: progress.left, total: progress.total }),
+      });
+    }
+    return rows;
   };
 
   const subs    = member.subscriptions ?? [];
@@ -1057,11 +1100,14 @@ function PackagesContent({ member, user, onRefresh }) {
 }
 
 function requestToForm(request) {
+  const accessType = request.accessType === 'sessions' ? 'sessions' : 'unlimited';
   return {
     basePackageId: request.basePackage?._id ?? '',
     name: request.name ?? '',
     activityType: request.activityType ?? 'gym',
     duration: request.duration ?? '1 month',
+    accessType,
+    sessionLimit: accessType === 'sessions' ? String(request.sessionLimit ?? '') : '',
     price: String(request.price ?? ''),
     freezeLimitDays: String(request.freezeLimitDays ?? 0),
     invitationLimit: String(request.invitationLimit ?? 0),
@@ -1070,16 +1116,17 @@ function requestToForm(request) {
     pricePaid: String(request.pricePaid ?? ''),
     discountPercent: String(request.discountPercent ?? 0),
     startDate: request.startDate ? toLocalDateString(request.startDate) : '',
+    endDate: request.endDate ? toLocalDateString(request.endDate) : '',
     reason: request.reason ?? '',
   };
 }
 
 const PACKAGE_TERM_KEYS = new Set([
-  'name', 'activityType', 'duration', 'price',
+  'name', 'activityType', 'duration', 'accessType', 'sessionLimit', 'price',
   'freezeLimitDays', 'invitationLimit', 'renewalDiscountPercent',
 ]);
 
-function PackageFormFields({ form, set, readOnly, makeException, allEditable, lockStartDate, showEndDate = false, showReason = false }) {
+function PackageFormFields({ form, set, readOnly, makeException, allEditable, lockStartDate, showEndDate = false, endDateOptional = false, showReason = false }) {
   const { t } = useI18n();
   const { currency = 'EGP' } = useTenant() || {};
   const fieldDisabled = (key) => {
@@ -1098,6 +1145,31 @@ function PackageFormFields({ form, set, readOnly, makeException, allEditable, lo
       <Select label={t('Duration')} value={form.duration} onChange={e => set?.('duration', e.target.value)} disabled={fieldDisabled('duration')} readOnly={readOnly}>
         {DURATIONS.map(d => <option key={d} value={d}>{t(d)}</option>)}
       </Select>
+      <Select
+        label={t('Access Type')}
+        value={form.accessType || 'unlimited'}
+        onChange={(e) => {
+          const accessType = e.target.value === 'sessions' ? 'sessions' : 'unlimited';
+          set?.('accessType', accessType);
+          if (accessType !== 'sessions') set?.('sessionLimit', '');
+        }}
+        disabled={fieldDisabled('accessType')}
+        readOnly={readOnly}
+      >
+        <option value="unlimited">{t('Unlimited check-ins')}</option>
+        <option value="sessions">{t('Session-based')}</option>
+      </Select>
+      {form.accessType === 'sessions' && (
+        <Input
+          label={t('Session Limit')}
+          type="number"
+          min="1"
+          value={form.sessionLimit}
+          onChange={(e) => set?.('sessionLimit', e.target.value)}
+          disabled={fieldDisabled('sessionLimit')}
+          readOnly={readOnly}
+        />
+      )}
       <Input label={t('Price ({currency})', { currency })} type="number" value={form.price} onChange={e => set?.('price', e.target.value)} disabled={fieldDisabled('price')} readOnly={readOnly} />
       <Input label={t('Price Paid ({currency})', { currency })} type="number" value={form.pricePaid} onChange={e => set?.('pricePaid', e.target.value)} disabled={fieldDisabled('pricePaid')} readOnly={readOnly} />
       <Input label={t('Discount %')} type="number" min="0" max="100" value={form.discountPercent} onChange={e => set?.('discountPercent', e.target.value)} disabled={fieldDisabled('discountPercent')} readOnly={readOnly} />
@@ -1106,7 +1178,15 @@ function PackageFormFields({ form, set, readOnly, makeException, allEditable, lo
       <Input label={t('Renewal Discount %')} type="number" min="0" max="100" value={form.renewalDiscountPercent} onChange={e => set?.('renewalDiscountPercent', e.target.value)} disabled={fieldDisabled('renewalDiscountPercent')} readOnly={readOnly} />
       <Input label={t('Start Date')} type="date" value={form.startDate} onChange={e => set?.('startDate', e.target.value)} hint={lockStartDate ? t('Upgrade starts today. The current package keeps its end date and price.') : allEditable && !showEndDate ? t('Defaults to current package end date if active, otherwise today') : undefined} disabled={lockStartDate || fieldDisabled('startDate')} readOnly={readOnly || lockStartDate} />
       {showEndDate && (
-        <Input label={t('End Date')} type="date" value={form.endDate} onChange={e => set?.('endDate', e.target.value)} disabled={fieldDisabled('endDate')} readOnly={readOnly} />
+        <Input
+          label={t('End Date')}
+          type="date"
+          value={form.endDate}
+          onChange={e => set?.('endDate', e.target.value)}
+          disabled={fieldDisabled('endDate')}
+          readOnly={readOnly}
+          hint={endDateOptional ? t('Optional override. Leave blank to use the package duration.') : undefined}
+        />
       )}
       {!readOnly && (showReason || !allEditable) && (
         <div style={{ gridColumn: '1 / -1' }}>
@@ -1120,11 +1200,14 @@ function PackageFormFields({ form, set, readOnly, makeException, allEditable, lo
 function subscriptionToEditForm(subscription) {
   const pkg = subscription?.packageSnapshot ?? subscription?.package ?? {};
   const salesId = subscription?.salesManager?._id ?? subscription?.salesManager ?? '';
+  const accessType = pkg.accessType === 'sessions' ? 'sessions' : 'unlimited';
   return {
     ...EMPTY_FORM,
     name: pkg.name ?? '',
     activityType: pkg.activityType ?? 'gym',
     duration: pkg.duration ?? '1 month',
+    accessType,
+    sessionLimit: accessType === 'sessions' ? String(pkg.sessionLimit ?? '') : '',
     price: String(pkg.price ?? ''),
     freezeLimitDays: String(pkg.freezeLimitDays ?? 0),
     invitationLimit: String(pkg.invitationLimit ?? 0),
@@ -1191,10 +1274,20 @@ function EditPackageModal({ open, onClose, member, subscription, onSuccess }) {
     const subscriptionKey = subscription._id ?? subscription.subscriptionId;
     setLoading(true);
     try {
+      const accessType = form.accessType === 'sessions' ? 'sessions' : 'unlimited';
+      if (accessType === 'sessions') {
+        const limit = Number(form.sessionLimit);
+        if (!Number.isInteger(limit) || limit < 1) {
+          toast.error(t('Session limit must be at least 1'));
+          return;
+        }
+      }
       await updateMemberSubscription(member.systemId ?? member._id, subscriptionKey, {
         name: form.name.trim(),
         activityType: form.activityType,
         duration: form.duration,
+        accessType,
+        sessionLimit: accessType === 'sessions' ? Number(form.sessionLimit) : 0,
         price: Number(form.price) || 0,
         freezeLimitDays: Number(form.freezeLimitDays) || 0,
         invitationLimit: Number(form.invitationLimit) || 0,
@@ -1301,18 +1394,22 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
     const discount = Math.min(100, Math.max(0, Number(form.discountPercent) || 0));
     const computedPricePaid = String(Math.round(pkg.price * (1 - discount / 100)));
     const categoryStart = upgrade ? null : defaultPackageStart(member, pkg.activityType || 'gym');
+    const accessType = pkg.accessType === 'sessions' ? 'sessions' : 'unlimited';
     setForm(f => ({
       ...f,
       basePackageId: id,
       name: pkg.name,
       activityType: pkg.activityType,
       duration: pkg.duration,
+      accessType,
+      sessionLimit: accessType === 'sessions' ? String(pkg.sessionLimit ?? '') : '',
       price: String(pkg.price),
       freezeLimitDays: String(pkg.freezeLimitDays ?? 0),
       invitationLimit: String(pkg.invitationLimit ?? 0),
       renewalDiscountPercent: String(pkg.renewalDiscountPercent ?? 0),
       description: pkg.description ?? '',
       pricePaid: computedPricePaid,
+      endDate: '',
       ...(upgrade ? {} : { startDate: categoryStart || '' }),
     }));
   };
@@ -1332,18 +1429,22 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
       await loadPackages();
       if (pkg?._id) {
         const categoryStart = upgrade ? null : defaultPackageStart(member, pkg.activityType || 'gym');
+        const accessType = pkg.accessType === 'sessions' ? 'sessions' : 'unlimited';
         setForm(f => ({
           ...f,
           basePackageId: pkg._id,
           name: pkg.name,
           activityType: pkg.activityType,
           duration: pkg.duration,
+          accessType,
+          sessionLimit: accessType === 'sessions' ? String(pkg.sessionLimit ?? '') : '',
           price: String(pkg.price),
           freezeLimitDays: String(pkg.freezeLimitDays ?? 0),
           invitationLimit: String(pkg.invitationLimit ?? 0),
           renewalDiscountPercent: String(pkg.renewalDiscountPercent ?? 0),
           description: pkg.description ?? '',
           pricePaid: String(pkg.price),
+          endDate: '',
           ...(upgrade ? {} : { startDate: categoryStart || '' }),
         }));
       }
@@ -1373,6 +1474,24 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
       toast.error(t('Please enter a reason for the exception.'));
       return;
     }
+    const accessType = form.accessType === 'sessions' ? 'sessions' : 'unlimited';
+    if (accessType === 'sessions') {
+      const limit = Number(form.sessionLimit);
+      if (!Number.isInteger(limit) || limit < 1) {
+        toast.error(t('Session limit must be at least 1'));
+        return;
+      }
+    }
+    if (form.endDate) {
+      if (isNaN(Date.parse(form.endDate))) {
+        toast.error(t('Invalid end date.'));
+        return;
+      }
+      if (form.startDate && form.endDate <= form.startDate) {
+        toast.error(t('End date must be after start date.'));
+        return;
+      }
+    }
 
     setLoading(true);
     try {
@@ -1383,6 +1502,8 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
         name: form.name.trim(),
         activityType: form.activityType,
         duration: form.duration,
+        accessType,
+        sessionLimit: accessType === 'sessions' ? Number(form.sessionLimit) : 0,
         price: Number(form.price),
         freezeLimitDays: Number(form.freezeLimitDays) || 0,
         invitationLimit: Number(form.invitationLimit) || 0,
@@ -1391,6 +1512,7 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
         pricePaid: Number(form.pricePaid),
         discountPercent: Number(form.discountPercent) || 0,
         startDate: upgrade ? toLocalDateString(new Date()) : (form.startDate || undefined),
+        endDate: form.endDate || undefined,
         reason: form.reason?.trim() || null,
         upgrade,
       });
@@ -1419,6 +1541,24 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
       toast.error(t('Invalid start date.'));
       return;
     }
+    const accessType = form.accessType === 'sessions' ? 'sessions' : 'unlimited';
+    if (accessType === 'sessions') {
+      const limit = Number(form.sessionLimit);
+      if (!Number.isInteger(limit) || limit < 1) {
+        toast.error(t('Session limit must be at least 1'));
+        return;
+      }
+    }
+    if (form.endDate) {
+      if (isNaN(Date.parse(form.endDate))) {
+        toast.error(t('Invalid end date.'));
+        return;
+      }
+      if (form.startDate && form.endDate <= form.startDate) {
+        toast.error(t('End date must be after start date.'));
+        return;
+      }
+    }
 
     setLoading(true);
     try {
@@ -1427,6 +1567,8 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
         name: form.name.trim(),
         activityType: form.activityType,
         duration: form.duration,
+        accessType,
+        sessionLimit: accessType === 'sessions' ? Number(form.sessionLimit) : 0,
         price: Number(form.price),
         freezeLimitDays: Number(form.freezeLimitDays) || 0,
         invitationLimit: Number(form.invitationLimit) || 0,
@@ -1434,6 +1576,7 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
         pricePaid: Number(form.pricePaid),
         discountPercent: Number(form.discountPercent) || 0,
         startDate: upgrade ? toLocalDateString(new Date()) : (form.startDate || undefined),
+        endDate: form.endDate || undefined,
         upgrade,
       });
       toast.success(upgrade ? t('Package upgraded.') : t('Package assigned.'));
@@ -1506,7 +1649,7 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
         </Select>
         {form.basePackageId && (
           <div style={{ marginTop: 16 }}>
-            <PackageFormFields form={form} set={set} allEditable lockStartDate={upgrade} />
+            <PackageFormFields form={form} set={set} allEditable lockStartDate={upgrade} showEndDate endDateOptional />
           </div>
         )}
         </div>
@@ -1567,7 +1710,7 @@ function AddPackageModal({ open, onClose, member, pending, canReview = false, ca
               disabled={!!pending}
             />
           </div>
-          <PackageFormFields form={form} set={set} readOnly={false} makeException={makeException} lockStartDate={upgrade} />
+          <PackageFormFields form={form} set={set} readOnly={false} makeException={makeException} lockStartDate={upgrade} showEndDate endDateOptional />
         </div>
       )}
       </div>

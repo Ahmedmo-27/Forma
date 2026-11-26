@@ -8,6 +8,7 @@ import { tr } from '../i18n/translate';
 
 export const ACTIVITY_TYPES = ['gym', 'crossfit', 'box', 'mma', 'kickboxing', 'calisthenics'];
 export const DURATIONS = ['1 month', '3 months', '6 months', '1 year'];
+export const ACCESS_TYPES = ['unlimited', 'sessions'];
 
 // Display labels for the option values above (the values themselves are sent to the API).
 const ACTIVITY_LABELS = {
@@ -24,11 +25,17 @@ const DURATION_LABELS = {
   '6 months': tr('6 months'),
   '1 year': tr('1 year'),
 };
+const ACCESS_TYPE_LABELS = {
+  unlimited: tr('Unlimited check-ins'),
+  sessions: tr('Session-based'),
+};
 
 export const EMPTY_PACKAGE_FORM = {
   name: '',
   activityType: 'gym',
   duration: '1 month',
+  accessType: 'unlimited',
+  sessionLimit: '',
   price: '',
   freezeLimitDays: '0',
   invitationLimit: '0',
@@ -40,10 +47,13 @@ export const EMPTY_PACKAGE_FORM = {
 
 export function packageToForm(pkg) {
   const ids = (pkg?.eligibleLocationIds || []).map((loc) => String(loc?._id || loc));
+  const accessType = pkg.accessType === 'sessions' ? 'sessions' : 'unlimited';
   return {
     name: pkg.name || '',
     activityType: pkg.activityType || 'gym',
     duration: pkg.duration || '1 month',
+    accessType,
+    sessionLimit: accessType === 'sessions' ? String(pkg.sessionLimit ?? '') : '',
     price: String(pkg.price ?? ''),
     freezeLimitDays: String(pkg.freezeLimitDays ?? 0),
     invitationLimit: String(pkg.invitationLimit ?? 0),
@@ -98,15 +108,25 @@ export function validatePackageForm(form) {
     e.eligibleLocationIds = tr('Select at least one branch');
   }
 
+  if (form.accessType === 'sessions') {
+    const sessions = Number(form.sessionLimit);
+    if (form.sessionLimit === '' || form.sessionLimit == null || isNaN(sessions) || !Number.isInteger(sessions) || sessions < 1) {
+      e.sessionLimit = tr('Session limit must be at least 1');
+    }
+  }
+
   return e;
 }
 
 export function packageFormToPayload(form) {
   const locationScope = form.locationScope === 'branches' ? 'branches' : 'all';
+  const accessType = form.accessType === 'sessions' ? 'sessions' : 'unlimited';
   return {
     name: form.name.trim(),
     activityType: form.activityType,
     duration: form.duration,
+    accessType,
+    sessionLimit: accessType === 'sessions' ? Number(form.sessionLimit) : 0,
     price: Number(form.price),
     freezeLimitDays: Number(form.freezeLimitDays),
     invitationLimit: Number(form.invitationLimit),
@@ -181,6 +201,38 @@ export default function PackageForm({ form, onChange, errors }) {
         <Select label={t('Duration *')} value={form.duration} onChange={e => set('duration', e.target.value)}>
           {DURATIONS.map(d => <option key={d} value={d}>{t(DURATION_LABELS[d] ?? d)}</option>)}
         </Select>
+      </div>
+      <div className="grid-2">
+        <Select
+          label={t('Access Type')}
+          value={form.accessType || 'unlimited'}
+          onChange={(e) => {
+            const accessType = e.target.value === 'sessions' ? 'sessions' : 'unlimited';
+            onChange({
+              ...form,
+              accessType,
+              sessionLimit: accessType === 'sessions' ? (form.sessionLimit || '') : '',
+            });
+          }}
+        >
+          {ACCESS_TYPES.map((type) => (
+            <option key={type} value={type}>{t(ACCESS_TYPE_LABELS[type] ?? type)}</option>
+          ))}
+        </Select>
+        {form.accessType === 'sessions' ? (
+          <Input
+            label={t('Session Limit *')}
+            type="number"
+            min="1"
+            value={form.sessionLimit}
+            error={err('sessionLimit')}
+            onChange={(e) => set('sessionLimit', e.target.value)}
+            placeholder="10"
+            hint={t('Max check-ins before the package is completed')}
+          />
+        ) : (
+          <div />
+        )}
       </div>
       <Input
         label={t('Price ({currency}) *', { currency })} type="number" min="0" value={form.price} error={err('price')}

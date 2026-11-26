@@ -113,6 +113,12 @@ const packageSnapshotSchema = new mongoose.Schema({
         enum: ["1 month", "3 months", "6 months", "1 year"],
         required: true
     },
+    accessType: {
+        type: String,
+        enum: ["unlimited", "sessions"],
+        default: "unlimited",
+    },
+    sessionLimit: { type: Number, default: 0, min: 0 },
     price: { type: Number, required: true },
     freezeLimitDays: { type: Number, default: 0 },
     invitationLimit: { type: Number, default: 0 },
@@ -206,7 +212,10 @@ const subscriptionSchema = new mongoose.Schema({
     cancelledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
     // Set only when the package is cancelled with no refund. Refunds leave this empty.
     cancelReason: { type: String, default: null, trim: true, maxlength: 500 },
-    subscriptionStatus: { type: String, enum: ["active", "cancelled", "expired"], default: "active" },
+    // completed = all sessions used; expired = endDate passed with sessions left (or time package ended)
+    subscriptionStatus: { type: String, enum: ["active", "cancelled", "expired", "completed"], default: "active" },
+    // Check-ins consumed on session packages (ignored for unlimited)
+    sessionsUsed: { type: Number, default: 0, min: 0 },
     // Package moved to someone else. The original sale stays; the fee is extra.
     transferredTo: { type: mongoose.Schema.Types.ObjectId, ref: "Member", default: null },
     transferredToName: { type: String, default: null, trim: true },

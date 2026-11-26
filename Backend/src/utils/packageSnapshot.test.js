@@ -21,6 +21,8 @@ describe("packageSnapshot", () => {
             name: "Gym 3M",
             activityType: "gym",
             duration: "3 months",
+            accessType: "unlimited",
+            sessionLimit: 0,
             price: 3000,
             freezeLimitDays: 10,
             invitationLimit: 2,
@@ -32,6 +34,16 @@ describe("packageSnapshot", () => {
             eligibleLocationIds: [],
         });
         expect(snap).not.toHaveProperty("_id");
+    });
+
+    it("freezes session package terms including sessionLimit", () => {
+        const snap = buildPackageSnapshot({
+            ...catalogPkg,
+            accessType: "sessions",
+            sessionLimit: 10,
+        });
+        expect(snap.accessType).toBe("sessions");
+        expect(snap.sessionLimit).toBe(10);
     });
 
     it("keeps payment-record package terms when the catalog package is later edited", () => {

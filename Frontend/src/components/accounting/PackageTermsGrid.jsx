@@ -48,6 +48,8 @@ export default function PackageTermsGrid({ data, title, showEndDate = false }) {
   const name = data.name ?? pkg?.name;
   const activityType = data.activityType ?? pkg?.activityType;
   const duration = data.duration ?? pkg?.duration;
+  const accessType = data.accessType ?? pkg?.accessType;
+  const sessionLimit = data.sessionLimit ?? pkg?.sessionLimit;
   const price = data.price ?? pkg?.price;
   const pricePaid = data.pricePaid;
   const discountPercent = data.discountPercent;
@@ -79,6 +81,13 @@ export default function PackageTermsGrid({ data, title, showEndDate = false }) {
         {basePackageName && <DetailRow label={t('Based On')} value={basePackageName} />}
         <DetailRow label={t('Activity')} value={activityType ? t(activityType) : activityType} />
         <DetailRow label={t('Duration')} value={duration ? t(duration) : duration} />
+        <DetailRow
+          label={t('Access Type')}
+          value={accessType === 'sessions' ? t('Session-based') : t('Unlimited check-ins')}
+        />
+        {accessType === 'sessions' && (
+          <DetailRow label={t('Session Limit')} value={sessionLimit ?? 0} />
+        )}
         <DetailRow label={t('Price ({currency})', { currency })} value={num(price)} />
         <DetailRow label={t('Price Paid ({currency})', { currency })} value={num(pricePaid)} />
         <DetailRow label={t('Discount %')} value={discountPercent ? `${discountPercent}%` : '0%'} />

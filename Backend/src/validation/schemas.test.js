@@ -1,4 +1,13 @@
-const { assignPackageSchema, updateSubscriptionSchema, addNoteSchema, createExceptionSchema, salesRequestSchema, updateMemberSchema, tenantSettingsSchema } = require("./schemas");
+const {
+    assignPackageSchema,
+    updateSubscriptionSchema,
+    addNoteSchema,
+    createExceptionSchema,
+    salesRequestSchema,
+    updateMemberSchema,
+    tenantSettingsSchema,
+    createPackageSchema,
+} = require("./schemas");
 
 const basePayload = {
     packageId: "507f1f77bcf86cd799439011",
@@ -15,6 +24,67 @@ describe("assignPackageSchema", () => {
     it("accepts positive pricePaid", () => {
         const result = assignPackageSchema.safeParse({ ...basePayload, pricePaid: 100 });
         expect(result.success).toBe(true);
+    });
+
+    it("accepts a custom endDate override", () => {
+        const result = assignPackageSchema.safeParse({
+            ...basePayload,
+            pricePaid: 100,
+            endDate: "2026-07-31",
+        });
+        expect(result.success).toBe(true);
+        expect(result.data.endDate).toBe("2026-07-31");
+    });
+
+    it("requires sessionLimit when accessType is sessions", () => {
+        const missing = assignPackageSchema.safeParse({
+            ...basePayload,
+            pricePaid: 100,
+            accessType: "sessions",
+        });
+        expect(missing.success).toBe(false);
+
+        const ok = assignPackageSchema.safeParse({
+            ...basePayload,
+            pricePaid: 100,
+            accessType: "sessions",
+            sessionLimit: 10,
+        });
+        expect(ok.success).toBe(true);
+    });
+});
+
+describe("createPackageSchema", () => {
+    it("accepts unlimited packages without sessionLimit", () => {
+        const result = createPackageSchema.safeParse({
+            name: "Gold",
+            activityType: "gym",
+            duration: "1 month",
+            price: 1000,
+            accessType: "unlimited",
+        });
+        expect(result.success).toBe(true);
+    });
+
+    it("requires sessionLimit for session packages", () => {
+        const missing = createPackageSchema.safeParse({
+            name: "10 Pack",
+            activityType: "gym",
+            duration: "1 month",
+            price: 500,
+            accessType: "sessions",
+        });
+        expect(missing.success).toBe(false);
+
+        const ok = createPackageSchema.safeParse({
+            name: "10 Pack",
+            activityType: "gym",
+            duration: "1 month",
+            price: 500,
+            accessType: "sessions",
+            sessionLimit: 10,
+        });
+        expect(ok.success).toBe(true);
     });
 });
 

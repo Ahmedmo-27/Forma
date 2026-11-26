@@ -23,6 +23,8 @@ const createPackage = async (req, res) => {
             name,
             activityType,
             duration,
+            accessType,
+            sessionLimit,
             price,
             freezeLimitDays,
             invitationLimit,
@@ -36,6 +38,14 @@ const createPackage = async (req, res) => {
             return res.status(400).json({ message: "Name and price are required" });
         }
 
+        const resolvedAccessType = accessType === "sessions" ? "sessions" : "unlimited";
+        const resolvedSessionLimit = resolvedAccessType === "sessions"
+            ? Math.max(0, Number(sessionLimit) || 0)
+            : 0;
+        if (resolvedAccessType === "sessions" && resolvedSessionLimit < 1) {
+            return res.status(400).json({ message: "Session limit must be at least 1 for session packages" });
+        }
+
         const eligibility = normalizeLocationEligibility({ locationScope, eligibleLocationIds });
         if (eligibility.error) {
             return res.status(400).json({ message: eligibility.error });
@@ -47,6 +57,8 @@ const createPackage = async (req, res) => {
             name: name.trim(),
             activityType: activityType || "gym",
             duration,
+            accessType: resolvedAccessType,
+            sessionLimit: resolvedSessionLimit,
             price: Number(price),
             freezeLimitDays: Number(freezeLimitDays) || 0,
             invitationLimit: Number(invitationLimit) || 0,
@@ -98,6 +110,8 @@ const PACKAGE_UPDATE_FIELDS = [
     "name",
     "activityType",
     "duration",
+    "accessType",
+    "sessionLimit",
     "price",
     "freezeLimitDays",
     "invitationLimit",
@@ -112,6 +126,19 @@ const updatePackage = async (req, res) => {
         const update = {};
         for (const key of PACKAGE_UPDATE_FIELDS) {
             if (req.body[key] !== undefined) update[key] = req.body[key];
+        }
+
+        if (update.accessType !== undefined) {
+            update.accessType = update.accessType === "sessions" ? "sessions" : "unlimited";
+        }
+        if (update.accessType === "unlimited") {
+            update.sessionLimit = 0;
+        } else if (update.accessType === "sessions" || update.sessionLimit !== undefined) {
+            const limit = Number(update.sessionLimit);
+            if (update.accessType === "sessions" && (!Number.isFinite(limit) || limit < 1)) {
+                return res.status(400).json({ message: "Session limit must be at least 1 for session packages" });
+            }
+            if (Number.isFinite(limit)) update.sessionLimit = Math.max(0, limit);
         }
 
         if (req.body.locationScope !== undefined || req.body.eligibleLocationIds !== undefined) {

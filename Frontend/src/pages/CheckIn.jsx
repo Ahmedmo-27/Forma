@@ -484,13 +484,34 @@ export default function CheckIn() {
     }
   };
 
-  const sub         = member?.subscriptions?.at(-1);
+  const nowForSub = new Date();
+  const coveringSubs = (member?.subscriptions || []).filter((s) => {
+    if (!s?.startDate || !s?.endDate) return false;
+    if (Number(s.refundAmount) > 0 || s.refunded || s.cancelled) return false;
+    if (s.subscriptionStatus === 'cancelled' || s.subscriptionStatus === 'completed') return false;
+    const start = new Date(s.startDate);
+    const end = new Date(s.endDate);
+    if (!(start <= nowForSub && end > nowForSub)) return false;
+    const terms = s.packageSnapshot ?? s.package;
+    if (terms?.accessType === 'sessions') {
+      const limit = Math.max(0, Number(terms.sessionLimit) || 0);
+      const used = Math.max(0, Number(s.sessionsUsed) || 0);
+      return used < limit;
+    }
+    return true;
+  });
+  const sub         = coveringSubs.at(-1) || member?.subscriptions?.at(-1);
   const pkg         = sub?.packageSnapshot ?? sub?.package;
+  const sessionLimit = pkg?.accessType === 'sessions' ? Math.max(0, Number(pkg.sessionLimit) || 0) : 0;
+  const sessionsUsed = pkg?.accessType === 'sessions' ? Math.max(0, Number(sub?.sessionsUsed) || 0) : 0;
+  const sessionsLeft = pkg?.accessType === 'sessions' ? Math.max(0, sessionLimit - sessionsUsed) : null;
   const expiryDays  = sub?.endDate ? Math.ceil((new Date(sub.endDate) - new Date()) / 86400000) : null;
   const isGuest     = member?.status === 'guest' || member?.isMember === false;
-  const hasExpired  = member?.status === 'expired' || (expiryDays !== null && expiryDays < 0);
+  const hasExpired  = member?.status === 'expired'
+    || (expiryDays !== null && expiryDays < 0)
+    || (pkg?.accessType === 'sessions' && sessionsLeft === 0);
   const hasPackage  = Boolean(pkg);
-  const gymEligible = Boolean(member && !member.isBlocked && !isGuest && hasPackage && (!hasExpired || member.status === 'frozen'));
+  const gymEligible = Boolean(member && !member.isBlocked && !isGuest && hasPackage && coveringSubs.length > 0 && (!hasExpired || member.status === 'frozen'));
   const ptLeft      = Math.max(0, (member?.PT_sessions || 0) - (member?.used_PT_sessions || 0));
   const ptExpiry    = member?.PT_sessions_expDate ? new Date(member.PT_sessions_expDate) : null;
   const ptExpired   = Boolean(ptExpiry && ptExpiry < new Date(new Date().setHours(0, 0, 0, 0)));
@@ -815,6 +836,11 @@ export default function CheckIn() {
                           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{t('Package')}</div>
                           <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--t1)', marginBottom: 2 }}>{pkg.name}</div>
                           <div style={{ fontSize: 11, color: 'var(--t3)' }}>{t(pkg.activityType)} · {t(pkg.duration)}</div>
+                          {sessionsLeft != null && (
+                            <div style={{ fontSize: 11, fontWeight: 700, color: sessionsLeft <= 2 ? 'var(--amber)' : 'var(--navy)', marginTop: 4 }}>
+                              {t('{left} out of {total} sessions', { left: sessionsLeft, total: sessionLimit })}
+                            </div>
+                          )}
                         </div>
                         <div style={{ background: 'var(--bg)', borderRadius: 10, padding: '12px 14px', border: '1px solid var(--border)' }}>
                           <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--t4)', marginBottom: 4 }}>{t('Expires')}</div>

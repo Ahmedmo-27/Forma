@@ -6,6 +6,10 @@ const {
     resolveNextPackageStart,
     closeRefundedSubscription,
     isForfeitedCancellation,
+    isSessionPackage,
+    subscriptionSessionsLeft,
+    lazyExpireSubscription,
+    isClosedSubscription,
 } = require("./subscriptionUtils");
 
 function sub(overrides = {}) {
@@ -260,5 +264,77 @@ describe("subscriptionUtils", () => {
         expect(subscription.endDate).toEqual(now);
         expect(subscription.pricePaid).toBe(1500);
         expect(subscription.refundAmount).toBe(1500);
+    });
+
+    it("treats completed session packages as closed and inactive", () => {
+        const completed = sub({
+            packageSnapshot: {
+                activityType: "gym",
+                name: "10 Pack",
+                duration: "1 month",
+                price: 500,
+                accessType: "sessions",
+                sessionLimit: 10,
+            },
+            sessionsUsed: 10,
+            subscriptionStatus: "completed",
+        });
+        expect(isClosedSubscription(completed)).toBe(true);
+        expect(findActiveSubscription([completed], now)).toBeNull();
+        expect(isSessionPackage(completed)).toBe(true);
+        expect(subscriptionSessionsLeft(completed)).toBe(0);
+    });
+
+    it("keeps a session package active while sessions remain inside the window", () => {
+        const open = sub({
+            packageSnapshot: {
+                activityType: "gym",
+                name: "10 Pack",
+                duration: "1 month",
+                price: 500,
+                accessType: "sessions",
+                sessionLimit: 10,
+            },
+            sessionsUsed: 6,
+            subscriptionStatus: "active",
+        });
+        expect(findActiveSubscription([open], now)).toBe(open);
+        expect(subscriptionSessionsLeft(open)).toBe(4);
+    });
+
+    it("excludes a session package with no sessions left even if still marked active", () => {
+        const exhausted = sub({
+            packageSnapshot: {
+                activityType: "gym",
+                name: "10 Pack",
+                duration: "1 month",
+                price: 500,
+                accessType: "sessions",
+                sessionLimit: 10,
+            },
+            sessionsUsed: 10,
+            subscriptionStatus: "active",
+        });
+        expect(findActiveSubscription([exhausted], now)).toBeNull();
+    });
+
+    it("lazily marks a past-window subscription as expired", () => {
+        const past = sub({
+            startDate: new Date("2026-01-01"),
+            endDate: new Date("2026-02-01"),
+            subscriptionStatus: "active",
+            packageSnapshot: {
+                activityType: "gym",
+                name: "10 Pack",
+                duration: "1 month",
+                price: 500,
+                accessType: "sessions",
+                sessionLimit: 10,
+            },
+            sessionsUsed: 2,
+        });
+        expect(lazyExpireSubscription(past, now)).toBe(true);
+        expect(past.subscriptionStatus).toBe("expired");
+        expect(findActiveSubscription([past], now)).toBeNull();
     });
 });
